@@ -33,6 +33,8 @@ button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}bu
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.muted{color:var(--muted)}.small{font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
 details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid var(--seqlt);padding:2px 8px;margin:2px 0;color:var(--ink2);font-size:12px}
 .err{color:var(--critical)}.empty{color:var(--muted);padding:12px 0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-top:12px}.two>div{min-width:0;overflow-x:auto}
+.bar i{flex:0 0 auto;max-width:100px}.bar span{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -86,9 +88,9 @@ function renderPlan(p){const sim=p.simulation||{};const pol=(p.stages.find(s=>s.
  const maxB=Math.max(1,...p.counterfactuals.map(c=>c.breach_probability_bp||0));
  $("#planOut").innerHTML=`<div class="tiles">${tiles.map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:17px">${v}</div><div class="d">${esc(d)}</div></div>`).join("")}</div>
  <h3 class="small muted" style="margin:14px 0 6px">Decisions</h3>${table([{h:"Action",f:r=>pill(r.action)},{h:"Obligation",f:r=>esc(r.obligation_id)},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Why",f:r=>`<span class="small">${esc(r.reason)}</span>`}],p.obligations)}
- <div class="row" style="margin-top:12px;gap:24px;align-items:flex-start">
-  <div style="flex:1;min-width:280px"><h3 class="small muted" style="margin:0 0 6px">Engines</h3>${table([{h:"Stage",f:r=>pill(r.status)},{h:"Engine",f:r=>esc(r.engine)},{h:"",f:r=>`<span class="small">${esc(r.summary)}</span>`}],p.stages)}</div>
-  <div style="flex:1;min-width:280px"><h3 class="small muted" style="margin:0 0 6px">Counterfactual proof · P(reserve breached)</h3>
+ <div class="two">
+  <div><h3 class="small muted" style="margin:0 0 6px">Engines</h3>${table([{h:"Stage",f:r=>pill(r.status)},{h:"Engine",f:r=>esc(r.engine)},{h:"",f:r=>`<span class="small">${esc(r.summary)}</span>`}],p.stages)}</div>
+  <div><h3 class="small muted" style="margin:0 0 6px">Counterfactual proof · P(reserve breached)</h3>
    ${table([{h:"Alternative",f:r=>`<span class="small">${esc(r.question)}</span>`},{h:"Feasible",f:r=>r.feasible?pill("PASS"):pill("FAIL")},
    {h:"P(breach)",f:r=>`<div class="bar"><i style="width:${Math.round(100*(r.breach_probability_bp||0)/maxB)}px"></i><span>${r.breach_probability_bp!=null?(r.breach_probability_bp/100).toFixed(1)+"%":"-"}</span></div>`}],p.counterfactuals)}</div></div>
  ${p.approval_terms.length?`<details style="margin-top:10px"><summary>Approval terms (${p.approval_terms.length}) · plan ${esc(p.plan_hash.slice(0,16))}…</summary>${table([{h:"Type",f:r=>esc(r.type||r.kind||"")},{h:"Terms",f:r=>`<span class="mono">${esc(JSON.stringify(r))}</span>`}],p.approval_terms)}</details>`:""}
