@@ -31,6 +31,7 @@ from .gateways.airwallex import AirwallexError  # noqa: E402
 from .intake.models import IntakeRequest, ReviewRequest  # noqa: E402
 from .intake.pipeline import Intake  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
+from .testing.groundtruth import book_fingerprints, compare, intake_view, load_cases, plan_view, run_case  # noqa: E402
 
 SCENARIOS = ROOT / "data" / "scenarios"
 DASHBOARD = ROOT / "src" / "venthora" / "dashboard" / "index.html"
@@ -237,15 +238,52 @@ async def list_intake():
 
 
 @app.post("/v1/intake/emails", response_model=IntakeRequest)
-async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822")):
+async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822"), dry_run: bool = False,
+                       book: str | None = None):
     """Submit one raw email (RFC 822). The sender is verified against the counterparty registry, every
     field is tied to a verbatim quote, and the request is queued as VERIFIED / NEEDS_REVIEW / QUARANTINED
-    / DUPLICATE. Nothing in the email text can change that outcome."""
+    / DUPLICATE. Nothing in the email text can change that outcome. dry_run=true triages without queueing;
+    book=<scenario id> checks duplicates against that book's invoices."""
     if len(raw) > 200_000:
         raise HTTPException(413, "email too large")
-    req = await asyncio.to_thread(app.state.intake.ingest, raw)
-    await asyncio.to_thread(app.state.audit.append, "intake", req.model_dump(exclude={"text"}))
+    fps = book_fingerprints(book) if book else None
+    if book and not fps and not _scenario_file(book):
+        raise HTTPException(404, "unknown scenario")
+    req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run)
+    if not dry_run:
+        await asyncio.to_thread(app.state.audit.append, "intake", req.model_dump(exclude={"text"}))
     return req
+
+
+# -- ground truth ------------------------------------------------------------------------------
+
+@app.get("/api/groundtruth")
+async def groundtruth_cases():
+    return load_cases()
+
+
+@app.post("/api/groundtruth/{case_id}/check")
+async def groundtruth_check(case_id: str):
+    """Run one hand-derived case through the live service and judge it with the shared comparator."""
+    case = next((c for c in load_cases() if c["id"] == case_id), None)
+    if case is None:
+        raise HTTPException(404, "unknown case")
+    return await run_case(case, app.state.agent, app.state.intake)
+
+
+class JudgeRequest(BaseModel):
+    case_id: str
+    result: dict
+
+
+@app.post("/api/groundtruth/judge")
+async def groundtruth_judge(req: JudgeRequest):
+    """Judge a result the client obtained itself (the dashboard form) against a case's expectation."""
+    case = next((c for c in load_cases() if c["id"] == req.case_id), None)
+    if case is None:
+        raise HTTPException(404, "unknown case")
+    view = plan_view(req.result) if case["kind"] == "plan" else intake_view(req.result)
+    return compare(case["expect"], view) | {"view": view}
 
 
 @app.post("/v1/intake/{intake_id}/review", response_model=IntakeRequest)

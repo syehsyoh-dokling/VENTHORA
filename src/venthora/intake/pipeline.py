@@ -264,9 +264,10 @@ class Intake:
         self.registry = registry or Registry()
         self.reviewer_roles = reviewer_roles
 
-    def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None) -> IntakeRequest:
+    def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None, save: bool = True) -> IntakeRequest:
+        """Triage one raw email. save=False (dry run) triages without touching the queue."""
         parsed = parse_eml(raw)
-        existing = self.store.by_message(parsed["message_id"])
+        existing = self.store.by_message(parsed["message_id"]) if save else None
         if existing:
             return existing
         text, subject = parsed["text"], parsed["subject"]
@@ -360,7 +361,8 @@ class Intake:
             due_date=due.value if due else None, flags=flags, quotes=quotes, status=status, reasons=reasons,
             duplicate_of=duplicate_of, text_sha256=hashlib.sha256(text.encode()).hexdigest(), text=text)
         _ = counterparty_rec
-        self.store.save(req)
+        if save:
+            self.store.save(req)
         return req
 
     def ingest_dir(self, folder: Path, *, book_fingerprints: dict[str, str] | None = None) -> list[IntakeRequest]:

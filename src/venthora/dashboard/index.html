@@ -51,6 +51,17 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
  <section class="span4"><h2>Platform</h2><div id="platform" class="tiles"></div></section>
 
  <section class="span12">
+  <h2><span>Submit a case</span>
+   <span class="row"><select id="gtCase"><option value="">— free input —</option></select>
+    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option></select>
+    <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
+    <button id="submitCase" class="primary">Submit</button></span></h2>
+  <textarea id="subInput" spellcheck="false" style="width:100%;min-height:150px;font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)" placeholder='Paste a TreasuryState JSON or a raw email (RFC 822), or pick a ground-truth case.'></textarea>
+  <div id="subOut" class="small muted" style="margin-top:8px">Pick a ground-truth case or paste your own input. The form measures the round trip in your browser and shows the server&#39;s own timing beside it.</div>
+  <div id="subLog" class="small" style="margin-top:8px"></div>
+ </section>
+
+ <section class="span12">
   <h2><span>Intake · payment requests from external users</span><span class="small muted" id="intakeMeta"></span></h2>
   <div id="intake" class="empty">loading…</div>
  </section>
@@ -127,7 +138,33 @@ async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$
  <details style="margin-top:6px"><summary class="small">Findings (${m.findings.length})</summary><ul class="small">${m.findings.map(f=>`<li>${esc(f.replace(/\*\*/g,""))}</li>`).join("")}</ul></details>`}
  catch(e){$("#matrix").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
-platform();scenarios();intake();executions();incidents();runs();matrix();
+// ---- submit a case (manual input via the UI, or a ground-truth case) ----
+let GT=[];const submissions=[];
+async function gtCases(){try{GT=await api("/api/groundtruth");$("#gtCase").innerHTML='<option value="">— free input —</option>'+GT.map(c=>`<option value="${c.id}">${c.id} · ${esc(c.title)}</option>`).join("")}catch(e){}}
+$("#gtCase").onchange=()=>{const c=GT.find(x=>x.id===$("#gtCase").value);if(!c)return;$("#subKind").value=c.kind;$("#subInput").value=c.kind==="plan"?JSON.stringify(c.input,null,1):c.input;
+ $("#subOut").innerHTML=`<b>${esc(c.id)}</b> ${esc(c.title)} · expects <span class="mono">${esc(JSON.stringify(c.expect))}</span><br><span class="muted">derivation: ${esc(c.derivation)}</span>`};
+async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").value,caseId=$("#gtCase").value;const c=GT.find(x=>x.id===caseId);
+ const t0=performance.now();let res,body;
+ if(kind==="plan"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
+  res=await fetch("/v1/plans",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
+ else{const q=new URLSearchParams({dry_run:$("#queueIt").checked?"false":"true"});if(c&&c.book)q.set("book",c.book);
+  res=await fetch("/v1/intake/emails?"+q,{method:"POST",headers:{"content-type":"message/rfc822"},body:raw})}
+ const ms=performance.now()-t0;body=await res.json();
+ if(!res.ok){$("#subOut").innerHTML=`<span class="err">${res.status} ${esc(JSON.stringify(body.detail||body))}</span>`;return null}
+ let judge=null;if(c){judge=await api("/api/groundtruth/judge",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({case_id:c.id,result:body})})}
+ const serverMs=kind==="plan"?body.duration_ms:null;
+ const summary=kind==="plan"?`${pill(body.decision)} ${Object.entries(body.obligations.reduce((m,d)=>(m[d.obligation_id]=d.action,m),{})).map(([o,a])=>`${esc(o)}=${esc(a)}`).join(", ")}`
+  :`${pill(body.status)} ${esc(body.trust)} · ${esc(body.kind)} · ${fmt(body.amount_minor,body.currency||"")} · ${esc(body.invoice_no||"-")}`;
+ const rec={id:c?c.id:"free",kind,ui_ms:+ms.toFixed(1),server_ms:serverMs!=null?+serverMs.toFixed(1):null,match:judge?judge.match:null,
+  bad:judge?Object.entries(judge.fields).filter(([k,v])=>!v.ok).map(([k,v])=>`${k}: expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)}`):[]};
+ submissions.push(rec);
+ $("#subOut").innerHTML=`${summary}<br><b>round trip ${ms.toFixed(1)} ms</b>${serverMs!=null?` · server ${serverMs.toFixed(1)} ms`:""}${judge?` · ground truth: ${judge.match?pill("PASS")+" matches":pill("FAIL")+" "+esc(rec.bad.join("; "))}`:""}`;
+ $("#subLog").innerHTML=`<details><summary>${submissions.length} submission(s) this session · ${submissions.filter(s=>s.match===true).length} matched ground truth</summary>${table([{h:"#",f:r=>r.n},{h:"Case",f:r=>esc(r.id)},{h:"Kind",f:r=>esc(r.kind)},{h:"UI round trip ms",num:1,f:r=>r.ui_ms},{h:"Server ms",num:1,f:r=>r.server_ms??"-"},{h:"Ground truth",f:r=>r.match==null?"-":r.match?pill("PASS"):pill("FAIL")+" "+esc(r.bad.join("; "))}],submissions.map((s,i)=>({...s,n:i+1})))}</details>`;
+ return rec}
+$("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<span class="err">${esc(e.message)}</span>`});
+window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
+
+platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();
 setInterval(()=>{intake();executions();incidents()},15000);
 </script>
 </body>

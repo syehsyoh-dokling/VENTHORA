@@ -1,0 +1,2394 @@
+[
+ {
+  "id": "P01",
+  "kind": "plan",
+  "title": "single obligation fits",
+  "ms": 94.11,
+  "ms_all": [
+   96.04,
+   90.08,
+   94.11
+  ],
+  "server_ms": 84.42,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 84.41829995717853
+  }
+ },
+ {
+  "id": "P02",
+  "kind": "plan",
+  "title": "single obligation does not fit, no receipt",
+  "ms": 90.77,
+  "ms_all": [
+   90.77,
+   90.95,
+   89.29
+  ],
+  "server_ms": 79.72,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "not_blocked": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 79.72470007371157
+  }
+ },
+ {
+  "id": "P03",
+  "kind": "plan",
+  "title": "obligation equals the headroom exactly",
+  "ms": 94.65,
+  "ms_all": [
+   94.65,
+   91.66,
+   101.91
+  ],
+  "server_ms": 91.59,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 91.59329999238253
+  }
+ },
+ {
+  "id": "P04",
+  "kind": "plan",
+  "title": "one cent over the headroom",
+  "ms": 88.48,
+  "ms_all": [
+   91.0,
+   88.48,
+   85.68
+  ],
+  "server_ms": 77.19,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 77.18539994675666
+  }
+ },
+ {
+  "id": "P05",
+  "kind": "plan",
+  "title": "two obligations both fit",
+  "ms": 91.25,
+  "ms_all": [
+   91.25,
+   92.73,
+   87.35
+  ],
+  "server_ms": 77.97,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "PAY"
+   },
+   "paid": [
+    "O1",
+    "O2"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 77.9698999831453
+  }
+ },
+ {
+  "id": "P06",
+  "kind": "plan",
+  "title": "two obligations, only the higher priority fits",
+  "ms": 86.85,
+  "ms_all": [
+   86.5,
+   86.85,
+   92.25
+  ],
+  "server_ms": 82.67,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "ESCALATE"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 82.67150004394352
+  }
+ },
+ {
+  "id": "P07",
+  "kind": "plan",
+  "title": "same priority, earlier due first",
+  "ms": 96.05,
+  "ms_all": [
+   99.25,
+   90.77,
+   96.05
+  ],
+  "server_ms": 85.96,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O2": "PAY",
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O2": "PAY",
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O2": "PAY",
+    "O1": "ESCALATE"
+   },
+   "paid": [
+    "O2"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 85.96050005871803
+  }
+ },
+ {
+  "id": "P08",
+  "kind": "plan",
+  "title": "duplicate invoice fingerprint",
+  "ms": 86.42,
+  "ms_all": [
+   86.42,
+   84.84,
+   102.04
+  ],
+  "server_ms": 92.38,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "REJECT"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 92.38469996489584
+  }
+ },
+ {
+  "id": "P09",
+  "kind": "plan",
+  "title": "evidence rejected",
+  "ms": 88.59,
+  "ms_all": [
+   86.88,
+   89.73,
+   88.59
+  ],
+  "server_ms": 79.28,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "REJECT"
+    },
+    "actual": {
+     "O1": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 79.28009994793683
+  }
+ },
+ {
+  "id": "P10",
+  "kind": "plan",
+  "title": "evidence pending",
+  "ms": 88.5,
+  "ms_all": [
+   88.84,
+   88.08,
+   88.5
+  ],
+  "server_ms": 79.85,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "REJECT"
+    },
+    "actual": {
+     "O1": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 79.84540006145835
+  }
+ },
+ {
+  "id": "P11",
+  "kind": "plan",
+  "title": "evidence missing",
+  "ms": 91.68,
+  "ms_all": [
+   92.33,
+   86.01,
+   91.68
+  ],
+  "server_ms": 82.78,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "REJECT"
+    },
+    "actual": {
+     "O1": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 82.77750003617257
+  }
+ },
+ {
+  "id": "P12",
+  "kind": "plan",
+  "title": "evidence names another obligation",
+  "ms": 85.45,
+  "ms_all": [
+   85.45,
+   83.44,
+   89.66
+  ],
+  "server_ms": 79.36,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "REJECT"
+    },
+    "actual": {
+     "O1": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 79.36189998872578
+  }
+ },
+ {
+  "id": "P13",
+  "kind": "plan",
+  "title": "already settled record",
+  "ms": 92.43,
+  "ms_all": [
+   92.43,
+   89.35,
+   95.55
+  ],
+  "server_ms": 87.22,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "REJECT"
+    },
+    "actual": {
+     "O1": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 87.22439990378916
+  }
+ },
+ {
+  "id": "P14",
+  "kind": "plan",
+  "title": "payee bank details changed",
+  "ms": 90.85,
+  "ms_all": [
+   90.85,
+   173.95,
+   86.33
+  ],
+  "server_ms": 76.05,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 76.05259993579239
+  }
+ },
+ {
+  "id": "P15",
+  "kind": "plan",
+  "title": "viewer cannot plan",
+  "ms": 85.69,
+  "ms_all": [
+   82.35,
+   89.48,
+   85.69
+  ],
+  "server_ms": 77.23,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": false,
+   "duration_ms": 77.2293999325484
+  }
+ },
+ {
+  "id": "P16",
+  "kind": "plan",
+  "title": "finance manager plans like the agent",
+  "ms": 87.99,
+  "ms_all": [
+   85.55,
+   89.86,
+   87.99
+  ],
+  "server_ms": 78.65,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 78.64540000446141
+  }
+ },
+ {
+  "id": "P17",
+  "kind": "plan",
+  "title": "does not fit now, reliable receipt lands before due",
+  "ms": 93.3,
+  "ms_all": [
+   100.09,
+   93.3,
+   91.14
+  ],
+  "server_ms": 80.22,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "DEFER"
+    },
+    "actual": {
+     "O1": "DEFER"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "DEFER"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 80.22390003316104
+  }
+ },
+ {
+  "id": "P18",
+  "kind": "plan",
+  "title": "receipt not reliable (60%)",
+  "ms": 93.57,
+  "ms_all": [
+   93.57,
+   89.42,
+   100.13
+  ],
+  "server_ms": 89.24,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 250000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 89.23969999887049
+  }
+ },
+ {
+  "id": "P19",
+  "kind": "plan",
+  "title": "receipt lands after due",
+  "ms": 93.7,
+  "ms_all": [
+   103.83,
+   86.88,
+   93.7
+  ],
+  "server_ms": 84.69,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 84.68520001042634
+  }
+ },
+ {
+  "id": "P20",
+  "kind": "plan",
+  "title": "receipt window ends after the horizon",
+  "ms": 90.47,
+  "ms_all": [
+   89.19,
+   90.47,
+   93.36
+  ],
+  "server_ms": 84.64,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 84.63539998047054
+  }
+ },
+ {
+  "id": "P21",
+  "kind": "plan",
+  "title": "receipt covers one of two deferrals",
+  "ms": 89.06,
+  "ms_all": [
+   89.06,
+   90.2,
+   88.82
+  ],
+  "server_ms": 80.04,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "ESCALATE"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 80.04099992103875
+  }
+ },
+ {
+  "id": "P22",
+  "kind": "plan",
+  "title": "EUR payout converted inside the limit",
+  "ms": 89.62,
+  "ms_all": [
+   89.62,
+   93.3,
+   86.13
+  ],
+  "server_ms": 78.49,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "ok": true
+   },
+   "n_conversions": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 101285
+   },
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 78.48609995562583
+  }
+ },
+ {
+  "id": "P23",
+  "kind": "plan",
+  "title": "conversion above the autonomous limit",
+  "ms": 87.86,
+  "ms_all": [
+   87.86,
+   91.93,
+   87.56
+  ],
+  "server_ms": 77.49,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "conversion_above_autonomous_limit"
+    ],
+    "actual": [
+     "conversion_above_autonomous_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 1201285
+   },
+   "limit": 1000000,
+   "requires": [
+    "conversion_above_autonomous_limit"
+   ],
+   "not_blocked": true,
+   "duration_ms": 77.49459997285157
+  }
+ },
+ {
+  "id": "P24",
+  "kind": "plan",
+  "title": "limit zero: every conversion needs a person",
+  "ms": 89.74,
+  "ms_all": [
+   99.43,
+   89.21,
+   89.74
+  ],
+  "server_ms": 81.3,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "conversion_above_autonomous_limit"
+    ],
+    "actual": [
+     "conversion_above_autonomous_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 101285
+   },
+   "limit": 0,
+   "requires": [
+    "conversion_above_autonomous_limit"
+   ],
+   "not_blocked": true,
+   "duration_ms": 81.30249998066574
+  }
+ },
+ {
+  "id": "P25",
+  "kind": "plan",
+  "title": "EUR wallet already covers the EUR payout",
+  "ms": 90.67,
+  "ms_all": [
+   90.67,
+   86.67,
+   93.54
+  ],
+  "server_ms": 84.84,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "n_conversions": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "paid": {
+    "expected": [
+     "O1"
+    ],
+    "actual": [
+     "O1"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 84.84470006078482
+  }
+ },
+ {
+  "id": "P26",
+  "kind": "plan",
+  "title": "GBP wallet covers part: convert the shortfall only",
+  "ms": 91.18,
+  "ms_all": [
+   91.65,
+   91.18,
+   90.16
+  ],
+  "server_ms": 82.33,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "conversions": {
+    "expected": {
+     "GBP": 60000
+    },
+    "actual": {
+     "GBP": 60000
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "GBP": 60000
+   },
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 82.33210002072155
+  }
+ },
+ {
+  "id": "P27",
+  "kind": "plan",
+  "title": "stress eats the headroom",
+  "ms": 97.61,
+  "ms_all": [
+   94.66,
+   104.56,
+   97.61
+  ],
+  "server_ms": 89.86,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [
+    "reserve_breach_risk_above_tolerance"
+   ],
+   "not_blocked": true,
+   "duration_ms": 89.86140007618815
+  }
+ },
+ {
+  "id": "P28",
+  "kind": "plan",
+  "title": "stress leaves exactly enough (deterministic) but no margin (probabilistic)",
+  "ms": 91.11,
+  "ms_all": [
+   84.91,
+   98.57,
+   91.11
+  ],
+  "server_ms": 82.71,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "actual": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [
+    "reserve_breach_risk_above_tolerance"
+   ],
+   "not_blocked": true,
+   "duration_ms": 82.70859997719526
+  }
+ },
+ {
+  "id": "P29",
+  "kind": "plan",
+  "title": "zero reserve floor",
+  "ms": 91.09,
+  "ms_all": [
+   91.09,
+   87.89,
+   93.52
+  ],
+  "server_ms": 83.49,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 83.4937000181526
+  }
+ },
+ {
+  "id": "P30",
+  "kind": "plan",
+  "title": "zero cash",
+  "ms": 94.71,
+  "ms_all": [
+   138.78,
+   86.48,
+   94.71
+  ],
+  "server_ms": 86.23,
+  "match": true,
+  "fields": {
+   "paid": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "not_blocked": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [
+    "reserve_breach_risk_above_tolerance"
+   ],
+   "not_blocked": true,
+   "duration_ms": 86.22529997956008
+  }
+ },
+ {
+  "id": "P31",
+  "kind": "plan",
+  "title": "twelve small obligations all fit",
+  "ms": 93.34,
+  "ms_all": [
+   93.34,
+   95.62,
+   83.0
+  ],
+  "server_ms": 73.94,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "paid": {
+    "expected": [
+     "O1",
+     "O2",
+     "O3",
+     "O4",
+     "O5",
+     "O6",
+     "O7",
+     "O8",
+     "O9",
+     "O10",
+     "O11",
+     "O12"
+    ],
+    "actual": [
+     "O1",
+     "O10",
+     "O11",
+     "O12",
+     "O2",
+     "O3",
+     "O4",
+     "O5",
+     "O6",
+     "O7",
+     "O8",
+     "O9"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O9": "PAY",
+    "O8": "PAY",
+    "O7": "PAY",
+    "O6": "PAY",
+    "O5": "PAY",
+    "O4": "PAY",
+    "O3": "PAY",
+    "O2": "PAY",
+    "O12": "PAY",
+    "O1": "PAY",
+    "O11": "PAY",
+    "O10": "PAY"
+   },
+   "paid": [
+    "O1",
+    "O10",
+    "O11",
+    "O12",
+    "O2",
+    "O3",
+    "O4",
+    "O5",
+    "O6",
+    "O7",
+    "O8",
+    "O9"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 73.935899999924
+  }
+ },
+ {
+  "id": "P32",
+  "kind": "plan",
+  "title": "large amounts, still inside the live sandbox wallet",
+  "ms": 88.35,
+  "ms_all": [
+   89.28,
+   88.35,
+   85.66
+  ],
+  "server_ms": 76.61,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 76.60850009415299
+  }
+ },
+ {
+  "id": "P33",
+  "kind": "plan",
+  "title": "confidence 90%: limit is full",
+  "ms": 91.28,
+  "ms_all": [
+   91.28,
+   98.6,
+   89.98
+  ],
+  "server_ms": 83.05,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "limit": {
+    "expected": 1000000,
+    "actual": 1000000,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 701285
+   },
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 83.05480005219579
+  }
+ },
+ {
+  "id": "P34",
+  "kind": "plan",
+  "title": "confidence 70%: limit halves",
+  "ms": 93.37,
+  "ms_all": [
+   88.39,
+   94.82,
+   93.37
+  ],
+  "server_ms": 83.72,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "limit": {
+    "expected": 500000,
+    "actual": 500000,
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "conversion_above_autonomous_limit"
+    ],
+    "actual": [
+     "conversion_above_autonomous_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 701285
+   },
+   "limit": 500000,
+   "requires": [
+    "conversion_above_autonomous_limit"
+   ],
+   "not_blocked": true,
+   "duration_ms": 83.7222000118345
+  }
+ },
+ {
+  "id": "P35",
+  "kind": "plan",
+  "title": "confidence 40%: limit zero",
+  "ms": 90.02,
+  "ms_all": [
+   90.02,
+   94.86,
+   88.06
+  ],
+  "server_ms": 79.15,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "limit": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 101285
+   },
+   "limit": 0,
+   "requires": [
+    "conversion_above_autonomous_limit"
+   ],
+   "not_blocked": true,
+   "duration_ms": 79.14689998142421
+  }
+ },
+ {
+  "id": "P36",
+  "kind": "plan",
+  "title": "priority 10 due now and priority 1 due at the horizon both fit",
+  "ms": 91.06,
+  "ms_all": [
+   86.13,
+   92.31,
+   91.06
+  ],
+  "server_ms": 82.69,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "PAY"
+   },
+   "paid": [
+    "O1",
+    "O2"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 82.68870005849749
+  }
+ },
+ {
+  "id": "P37",
+  "kind": "plan",
+  "title": "cheapest obligation dropped, not the most urgent",
+  "ms": 88.52,
+  "ms_all": [
+   88.52,
+   89.64,
+   88.23
+  ],
+  "server_ms": 79.56,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "ESCALATE"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "not_blocked": true,
+   "duration_ms": 79.56129999365658
+  }
+ },
+ {
+  "id": "I01",
+  "kind": "intake",
+  "title": "registered mailbox, clean invoice",
+  "ms": 4.84,
+  "ms_all": [
+   4.84,
+   4.32,
+   5.11
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "registered",
+    "actual": "registered",
+    "ok": true
+   },
+   "kind": {
+    "expected": "supplier_invoice",
+    "actual": "supplier_invoice",
+    "ok": true
+   },
+   "amount_minor": {
+    "expected": 125000,
+    "actual": 125000,
+    "ok": true
+   },
+   "currency": {
+    "expected": "USD",
+    "actual": "USD",
+    "ok": true
+   },
+   "invoice_no": {
+    "expected": "LD-90",
+    "actual": "LD-90",
+    "ok": true
+   },
+   "due_date": {
+    "expected": "2026-11-05",
+    "actual": "2026-11-05",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 125000,
+   "currency": "USD",
+   "invoice_no": "LD-90",
+   "due_date": "2026-11-05",
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I02",
+  "kind": "intake",
+  "title": "unknown mailbox with the same display name",
+  "ms": 4.37,
+  "ms_all": [
+   4.43,
+   4.37,
+   4.23
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "unknown_sender",
+    "actual": "unknown_sender",
+    "ok": true
+   },
+   "claimed_name": {
+    "expected": "Lumen Design Studio",
+    "actual": "Lumen Design Studio",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "unknown_sender",
+   "kind": "supplier_invoice",
+   "amount_minor": 90000,
+   "currency": "USD",
+   "invoice_no": "LD-91",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I03",
+  "kind": "intake",
+  "title": "registered mailbox announcing new bank details",
+  "ms": 3.99,
+  "ms_all": [
+   3.99,
+   3.33,
+   4.95
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEEDS_REVIEW",
+    "actual": "NEEDS_REVIEW",
+    "ok": true
+   },
+   "trust": {
+    "expected": "registered",
+    "actual": "registered",
+    "ok": true
+   },
+   "kind": {
+    "expected": "bank_change",
+    "actual": "bank_change",
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "payee_bank_details_changed"
+    ],
+    "actual": [
+     "payee_bank_details_changed"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "NEEDS_REVIEW",
+   "trust": "registered",
+   "kind": "bank_change",
+   "amount_minor": 70000,
+   "currency": "USD",
+   "invoice_no": "LD-92",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": [
+    "payee_bank_details_changed"
+   ]
+  }
+ },
+ {
+  "id": "I04",
+  "kind": "intake",
+  "title": "unknown mailbox, bank change, urgency",
+  "ms": 4.05,
+  "ms_all": [
+   4.05,
+   4.26,
+   4.05
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "kind": {
+    "expected": "bank_change",
+    "actual": "bank_change",
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "payee_bank_details_changed",
+     "urgency_pressure"
+    ],
+    "actual": [
+     "payee_bank_details_changed",
+     "urgency_pressure"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "unknown_sender",
+   "kind": "bank_change",
+   "amount_minor": 300000,
+   "currency": "USD",
+   "invoice_no": "LD-79",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": [
+    "payee_bank_details_changed",
+    "urgency_pressure"
+   ]
+  }
+ },
+ {
+  "id": "I05",
+  "kind": "intake",
+  "title": "registered mailbox but Reply-To elsewhere",
+  "ms": 5.26,
+  "ms_all": [
+   5.26,
+   4.15,
+   5.52
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "reply_to_mismatch",
+    "actual": "reply_to_mismatch",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "reply_to_mismatch",
+   "kind": "supplier_invoice",
+   "amount_minor": 40000,
+   "currency": "USD",
+   "invoice_no": "LD-93",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I06",
+  "kind": "intake",
+  "title": "registered customer remittance (outlook)",
+  "ms": 5.18,
+  "ms_all": [
+   4.92,
+   5.73,
+   5.18
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "kind": {
+    "expected": "remittance_notice",
+    "actual": "remittance_notice",
+    "ok": true
+   },
+   "amount_minor": {
+    "expected": 200000,
+    "actual": 200000,
+    "ok": true
+   },
+   "due_date": {
+    "expected": "2026-10-30",
+    "actual": "2026-10-30",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "remittance_notice",
+   "amount_minor": 200000,
+   "currency": "USD",
+   "invoice_no": "AR-6001",
+   "due_date": "2026-10-30",
+   "claimed_name": "Acme Retail Ltd",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I07",
+  "kind": "intake",
+  "title": "registered contractor timesheet (yahoo)",
+  "ms": 4.72,
+  "ms_all": [
+   8.26,
+   4.72,
+   3.47
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "kind": {
+    "expected": "contractor_claim",
+    "actual": "contractor_claim",
+    "ok": true
+   },
+   "amount_minor": {
+    "expected": 100000,
+    "actual": 100000,
+    "ok": true
+   },
+   "invoice_no": {
+    "expected": "OK-2026-11",
+    "actual": "OK-2026-11",
+    "ok": true
+   },
+   "due_date": {
+    "expected": "2026-11-07",
+    "actual": "2026-11-07",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "contractor_claim",
+   "amount_minor": 100000,
+   "currency": "USD",
+   "invoice_no": "OK-2026-11",
+   "due_date": "2026-11-07",
+   "claimed_name": "Mia Okafor",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I08",
+  "kind": "intake",
+  "title": "registered mailbox, no amount readable",
+  "ms": 3.96,
+  "ms_all": [
+   3.96,
+   4.39,
+   3.62
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEEDS_REVIEW",
+    "actual": "NEEDS_REVIEW",
+    "ok": true
+   },
+   "trust": {
+    "expected": "registered",
+    "actual": "registered",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "NEEDS_REVIEW",
+   "trust": "registered",
+   "kind": "unknown",
+   "amount_minor": null,
+   "currency": null,
+   "invoice_no": "LD-94",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I09",
+  "kind": "intake",
+  "title": "injection text cannot verify itself",
+  "ms": 4.07,
+  "ms_all": [
+   3.6,
+   4.07,
+   4.96
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "unknown_sender",
+    "actual": "unknown_sender",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "unknown_sender",
+   "kind": "supplier_invoice",
+   "amount_minor": 9500,
+   "currency": "USD",
+   "invoice_no": "LD-95",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I10",
+  "kind": "intake",
+  "title": "registered sender with pressure language",
+  "ms": 3.27,
+  "ms_all": [
+   3.59,
+   3.27,
+   3.24
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEEDS_REVIEW",
+    "actual": "NEEDS_REVIEW",
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "urgency_pressure"
+    ],
+    "actual": [
+     "urgency_pressure"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "NEEDS_REVIEW",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 65000,
+   "currency": "USD",
+   "invoice_no": "LD-96",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": [
+    "urgency_pressure"
+   ]
+  }
+ },
+ {
+  "id": "I11",
+  "kind": "intake",
+  "title": "html body",
+  "ms": 4.03,
+  "ms_all": [
+   6.36,
+   4.03,
+   3.56
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "amount_minor": {
+    "expected": 32000,
+    "actual": 32000,
+    "ok": true
+   },
+   "invoice_no": {
+    "expected": "LD-97",
+    "actual": "LD-97",
+    "ok": true
+   },
+   "due_date": {
+    "expected": "2026-11-02",
+    "actual": "2026-11-02",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 32000,
+   "currency": "USD",
+   "invoice_no": "LD-97",
+   "due_date": "2026-11-02",
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I12",
+  "kind": "intake",
+  "title": "euro symbol and thousands separator",
+  "ms": 4.7,
+  "ms_all": [
+   4.74,
+   4.7,
+   4.53
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "amount_minor": {
+    "expected": 150000,
+    "actual": 150000,
+    "ok": true
+   },
+   "currency": {
+    "expected": "EUR",
+    "actual": "EUR",
+    "ok": true
+   },
+   "due_date": {
+    "expected": "2026-11-10",
+    "actual": "2026-11-10",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 150000,
+   "currency": "EUR",
+   "invoice_no": "LD-98",
+   "due_date": "2026-11-10",
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I13",
+  "kind": "intake",
+  "title": "duplicate of an invoice already in the book",
+  "ms": 4.65,
+  "ms_all": [
+   4.65,
+   4.99,
+   4.37
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "DUPLICATE",
+    "actual": "DUPLICATE",
+    "ok": true
+   },
+   "duplicate_of": {
+    "expected": "SHIPPING-UK",
+    "actual": "SHIPPING-UK",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "DUPLICATE",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 250000,
+   "currency": "GBP",
+   "invoice_no": "TF-311",
+   "due_date": null,
+   "claimed_name": "Thames Freight Ltd",
+   "duplicate_of": "SHIPPING-UK",
+   "flags": []
+  }
+ },
+ {
+  "id": "I14",
+  "kind": "intake",
+  "title": "embargoed future date does not matter for triage, amount in subject-less body",
+  "ms": 4.53,
+  "ms_all": [
+   4.25,
+   4.53,
+   4.97
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "amount_minor": {
+    "expected": 1000,
+    "actual": 1000,
+    "ok": true
+   },
+   "invoice_no": {
+    "expected": "LD-99",
+    "actual": "LD-99",
+    "ok": true
+   },
+   "due_date": {
+    "expected": "2026-12-01",
+    "actual": "2026-12-01",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 1000,
+   "currency": "USD",
+   "invoice_no": "LD-99",
+   "due_date": "2026-12-01",
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I15",
+  "kind": "intake",
+  "title": "corporate domain match (non-freemail)",
+  "ms": 3.83,
+  "ms_all": [
+   4.02,
+   3.59,
+   3.83
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "registered",
+    "actual": "registered",
+    "ok": true
+   },
+   "currency": {
+    "expected": "EUR",
+    "actual": "EUR",
+    "ok": true
+   },
+   "amount_minor": {
+    "expected": 400000,
+    "actual": 400000,
+    "ok": true
+   },
+   "invoice_no": {
+    "expected": "INV-2026-0700",
+    "actual": "INV-2026-0700",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 400000,
+   "currency": "EUR",
+   "invoice_no": "INV-2026-0700",
+   "due_date": "2026-11-15",
+   "claimed_name": "Rheinwerk Komponenten GmbH",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I16",
+  "kind": "intake",
+  "title": "same corporate domain, different mailbox",
+  "ms": 4.61,
+  "ms_all": [
+   4.61,
+   4.36,
+   5.98
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "registered",
+    "actual": "registered",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 10000,
+   "currency": "EUR",
+   "invoice_no": "INV-2026-0701",
+   "due_date": "2026-11-15",
+   "claimed_name": "Rheinwerk Komponenten GmbH",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "I17",
+  "kind": "intake",
+  "title": "freemail lookalike of a corporate payee",
+  "ms": 3.89,
+  "ms_all": [
+   4.96,
+   3.89,
+   3.66
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "unknown_sender",
+    "actual": "unknown_sender",
+    "ok": true
+   },
+   "claimed_name": {
+    "expected": "Rheinwerk Komponenten GmbH",
+    "actual": "Rheinwerk Komponenten GmbH",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "unknown_sender",
+   "kind": "supplier_invoice",
+   "amount_minor": 10000,
+   "currency": "EUR",
+   "invoice_no": "INV-2026-0702",
+   "due_date": null,
+   "claimed_name": "Rheinwerk Komponenten GmbH",
+   "duplicate_of": null,
+   "flags": []
+  }
+ }
+]
