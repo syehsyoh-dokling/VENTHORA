@@ -227,6 +227,20 @@ the form; real sandbox: the ledger holds today's real instalments (deposit + bal
 RECONCILED); the rate snapshot found that the sandbox does not quote IDR (`unsupported_currency` / `invalid_parameter`), so the admin's fallback
 rates are recorded with that source — a finding, not a guess (SANDBOX_RESULTS.md cycle 11).
 
+## (12) The book ledger: double-entry per book on a shared wallet
+
+| Rule | Where |
+|---|---|
+| Every book has its own accounts per currency — cash (available), committed (in flight), expense, fees, fx, funding — and every entry is balanced per currency | `ledger.py`, `store.journal` |
+| Postings follow the rail: open (allocation), convert, commit (transfer created: amount + fee leave cash), settle (PAID), refund (returned: amount back, fee stays), deposit, grant, adjust (a person, audited) | `execution/executor.py`, `incidents.py`, `POST /v1/ledger/{book}/adjust` |
+| **A book never spends another book's money**: before any money moves, every conversion and payout still to be made must fit the book's own cash, whatever the shared wallet holds; a post-fact overdraft (e.g. a fee larger than planned) is recorded and reported, never hidden | `Executor._ledger_preflight`, `store.post(strict=…)` |
+| Reconciliation on a shared wallet: the wallet's movement since the run's `before` read must equal the sum of the cash lines of **every** book since then; only the remainder is a discrepancy (closes the cycle-9 resume limit) | step `ledger · wallet-vs-books` |
+| The next plan starts from the book's ledger cash, with money in flight excluded | `execution/facts.py` |
+| TigerBeetle remains the optional external mirror; the agent proves against this ledger without it | `gateways/tigerbeetle.py` |
+
+Ground truth suite 6: 15 hand-derived cases, 15/15 in-process, through `POST /v1/ledger/eval` and through the form; real
+sandbox cycle 12: two books reconciled on one wallet with nothing unexplained, a third refused before money moved.
+
 ## Not applicable to this build
 
 - **#14, #16–18, #23, #25–26, #28–29** (MCP setup and MCP-only tools): VENTHORA uses REST behind typed methods, which the guide allows (#17, #24).

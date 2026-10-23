@@ -27,7 +27,7 @@ class ExecutionRequest(StrictModel):
 
 
 class Step(StrictModel):
-    kind: Literal["preflight", "quote", "conversion", "beneficiary", "transfer", "simulation", "reconcile"]
+    kind: Literal["preflight", "quote", "conversion", "beneficiary", "transfer", "simulation", "reconcile", "ledger"]
     key: str
     status: Literal["OK", "SKIPPED", "IN_FLIGHT", "FAILED", "REFUSED"]
     request_id: str | None = None

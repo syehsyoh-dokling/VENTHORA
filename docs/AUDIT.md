@@ -57,6 +57,13 @@ verified; the same script runs the Docker image): **0 disagreements** (23 Oct 20
 | Test-level: the approval-terms test asserted after a later execution | test failure | fixed the assertion order |
 | **Executor and gate disagreed on what the reserve floor binds.** ProofCore and Theorem bind the floor to base *spend*; the executor's pre-flight and reconciliation compared the absolute USD level with the floor, so a plan paid entirely from EUR/GBP wallets with USD already below floor was approved by a person and then refused by the executor. | scenario matrix variant B10 (`docs/SCENARIO_MATRIX.md`) | both executor checks now use the gate's rule; a base wallet untouched by the run is reported as "already below the floor (not caused by this run)" (`test_plan_funded_from_foreign_wallets_runs_when_base_is_already_below_floor`) |
 
+### Closed since: the shared-wallet reconciliation limit
+
+Cycle 9 recorded that a resumed execution on a shared wallet could not reconcile to the cent when other runs had moved
+money in between. The book ledger (cycle 12) closes it: the wallet's movement is explained by the cash lines of every
+book since the run's own `before` read, and a book that cannot fund its next step from its own cash is refused before
+money moves.
+
 ## 4. Limitations found, stated rather than fixed
 
 - **Verity's own "carries the claim" check is neutralised.** The original validator measures term

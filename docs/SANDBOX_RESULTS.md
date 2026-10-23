@@ -215,6 +215,22 @@ answered `unsupported_currency` (and on a later call `invalid_parameter`) for ID
 source of each rate (`admin fallback (unsupported_currency)`), rather than failing or guessing; with a reporting currency
 the sandbox quotes (e.g. EUR) the snapshot comes from Airwallex.
 
+## Cycle 12: the book ledger on the real sandbox (`python scripts/ledger_real.py`)
+
+Approved by the owner as finance manager; 23 Oct 2026, 20:54 WIB. Three fresh Kit 01 books on the one sandbox wallet.
+
+| Book | What happened |
+|---|---|
+| A `kit01-nov-A205429` | plan → execution COMPLETED; the wallet moved by USD −15,930.86 / EUR −0.02 and the book's own cash lines explain exactly that: **unexplained {}** |
+| B `kit01-nov-B205429` | same, on the same wallet, right after A: its reconciliation is against *its* `before` read and *its* cash lines; A's money is not its concern: **unexplained {}** |
+| C `kit01-nov-C205429` | its ledger was opened with the allocation and an earlier recorded spend, leaving USD 100 — while the wallet holds ~USD 9.9 M. The pre-flight refused the first conversion **before any money moved**: `book cannot fund convert … in USD: the book's own cash is short, whatever the shared wallet holds` |
+
+Every book's accounts net to zero per currency (double entry); cash is what the book may still spend, committed is money
+in flight, expense what left for good, fees what the rail charged. This closes the cycle-9 limit: a resumed run, or a run
+that overlaps another book's, now explains the wallet's movement by the cash lines of *every* book since its own `before`
+read, and only what no book knows about is a discrepancy. (The interleaved case is covered by `tests/test_ledger.py`;
+on the sandbox A and B ran back to back.) Log: `docs/ledger_log_real.json`.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |

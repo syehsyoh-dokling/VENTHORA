@@ -165,6 +165,15 @@ falls due after it carries forward, what was posted late is marked, and a closed
 open commitments, carry-forward) is issued once and never spent against autonomously again; and a reconciliation that
 does not add up opens a case that locks the book until a person closes it with a note. None of these is a prompt.
 
+### F. A wallet is shared; a book is not
+
+Airwallex gives you a wallet. A treasury needs books. VENTHORA keeps a double-entry ledger per book — cash, committed,
+expense, fees, fx, funding, balanced per currency — posted as the rail acts (convert, commit, settle, refund) and checked
+*before* the rail acts: a book that cannot fund its next conversion or payout from its own cash is refused whatever the
+wallet holds, so one book can never quietly spend another's money. Reconciliation then explains the wallet's movement by
+the cash lines of every book since the run began, which makes a resume, or two books running on the same wallet, exact
+to the cent instead of a false mismatch. Proven on the real sandbox with three books on one wallet.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

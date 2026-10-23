@@ -58,6 +58,9 @@ CREATE TABLE IF NOT EXISTS spend_ledger (
     transfer_id TEXT PRIMARY KEY, book_id TEXT NOT NULL, obligation_id TEXT NOT NULL, invoice_fingerprint TEXT,
     installment TEXT, contract_total_minor INTEGER, line TEXT, currency TEXT NOT NULL, amount_minor INTEGER NOT NULL,
     base_cost_minor INTEGER NOT NULL, paid_at TEXT NOT NULL, reporting_period TEXT NOT NULL, recorded_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS journal (
+    entry_id TEXT PRIMARY KEY, book_id TEXT NOT NULL, at TEXT NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL,
+    execution_id TEXT, lines_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS closing_rates (
     period TEXT NOT NULL, currency TEXT NOT NULL, rate TEXT NOT NULL, source TEXT NOT NULL, recorded_at TEXT NOT NULL,
     PRIMARY KEY (period, currency));
@@ -330,6 +333,55 @@ class ExecutionStore:
                       " WHERE case_id = ? AND status = 'OPEN'", (_now(), closed_by, note, case_id))
             row = c.execute("SELECT * FROM recon_cases WHERE case_id = ?", (case_id,)).fetchone()
         return (dict(row) | {"discrepancies": json.loads(row["discrepancies_json"])}) if row else None
+
+    # -- the book ledger: double-entry journal per book ---------------------------------------------
+
+    def post(self, book_id: str, entry, execution_id: str | None = None, *, strict: bool = False) -> dict:
+        """Post a balanced entry. strict=True refuses one that would overdraw the book's cash (used BEFORE money
+        moves); a posting that records what the rail already did is never refused — a book that ends below zero is
+        an overdraft to report (e.g. a fee larger than planned), not a fact to hide."""
+        from ..ledger import LedgerError, would_overdraw
+
+        entry.check()
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT lines_json FROM journal WHERE book_id = ?", (book_id,)).fetchall()
+            journal = [{"lines": json.loads(r["lines_json"])} for r in rows]
+            over = would_overdraw(journal, entry)
+            if over and strict:
+                raise LedgerError(f"book {book_id} cannot fund this in {', '.join(over)}: it would overdraw the book")
+            entry_id = str(uuid4())
+            c.execute("INSERT INTO journal VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (entry_id, book_id, _now(), entry.kind, entry.ref, execution_id, json.dumps(entry.as_rows())))
+        return {"entry_id": entry_id, "book_id": book_id, "kind": entry.kind, "ref": entry.ref, "lines": entry.as_rows(),
+                "overdraft": over}
+
+    def journal(self, book_id: str | None = None, since: str | None = None) -> list[dict]:
+        q, args = "SELECT * FROM journal", []
+        conds = []
+        if book_id:
+            conds.append("book_id = ?")
+            args.append(book_id)
+        if since:
+            conds.append("at > ?")
+            args.append(since)
+        if conds:
+            q += " WHERE " + " AND ".join(conds)
+        with self._lock, self._connect() as c:
+            rows = c.execute(q + " ORDER BY at", args).fetchall()
+        return [dict(r) | {"lines": json.loads(r["lines_json"])} for r in rows]
+
+    def has_book(self, book_id: str) -> bool:
+        with self._lock, self._connect() as c:
+            return c.execute("SELECT 1 FROM journal WHERE book_id = ? LIMIT 1", (book_id,)).fetchone() is not None
+
+    def books(self) -> list[str]:
+        with self._lock, self._connect() as c:
+            return [r["book_id"] for r in c.execute("SELECT DISTINCT book_id FROM journal ORDER BY book_id").fetchall()]
+
+    def book_balances(self, book_id: str) -> dict[str, dict[str, int]]:
+        from ..ledger import balances
+
+        return balances(self.journal(book_id))
 
     # -- reporting: the spend ledger by payment instant, closing rates per period -------------------
 

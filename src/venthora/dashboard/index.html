@@ -57,15 +57,20 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
  </section>
 
  <section class="span12">
+  <h2><span>Books · ledger</span><span class="small muted">double-entry per book; the wallet is shared, a book is not</span></h2>
+  <div id="ledger" class="empty">loading…</div>
+ </section>
+
+ <section class="span12">
   <h2><span>Reporting periods</span><span class="row"><input id="repPeriod" value="" placeholder="YYYY-MM" style="width:90px;font:inherit;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:var(--surface);color:var(--ink)"><button id="repLoad">Load</button><button id="repRates" title="record the period's closing rates from Airwallex (admin)">Snapshot rates</button><span class="small muted" id="repMeta"></span></span></h2>
   <div id="reporting" class="empty">loading…</div>
  </section>
 
  <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
-    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option></select>
+    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option><option value="ledger">ledger postings (JSON) → /v1/ledger/eval</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
     <button id="submitCase" class="primary">Submit</button></span></h2>
   <textarea id="subInput" spellcheck="false" style="width:100%;min-height:150px;font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)" placeholder='Paste a TreasuryState JSON or a raw email (RFC 822), or pick a ground-truth case.'></textarea>
@@ -180,6 +185,14 @@ async function budget(){try{if(!$("#budgetBook").options.length){const s=await a
   const note=prompt("note (why):")||"";try{await api(`/v1/budgets/${x.dataset.period}/${x.dataset.line}/grant`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({extra_minor:Math.round(parseFloat(amt)*100),approver:"finance manager",role:"finance_manager",note})});budget()}catch(e){alert(e.message)}})}
  catch(e){$("#budget").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
+// ---- books: the ledger per book ----
+async function ledgerBooks(){try{const books=await api("/v1/ledger");
+ const rows=[];for(const b of books){for(const [ccy,a] of Object.entries(b.balances)){if(a.cash||a.committed||a.expense||a.fees)rows.push({book:b.book_id,ccy,...a,entries:b.entries})}}
+ rows.sort((x,y)=>x.book<y.book?1:x.book>y.book?-1:0);
+ $("#ledger").innerHTML=table([{h:"Book",f:r=>`<b>${esc(r.book)}</b>`},{h:"Ccy",f:r=>esc(r.ccy)},{h:"Cash (available)",num:1,f:r=>`${r.cash<0?'<span class="err">':''}${fmt(r.cash,r.ccy)}${r.cash<0?'</span>':''}`},
+  {h:"Committed (in flight)",num:1,f:r=>fmt(r.committed,r.ccy)},{h:"Expense",num:1,f:r=>fmt(r.expense,r.ccy)},{h:"Fees",num:1,f:r=>fmt(r.fees,r.ccy)},{h:"FX net",num:1,f:r=>fmt(r.fx,r.ccy)},{h:"Funding",num:1,f:r=>fmt(-r.funding,r.ccy)},{h:"Entries",num:1,f:r=>r.entries}],
+  rows.slice(0,40),"no books yet: the first execution opens one")}catch(e){$("#ledger").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
+
 // ---- reporting periods: monthly spend by payment instant, invoice statements, consolidation ----
 const fmtAny=(m,c)=>c==="IDR"||c==="JPY"||c==="KRW"?`${c} ${Number(m).toLocaleString()}`:fmt(m,c);
 async function reporting(){try{const cfg=await api("/v1/reporting/config");if(!$("#repPeriod").value){const d=new Date();$("#repPeriod").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
@@ -210,8 +223,9 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const t0=performance.now();let res,body;
  if(kind==="plan"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
   res=await fetch("/v1/plans",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
- else if(kind==="incident"||kind==="reporting"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
-  res=await fetch(kind==="incident"?"/v1/incidents/decide":"/v1/reporting/eval",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
+ else if(kind==="incident"||kind==="reporting"||kind==="ledger"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
+  const ep={incident:"/v1/incidents/decide",reporting:"/v1/reporting/eval",ledger:"/v1/ledger/eval"}[kind];
+  res=await fetch(ep,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
  else{const q=new URLSearchParams({dry_run:$("#queueIt").checked?"false":"true"});if(c&&c.book)q.set("book",c.book);
   res=await fetch("/v1/intake/emails?"+q,{method:"POST",headers:{"content-type":"message/rfc822"},body:raw})}
  const ms=performance.now()-t0;body=await res.json();
@@ -220,7 +234,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const serverMs=kind==="plan"?body.duration_ms:null;
  const summary=kind==="plan"?`${pill(body.decision)} ${Object.entries(body.obligations.reduce((m,d)=>(m[d.obligation_id]=d.action,m),{})).map(([o,a])=>`${esc(o)}=${esc(a)}`).join(", ")}`
   :kind==="incident"?`${pill(body.action)} <span class="small">${esc(body.reason)}</span>`
-  :kind==="reporting"?`<span class="mono small">${esc(JSON.stringify(body))}</span>`
+  :(kind==="reporting"||kind==="ledger")?`<span class="mono small">${esc(JSON.stringify(body)).slice(0,600)}</span>`
   :`${pill(body.status)} ${esc(body.trust)} · ${esc(body.kind)} · ${fmt(body.amount_minor,body.currency||"")} · ${esc(body.invoice_no||"-")}`;
  const rec={id:c?c.id:"free",kind,ui_ms:+ms.toFixed(1),server_ms:serverMs!=null?+serverMs.toFixed(1):null,match:judge?judge.match:null,
   bad:judge?Object.entries(judge.fields).filter(([k,v])=>!v.ok).map(([k,v])=>`${k}: expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)}`):[]};
@@ -231,7 +245,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
 $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<span class="err">${esc(e.message)}</span>`});
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
-platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();reporting();
+platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();reporting();ledgerBooks();
 setInterval(()=>{intake();executions();incidents()},15000);
 </script>
 </body>

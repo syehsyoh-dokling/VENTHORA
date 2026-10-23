@@ -299,6 +299,15 @@ class IncidentCommander:
                 except AirwallexError as exc:
                     events.append(IncidentEvent(step="simulate", status="FAILED", detail={"error": str(exc)}))
                     break
+        # The book ledger: the replacement is a second commit on the same book (the original's refund is posted by
+        # the poll when the rail reports it returned).
+        from .. import ledger as book_ledger
+
+        self.executor._book_id = state.book_id
+        if self.store.has_book(state.book_id):
+            self.executor._post(state.book_id, book_ledger.commit(replacement.source_currency or o.currency,
+                                                                  replacement.transfer_amount_minor, replacement.fee_minor,
+                                                                  replacement.transfer_id), None, [])
         polled = await self.executor._poll({o.obligation_id: (key, replacement)})
         _, replacement = polled[o.obligation_id]
         after = await self.bank.balances_minor()

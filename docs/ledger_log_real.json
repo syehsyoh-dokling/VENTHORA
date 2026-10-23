@@ -1,0 +1,271 @@
+{
+ "generated_at": "2026-10-23T13:54:29.848924+00:00",
+ "runs": [
+  {
+   "book": "kit01-nov-A205429",
+   "plan": "REQUIRES_APPROVAL",
+   "execution": "COMPLETED",
+   "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,569.14 >= USD 6,000.00; variance vs plan -EUR 0.02, -USD 6.26 (actual Airwallex amounts",
+   "wallet_delta": {
+    "HKD": 0,
+    "INR": 0,
+    "PHP": 0,
+    "CAD": 0,
+    "MYR": 0,
+    "HRK": 0,
+    "SGD": 0,
+    "PKR": 0,
+    "NPR": 0,
+    "CZK": 0,
+    "BRL": 0,
+    "MAD": 0,
+    "USD": -1593086,
+    "ILS": 0,
+    "SEK": 0,
+    "NZD": 0,
+    "BDT": 0,
+    "IDR": 0,
+    "PEN": 0,
+    "EGP": 0,
+    "HUF": 0,
+    "TRY": 0,
+    "ARS": 0,
+    "GBP": 0,
+    "NOK": 0,
+    "BHD": 0,
+    "BOB": 0,
+    "EUR": -2,
+    "UYU": 0,
+    "JPY": 0,
+    "RON": 0,
+    "MXN": 0,
+    "ZAR": 0,
+    "VND": 0,
+    "AED": 0,
+    "THB": 0,
+    "PLN": 0,
+    "KRW": 0,
+    "DKK": 0,
+    "LKR": 0,
+    "CLP": 0,
+    "AUD": 0,
+    "CNY": 0,
+    "COP": 0,
+    "SAR": 0,
+    "CHF": 0
+   },
+   "this_book": {
+    "USD": -1593086,
+    "EUR": -2,
+    "GBP": 0
+   },
+   "other_books": {},
+   "unexplained": {},
+   "funds": {
+    "book_cash_after_minor": {
+     "USD": 656914,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "balances": {
+    "USD": {
+     "cash": 656914,
+     "committed": 0,
+     "expense": 800000,
+     "fees": 300,
+     "fx": 792786,
+     "funding": -2250000
+    },
+    "EUR": {
+     "cash": -2,
+     "committed": 0,
+     "expense": 400000,
+     "fees": 1340,
+     "fx": -401338,
+     "funding": 0
+    },
+    "GBP": {
+     "cash": 0,
+     "committed": 0,
+     "expense": 250000,
+     "fees": 224,
+     "fx": -250224,
+     "funding": 0
+    }
+   }
+  },
+  {
+   "book": "kit01-nov-B205429",
+   "plan": "REQUIRES_APPROVAL",
+   "execution": "COMPLETED",
+   "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,569.14 >= USD 6,000.00; variance vs plan -EUR 0.02, -USD 6.26 (actual Airwallex amounts",
+   "wallet_delta": {
+    "HKD": 0,
+    "INR": 0,
+    "PHP": 0,
+    "CAD": 0,
+    "MYR": 0,
+    "HRK": 0,
+    "SGD": 0,
+    "PKR": 0,
+    "NPR": 0,
+    "CZK": 0,
+    "BRL": 0,
+    "MAD": 0,
+    "USD": -1593086,
+    "ILS": 0,
+    "SEK": 0,
+    "NZD": 0,
+    "BDT": 0,
+    "IDR": 0,
+    "PEN": 0,
+    "EGP": 0,
+    "HUF": 0,
+    "TRY": 0,
+    "ARS": 0,
+    "GBP": 0,
+    "NOK": 0,
+    "BHD": 0,
+    "BOB": 0,
+    "EUR": -2,
+    "UYU": 0,
+    "JPY": 0,
+    "RON": 0,
+    "MXN": 0,
+    "ZAR": 0,
+    "VND": 0,
+    "AED": 0,
+    "THB": 0,
+    "PLN": 0,
+    "KRW": 0,
+    "DKK": 0,
+    "LKR": 0,
+    "CLP": 0,
+    "AUD": 0,
+    "CNY": 0,
+    "COP": 0,
+    "SAR": 0,
+    "CHF": 0
+   },
+   "this_book": {
+    "USD": -1593086,
+    "EUR": -2,
+    "GBP": 0
+   },
+   "other_books": {},
+   "unexplained": {},
+   "funds": {
+    "book_cash_after_minor": {
+     "USD": 656914,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "balances": {
+    "USD": {
+     "cash": 656914,
+     "committed": 0,
+     "expense": 800000,
+     "fees": 300,
+     "fx": 792786,
+     "funding": -2250000
+    },
+    "EUR": {
+     "cash": -2,
+     "committed": 0,
+     "expense": 400000,
+     "fees": 1340,
+     "fx": -401338,
+     "funding": 0
+    },
+    "GBP": {
+     "cash": 0,
+     "committed": 0,
+     "expense": 250000,
+     "fees": 224,
+     "fx": -250224,
+     "funding": 0
+    }
+   }
+  },
+  {
+   "book": "kit01-nov-C205429",
+   "plan": "REQUIRES_APPROVAL",
+   "execution": "FAILED",
+   "message": "book kit01-nov-C205429 cannot fund convert d3e54ce4-5872-3511-be5a-b1bf2f866f45 in USD: the book's own cash is short, whatever the shared wallet holds",
+   "wallet_delta": {
+    "HKD": 0,
+    "INR": 0,
+    "PHP": 0,
+    "CAD": 0,
+    "MYR": 0,
+    "HRK": 0,
+    "SGD": 0,
+    "PKR": 0,
+    "NPR": 0,
+    "CZK": 0,
+    "BRL": 0,
+    "MAD": 0,
+    "USD": 0,
+    "ILS": 0,
+    "SEK": 0,
+    "NZD": 0,
+    "BDT": 0,
+    "IDR": 0,
+    "PEN": 0,
+    "EGP": 0,
+    "HUF": 0,
+    "TRY": 0,
+    "ARS": 0,
+    "GBP": 0,
+    "NOK": 0,
+    "BHD": 0,
+    "BOB": 0,
+    "EUR": 0,
+    "UYU": 0,
+    "JPY": 0,
+    "RON": 0,
+    "MXN": 0,
+    "ZAR": 0,
+    "VND": 0,
+    "AED": 0,
+    "THB": 0,
+    "PLN": 0,
+    "KRW": 0,
+    "DKK": 0,
+    "LKR": 0,
+    "CLP": 0,
+    "AUD": 0,
+    "CNY": 0,
+    "COP": 0,
+    "SAR": 0,
+    "CHF": 0
+   },
+   "this_book": {},
+   "other_books": {},
+   "unexplained": {},
+   "funds": {
+    "entry": "convert",
+    "ref": "d3e54ce4-5872-3511-be5a-b1bf2f866f45",
+    "overdrawn": [
+     "USD"
+    ],
+    "book_cash": {
+     "USD": 10000
+    }
+   },
+   "balances": {
+    "USD": {
+     "cash": 10000,
+     "committed": 0,
+     "expense": 0,
+     "fees": 0,
+     "fx": 0,
+     "funding": -10000
+    }
+   }
+  }
+ ],
+ "ok": true
+}

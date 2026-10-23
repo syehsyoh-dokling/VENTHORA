@@ -31,6 +31,8 @@ from .execution.store import ExecutionStore  # noqa: E402
 from .gateways.airwallex import AirwallexError  # noqa: E402
 from .intake.models import IntakeRequest, ReviewRequest  # noqa: E402
 from .intake.pipeline import Intake  # noqa: E402
+from .ledger import adjust as ledger_adjust_entry  # noqa: E402
+from .ledger import evaluate as ledger_evaluate  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
 from .proofcore.budget import attach_budget, cutoff_report, load_budget  # noqa: E402
 from .reporting import ReportingConfig, period_report  # noqa: E402
@@ -218,6 +220,51 @@ async def period_cutoff(period: str):
     if closed is None:
         raise HTTPException(404, "period not closed")
     return closed
+
+
+# -- the book ledger ----------------------------------------------------------------------------
+
+@app.get("/v1/ledger")
+async def ledger_books():
+    """Every book with its balances per currency (cash, committed, expense, fees, fx, funding)."""
+    store = app.state.executor.store
+    return [{"book_id": b, "balances": store.book_balances(b), "entries": len(store.journal(b))} for b in store.books()]
+
+
+@app.get("/v1/ledger/{book_id}")
+async def ledger_book(book_id: str):
+    store = app.state.executor.store
+    if not store.has_book(book_id):
+        raise HTTPException(404, "unknown book")
+    return {"book_id": book_id, "balances": store.book_balances(book_id), "journal": store.journal(book_id)}
+
+
+@app.post("/v1/ledger/eval")
+async def ledger_eval(inp: Annotated[dict, Body()]):
+    """Pure evaluation of postings (ground truth / the form): balances, refusals, every entry balanced."""
+    return ledger_evaluate(inp)
+
+
+class AdjustRequest(BaseModel):
+    currency: str = Field(min_length=3, max_length=3)
+    amount_minor: int = Field(ne=0, ge=-(10**11), le=10**11)
+    reviewer: str = Field(min_length=1, max_length=120)
+    role: str = Field(min_length=1, max_length=60)
+    note: str = Field(min_length=1, max_length=500)
+
+
+@app.post("/v1/ledger/{book_id}/adjust")
+async def ledger_adjust(book_id: str, req: AdjustRequest):
+    """A person's correction to a book (an unreported bank charge, a manual top-up), against funding; audited."""
+    if req.role != "finance_manager":
+        raise HTTPException(403, f"role {req.role} may not adjust a book")
+    store = app.state.executor.store
+    if not store.has_book(book_id):
+        raise HTTPException(404, "unknown book")
+    entry = ledger_adjust_entry(req.currency, req.amount_minor, f"{req.reviewer}: {req.note}")
+    posted = store.post(book_id, entry)
+    await asyncio.to_thread(app.state.audit.append, "ledger_adjust", {"book_id": book_id, **req.model_dump()})
+    return posted
 
 
 # -- reporting periods ---------------------------------------------------------------------------
@@ -478,7 +525,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies", "budget", "controls", "reporting"):
+    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

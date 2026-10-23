@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Execute a verified plan on Airwallex, then prove the outcome.
 
 Order of operations (each step can halt the run; nothing later runs after a halt):
@@ -25,12 +26,14 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
+from .. import ledger
 from ..audit import AuditStore
 from ..config import ROOT
 from ..domain.models import PlanResult, TreasuryState
 from ..domain.money import fmt
 from ..domain.projection import obligation_needs
 from ..gateways.airwallex import Airwallex, AirwallexError, ConversionResult, Quote, TransferResult
+from ..ledger import LedgerError
 from ..orchestrator import Orchestrator
 from .models import ExecutionRequest, ExecutionResult, Reconciliation, Step
 from .store import DuplicatePayout, ExecutionStore, QuoteReused
@@ -75,8 +78,17 @@ class Executor:
             return ExecutionResult(execution_id=None, plan_hash=req.plan_hash, status=h.status, message=str(h), steps=steps)
         async with self._run_lock:
             before = await self.bank.balances_minor()
+            before_at = datetime.now(UTC).isoformat()
             execution_id = self.store.create_execution(plan.plan_hash, {
-                "request": req.model_dump(mode="json"), "plan": plan.model_dump(mode="json"), "balances_before": before})
+                "request": req.model_dump(mode="json"), "plan": plan.model_dump(mode="json"), "balances_before": before,
+                "before_at": before_at})
+            # The book ledger: opened with the book's allocation on its first execution; from then on the book's own
+            # cash, not the shared wallet, is what every payout is taken from.
+            if not self.store.has_book(req.state.book_id):
+                self.store.post(req.state.book_id, ledger.open_book(req.state.balances, "allocation"), execution_id)
+                steps.append(Step(kind="ledger", key="open", status="OK", detail={"book": req.state.book_id,
+                                                                                   "allocation_minor": req.state.balances}))
+            self._before_at = before_at
             return await self._run(execution_id, req.state, plan, before, req, steps)
 
     async def resume(self, execution_id: str) -> ExecutionResult:
@@ -89,6 +101,7 @@ class Executor:
         plan = PlanResult.model_validate(stored["plan"])
         steps = [Step(kind="preflight", key="resume", status="OK", detail={"previous_status": record["status"]})]
         async with self._run_lock:
+            self._before_at = stored.get("before_at")  # the ledger explains what other books did meanwhile
             return await self._run(execution_id, req.state, plan, stored["balances_before"], req, steps)
 
     # -- phases ----------------------------------------------------------------
@@ -129,11 +142,13 @@ class Executor:
         conversions: list[ConversionResult] = []
         transfers: dict[str, tuple[str, TransferResult]] = {}  # obligation_id -> (payout_key, transfer)
         status, message = "COMPLETED", "executed and reconciled"
+        self._book_id = state.book_id
         claims = self._claim_all(eid, state, plan, steps)
         try:
             if claims is None:
                 raise Halt("FAILED", "duplicate payment blocked before any money moved")
             quotes = await self._quote_and_check(eid, state, plan, before, req, steps)
+            self._ledger_preflight(eid, state, plan, quotes, steps)
             for quote in quotes:
                 conversions.append(await self._convert(eid, quote, steps))
             for d in plan.obligations:
@@ -147,7 +162,7 @@ class Executor:
                 if oid not in transfers:
                     self.store.settle_payout(key, "RELEASED", None)
 
-        transfers = await self._poll(transfers)
+        transfers = await self._poll(transfers, steps)
         recon = await self._reconcile(state, plan, before, conversions, transfers, steps)
         if status == "COMPLETED":
             failed = [oid for oid, (_, t) in transfers.items() if t.status in ("CANCELLED", "FAILED")]
@@ -185,6 +200,46 @@ class Executor:
             "approval": req.approval.model_dump() if req.approval else None,
             "operations": self.store.operations(eid), "reconciliation": recon.model_dump()})
         return result
+
+    def _post(self, book_id: str, entry, eid: str | None, steps: list[Step]) -> None:
+        """Post to the book ledger; a refusal here is a finding (money already moved on the rail), never hidden."""
+        try:
+            posted = self.store.post(book_id, entry, eid)
+            over = posted.get("overdraft") or []
+            steps.append(Step(kind="ledger", key=entry.kind, status="OK" if not over else "FAILED", detail={
+                "ref": entry.ref, "lines": entry.as_rows(),
+                **({"overdraft": over, "note": "the book went below zero in " + ", ".join(over) + " (recorded, reported as budget exceeded)"} if over else {})}))
+        except LedgerError as exc:
+            steps.append(Step(kind="ledger", key=entry.kind, status="FAILED", detail={"ref": entry.ref, "error": str(exc)}))
+
+    def _ledger_preflight(self, eid: str, state: TreasuryState, plan: PlanResult, quotes: list[Quote], steps: list[Step]) -> None:
+        """Before any money moves: the BOOK (not the wallet) must be able to fund every conversion and payout still to
+        be made (a resume skips what the earlier run already posted). A book never spends another book's share."""
+        by_id = {o.obligation_id: o for o in state.obligations}
+        journal = [{"lines": e["lines"]} for e in self.store.journal(state.book_id)]
+        fees = self.store.observed_fees() | state.policy.payout_fees_minor
+        pending = []
+        for q in quotes:
+            if self.store.operation(eid, f"conversion:{q.buy_currency}", "conversion")["status"] == "SUCCEEDED":
+                continue
+            pending.append(ledger.convert(q.sell_currency, q.sell_amount_minor, q.buy_currency, q.buy_amount_minor, q.quote_id))
+        for d in plan.obligations:
+            if d.action in PAYING_ACTIONS:
+                if self.store.operation(eid, f"transfer:{d.obligation_id}", "transfer")["status"] == "SUCCEEDED":
+                    continue
+                o = by_id[d.obligation_id]
+                fee = fees.get(f"{o.payout_method}:{o.currency}", 0)
+                pending.append(ledger.commit(o.currency, o.amount_minor, fee, d.obligation_id))
+        for entry in pending:
+            over = ledger.would_overdraw(journal, entry)
+            if over:
+                steps.append(Step(kind="ledger", key="funds", status="REFUSED", detail={
+                    "entry": entry.kind, "ref": entry.ref, "overdrawn": over, "book_cash": {c: a["cash"] for c, a in ledger.balances(journal).items()}}))
+                raise Halt("FAILED", f"book {state.book_id} cannot fund {entry.kind} {entry.ref} in {', '.join(over)}: "
+                                     "the book's own cash is short, whatever the shared wallet holds")
+            journal.append({"lines": entry.as_rows()})
+        steps.append(Step(kind="ledger", key="funds", status="OK", detail={
+            "book_cash_after_minor": {c: a["cash"] for c, a in ledger.balances(journal).items()}}))
 
     def _claim_all(self, eid: str, state: TreasuryState, plan: PlanResult, steps: list[Step]) -> dict[str, str] | None:
         """Claim every payout up front. Returns obligation_id -> payout_key, or None on a duplicate."""
@@ -275,6 +330,9 @@ class Executor:
                               "buy_minor": result.buy_amount_minor, "client_rate": str(result.client_rate)}))
         if result.status != "SETTLED":
             raise Halt("IN_FLIGHT", f"conversion {result.conversion_id} is {result.status}; transfers held")
+        if not any(e["ref"] == result.conversion_id for e in self.store.journal(self._book_id)):  # a resume posts once
+            self._post(self._book_id, ledger.convert(result.sell_currency, result.sell_amount_minor, result.buy_currency,
+                                                     result.buy_amount_minor, result.conversion_id), eid, steps)
         return result
 
     async def _book_conversion(self, op: dict, quote: Quote, steps: list[Step]) -> ConversionResult:
@@ -314,6 +372,8 @@ class Executor:
         self.store.record_fee(f"{o.payout_method}:{transfer.source_currency or o.currency}", transfer.fee_minor,
                               transfer.transfer_id)
         self.store.settle_payout(payout_key, "IN_FLIGHT", transfer.transfer_id)
+        self._post(state.book_id, ledger.commit(transfer.source_currency or o.currency, transfer.transfer_amount_minor,
+                                                transfer.fee_minor, transfer.transfer_id), eid, steps)
         steps.append(Step(kind="transfer", key=o.obligation_id, status="OK", request_id=op["request_id"],
                           airwallex_id=transfer.transfer_id, detail={
                               "status": transfer.status, "amount": fmt(o.amount_minor, o.currency),
@@ -381,7 +441,8 @@ class Executor:
                                   detail={"status": t.status}))
             transfers[oid] = (key, t)
 
-    async def _poll(self, transfers: dict[str, tuple[str, TransferResult]]) -> dict[str, tuple[str, TransferResult]]:
+    async def _poll(self, transfers: dict[str, tuple[str, TransferResult]],
+                    steps: list[Step] | None = None) -> dict[str, tuple[str, TransferResult]]:
         """Re-read every transfer from Airwallex; a create response is never proof of payment."""
         out = {}
         for oid, (key, t) in transfers.items():
@@ -394,6 +455,13 @@ class Executor:
                     await asyncio.sleep(self.poll_interval_s)
             status = "PAID" if t.status == "PAID" else "FAILED" if t.status in ("CANCELLED", "FAILED") else "IN_FLIGHT"
             self.store.settle_payout(key, status, t.transfer_id)
+            # The book ledger: in-flight money becomes expense when PAID, comes back to cash when returned (once).
+            journal = self.store.journal(self._book_id)
+            ccy = t.source_currency or t.transfer_currency
+            if status == "PAID" and not any(e["kind"] == "settle" and e["ref"] == t.transfer_id for e in journal):
+                self._post(self._book_id, ledger.settle(ccy, t.transfer_amount_minor, t.transfer_id), None, steps or [])
+            elif status == "FAILED" and not any(e["kind"] == "refund" and e["ref"] == t.transfer_id for e in journal):
+                self._post(self._book_id, ledger.refund(ccy, t.transfer_amount_minor, t.transfer_id), None, steps or [])
             out[oid] = (key, t)
         return out
 
@@ -425,6 +493,7 @@ class Executor:
                                      "contract_total_minor": o.contract_total_minor, "line": o.budget_line,
                                      "currency": o.currency, "amount_minor": o.amount_minor, "base_cost_minor": cost.get(oid, 0),
                                      "paid_at": paid_at, "reporting_period": period})
+        # What this run itself did on the rail (for the record and the plan-vs-actual variance).
         expected = dict(before)
         for c in conversions:
             expected[c.sell_currency] = expected.get(c.sell_currency, 0) - c.sell_amount_minor
@@ -439,7 +508,32 @@ class Executor:
         except AirwallexError as exc:
             steps.append(Step(kind="reconcile", key="balances", status="FAILED", detail={"error": str(exc)}))
             live = {}
-        diffs = {c: live.get(c, 0) - v for c, v in expected.items() if live.get(c, 0) != v}
+        # The book ledger explains the shared wallet: since this run read `before`, the wallet must have moved by
+        # exactly the sum of the `cash` lines of EVERY book (this one and any other that ran meanwhile, or a resume's
+        # original run). Anything left over is money the rail moved that no book knows about: a discrepancy.
+        since = getattr(self, "_before_at", None)
+        journal_since = self.store.journal(since=since) if since else []
+        by_book: dict[str, dict[str, int]] = {}
+        for e in journal_since:
+            if e["kind"] == "open":
+                continue  # an allocation is the book's opening, not a wallet movement
+            for ln in e["lines"]:
+                if ln["account"] == "cash":
+                    bb = by_book.setdefault(e["book_id"], {})
+                    bb[ln["currency"]] = bb.get(ln["currency"], 0) + ln["amount"]
+        explained: dict[str, int] = {}
+        for bb in by_book.values():
+            for ccy, amt in bb.items():
+                explained[ccy] = explained.get(ccy, 0) + amt
+        wallet_delta = {c: live.get(c, 0) - before.get(c, 0) for c in set(before) | set(live)
+                        if live.get(c, 0) != before.get(c, 0) or c in state.balances} if live else {}
+        diffs = {c: wallet_delta.get(c, 0) - explained.get(c, 0) for c in set(wallet_delta) | set(explained)
+                 if wallet_delta.get(c, 0) != explained.get(c, 0)} if live else {}
+        other_books = {b: d for b, d in by_book.items() if b != state.book_id}
+        steps.append(Step(kind="ledger", key="wallet-vs-books", status="OK" if not diffs else "FAILED", detail={
+            "since": since, "wallet_delta_minor": wallet_delta, "this_book_cash_delta_minor": by_book.get(state.book_id, {}),
+            "other_books_cash_delta_minor": other_books, "unexplained_minor": diffs,
+            "book_balances_minor": {c: {k: v for k, v in a.items() if v} for c, a in self.store.book_balances(state.book_id).items()}}))
         # The managed budget (the plan's balances, possibly ring-fenced below the wallet) moves by
         # exactly what moved in the live wallet; the reserve floor is checked on that budget.
         managed = {c: v + live.get(c, 0) - before.get(c, 0) for c, v in state.balances.items()} if live else {}

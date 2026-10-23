@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Feed what execution learned back into the next plan.
 
 * Fees Airwallex actually charged (per 'METHOD:CCY') replace assumed fees. The Kit 01 guide says
@@ -32,7 +33,16 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
         notes.append("observed Airwallex fees: " + ", ".join(
             f"{k} {fmt(v, k.split(':')[1])}" for k, v in sorted(fees.items())))
     last = store.last_managed_budget(state.book_id)
-    if last:
+    if store.has_book(state.book_id):
+        # The book ledger is the book's truth: its own cash (not the shared wallet, not the last reconciliation's
+        # managed figure) is what the next plan may spend; money in flight is not available until it comes back.
+        book = store.book_balances(state.book_id)
+        for ccy in data["balances"]:
+            cash = book.get(ccy, {}).get("cash", 0)
+            data["balances"][ccy] = max(0, min(cash, data["balances"][ccy]))
+        notes.append("book ledger " + state.book_id + ": cash " + ", ".join(fmt(v, c) for c, v in sorted(data["balances"].items()))
+                     + "; in flight " + ", ".join(fmt(a.get("committed", 0), c) for c, a in sorted(book.items()) if a.get("committed")))
+    elif last:
         execution_id, managed = last
         for ccy in data["balances"]:
             if ccy in managed:

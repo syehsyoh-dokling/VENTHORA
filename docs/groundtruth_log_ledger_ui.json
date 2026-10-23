@@ -1,0 +1,12 @@
+{"_note": "UI bench, ledger suite: every case submitted through the dashboard form (Submit a case, suite = ledger, POST /v1/ledger/eval) in the Claude in-app browser against the running service on 23 Oct 2026; ui_ms = round trip measured by the browser. 15/15 matched the hand-derived expectation.",
+ "n": 15, "matched": 15, "p50_ms": 3.0, "max_ms": 3.8,
+ "rows": [
+  {"id": "L01", "kind": "ledger", "match": true, "ui_ms": 3.8}, {"id": "L02", "kind": "ledger", "match": true, "ui_ms": 3.0},
+  {"id": "L03", "kind": "ledger", "match": true, "ui_ms": 2.7}, {"id": "L04", "kind": "ledger", "match": true, "ui_ms": 3.5},
+  {"id": "L05", "kind": "ledger", "match": true, "ui_ms": 3.0}, {"id": "L06", "kind": "ledger", "match": true, "ui_ms": 2.8},
+  {"id": "L07", "kind": "ledger", "match": true, "ui_ms": 3.7}, {"id": "L08", "kind": "ledger", "match": true, "ui_ms": 2.8},
+  {"id": "L09", "kind": "ledger", "match": true, "ui_ms": 2.8}, {"id": "L10", "kind": "ledger", "match": true, "ui_ms": 2.5},
+  {"id": "L11", "kind": "ledger", "match": true, "ui_ms": 2.9}, {"id": "L12", "kind": "ledger", "match": true, "ui_ms": 3.1},
+  {"id": "L13", "kind": "ledger", "match": true, "ui_ms": 2.6}, {"id": "L14", "kind": "ledger", "match": true, "ui_ms": 3.0},
+  {"id": "L15", "kind": "ledger", "match": true, "ui_ms": 3.0}
+ ]}

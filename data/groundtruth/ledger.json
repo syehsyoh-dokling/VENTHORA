@@ -1,0 +1,580 @@
+{
+ "_note": "Book-ledger ground truth, hand-derived; see scripts/make_ledger_groundtruth.py.",
+ "cases": [
+  {
+   "id": "L01",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "opening the book",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     }
+    ]
+   },
+   "expect": {
+    "cash": {
+     "USD": 2250000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "posted": 1,
+    "all_balanced": true
+   },
+   "derivation": "cash +22,500 / funding \u221222,500 per currency; balanced"
+  },
+  {
+   "id": "L02",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "a conversion moves cash across currencies",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "convert",
+      "sell_currency": "USD",
+      "sell_amount": 435394,
+      "buy_currency": "EUR",
+      "buy_amount": 401285
+     }
+    ]
+   },
+   "expect": {
+    "cash": {
+     "USD": 1814606,
+     "EUR": 401285,
+     "GBP": 0
+    },
+    "all_balanced": true
+   },
+   "derivation": "USD \u22124,353.94 via fx; EUR +4,012.85 via fx; each currency balanced on its own"
+  },
+  {
+   "id": "L03",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "a commit takes amount + fee from cash",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "commit",
+      "currency": "USD",
+      "amount": 800000,
+      "fee": 300
+     }
+    ]
+   },
+   "expect": {
+    "cash": {
+     "USD": 1449700,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "committed": {
+     "USD": 800000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fees": {
+     "USD": 300,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "cash \u22128,003; committed +8,000; fees +3"
+  },
+  {
+   "id": "L04",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "settle turns in-flight money into expense",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "commit",
+      "currency": "USD",
+      "amount": 800000,
+      "fee": 300
+     },
+     {
+      "kind": "settle",
+      "currency": "USD",
+      "amount": 800000
+     }
+    ]
+   },
+   "expect": {
+    "committed": {
+     "USD": 0,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "expense": {
+     "USD": 800000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "cash": {
+     "USD": 1449700,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "committed \u22128,000 / expense +8,000; cash unchanged"
+  },
+  {
+   "id": "L05",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "a refund brings the amount back, not the fee",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "commit",
+      "currency": "USD",
+      "amount": 800000,
+      "fee": 300
+     },
+     {
+      "kind": "refund",
+      "currency": "USD",
+      "amount": 800000
+     }
+    ]
+   },
+   "expect": {
+    "cash": {
+     "USD": 2249700,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "committed": {
+     "USD": 0,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fees": {
+     "USD": 300,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "cash back to 22,497: the fee is gone for good"
+  },
+  {
+   "id": "L06",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "a commit beyond the book's cash is refused",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "commit",
+      "currency": "USD",
+      "amount": 2300000,
+      "fee": 0
+     }
+    ]
+   },
+   "expect": {
+    "posted": 1,
+    "cash": {
+     "USD": 2250000,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "23,000 > 22,500 -> refused; nothing posted; whatever the shared wallet holds"
+  },
+  {
+   "id": "L07",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "a commit in a currency the book does not hold is refused",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "commit",
+      "currency": "EUR",
+      "amount": 100,
+      "fee": 0
+     }
+    ]
+   },
+   "expect": {
+    "posted": 1
+   },
+   "derivation": "EUR cash 0 -> refused until a conversion funds it"
+  },
+  {
+   "id": "L08",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "convert then commit in the bought currency",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "convert",
+      "sell_currency": "USD",
+      "sell_amount": 435394,
+      "buy_currency": "EUR",
+      "buy_amount": 401285
+     },
+     {
+      "kind": "commit",
+      "currency": "EUR",
+      "amount": 400000,
+      "fee": 1285
+     }
+    ]
+   },
+   "expect": {
+    "posted": 3,
+    "cash": {
+     "USD": 1814606,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "committed": {
+     "USD": 0,
+     "EUR": 400000,
+     "GBP": 0
+    },
+    "fees": {
+     "USD": 0,
+     "EUR": 1285,
+     "GBP": 0
+    }
+   },
+   "derivation": "EUR 4,012.85 bought covers 4,000 + 12.85 fee exactly -> EUR cash 0"
+  },
+  {
+   "id": "L09",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "the real fee is larger than the conversion bought: refused before money moves",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "convert",
+      "sell_currency": "USD",
+      "sell_amount": 435394,
+      "buy_currency": "EUR",
+      "buy_amount": 401285
+     },
+     {
+      "kind": "commit",
+      "currency": "EUR",
+      "amount": 400000,
+      "fee": 1337
+     }
+    ]
+   },
+   "expect": {
+    "posted": 2
+   },
+   "derivation": "4,013.37 > 4,012.85 -> the pre-flight refuses by 0.52 (on the rail the executor would record it as an overdraft to report)"
+  },
+  {
+   "id": "L10",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "a deposit funds the book",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "deposit",
+      "currency": "USD",
+      "amount": 1000000
+     }
+    ]
+   },
+   "expect": {
+    "cash": {
+     "USD": 3250000,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "cash +10,000 / funding \u221210,000"
+  },
+  {
+   "id": "L11",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "a grant funds the book",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "grant",
+      "currency": "USD",
+      "amount": 110000
+     }
+    ]
+   },
+   "expect": {
+    "cash": {
+     "USD": 2360000,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "cash +1,100"
+  },
+  {
+   "id": "L12",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "an adjustment can go either way",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "adjust",
+      "currency": "USD",
+      "amount": -63
+     }
+    ]
+   },
+   "expect": {
+    "cash": {
+     "USD": 2249937,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "an unreported bank charge of 0.63 recorded by a person"
+  },
+  {
+   "id": "L13",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "an unbalanced entry is refused",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "nonsense"
+     }
+    ]
+   },
+   "expect": {
+    "posted": 1
+   },
+   "derivation": "unknown kind -> refused; the journal stays balanced"
+  },
+  {
+   "id": "L14",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "the wallet moves by exactly the cash lines",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 2250000,
+       "EUR": 0,
+       "GBP": 0
+      }
+     },
+     {
+      "kind": "convert",
+      "sell_currency": "USD",
+      "sell_amount": 317500,
+      "buy_currency": "GBP",
+      "buy_amount": 250000
+     },
+     {
+      "kind": "commit",
+      "currency": "GBP",
+      "amount": 250000,
+      "fee": 0
+     },
+     {
+      "kind": "commit",
+      "currency": "USD",
+      "amount": 800000,
+      "fee": 300
+     },
+     {
+      "kind": "settle",
+      "currency": "GBP",
+      "amount": 250000
+     },
+     {
+      "kind": "settle",
+      "currency": "USD",
+      "amount": 800000
+     }
+    ]
+   },
+   "expect": {
+    "cash_delta": {
+     "USD": 1132200,
+     "GBP": 0,
+     "EUR": 0
+    },
+    "committed": {
+     "USD": 0,
+     "EUR": 0,
+     "GBP": 0
+    }
+   },
+   "derivation": "cash lines: USD +22,500 \u22123,175 \u22128,003 = +11,322; GBP +2,500 \u22122,500 = 0: reconciliation compares the wallet's movement to exactly this"
+  },
+  {
+   "id": "L15",
+   "kind": "ledger",
+   "level": 4,
+   "pain": "a book never spends another book's money",
+   "title": "two books on one wallet: each is its own ledger",
+   "input": {
+    "events": [
+     {
+      "kind": "open",
+      "balances": {
+       "USD": 500000
+      }
+     },
+     {
+      "kind": "commit",
+      "currency": "USD",
+      "amount": 400000,
+      "fee": 0
+     },
+     {
+      "kind": "commit",
+      "currency": "USD",
+      "amount": 200000,
+      "fee": 0
+     }
+    ]
+   },
+   "expect": {
+    "posted": 2,
+    "cash": {
+     "USD": 100000
+    },
+    "committed": {
+     "USD": 400000
+    }
+   },
+   "derivation": "book A has 5,000: 4,000 fits, another 2,000 does not \u2014 even if book B's money is in the same wallet"
+  }
+ ]
+}

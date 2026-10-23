@@ -83,7 +83,7 @@ def reporting_view(d: dict) -> dict:
 
 def view_of(kind: str, result) -> dict:
     return {"plan": plan_view, "intake": intake_view, "incident": incident_view, "execution": execution_view,
-            "reporting": reporting_view}[kind](result)
+            "reporting": reporting_view, "ledger": reporting_view}[kind](result)
 
 
 def compare(expect: dict, view: dict) -> dict:
@@ -179,6 +179,10 @@ async def run_case(case: dict, agent, intake, workdir: Path | None = None) -> di
         from ..reporting import evaluate
 
         view = reporting_view(evaluate(case["input"]))
+    elif kind == "ledger":
+        from ..ledger import evaluate as ledger_evaluate
+
+        view = reporting_view(ledger_evaluate(case["input"]))
     else:
         # The fake sandbox needs "credentials" to exist; restore the environment afterwards so later plan cases
         # (which share the agent) do not suddenly see a configured-but-unreachable Airwallex and get BLOCKED.

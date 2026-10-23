@@ -60,7 +60,7 @@ def section(suite: str, title: str, intro: list[str]) -> list[str]:
     inproc = asyncio.run(in_process(cases))
     endpoint = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_endpoint.json").read_text(encoding="utf-8"))}
     ui = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_ui.json").read_text(encoding="utf-8"))["rows"]}
-    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "execution"].index)
+    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "execution"].index)
     lines = [f"## {title}", ""] + intro + ["", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
     for kind in kinds:
         ids = [c["id"] for c in cases if c["kind"] == kind]
@@ -119,6 +119,10 @@ def main() -> None:
         "reported as reconciled only when its parts add up to the contract, in the month of the last part; consolidation of every currency "
         "to the reporting currency at the period's recorded closing rates, beside the base cost actually paid (FX difference); a missing "
         "rate is flagged, never guessed."])
+    lines += [""] + section("ledger", "Suite 6 — the book ledger: double-entry per book, a book never spends another book's money", [
+        "Balanced entries per currency (open, deposit, grant, convert, commit, settle, refund, adjust); a commit or conversion the book "
+        "cannot fund is refused before money moves; the wallet must move by exactly the sum of every book's cash lines, which is what "
+        "reconciliation now checks on a shared wallet."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"
