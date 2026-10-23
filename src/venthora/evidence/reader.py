@@ -102,7 +102,7 @@ class EvidenceReading(StrictModel):
 # -- calibration ---------------------------------------------------------------------------
 
 def calibrate_delay(expected_hours: int, confidence_bp: int, history: PayerHistory | None,
-                    delay_days: int | None, verified: bool) -> tuple[int, int, list[int], str]:
+                    delay_days: int | None, verified: bool, ceiling_bp: int = 7_000) -> tuple[int, int, list[int], str]:
     h = history or PayerHistory()
     kept, missed = h.kept, h.missed + 1  # this delay is itself a missed promise
     posterior = (kept + 1) * 10_000 // (kept + missed + 2)
@@ -110,8 +110,11 @@ def calibrate_delay(expected_hours: int, confidence_bp: int, history: PayerHisto
     if verified and delay_days:
         hours = min(expected_hours + delay_days * 24, 24 * 365)
         spread = 24 * max(1, delay_days) * (n + 3) // (n + 1)
-        conf = min(confidence_bp, posterior)
-        why = (f"payer kept {kept} of {kept + missed} promises incl. this delay -> posterior {posterior / 100:.0f}%; "
+        # Kit 01: a contradicting customer email must lower the autonomous limit, whatever the
+        # payer's record. A contradicted forecast is capped below the fully-supported band.
+        conf = min(confidence_bp, posterior, ceiling_bp)
+        why = (f"payer kept {kept} of {kept + missed} promises incl. this delay -> posterior {posterior / 100:.0f}%, "
+               f"capped at {ceiling_bp / 100:.0f}% because the payer contradicted the forecast; "
                f"90% window widens to {spread}h with {n} past promises")
         return hours, conf, [hours, hours + spread], why
     conf = min(confidence_bp, posterior // 2)
@@ -315,7 +318,8 @@ async def read_inbox(state: TreasuryState, messages: list[InboxMessage], *, as_o
         reader, proposal, problems, span, days = chosen
         verified = not problems
         hours, conf, window, why = calibrate_delay(r.expected_in_hours, r.confidence_bp, r.payer_history,
-                                                   days if verified else None, verified)
+                                                   days if verified else None, verified,
+                                                   ceiling_bp=state.policy.contradicted_confidence_ceiling_bp)
         quote = by_id[proposal["doc_id"]].span(*span)
         updates.append(ReceivableUpdate(
             receivable_id=r.receivable_id, payer=r.payer, verified=verified, delay_days=days,

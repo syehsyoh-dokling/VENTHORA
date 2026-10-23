@@ -174,7 +174,7 @@ pytest -q
 ruff check src tests scripts
 ```
 
-The 114 tests cover:
+The 118 tests cover:
 
 - planning: the full Kit 01 flow, 40 randomized states that must never breach the reserve, CP-SAT vs exact-solver agreement
 - real-sandbox findings: fee variance and learning, settled invoices never re-proposed, budget carried forward
@@ -216,7 +216,7 @@ docs/            architecture, hackathon compliance, demo script
 - [x] LLM evidence reader (local Qwen or any OpenAI-compatible model), verified by the original Verity validator
 - [ ] Treasury dashboard for the demo video
 
-Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).
+Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). Adversarial audit, oracle hunt and known limitations: [docs/AUDIT.md](docs/AUDIT.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).
 
 ## License
 

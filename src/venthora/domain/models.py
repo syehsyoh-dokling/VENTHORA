@@ -85,6 +85,10 @@ class TreasuryPolicy(StrictModel):
                                     description="forecast confidence at/above which the full limit applies")
     zero_limit_below_bp: int = Field(default=5_000, ge=0, le=10_000,
                                      description="at/below this confidence every conversion needs a person")
+    contradicted_confidence_ceiling_bp: int = Field(
+        default=7_000, ge=0, le=10_000,
+        description="a forecast its own payer has contradicted is no longer 'supported by bank and invoice data': "
+                    "its confidence is capped here (below the full band), so the autonomous limit always drops")
     escalate_flags: list[str] = Field(default_factory=lambda: ["payee_bank_details_changed"],
                                       description="policy exceptions that always go to a person, whatever the cash")
     swift_fee_currency: Currency = "EUR"

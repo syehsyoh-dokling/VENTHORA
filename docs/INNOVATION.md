@@ -184,8 +184,9 @@ The complete, line-by-line matrix is in [HACKATHON_COMPLIANCE.md](HACKATHON_COMP
 
 - The vendored original engines (Theorem FX netting, Horizon M0, Verity retrieval and validation)
   are small, focused components, not the product. They are cited for provenance, not as the pitch.
-- Verity's original citation check measures term overlap, not entailment. The literal-figure check
-  compensates for the delay use case only.
+- Verity's original overlap check is effectively bypassed (the located sentence is passed as the claim);
+  what Verity contributes is existence, embargo and span resolution. The fact check is VENTHORA's literal
+  check, written for two claim types. Details and other limitations: [AUDIT.md](AUDIT.md).
 - The 0.5B local model is deliberately small. The point is that model quality does not decide
   safety. A stronger model (any OpenAI-compatible endpoint) improves recommendations, not authority.
 - Real-sandbox evidence (three cycles, transfer IDs, findings) is in [SANDBOX_RESULTS.md](SANDBOX_RESULTS.md).

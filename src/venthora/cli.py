@@ -34,7 +34,7 @@ from .engines.llm_planner import llm_proposal, naive_proposal
 from .evidence.explain import explain_exceptions
 from .evidence.llm import ChatModel
 from .evidence.reader import InboxMessage, read_inbox
-from .execution.executor import Executor
+from .execution.executor import Executor, terms_digest
 from .execution.facts import apply_operational_facts
 from .execution.live import with_live_balances_and_rates
 from .execution.models import Approval, ExecutionRequest
@@ -103,6 +103,21 @@ async def print_exception_notes(state, plan, model) -> list[dict]:
     for n in notes:
         print(f"    {n['obligation_id']} [{n['author']}]: {n['note']}")
     return notes
+
+
+def print_approval_terms(plan) -> None:
+    """Guide: bind each approval to the amount, currency, counterparty, terms and evidence the approver saw."""
+    print("  terms of this plan:")
+    for t in plan.approval_terms:
+        if t["kind"] == "payout":
+            ev = t["evidence"]
+            print(f"    pay   {t['amount']:>16}  to {t['counterparty']} ({t['method']}, due {t['due_in_hours']}h)"
+                  f"  evidence {ev['ref']} [{ev['source']}]: {ev['summary']}")
+        else:
+            print(f"    buy   {t['buy']:>16}  for about {t['estimated_cost']}  ({t['terms']})")
+    reasons = next((s.details.get("local", {}).get("requires_approval") for s in plan.stages if s.engine == "Policy"), [])
+    if reasons:
+        print(f"  why a person is needed: {', '.join(reasons)}")
 
 
 def print_reading(reading) -> None:
@@ -352,16 +367,17 @@ async def run(args) -> int:
             print("\n  nothing to execute: the plan moves no money (escalations go to a person)")
             return 0
 
-        line("6 · approval (a person decides; the plan_hash binds the approval)")
+        line("6 · approval (a person decides; the terms shown here are what the approval binds to)")
         approval = None
+        print_approval_terms(plan)
         if plan.decision == "REQUIRES_APPROVAL":
             name = args.approve or (input("  Approver name (finance_manager), blank to stop: ").strip()
                                     if sys.stdin.isatty() else "")
             if not name:
                 print("  not approved: nothing executed")
                 return 0
-            approval = Approval(approver=name, role="finance_manager")
-            print(f"  approved by {name} (finance_manager)")
+            approval = Approval(approver=name, role="finance_manager", terms_digest=terms_digest(plan))
+            print(f"  approved by {name} (finance_manager) on terms {terms_digest(plan)[:16]}…")
         elif not (args.yes or args.approve):  # an approver given on the command line consents to execution
             if not sys.stdin.isatty() or input("  Execute this plan on the sandbox? [y/N] ").strip().lower() != "y":
                 print("  not executed")

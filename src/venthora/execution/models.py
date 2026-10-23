@@ -12,6 +12,10 @@ class Approval(StrictModel):
     approver: str = Field(min_length=1, max_length=120)
     role: str = Field(min_length=1, max_length=60)
     note: str = Field(default="", max_length=500)
+    terms_digest: str | None = Field(
+        default=None, min_length=64, max_length=64,
+        description="sha256 of the approval terms the approver saw (PlanResult.approval_terms); when given, "
+                    "execution refuses if the plan's terms differ")
 
 
 class ExecutionRequest(StrictModel):

@@ -11,8 +11,9 @@ Legend:
 - 📝 stated in the docs
 - ↔ deliberate deviation, with the reason given
 
-No oracle: no production code branches on scenario ids or demo values. The "receipt delayed"
-scenario is not hand-written; `scripts/make_scenarios.py` generates it by reading the inbox.
+No oracle: no production code branches on scenario ids or demo values; the later scenarios are generated
+by reading the inbox (`scripts/make_scenarios.py`); `scripts/oracle_audit.py` mutates the data and checks the
+agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](AUDIT.md).
 
 ## Submission (hackerearth)
 
@@ -55,7 +56,7 @@ scenario is not hand-written; `scripts/make_scenarios.py` generates it by readin
 | 35 | Amounts, limits, reserves, validation, duplicate protection, state transitions in code | ✅🧪 | ProofCore, `proofcore/policy.py` + Rego, executor state machine |
 | 36 | Model reads text, compares evidence, proposes a plan, explains exceptions | ✅🧪 | `evidence/reader.py` (read + compare), `engines/llm_planner.py` (propose), `evidence/explain.py` (explain) |
 | 37 | Typed tools, not credentials | ✅ | the model only returns text; credentials stay in the gateway |
-| 38 | Approval bound to amount, currency, counterparty, terms, evidence | ✅🧪 | `PlanResult.approval_terms` + `plan_hash`; any change refuses execution |
+| 38 | Approval bound to amount, currency, counterparty, terms, evidence | ✅🧪 | the terms are shown to the approver at approval time; the approval carries a `terms_digest` and execution refuses an approval given on different terms (audit gap, closed) |
 | 39 | Simulation calls behind one replaceable interface | ✅ | `simulate_deposit`, `simulate_transfer_transition` on the gateway |
 | 40 | End with a financial action or an escalation to a person | ✅ | both: conversions/transfers executed and policy exceptions escalated |
 | 41 | A rule that always gives the same answer belongs in code | ✅ | limits, deferral, escalation rules in code; the model never decides |
@@ -73,8 +74,8 @@ scenario is not hand-written; `scripts/make_scenarios.py` generates it by readin
 | 48 | Escalate a policy exception | ✅🧪 | CONTRACTOR-US: payee bank details changed (cited email) → escalated, never auto-paid |
 | 49 | After a deposit, recalculate only the decisions it affects | ✅🧪 | incremental recalculation with locked decisions and a diff |
 | 50 | Execution limit tied to forecast confidence; strong data allows a larger autonomous conversion | ✅🧪 | limit = full at ≥90%, linear to 0 at ≤50% |
-| 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions |
-| 52 | Thresholds in policy code, not prompts | ✅ | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego` |
+| 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions; a contradicted forecast is capped below the full band whatever the payer record (audit mutation M6) |
+| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 990 inputs under a real OPA (`scripts/check_policy_mirror.py`) |
 | 53 | Read balances and obligations | ✅ | `GET /balances/current`; scenario obligations |
 | 54 | Plan in code | ✅ | Theorem (CP-SAT + exact second candidate) |
 | 55 | Lower forecast confidence for one receipt | ✅ | RCV-ACME 90% → 70% (calibrated from payer history) |

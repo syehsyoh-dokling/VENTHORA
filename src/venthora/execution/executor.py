@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 from datetime import datetime
 from decimal import Decimal
@@ -109,6 +110,8 @@ class Executor:
                 refuse("plan requires a person's approval: " + ", ".join(_approval_reasons(plan)))
             if req.approval.role not in policy.approver_roles:
                 refuse(f"role {req.approval.role!r} may not approve; allowed: {policy.approver_roles}")
+            if req.approval.terms_digest and req.approval.terms_digest != terms_digest(plan):
+                refuse("the approval was given on different terms (amount, counterparty or evidence changed)")
         steps.append(Step(kind="preflight", key="authorization", status="OK", detail={
             "decision": plan.decision, "approved_by": req.approval.approver if req.approval else "policy (autonomous)"}))
         return plan
@@ -439,6 +442,12 @@ def missing_required(schema: dict, payload: dict) -> list[str]:
         if node in (None, "", [], {}):
             missing.append(key[len(prefix):])
     return sorted(missing)
+
+
+def terms_digest(plan: PlanResult) -> str:
+    """What an approver signs: the exact amounts, counterparties, methods and evidence of the plan."""
+    canonical = json.dumps(plan.approval_terms, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def _payout_key(o) -> str:
