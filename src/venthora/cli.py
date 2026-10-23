@@ -36,6 +36,7 @@ from .evidence.llm import ChatModel
 from .evidence.reader import InboxMessage, read_inbox
 from .execution.executor import Executor, terms_digest
 from .execution.facts import apply_operational_facts
+from .execution.incidents import IncidentCommander, IncidentRequest
 from .execution.live import with_live_balances_and_rates
 from .execution.models import Approval, ExecutionRequest
 from .execution.store import ExecutionStore
@@ -93,7 +94,17 @@ def print_plan(plan, *, counterfactuals: bool = True) -> None:
     if counterfactuals and plan.counterfactuals:
         print("\n  counterfactual proof (same invariants as the plan):")
         for c in plan.counterfactuals:
-            print(f"    {'✓' if c.feasible else '✗'} {c.question:<48} {c.consequence}")
+            risk = f"  P(breach) {c.breach_probability_bp / 100:.1f}%" if c.breach_probability_bp is not None else ""
+            print(f"    {'✓' if c.feasible else '✗'} {c.question:<48} {c.consequence}{risk}")
+    sim = plan.simulation
+    if sim:
+        print(f"\n  72h simulation ({sim['fx_model']}): P(reserve breached) {sim['breach_probability_bp'] / 100:.1f}% "
+              f"over {sim['paths']:,} paths; min balance p05 {fmt(sim['min_balance_p05_minor'], 'USD')}")
+        print(f"    {sim['events']} scheduled events; {sim['path_events']:,} path-events applied in {sim['loop_ms']:.1f} ms "
+              f"= {sim['path_events_per_second']:,}/s (vectorised numpy, wall clock; FX setup {sim['fx_setup_ms']:.0f} ms "
+              "excluded)")
+        for oid, p in sim["unfunded_probability_bp"].items():
+            print(f"    P({oid} unfunded at due) {p / 100:.1f}%")
 
 
 async def print_exception_notes(state, plan, model) -> list[dict]:
@@ -118,6 +129,30 @@ def print_approval_terms(plan) -> None:
     reasons = next((s.details.get("local", {}).get("requires_approval") for s in plan.stages if s.engine == "Policy"), [])
     if reasons:
         print(f"  why a person is needed: {', '.join(reasons)}")
+
+
+async def run_incident(executor, state: TreasuryState, spec: str, *, fake: bool) -> dict:
+    """`--incident OBLIGATION[:FAILURE_TYPE[:HOURS]]`: fail the in-flight transfer (sandbox) and let the agent decide."""
+    parts = spec.split(":")
+    obligation_id, failure = parts[0], (parts[1] if len(parts) > 1 and parts[1] else None)
+    hours = int(parts[2]) if len(parts) > 2 else 0
+    req = IncidentRequest(state=state, obligation_id=obligation_id, simulate_failure_type=failure, hours_in_flight=hours)
+    try:
+        result = await IncidentCommander(executor).handle(req)
+    except (KeyError, LookupError) as exc:
+        print(f"  no transfer on record for {obligation_id}: {exc}")
+        return {"error": str(exc)}
+    for e in result.events:
+        detail = ", ".join(f"{k}={v}" for k, v in e.detail.items() if k not in ("events",))
+        print(f"  [{e.status:<7}] {e.step:<14} {detail[:150]}")
+    print(f"\n  decision: {result.decision}: {result.reason}")
+    print(f"  original {result.original_transfer_id[:8]}… {result.original_status}"
+          f"{' / ' + result.original_failure_type if result.original_failure_type else ''}"
+          + (f"; replacement {result.replacement_transfer_id[:8]}… {result.replacement_status}"
+             if result.replacement_transfer_id else ""))
+    print(f"  incident {result.incident_id[:8]}… {result.status}"
+          + ("" if result.status == "RESOLVED" else " (not closed: a person, or the original's fate, is still pending)"))
+    return result.model_dump(mode="json")
 
 
 def print_reading(reading) -> None:
@@ -384,7 +419,10 @@ async def run(args) -> int:
                 return 0
 
         line("7 · execute on Airwallex and reconcile")
-        result = await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash, approval=approval))
+        if args.incident:
+            print("  (Kit 03 demo: transfers are left in flight, not settled, so the incident can be staged)")
+        result = await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash, approval=approval,
+                                                         simulate_settlement=not args.incident))
         for s in result.steps:
             ident = s.airwallex_id or s.request_id or ""
             print(f"  [{s.status:<9}] {s.kind:<11} {s.key:<24} {ident}")
@@ -401,6 +439,10 @@ async def run(args) -> int:
         if result.status == "COMPLETED" and dep.get("landed"):
             executor.store.count_deposit(dep["id"], dep["receivable_id"], dep["amount_minor"], dep["currency"],
                                          result.execution_id)
+        if args.incident:
+            line("8 · Kit 03 incident: the supplier says the money never arrived")
+            report["incident"] = await run_incident(executor, state, args.incident, fake=args.fake)
+            return 0 if report["incident"].get("status") in ("RESOLVED", "WAITING", "ESCALATED") else 1
         return 0 if result.status == "COMPLETED" else 1
     finally:
         await agent.close()
@@ -425,6 +467,8 @@ def main() -> None:
     ap.add_argument("--plan-only", action="store_true")
     ap.add_argument("--no-fx-stress", action="store_true", help="skip Horizon FX stress")
     ap.add_argument("--no-challenge", action="store_true", help="skip the AI-challenger demo")
+    ap.add_argument("--incident", metavar="OBLIGATION[:FAILURE_TYPE[:HOURS]]",
+                    help="Kit 03: after execution, fail that transfer on the sandbox and let the agent decide")
     sys.stdout.reconfigure(encoding="utf-8")
     raise SystemExit(asyncio.run(run(ap.parse_args())))
 

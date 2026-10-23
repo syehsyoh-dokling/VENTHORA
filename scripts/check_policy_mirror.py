@@ -31,13 +31,14 @@ def opa_eval(inputs: list[dict]) -> list[dict]:
 
 def main() -> int:
     grid = []
-    for conf, limit, role, esc in itertools.product(
+    for conf, limit, role, esc, breach in itertools.product(
             [None, 0, 2500, 5000, 5001, 6000, 7000, 8999, 9000, 9500, 10000], [1_000_000, 500_000, 0],
-            ["treasury_agent", "finance_manager", "viewer"], [[], ["X"]]):
+            ["treasury_agent", "finance_manager", "viewer"], [[], ["X"]], [None, 0, 500, 501, 10000]):
         for conversion in (0, 499_999, 500_000, 500_001, 1_000_001):
             grid.append({"actor_role": role, "approver_roles": ["finance_manager"], "conversion_base_minor": conversion,
                          "forecast_confidence_bp": conf, "autonomous_conversion_limit_minor": limit,
-                         "full_confidence_bp": 9000, "zero_limit_below_bp": 5000, "escalations": esc})
+                         "full_confidence_bp": 9000, "zero_limit_below_bp": 5000, "escalations": esc,
+                         "breach_probability_bp": breach, "max_breach_probability_bp": 500})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

@@ -195,7 +195,7 @@ def test_cli_fake_run_completes(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, "load_env", lambda: None)  # never read the developer's real .env in tests
     args = type("A", (), dict(scenario="kit01_baseline", inbox=str(ROOT / "data" / "inbox" / "kit01_inbox.json"),
                               fake=True, receipt=True, full_wallet=False, approve="Dana", yes=False,
-                              plan_only=False, no_fx_stress=True, no_challenge=False))
+                              plan_only=False, no_fx_stress=True, no_challenge=False, incident=None))
     monkeypatch.setattr(httpx.AsyncClient, "get", _no_network)
     code = asyncio.run(cli.run(args))
     out = capsys.readouterr().out

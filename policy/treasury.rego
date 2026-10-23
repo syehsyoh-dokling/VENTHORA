@@ -29,6 +29,12 @@ approval_reasons contains "conversion_above_autonomous_limit" if {
 	input.conversion_base_minor > conversion_limit
 }
 
+# The simulated probability of breaching the reserve within the window must stay within tolerance.
+approval_reasons contains "reserve_breach_risk_above_tolerance" if {
+	input.breach_probability_bp != null
+	input.breach_probability_bp > input.max_breach_probability_bp
+}
+
 decision := {
 	"allow": input.actor_role != "viewer",
 	"requires_approval": sort([r | some r in approval_reasons]),

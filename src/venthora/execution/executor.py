@@ -62,6 +62,9 @@ class Executor:
         self.poll_interval_s = poll_interval_s
         self._run_lock = asyncio.Lock()
 
+    async def audit_async(self, kind: str, payload: dict) -> None:
+        await asyncio.to_thread(self.audit.append, kind, payload)
+
     # -- entry points ----------------------------------------------------------
 
     async def execute(self, req: ExecutionRequest) -> ExecutionResult:
@@ -386,6 +389,8 @@ class Executor:
         for _, t in transfers.values():
             if t.status not in ("CANCELLED", "FAILED"):
                 expected[t.source_currency] = expected.get(t.source_currency, 0) - t.amount_payer_pays_minor
+            else:  # the amount comes back; the fee does not (guide: budget for a second SWIFT fee)
+                expected[t.source_currency] = expected.get(t.source_currency, 0) - t.fee_minor
         try:
             live = await self.bank.balances_minor()
         except AirwallexError as exc:

@@ -36,7 +36,10 @@ def test_new_information_lowers_the_limit_and_a_person_approves_the_same_convers
     assert delayed.conversion_limit_minor == 500_000
     assert delayed.decision == "REQUIRES_APPROVAL"
     policy = next(s for s in delayed.stages if s.engine == "Policy")
-    assert policy.details["local"]["requires_approval"] == ["conversion_above_autonomous_limit"]
+    reasons = policy.details["local"]["requires_approval"]
+    assert "conversion_above_autonomous_limit" in reasons
+    # With the receipt pushed outside the window, the simulated breach risk also exceeds tolerance.
+    assert "reserve_breach_risk_above_tolerance" in reasons and delayed.simulation["breach_probability_bp"] > 500
     assert actions(delayed)["SAAS-USD"] == "ESCALATE"  # the receipt it was deferred on is no longer reliable
 
 

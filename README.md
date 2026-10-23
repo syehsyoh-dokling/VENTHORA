@@ -128,6 +128,8 @@ With credentials set, ProofCore cross-checks every plan against live sandbox bal
 3. `POST /v1/plans` with that state: review the plan and copy its `plan_hash`.
 4. `POST /v1/executions` `{"state": ..., "plan_hash": ..., "approval": {"approver": "...", "role": "finance_manager"}}`. The `approval` is only needed for `REQUIRES_APPROVAL` plans.
 
+Kit 03 on the same rails: add `--incident SUPPLIER-EU-NOV:BENEFICIARY_BANK_RETURNED` (with `--scenario kit03_incident`) to leave the transfer in flight, fail it with that type on the sandbox, and let the agent decide wait / replace / escalate under the duplicate lock.
+
 The executor then runs these steps:
 
 - **Preflight.** Re-plan, and refuse if the `plan_hash` differs from what was reviewed, the plan is `BLOCKED`, or the approver's role isn't allowed. Claim every payout before any money moves.
@@ -166,6 +168,8 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 | `POST` | `/v1/executions` | Execute an approved plan on Airwallex and reconcile |
 | `POST` | `/v1/executions/{id}/resume` | Resume an interrupted execution |
 | `GET` | `/v1/executions/{id}` | Execution result and every operation with its `request_id` |
+| `POST` | `/v1/incidents` | Kit 03: a sent transfer did not arrive; decide wait / replace / escalate under the duplicate lock |
+| `GET` | `/v1/incidents`, `/v1/incidents/{id}` | Incident records (original, failure type, replacement, resolution) |
 
 ## Tests
 
@@ -174,10 +178,12 @@ pytest -q
 ruff check src tests scripts
 ```
 
-The 118 tests cover:
+The 143 tests cover:
 
 - planning: the full Kit 01 flow, 40 randomized states that must never breach the reserve, CP-SAT vs exact-solver agreement
 - real-sandbox findings: fee variance and learning, settled invoices never re-proposed, budget carried forward
+- Kit 03 incident commander: the failure-type decision table, finality (in-flight is never replaced), replacement under the duplicate lock with a new request_id, the second SWIFT fee, resolution only once the original is recorded
+- 72-hour simulation: breach probability, unfunded probability, policy tolerance gate, seeded reproducibility, Horizon joint paths, honest throughput accounting
 - differentiators: incremental recalculation (locked decisions, full fallback, diff), counterfactual proof, AI challenger blocked or approved by the same gate
 - original engines: unmodified-hash check, Horizon M0 stress flowing into the plan, Theorem leg netting, Verity accepting a cited delay and rejecting invented figures, invented quotes and embargoed email, lexicon fallback, and an end-to-end CLI run
 - safety: duplicate-payment defense, remote engines that try to approve rejected invoices, fail-closed behavior, audit-chain tamper detection
@@ -214,6 +220,8 @@ docs/            architecture, hackathon compliance, demo script
 - [x] Human approval for `REQUIRES_APPROVAL` plans, bound to `plan_hash`
 - [x] Run end to end against the real Airwallex sandbox: three cycles, see docs/SANDBOX_RESULTS.md
 - [x] LLM evidence reader (local Qwen or any OpenAI-compatible model), verified by the original Verity validator
+- [x] Kit 03 Payment Ops Incident Commander on the same rails (`--incident`)
+- [x] 72-hour discrete-event reserve simulation (probabilistic proof) with a policy tolerance
 - [ ] Treasury dashboard for the demo video
 
 Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). Adversarial audit, oracle hunt and known limitations: [docs/AUDIT.md](docs/AUDIT.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).

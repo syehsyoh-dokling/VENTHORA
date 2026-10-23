@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS counted_deposits (
     currency TEXT NOT NULL, execution_id TEXT, counted_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS observed_fees (
     fee_key TEXT PRIMARY KEY, fee_minor INTEGER NOT NULL, transfer_id TEXT, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id TEXT PRIMARY KEY, payout_key TEXT NOT NULL, obligation_id TEXT NOT NULL,
+    original_transfer_id TEXT NOT NULL, status TEXT NOT NULL, decision TEXT, reason TEXT, failure_type TEXT,
+    replacement_transfer_id TEXT, record_json TEXT, opened_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS beneficiaries (
     internal_id TEXT PRIMARY KEY, airwallex_id TEXT NOT NULL, created_at TEXT NOT NULL);
 """
@@ -167,6 +171,47 @@ class ExecutionStore:
         with self._lock, self._connect() as c:
             c.execute("INSERT OR IGNORE INTO counted_deposits VALUES (?, ?, ?, ?, ?, ?)",
                       (deposit_id, receivable_id, amount_minor, currency, execution_id, _now()))
+
+    # -- incidents (Kit 03) --------------------------------------------------
+
+    def open_incident(self, payout_key: str, obligation_id: str, original_transfer_id: str) -> dict:
+        """One open incident per original transfer; reopening returns the existing record."""
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT * FROM incidents WHERE original_transfer_id = ? AND status != 'RESOLVED'",
+                            (original_transfer_id,)).fetchone()
+            if row is None:
+                c.execute("INSERT INTO incidents VALUES (?, ?, ?, ?, 'OPEN', NULL, NULL, NULL, NULL, NULL, ?, ?)",
+                          (str(uuid4()), payout_key, obligation_id, original_transfer_id, _now(), _now()))
+                row = c.execute("SELECT * FROM incidents WHERE original_transfer_id = ? AND status != 'RESOLVED'",
+                                (original_transfer_id,)).fetchone()
+        return dict(row)
+
+    def update_incident(self, incident_id: str, *, status: str, decision: str, reason: str, failure_type: str | None,
+                        replacement_transfer_id: str | None, record: dict) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("UPDATE incidents SET status = ?, decision = ?, reason = ?, failure_type = ?,"
+                      " replacement_transfer_id = COALESCE(?, replacement_transfer_id), record_json = ?, updated_at = ?"
+                      " WHERE incident_id = ?",
+                      (status, decision, reason, failure_type, replacement_transfer_id,
+                       json.dumps(record, default=str), _now(), incident_id))
+
+    def get_incident(self, incident_id: str) -> dict | None:
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT * FROM incidents WHERE incident_id = ?", (incident_id,)).fetchone()
+        if row is None:
+            return None
+        return dict(row) | {"record": json.loads(row["record_json"]) if row["record_json"] else None}
+
+    def list_incidents(self, limit: int = 50) -> list[dict]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT incident_id, obligation_id, original_transfer_id, status, decision, failure_type,"
+                             " replacement_transfer_id, opened_at, updated_at FROM incidents ORDER BY opened_at DESC"
+                             " LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]
+
+    def replacements(self, incident_id: str) -> list[dict]:
+        """Replacement operations already made for this incident (each with its own request_id)."""
+        return [op for op in self.operations(incident_id) if op["kind"] == "replacement" and op["status"] != "FAILED"]
 
     def record_fee(self, fee_key: str, fee_minor: int, transfer_id: str) -> None:
         """Keep the highest fee Airwallex actually charged per 'METHOD:CCY' (conservative)."""

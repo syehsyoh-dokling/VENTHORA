@@ -1,0 +1,32 @@
+{
+  "title": "Kit 03 - Payment Ops Incident Commander: a supplier transfer that never arrived",
+  "story": "A small treasury book pays one EU supplier by SWIFT. Days later the supplier says nothing arrived. The agent must decide to wait, replace or escalate, without ever paying twice, and must budget a second SWIFT fee for a replacement.",
+  "state": {
+    "case_id": "kit03-incident",
+    "book_id": "kit03-nov",
+    "base_currency": "USD",
+    "balances": {"USD": 800000, "EUR": 0, "GBP": 0},
+    "fx_to_base": {"EUR": "1.0850", "GBP": "1.2700"},
+    "obligations": [
+      {"obligation_id": "SUPPLIER-EU-NOV", "amount_minor": 150000, "currency": "EUR", "priority": 9, "due_in_hours": 24,
+       "beneficiary_id": "ben-eu-components", "payee_name": "Rheinwerk Komponenten GmbH", "payout_method": "SWIFT",
+       "evidence_ref": "doc-inv-eu-0601", "invoice_fingerprint": "eu-components:INV-2026-0601"}
+    ],
+    "receivables": [],
+    "evidence": [
+      {"ref": "doc-inv-eu-0601", "subject_id": "SUPPLIER-EU-NOV", "source": "ap:invoice", "status": "verified",
+       "summary": "Invoice INV-2026-0601, PO matched"}
+    ],
+    "scenarios": [],
+    "policy": {
+      "reserve_floor_minor": 200000,
+      "autonomous_conversion_limit_minor": 500000,
+      "swift_fee_currency": "EUR",
+      "swift_fee_minor": 1285,
+      "planning_horizon_hours": 72,
+      "incident_wait_hours": 48,
+      "max_replacements": 1
+    },
+    "actor_role": "treasury_agent"
+  }
+}

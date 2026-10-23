@@ -205,7 +205,8 @@ class FakeAirwallex:
         if nxt in ("FAILED", "CANCELLED") or (nxt == "PAID" and any(r in t["reference"] for r in self.fail_on_paid)):
             t.update(status="CANCELLED", failure_type=b.get("failure_type", "BENEFICIARY_BANK_RETURNED"),
                      failure_reason="simulation")
-            self.balances[t["source_currency"]] += money(t["amount_payer_pays"])  # refund
+            # The amount is returned; the fee is not (guide: "budget for two SWIFT fees").
+            self.balances[t["source_currency"]] += money(t["transfer_amount"])
         else:
             t["status"] = nxt
         return httpx.Response(200, json=t)

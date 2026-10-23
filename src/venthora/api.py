@@ -23,6 +23,7 @@ from .domain.models import PlanResult, TreasuryState  # noqa: E402
 from .engines.llm_planner import llm_proposal  # noqa: E402
 from .evidence.llm import ChatModel  # noqa: E402
 from .execution.executor import Executor  # noqa: E402
+from .execution.incidents import IncidentCommander, IncidentRequest, IncidentResult  # noqa: E402
 from .execution.live import with_live_balances_and_rates  # noqa: E402
 from .execution.models import ExecutionRequest, ExecutionResult  # noqa: E402
 from .execution.store import ExecutionStore  # noqa: E402
@@ -196,6 +197,31 @@ async def get_execution(execution_id: str):
         raise HTTPException(404, "unknown execution")
     return {"execution_id": execution_id, "status": record["status"], "result": record["result"],
             "operations": app.state.executor.store.operations(execution_id)}
+
+
+@app.post("/v1/incidents", response_model=IncidentResult)
+async def handle_incident(req: IncidentRequest):
+    """Kit 03: a sent transfer did not arrive. Decide WAIT / REPLACE / ESCALATE under finality,
+    idempotency and the duplicate lock; a replacement needs a new request_id and its own fee."""
+    try:
+        return await IncidentCommander(app.state.executor).handle(req)
+    except (KeyError, LookupError) as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+
+
+@app.get("/v1/incidents")
+async def list_incidents():
+    return app.state.executor.store.list_incidents()
+
+
+@app.get("/v1/incidents/{incident_id}")
+async def get_incident(incident_id: str):
+    record = app.state.executor.store.get_incident(incident_id)
+    if record is None:
+        raise HTTPException(404, "unknown incident")
+    return record
 
 
 @app.get("/api/airwallex/balances")

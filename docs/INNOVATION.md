@@ -180,6 +180,39 @@ The complete, line-by-line matrix is in [HACKATHON_COMPLIANCE.md](HACKATHON_COMP
 | Kit 01: limit tied to forecast confidence | full at ≥90%, linear to zero at ≤50%; 90% → 70% halves it to 5,000 and the same conversion needs a person |
 | Kit 01: recalculate only affected decisions | differentiator A |
 
+## The fourth strength: speed, applied where it means something
+
+The author's Pulse/fastsim kernel runs millions of simulator events per second (4–9M/s kernel-only on
+the Agenthon board). That kernel is **not** in VENTHORA: a single treasury decision is bound by the
+bank's round trip (~77 ms) and the language model, and the decision loop itself already runs in
+milliseconds. Speed matters here in one place, and that is where it is used: the **72-hour
+discrete-event reserve simulation**. For the plan and for every counterfactual, thousands of paths
+run the window hour by hour: receipts arrive with probability equal to their calibrated confidence
+inside their 90% window, FX moves along the original Horizon M0 joint paths, deferred obligations
+are paid at due only if the path stays above the floor, and the unexpected outflow lands at a random
+hour with an uncertain size (lognormal, median = the budgeted amount). The result is a
+**probabilistic proof**: P(reserve breached within 72 h) and P(a deferred obligation is unfunded at
+its due date), reported next to the deterministic proof, with a policy tolerance (5%) mirrored in
+Rego and verified by OPA.
+
+Measured honestly: the event loop is vectorised numpy, not C. Throughput is reported as
+path-events per second over the loop's wall clock only (1.1–3.7M/s on this laptop; FX setup is
+cached per day and excluded). The whole plan, with the simulation and seven simulated
+counterfactuals, runs at **p50 12.9 ms** (was 2.8 ms without them).
+
+On the Kit 01 story the simulation adds a fact the deterministic plan cannot see: on day 2, with the
+receipt pushed outside the window, the chosen plan's breach risk rises above 5%, which is the second
+reason a person is asked to approve.
+
+## Kit 03 in the same agent: plan → pay → incident
+
+The Kit 01 executor already owned finality, idempotency and the duplicate lock, so the Payment Ops
+Incident Commander is the same rails applied after the money left: a typed failure code decides
+WAIT / REPLACE / ESCALATE (wrong payee details are never auto-replaced), a replacement is a new
+operation with its own `request_id` under the same invoice lock, the second SWIFT fee is budgeted and
+refused if it does not fit, and the incident is not closed when the replacement is PAID but when the
+original's fate is recorded too. One agent, one ledger of claims, across the whole payment lifecycle.
+
 ## What is *not* claimed
 
 - The vendored original engines (Theorem FX netting, Horizon M0, Verity retrieval and validation)
@@ -187,6 +220,9 @@ The complete, line-by-line matrix is in [HACKATHON_COMPLIANCE.md](HACKATHON_COMP
 - Verity's original overlap check is effectively bypassed (the located sentence is passed as the claim);
   what Verity contributes is existence, embargo and span resolution. The fact check is VENTHORA's literal
   check, written for two claim types. Details and other limitations: [AUDIT.md](AUDIT.md).
+- The simulation's stress-size distribution (lognormal, sigma 0.5) and uniform arrival inside the 90% window are
+  modelling assumptions, stated in `proofcore/simulate.py`; the breach probabilities are only as good as them.
+- The path-events/s figure is for a vectorised Python loop; the Pulse C kernel is not used.
 - The 0.5B local model is deliberately small. The point is that model quality does not decide
   safety. A stronger model (any OpenAI-compatible endpoint) improves recommendations, not authority.
 - Real-sandbox evidence (three cycles, transfer IDs, findings) is in [SANDBOX_RESULTS.md](SANDBOX_RESULTS.md).

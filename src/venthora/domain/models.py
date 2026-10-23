@@ -99,6 +99,14 @@ class TreasuryPolicy(StrictModel):
                     "overrides the flat Kit fee. Filled from fees observed on Airwallex.")
     planning_horizon_hours: int = Field(default=72, ge=1, le=720)
     approver_roles: list[str] = Field(default_factory=lambda: ["finance_manager"])
+    simulation_paths: int = Field(default=2_000, ge=100, le=200_000,
+                                  description="paths for the 72-hour discrete-event reserve simulation")
+    max_breach_probability_bp: int = Field(
+        default=500, ge=0, le=10_000,
+        description="a plan whose simulated probability of breaching the reserve exceeds this needs a person")
+    incident_wait_hours: int = Field(default=48, ge=0, le=720,
+                                     description="Kit 03: how long an in-flight transfer may stay unconfirmed before escalation")
+    max_replacements: int = Field(default=1, ge=0, le=3, description="Kit 03: replacement transfers per obligation")
 
     @model_validator(mode="after")
     def confidence_band(self):
@@ -203,6 +211,7 @@ class Counterfactual(StrictModel):
     floor_minor: int
     headroom_minor: int = Field(description="base balance after minus floor; negative = reserve breach")
     consequence: str
+    breach_probability_bp: int | None = Field(default=None, description="simulated P(reserve breached within the window)")
 
 
 class Recalculation(StrictModel):
@@ -233,4 +242,5 @@ class PlanResult(StrictModel):
     approval_terms: list[dict] = Field(default_factory=list,
                                        description="what an approver signs: amount, currency, counterparty, evidence")
     frame: dict = Field(default_factory=dict, description="worked-problem frame: given / asked / formula / answer")
+    simulation: dict = Field(default_factory=dict, description="72-hour discrete-event reserve simulation")
     duration_ms: float

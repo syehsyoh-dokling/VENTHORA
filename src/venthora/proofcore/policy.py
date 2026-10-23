@@ -14,7 +14,8 @@ def forecast_confidence(state) -> int | None:
     return min((r.confidence_bp for r in state.receivables), default=None)
 
 
-def policy_input(state, conversion_base_minor: int, escalations: list[str]) -> dict:
+def policy_input(state, conversion_base_minor: int, escalations: list[str],
+                 breach_probability_bp: int | None = None) -> dict:
     p = state.policy
     return {
         "actor_role": state.actor_role,
@@ -25,6 +26,8 @@ def policy_input(state, conversion_base_minor: int, escalations: list[str]) -> d
         "full_confidence_bp": p.full_confidence_bp,
         "zero_limit_below_bp": p.zero_limit_below_bp,
         "escalations": sorted(escalations),
+        "breach_probability_bp": breach_probability_bp,
+        "max_breach_probability_bp": p.max_breach_probability_bp,
     }
 
 
@@ -42,5 +45,8 @@ def evaluate(inp: dict) -> dict:
     """Return {"allow", "requires_approval": [reason codes], "conversion_limit_minor", "escalations"}."""
     limit = conversion_limit(inp)
     reasons = ["conversion_above_autonomous_limit"] if inp["conversion_base_minor"] > limit else []
-    return {"allow": inp["actor_role"] != "viewer", "requires_approval": reasons,
+    breach = inp.get("breach_probability_bp")
+    if breach is not None and breach > inp["max_breach_probability_bp"]:
+        reasons.append("reserve_breach_risk_above_tolerance")
+    return {"allow": inp["actor_role"] != "viewer", "requires_approval": sorted(reasons),
             "conversion_limit_minor": limit, "escalations": inp["escalations"]}

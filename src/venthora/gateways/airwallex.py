@@ -89,6 +89,7 @@ class TransferResult:
     fee_minor: int
     failure_reason: str | None
     raw: dict
+    failure_type: str | None = None  # Airwallex's typed failure code (e.g. BENEFICIARY_BANK_RETURNED)
 
     @property
     def terminal(self) -> bool:
@@ -110,7 +111,8 @@ def _transfer(body: dict) -> TransferResult:
         transfer_currency=body.get("transfer_currency", ""), transfer_amount_minor=amount,
         amount_payer_pays_minor=to_minor(body.get("amount_payer_pays", body.get("source_amount", 0))),
         fee_minor=to_minor(body.get("fee_amount", 0) or 0),
-        failure_reason=body.get("failure_reason") or body.get("failure_type"), raw=body)
+        failure_reason=body.get("failure_reason") or body.get("failure_type"), raw=body,
+        failure_type=body.get("failure_type"))
 
 
 class Airwallex:

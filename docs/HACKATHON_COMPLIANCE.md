@@ -67,7 +67,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 |---|---|---|---|
 | 42 | Treasury lead who cannot fund everything at once | ✅ | USD 22,500 allocation; the obligations exceed it above the reserve |
 | 43 | Five obligations, three currencies, within 72 h | ✅ | PAYROLL-NOV, SHIPPING-UK, SUPPLIER-EU, CONTRACTOR-US, SAAS-USD; USD/EUR/GBP; due 24–72 h (a re-sent copy of the supplier invoice is a duplicate record, not a sixth obligation) |
-| 44 | Cash covers only part after the reserve floor | ✅🧪 | counterfactual "pay everything" breaches the reserve |
+| 44 | Cash covers only part after the reserve floor | ✅🧪 | counterfactual "pay everything" breaches the reserve; the 72-hour simulation gives P(breach) for the plan and every alternative |
 | 45 | Fund the shipping invoice whose non-payment halts operations | ✅🧪 | SHIPPING-UK (priority 10) is paid |
 | 46 | Convert only the minimum for a time-sensitive supplier | ✅🧪 | buy = shortfall incl. fee; frame checker `minimum_conversions` |
 | 47 | Defer the cheapest obligation | ✅🧪 | SAAS-USD deferred on the reliable receipt |
@@ -114,6 +114,26 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | 105 | Deposit says PENDING, balance appears immediately | ↔✅ | the real sandbox settled after a delay; we wait for SETTLED on `/deposits` |
 | 106 | Re-read balances after a deposit before recalculating | ✅ | CLI step 5 re-reads balances, then recalculates |
 | 112–114 | Every demo: goal → plan → new info → revised decision → result; ends in an action or an escalation; credentials out of model context | ✅ | |
+
+## (5) Starter Kit 03: Payment Ops Incident Commander (second track)
+
+Built on the Kit 01 executor; `venthora-sandbox --scenario kit03_incident --incident <OBLIGATION>:<FAILURE_TYPE>`.
+Verified on the fake sandbox and by tests (🧪); the real-sandbox run is listed in SANDBOX_RESULTS.md when done.
+
+| Requirement (guide) | Status | Where |
+|---|---|---|
+| A sent transfer did not arrive; the agent decides to wait, replace or escalate | 🧪 | `execution/incidents.py`: `decide()` table over Airwallex `failure_type`; 11 cases tested |
+| Code enforces finality: a transfer that may still clear is never replaced | 🧪 | non-terminal → WAIT inside `incident_wait_hours`, ESCALATE beyond; only CANCELLED/FAILED can be replaced |
+| Idempotency: the replacement is its own operation | 🧪 | new `request_id` persisted before the call; original and replacement ids asserted different |
+| Duplicate lock: the company cannot pay twice | 🧪 | one live payout per invoice fingerprint; the original is recorded FAILED before the key is re-claimed; a third payment is refused |
+| CANCELLED does not mean a person cancelled; use the failure type | 🧪 | the typed `failure_type` drives the decision; wrong-payee types escalate, returned-funds types replace, intent/control types escalate |
+| Demo flow: send, leave in an intermediate state, fail with a chosen type, decide, replace under the lock | 🧪 | CLI step 7 leaves the transfer in flight when `--incident` is set; step 8 simulates SENT → FAILED(type) and runs the commander |
+| Endpoints: beneficiary schema/create, transfer create, transitions, transfer listing | 🧪 | reused from Kit 01; `GET /transfers/{id}` re-read after every transition |
+| Simulate SENT before PAID; the failure type applies only after SENT | 🧪 | commander transitions to SENT first |
+| Prefer a FAILED transition with a type over a bare cancellation | 🧪 | always `FAILED` + `failure_type` |
+| Original and replacement get different request IDs | 🧪 | asserted in `test_replace_under_duplicate_lock_with_second_fee_and_resolution` |
+| Budget for two SWIFT fees | 🧪 | the learned fee is added to the replacement cost; if the wallet cannot cover it the replacement is refused and escalated (`test_replacement_without_funds_for_the_second_fee_is_refused`); reconciliation expects the original's fee to be lost |
+| Do not close the incident because the replacement is PAID; record the original too | 🧪 | status `REPLACED_AWAITING_ORIGINAL` until the original's CANCELLED status, failure type and refund are recorded; then `RESOLVED` |
 
 ## Not applicable to this build
 

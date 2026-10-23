@@ -26,6 +26,7 @@ from .proofcore import frame
 from .proofcore.counterfactual import counterfactuals
 from .proofcore.gate import ProofCore
 from .proofcore.policy import forecast_confidence
+from .proofcore.simulate import Simulation, simulate
 
 
 def theorem_cost(state: TreasuryState, o) -> int:
@@ -93,9 +94,10 @@ class Orchestrator:
             remote_stages = await self._apply_remote_evidence_and_risk(state, v, h)
             t = await theorem(state, v.eligible, v.rejected, h, locked=locked, exceptions=v.exceptions)
             remote_stages += await self._apply_remote_theorem(state, v, h, t)
+            sim = await asyncio.to_thread(simulate, state, t.decisions, h.stress_minor, h.receivables)
             gate = await self.proof.verify(state, t.selected, set(v.eligible), t.decisions,
-                                           h.stress_minor)
-        plan = self._assemble(state, v, h, t, gate, remote_stages, started)
+                                           h.stress_minor, sim.breach_probability_bp)
+        plan = self._assemble(state, v, h, t, gate, remote_stages, started, sim)
         if previous:
             recalc = t.stage.details["recalculation"]
             plan.recalculation = Recalculation(
@@ -130,11 +132,25 @@ class Orchestrator:
                                 details={"proposal": proposal, "unknown_ids": sorted(set(proposal) - set(by_id))},
                                 duration_ms=0.0)
             t = TheoremResult(chosen, decisions, source, 0, stage)
+            sim = await asyncio.to_thread(simulate, state, decisions, h.stress_minor, h.receivables)
             gate = await self.proof.verify(state, list(proposal), set(v.eligible), decisions,
-                                           h.stress_minor)
-        return self._assemble(state, v, h, t, gate, [], started)
+                                           h.stress_minor, sim.breach_probability_bp)
+        return self._assemble(state, v, h, t, gate, [], started, sim)
 
-    def _assemble(self, state, v, h, t, gate, remote_stages, started) -> PlanResult:
+    def _assemble(self, state, v, h, t, gate, remote_stages, started, sim: Simulation) -> PlanResult:
+        sim_stage = StageResult(
+            engine="Horizon · 72h simulation",
+            status="WARN" if sim.breach_probability_bp > state.policy.max_breach_probability_bp else "INFO",
+            summary=(f"P(reserve breached within {state.policy.planning_horizon_hours}h) = "
+                     f"{sim.breach_probability_bp / 100:.1f}% over {sim.paths} paths; "
+                     f"{sim.path_events_per_second:,} path-events/s"),
+            details=sim.as_dict(), duration_ms=sim.elapsed_ms)
+        cfs = counterfactuals(state, t.selected, t.decisions, set(v.eligible), h.stress_minor,
+                              [r for r in h.receivables if r.reliable])
+        for cf in cfs:  # the same probabilistic question, asked of every alternative
+            cf.breach_probability_bp = simulate(state, _as_decisions(t.decisions, cf.pays), h.stress_minor,
+                                                h.receivables, n_paths=min(state.policy.simulation_paths, 1000)
+                                                ).breach_probability_bp
         frame_started = perf_counter()
         worked = frame.build(state, t.decisions, gate.projection.conversions, h.stress_minor, set(v.eligible))
         frame_problems = frame.check(state, worked, t.decisions)
@@ -145,7 +161,7 @@ class Orchestrator:
                         if "not_payable_as_posed" in worked["answer"] else ""))
             if not frame_problems else "; ".join(frame_problems),
             details={"problems": frame_problems}, duration_ms=(perf_counter() - frame_started) * 1000)
-        stages = [v.stage, h.stage, *remote_stages, t.stage, *gate.stages, frame_stage]
+        stages = [v.stage, h.stage, sim_stage, *remote_stages, t.stage, *gate.stages, frame_stage]
         if any(s.status == "FAIL" for s in stages):
             decision = "BLOCKED"
         elif gate.requires_approval:
@@ -162,12 +178,11 @@ class Orchestrator:
             conversions=gate.projection.conversions, total_base_cost_minor=gate.projection.base_cost_minor,
             projected_base_balance_minor=base_after, required_base_floor_minor=floor, solver=t.solver,
             stages=stages, explanation=_explain(state, t, gate, stages, decision, base_after, floor),
-            counterfactuals=counterfactuals(state, t.selected, t.decisions, set(v.eligible), h.stress_minor,
-                                            [r for r in h.receivables if r.reliable]),
-            forecast_confidence_bp=forecast_confidence(state),
+            counterfactuals=cfs, forecast_confidence_bp=forecast_confidence(state),
             conversion_limit_minor=_policy_limit(gate.stages), approval_terms=approval_terms(state, t.decisions,
                                                                                             gate.projection.conversions),
-            frame=worked, duration_ms=(perf_counter() - started) * 1000)
+            frame=worked, simulation=sim.as_dict(), duration_ms=(perf_counter() - started) * 1000)
+
 
     async def _apply_remote_evidence_and_risk(self, state, v: VerityResult, h: HorizonResult) -> list[StageResult]:
         stages = []
@@ -231,3 +246,17 @@ def _explain(state, t: TheoremResult, gate, stages, decision: str, base_after: i
     elif decision == "BLOCKED":
         lines.append("Blocked: " + "; ".join(f"{s.engine}: {s.summary}" for s in stages if s.status == "FAIL") + ".")
     return lines
+
+
+def _as_decisions(decisions, pays: list[str]):
+    """Decisions for a counterfactual: `pays` are paid now; everything else keeps its non-paying action."""
+    out = []
+    for d in decisions:
+        if d.obligation_id in pays:
+            out.append(d.model_copy(update={"action": "PAY"}))
+        elif d.action in ("PAY", "CONVERT_AND_PAY"):
+            out.append(d.model_copy(update={"action": "DEFER"}))
+        else:
+            out.append(d)
+    return out
+
