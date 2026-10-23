@@ -248,13 +248,16 @@ def _matches(d: dict, r) -> bool:
 
 
 async def simulate_receipt(bank: Airwallex, state: TreasuryState, store: ExecutionStore, *, fake: bool,
-                           poll_s: float = 1.0, polls: int = 20) -> tuple[TreasuryState, dict | None]:
+                           poll_s: float = 1.0, polls: int = 20, receivable_id: str | None = None
+                           ) -> tuple[TreasuryState, dict | None]:
     """Kit 01: 'simulate the deposit, recalculate'.
 
     The receipt counts only when Airwallex's deposit record says SETTLED (the balance can lag:
     observed on the real sandbox). A settled deposit already matching the receivable and not yet
     counted is reused instead of depositing twice."""
     pending = sorted(state.receivables, key=lambda r: r.confidence_bp)
+    if receivable_id:
+        pending = [r for r in pending if r.receivable_id == receivable_id]
     if not pending:
         print("  no receivable to simulate")
         return state, None

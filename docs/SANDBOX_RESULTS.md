@@ -80,10 +80,40 @@ difference between the fake and the sandbox (see the findings table below).
 
 Run reports: `data/runs/20261023-111947-kit03_incident.json` (run 1), `data/runs/20261023-112317-kit03_incident.json` (run 2).
 
+## Cycle 6: requests from external users, end to end (`venthora-intake --as-of 2026-10-24 --execute --receipt`)
+
+Approved by the owner as finance manager; 23 Oct 2026, 14:49–14:51 WIB. Five emails from mailboxes we do not control
+(three Gmail, one Yahoo, one Outlook; `data/intake/`) go through intake, the book is grounded in the live sandbox and
+what earlier cycles taught, and the loop runs.
+
+| Step | What happened on the sandbox |
+|---|---|
+| Intake | `lumen.design.studio.billing@gmail.com` invoice LD-78 USD 1,800 → **VERIFIED**; `ld.studio.payments2026@gmail.com` "URGENT, new bank account for LD-77" → **QUARANTINED** (unknown mailbox claiming to be Lumen, bank change, pressure language); `thames.freight.accounts@gmail.com` reminder TF-311 → **DUPLICATE** of SHIPPING-UK; `mia.okafor.design@yahoo.com` timesheet USD 2,400 → **VERIFIED**; `acme.retail.ar@outlook.com` remittance USD 6,500 on 27 Oct → **VERIFIED** receivable |
+| Grounding | learned fees applied; budget carried forward from cycle 4 (`3578bbbf`): **USD 15,356.00**; the five November invoices recognised as already paid (their transfer ids listed) and not re-proposed |
+| Remittance lands | the settled USD 6,500 Acme deposit `c6946a55-…` (created by the first attempt, see below) was found **not yet counted and reused** instead of depositing again; budget USD 21,856.00; incremental re-plan: 2 decisions locked, no change |
+| Plan: **APPROVED** autonomously | PAY REQ-OK-2026-10 USD 2,400 and REQ-LD-78 USD 1,800; REJECT REQ-LD-77 (evidence pending: the lookalike); ESCALATE CONTRACTOR-US (bank-details flag); the five settled invoices REJECT "already settled"; P(breach) 0.0% |
+| Execute | beneficiaries created through schema → validate → create (`23467727-…` Okafor, `a15c4fad-…` Lumen); transfers `4147b10b-…` and `5acdf7b3-…` SENT → PAID; **reconciled: USD 17,650.00 = 21,856 − 4,200 − 2 × 3.00**, discrepancy 0 |
+
+What was *not* paid: the lookalike's USD 3,000 to a new bank account, the duplicate TF-311, the flagged contractor, and
+any of the five invoices paid in cycle 4.
+
+Two things went wrong first, both recorded:
+- The first attempt halted at the beneficiary step: the live corridor schema now marks **`payment_methods`** required,
+  which the guide's `transfer_methods` alone does not satisfy (findings table). Nothing moved; the payout claims were
+  released.
+- An earlier fake-sandbox intake run had been pointed at the real execution store by mistake and left a `FAILED`
+  record whose "managed budget" was the scenario allocation, not the live book; the budget carry-forward picked it up
+  (USD 22,500 instead of 15,356). That record and the halted attempt's record were removed from the execution store
+  before the rerun; the audit chain keeps every event. Store paths are now anchored at the project root so a fake run
+  cannot land in the real store again.
+
+Run report: `data/runs/20261023-145138-intake.json`.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| Beneficiary payload needs `transfer_methods` | the corridor schema (`POST /beneficiaries/schema`) marks **`payment_methods`** required and relevant (23 Oct 2026) | both fields are sent for every registered payee; the schema check caught it before anything was created |
 | A failed transfer carries `failure_type` | status **`CANCELLED`**, failure in `failure.code` (**90802**) and `failure.details.type` (`INCORRECT_ROUTING`); the transition response carries the detail type, not the enum sent | `failure_type_of()` maps the code through the documented table first, then `failure_reason` ("90802: …"), then the typed fields; unknown shapes still fail closed to ESCALATE |
 | Flat EUR 12.85 per SWIFT payout | **EUR 13.37** | fees observed per `METHOD:CCY` are stored and used by later plans |
 | LOCAL payouts are free | **USD 3.00**, **GBP 2.24** per LOCAL payout | same; plan-vs-actual variance reported in the reconciliation |

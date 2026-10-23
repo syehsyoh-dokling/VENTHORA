@@ -86,8 +86,29 @@ async def run(args) -> int:
     else:
         executor = Executor(agent, ExecutionStore(), AuditStore(), poll_interval_s=1.0)
     try:
+        if not args.fake:
+            from ..execution.facts import apply_operational_facts
+            from ..execution.live import with_live_balances_and_rates
+            line("2b · ground the book in the live sandbox and what earlier cycles taught")
+            state = await with_live_balances_and_rates(state, bank, ring_fence=True)
+            state, facts = apply_operational_facts(state, executor.store)
+            for note in facts:
+                print(f"  {note}")
+            print("  budget: " + ", ".join(fmt(v, c) for c, v in sorted(state.balances.items())))
         line("3 · plan and proof over the whole book")
         plan = await agent.decide(state)
+        if args.receipt:
+            from ..cli import simulate_receipt
+            line("3b · the customer's remittance lands (sandbox deposit), re-plan only what it changes")
+            rid = next((r.receivable_id for r in state.receivables if (r.evidence_ref or "").startswith("intake:")), None)
+            previous = state
+            state, dep = await simulate_receipt(bank, state, executor.store, fake=args.fake, poll_s=0 if args.fake else 1.0,
+                                                receivable_id=rid)
+            if dep and dep.get("landed"):
+                plan = await agent.decide(state, previous=(previous, plan))
+                rc = plan.recalculation
+                print(f"  recalculation: {rc.mode}; locked {len(rc.locked)}, reconsidered {len(rc.reconsidered)}; changes: "
+                      + (", ".join(f"{c.obligation_id} {c.before}→{c.after}" for c in rc.changes) or "none"))
         print(f"  decision: {plan.decision}   plan_hash: {plan.plan_hash[:16]}…")
         for s in plan.stages:
             print(f"  [{s.status:<7}] {s.engine:<28} {s.summary[:90]}")
@@ -126,6 +147,7 @@ def main() -> None:
     ap.add_argument("--db", help="intake database path (default data/venthora_intake.db)")
     ap.add_argument("--fake", action="store_true", help="in-process fake sandbox")
     ap.add_argument("--execute", action="store_true")
+    ap.add_argument("--receipt", action="store_true", help="simulate the verified remittance landing, then re-plan")
     ap.add_argument("--approve", metavar="NAME")
     sys.stdout.reconfigure(encoding="utf-8")
     raise SystemExit(asyncio.run(run(ap.parse_args())))

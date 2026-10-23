@@ -108,8 +108,11 @@ to the book and the same loop runs: verified requests are payable, everything el
 pending) and cannot be paid. A finance manager can verify or reject from the dashboard after an out-of-band call-back.
 
 ```bash
-venthora-intake --as-of 2026-10-24 --fake --execute --approve "Dana"
+venthora-intake --as-of 2026-10-24 --fake --execute --receipt --approve "Dana"
 ```
+
+Run on the real sandbox on 23 Oct 2026 (cycle 6 in [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md)): the two
+registered requests were paid and reconciled; the lookalike, the duplicate and the flagged contractor were not.
 
 ### Run the whole agent loop: `venthora-sandbox`
 

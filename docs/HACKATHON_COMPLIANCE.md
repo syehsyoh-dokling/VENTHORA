@@ -154,8 +154,9 @@ CI (`tests/test_scenario_matrix.py`). Result on 23 Oct 2026: 136 / 136; one prod
 language are extracted with verbatim quotes; the status (VERIFIED / NEEDS_REVIEW / QUARANTINED / DUPLICATE) is decided
 by code. Verified requests join the book as payable obligations (or a receivable with the payer's history); everything
 else is visible in the plan and can never be paid; a duplicate of an invoice already in the book is never paid twice.
-Tested end to end on the fake sandbox (`tests/test_intake.py`): the lookalike "new bank account, urgent" request and
-the duplicate reminder are never paid; the registered invoices are. The dashboard at `/` shows the plan with its
+Tested end to end on the fake sandbox (`tests/test_intake.py`) and **run on the real sandbox on 23 Oct 2026**
+(SANDBOX_RESULTS.md, cycle 6): the registered invoices were paid (`4147b10b-…`, `5acdf7b3-…`) and reconciled to the
+cent; the lookalike "new bank account, urgent" request, the duplicate reminder and the flagged contractor were not. The dashboard at `/` shows the plan with its
 counterfactual breach probabilities, the intake queue with role-checked verify/reject, executions, incidents, run
 reports and the scenario-matrix summary.
 

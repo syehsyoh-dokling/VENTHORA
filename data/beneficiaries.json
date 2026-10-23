@@ -1,5 +1,5 @@
 {
-  "_note": "Sandbox-only synthetic payees. Routing identifiers are real public bank codes (Airwallex validates them); account numbers are synthetic. Field rules per airwallexdev.com/guide: US LOCAL uses aba + exact 'Checking'; GB LOCAL uses lowercase sort_code + bank_name; DE SWIFT uses IBAN + swift_code without routing fields.",
+  "_note": "Sandbox-only synthetic payees. Routing identifiers are real public bank codes (Airwallex validates them); account numbers are synthetic. Field rules per airwallexdev.com/guide: US LOCAL uses aba + exact 'Checking'; GB LOCAL uses lowercase sort_code + bank_name; DE SWIFT uses IBAN + swift_code without routing fields. 23 Oct 2026: the sandbox corridor schema marks `payment_methods` required (the guide's `transfer_methods` alone no longer satisfies it); both are sent.",
   "payroll-group-us": {
     "transfer_reason": "payroll",
     "payload": {
@@ -28,7 +28,10 @@
           "account_routing_value1": "026009593",
           "bank_account_category": "Checking"
         }
-      }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
     }
   },
   "ben-saas-vendor": {
@@ -59,7 +62,10 @@
           "account_routing_value1": "026009593",
           "bank_account_category": "Checking"
         }
-      }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
     }
   },
   "ben-eu-components": {
@@ -88,7 +94,10 @@
           "iban": "DE89370400440532013000",
           "swift_code": "COBADEFFXXX"
         }
-      }
+      },
+      "payment_methods": [
+        "SWIFT"
+      ]
     }
   },
   "ben-uk-logistics": {
@@ -118,7 +127,10 @@
           "account_routing_type1": "sort_code",
           "account_routing_value1": "040004"
         }
-      }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
     }
   },
   "ben-lumen-design": {
@@ -149,7 +161,10 @@
           "account_routing_value1": "026009593",
           "bank_account_category": "Checking"
         }
-      }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
     }
   },
   "ben-contractor-okafor": {
@@ -181,7 +196,10 @@
         },
         "first_name": "Mia",
         "last_name": "Okafor"
-      }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
     }
   }
 }
