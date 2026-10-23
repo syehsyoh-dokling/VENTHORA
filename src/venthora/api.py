@@ -31,7 +31,7 @@ from .gateways.airwallex import AirwallexError  # noqa: E402
 from .intake.models import IntakeRequest, ReviewRequest  # noqa: E402
 from .intake.pipeline import Intake  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
-from .testing.groundtruth import book_fingerprints, compare, intake_view, load_cases, plan_view, run_case  # noqa: E402
+from .testing.groundtruth import book_fingerprints, compare, load_cases, run_case, view_of  # noqa: E402
 
 SCENARIOS = ROOT / "data" / "scenarios"
 DASHBOARD = ROOT / "src" / "venthora" / "dashboard" / "index.html"
@@ -217,6 +217,32 @@ async def handle_incident(req: IncidentRequest):
         raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
 
 
+class IncidentDecisionRequest(BaseModel):
+    """The Kit 03 decision table as a pure function: what the rail reported, how long it has been in flight."""
+    status: str = Field(min_length=1, max_length=40)
+    failure_type: str | None = Field(default=None, max_length=64)
+    hours_in_flight: int = Field(default=0, ge=0, le=100_000)
+    replacements_so_far: int = Field(default=0, ge=0, le=10)
+    incident_wait_hours: int = Field(default=48, ge=0, le=720)
+    max_replacements: int = Field(default=1, ge=0, le=3)
+
+
+@app.post("/v1/incidents/decide")
+async def decide_incident(req: IncidentDecisionRequest):
+    """WAIT / REPLACE / ESCALATE / RESOLVE from the typed failure and finality, with the reason. No money moves."""
+    from types import SimpleNamespace
+
+    from .execution.incidents import decide
+    from .gateways.airwallex import TransferResult
+
+    transfer = TransferResult(transfer_id="t", status=req.status.upper(), source_currency="", transfer_currency="",
+                              transfer_amount_minor=0, amount_payer_pays_minor=0, fee_minor=0, failure_reason=None, raw={},
+                              failure_type=req.failure_type)
+    policy = SimpleNamespace(incident_wait_hours=req.incident_wait_hours, max_replacements=req.max_replacements)
+    d = decide(transfer, req.hours_in_flight, policy, req.replacements_so_far)
+    return {"action": d.action, "reason": d.reason}
+
+
 @app.get("/v1/incidents")
 async def list_incidents():
     return app.state.executor.store.list_incidents()
@@ -258,16 +284,29 @@ async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822"), dry_
 # -- ground truth ------------------------------------------------------------------------------
 
 @app.get("/api/groundtruth")
-async def groundtruth_cases():
-    return load_cases()
+async def groundtruth_cases(suite: str = "cases"):
+    """suite = cases (the rules, one by one) or anomalies (the organizers' failure modes, smallest to largest)."""
+    try:
+        return load_cases(suite)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, "unknown suite") from exc
+
+
+def _case(case_id: str) -> dict:
+    for suite in ("cases", "anomalies"):
+        with contextlib.suppress(FileNotFoundError):
+            for c in load_cases(suite):
+                if c["id"] == case_id:
+                    return c
+    raise HTTPException(404, "unknown case")
 
 
 @app.post("/api/groundtruth/{case_id}/check")
 async def groundtruth_check(case_id: str):
     """Run one hand-derived case through the live service and judge it with the shared comparator."""
-    case = next((c for c in load_cases() if c["id"] == case_id), None)
-    if case is None:
-        raise HTTPException(404, "unknown case")
+    case = _case(case_id)
+    if case["kind"] == "execution":
+        raise HTTPException(409, "execution cases run in-process against the fake sandbox (tests), not through the service")
     return await run_case(case, app.state.agent, app.state.intake)
 
 
@@ -279,10 +318,8 @@ class JudgeRequest(BaseModel):
 @app.post("/api/groundtruth/judge")
 async def groundtruth_judge(req: JudgeRequest):
     """Judge a result the client obtained itself (the dashboard form) against a case's expectation."""
-    case = next((c for c in load_cases() if c["id"] == req.case_id), None)
-    if case is None:
-        raise HTTPException(404, "unknown case")
-    view = plan_view(req.result) if case["kind"] == "plan" else intake_view(req.result)
+    case = _case(req.case_id)
+    view = view_of(case["kind"], req.result)
     return compare(case["expect"], view) | {"view": view}
 
 

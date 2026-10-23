@@ -1,78 +1,114 @@
-"""Write docs/GROUND_TRUTH.md from the latest endpoint bench and the UI bench logs in data/runs/groundtruth/."""
 # ruff: noqa: E501
+"""Write docs/GROUND_TRUTH.md for both suites from the in-process run (done here), the endpoint logs and the UI logs.
+
+  python scripts/groundtruth_report.py
+Reads docs/groundtruth_log_<suite>_endpoint.json (scripts/groundtruth_bench.py) and docs/groundtruth_log_<suite>_ui.json
+(the dashboard form, recorded from the browser) and runs every case in-process for the third column.
+"""
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import json
+import os
 import statistics
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from venthora.testing.groundtruth import load_cases  # noqa: E402
+for name in ("AWX_CLIENT_ID", "AWX_API_KEY", "AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "MODEL_ENDPOINT", "OPA_URL"):
+    os.environ.pop(name, None)
+os.environ["VENTHORA_INTAKE_DB"] = os.path.join(tempfile.mkdtemp(), "intake.db")
 
-RUNS = ROOT / "data" / "runs" / "groundtruth"
+from venthora.intake.pipeline import Intake  # noqa: E402
+from venthora.orchestrator import Orchestrator  # noqa: E402
+from venthora.testing.groundtruth import load_cases, run_case  # noqa: E402
+
+LEVELS = {1: "money arithmetic nobody wrote down (fees, FX buffers, rounding, stale quotes)",
+          2: "time does not cooperate (receipts slip, windows overrun, deadlines pass, settlement lags)",
+          3: "the evidence is not what it says (lookalikes, injection, duplicates, bank changes)",
+          4: "the mandate is exceeded (limits, confidence, approvals, roles)",
+          5: "the rail misleads (timeouts, 429s, lost responses, CANCELLED that is not a cancellation, returns)",
+          6: "paying twice or paying the wrong money (duplicates across runs, stale state, cross-wallet, Kit 03 end to end)"}
 
 
 def pct(xs, q):
     xs = sorted(xs)
-    return xs[int(q * (len(xs) - 1))]
+    return xs[int(q * (len(xs) - 1))] if xs else float("nan")
+
+
+async def in_process(cases: list[dict]) -> dict[str, dict]:
+    agent, intake, work = Orchestrator(), Intake(), Path(tempfile.mkdtemp(prefix="gt-report-"))
+    try:
+        return {c["id"]: await run_case(c, agent, intake, work) for c in cases}
+    finally:
+        await agent.close()
+
+
+def stats_row(path: str, kind: str, rs: list[dict], key: str) -> str:
+    ms = [r[key] for r in rs if r.get(key) is not None]
+    if not ms:
+        return f"| {path} | {kind} | {len(rs)} | {sum(bool(r.get('match')) for r in rs)} | - | - | - |"
+    return (f"| {path} | {kind} | {len(rs)} | {sum(bool(r.get('match')) for r in rs)} | {statistics.median(ms):.1f} | "
+            f"{pct(ms, .95):.1f} | {max(ms):.1f} |")
+
+
+def section(suite: str, title: str, intro: list[str]) -> list[str]:
+    cases = load_cases(suite)
+    inproc = asyncio.run(in_process(cases))
+    endpoint = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_endpoint.json").read_text(encoding="utf-8"))}
+    ui = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_ui.json").read_text(encoding="utf-8"))["rows"]}
+    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "execution"].index)
+    lines = [f"## {title}", ""] + intro + ["", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
+    for kind in kinds:
+        ids = [c["id"] for c in cases if c["kind"] == kind]
+        lines.append(stats_row("in-process", kind, [inproc[i] for i in ids], "ms"))
+        e = [endpoint[i] for i in ids if i in endpoint and "ms" in endpoint[i]]
+        lines.append(stats_row("endpoint", kind, e, "ms") if e else f"| endpoint | {kind} | {len(ids)} | n/a (in-process only) | - | - | - |")
+        u = [ui[i] for i in ids if i in ui]
+        lines.append(stats_row("UI form", kind, u, "ui_ms") if u else f"| UI form | {kind} | {len(ids)} | n/a (in-process only) | - | - | - |")
+    srv = [r["server_ms"] for r in endpoint.values() if r.get("server_ms")]
+    if srv:
+        lines += ["", f"Server-side plan time (`duration_ms`, includes the live Airwallex balance check, the 72 h simulation and the counterfactuals): p50 {statistics.median(srv):.1f} ms, p95 {pct(srv, .95):.1f} ms."]
+    has_level = any("level" in c for c in cases)
+    head = "| ID | L | Pain (organizers) | Case | Kind | Expected | in-proc ms | endpoint ms | UI ms | Match | Derivation |" if has_level else \
+           "| ID | Case | Kind | Expected | in-proc ms | endpoint ms | UI ms | Match | Derivation |"
+    lines += ["", "### Cases", "", head, "|" + "---|" * (head.count("|") - 1)]
+    for c in cases:
+        i = c["id"]
+        ip, e, u = inproc[i], endpoint.get(i, {}), ui.get(i, {})
+        ok = ip["match"] and e.get("match", True) and u.get("match", True)
+        e_ms = e.get("ms", "n/a") if "ms" in e else ("n/a" if c["kind"] == "execution" else "-")
+        u_ms = u.get("ui_ms", "n/a" if c["kind"] == "execution" else "-")
+        cells = [i] + ([str(c["level"]), c["pain"]] if has_level else []) + [c["title"], c["kind"], f"`{json.dumps(c['expect'])}`",
+                                                                               f"{ip['ms']:.1f}", str(e_ms), str(u_ms), "✅" if ok else "❌", c["derivation"]]
+        lines.append("| " + " | ".join(cells) + " |")
+    return lines
 
 
 def main() -> None:
-    endpoint = json.loads(sorted(RUNS.glob("*-endpoint.json"))[-1].read_text(encoding="utf-8"))
-    ui = json.loads(sorted(RUNS.glob("ui-*.json"))[-1].read_text(encoding="utf-8"))
-    cases = {c["id"]: c for c in load_cases()}
-    ui_rows = {r["id"]: r for r in ui["rows"]}
     lines = ["# Ground truth: hand-derived answers vs the live service", "",
              f"Generated {dt.datetime.now():%Y-%m-%d %H:%M} by `python scripts/groundtruth_report.py`.", "",
-             "**What this is.** `data/groundtruth/cases.json` holds "
-             f"{len(cases)} cases ({sum(c['kind'] == 'plan' for c in cases.values())} treasury plans, "
-             f"{sum(c['kind'] == 'intake' for c in cases.values())} intake emails) whose answers were derived *by hand* from the "
-             "published rules in `scripts/make_groundtruth.py` (each case carries its derivation), not by running VENTHORA. "
-             "Every case was then submitted three ways and judged by one comparator (`venthora.testing.groundtruth.compare`):",
-             "", "1. **in-process** (`tests/test_groundtruth.py`, runs in CI);",
-             "2. **via the HTTP endpoints** of the running service (`scripts/groundtruth_bench.py`: `POST /v1/plans`, "
-             "`POST /v1/intake/emails?dry_run=true`), round trip measured by the client, 3 repeats, median kept;",
-             "3. **via the dashboard form** (`Submit a case` at `/`), each case picked and submitted through the UI in a browser, "
-             "round trip measured by the browser's `performance.now()` beside the server's own `duration_ms`.", ""]
-    kinds = ("plan", "intake")
-    lines += ["## Results", "", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
-    for kind in kinds:
-        rs = [r for r in endpoint if r["kind"] == kind]
-        ms = [r["ms"] for r in rs]
-        lines.append(f"| endpoint | {kind} | {len(rs)} | {sum(r['match'] for r in rs)} | {statistics.median(ms):.1f} | "
-                     f"{pct(ms, .95):.1f} | {max(ms):.1f} |")
-    for kind in kinds:
-        rs = [r for r in ui["rows"] if r["kind"] == kind]
-        ms = [r["ui_ms"] for r in rs]
-        lines.append(f"| UI form | {kind} | {len(rs)} | {sum(r['match'] for r in rs)} | {statistics.median(ms):.1f} | "
-                     f"{pct(ms, .95):.1f} | {max(ms):.1f} |")
-    srv = [r["server_ms"] for r in endpoint if r.get("server_ms")]
-    lines += ["", f"Server-side plan time (`duration_ms`, includes the live Airwallex balance check, the 72 h simulation and the "
-                  f"counterfactuals): p50 {statistics.median(srv):.1f} ms, p95 {pct(srv, .95):.1f} ms. The difference to the "
-                  "round trip (about 10 ms) is HTTP, JSON and the audit append. Without the live Airwallex call (offline / "
-                  "tests) a plan takes about 13 ms; the balance check against the sandbox accounts for most of the rest.", "",
-              "## Cases", "",
-              "| ID | Case | Expected | Endpoint ms | UI ms | Server ms | Match | Derivation |", "|---|---|---|---|---|---|---|---|"]
-    e_rows = {r["id"]: r for r in endpoint}
-    for cid, c in cases.items():
-        e, u = e_rows.get(cid, {}), ui_rows.get(cid, {})
-        ok = e.get("match") and u.get("match")
-        lines.append(f"| {cid} | {c['title']} | `{json.dumps(c['expect'])}` | {e.get('ms', '-')} | {u.get('ui_ms', '-')} | "
-                     f"{u.get('server_ms') or '-'} | {'✅' if ok else '❌'} | {c['derivation']} |")
+             "Two suites in `data/groundtruth/`, both with answers derived **by hand** from the published rules (each case carries its derivation), never by running VENTHORA. "
+             "Every case is judged by one comparator (`venthora.testing.groundtruth.compare`) on three paths: **in-process** (`tests/`, CI), "
+             "**HTTP endpoints** of the running service (`scripts/groundtruth_bench.py`: `POST /v1/plans`, `POST /v1/intake/emails?dry_run=true`, `POST /v1/incidents/decide`; "
+             "round trip measured by the client, 3 repeats, median), and the **dashboard form** (`Submit a case` at `/`, each case submitted through the UI in a browser, "
+             "round trip measured by the browser beside the server's `duration_ms`). Execution cases (a plan executed on the stateful fake sandbox with injected faults) run in-process only: "
+             "through the service they would move real sandbox money.", ""]
+    lines += section("anomalies", "Suite 2 — the organizers' failure modes, smallest to largest (no normal day)", [
+        "**Why the hackathon exists.** Airwallex's framing: software agents are starting to *track balances, initiate payments and manage risk without a human in the loop*; "
+        "the rails underneath them are the builders' to design. The developer guide names what goes wrong when money is moved on a model's narrative, and those pains are the six levels below. "
+        "Every case here is an anomaly; the expected answer is what the published rules say must happen.", ""] + [f"- **L{k}** — {v}" for k, v in LEVELS.items()])
+    lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
+        "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     lines += ["", "## What the exercise changed", "",
-              "- **P28** — the hand answer first said APPROVED (deterministic headroom exactly covers the payment). The service "
-              "answered REQUIRES_APPROVAL: the 72-hour simulation draws the unexpected outflow with a lognormal size, so a plan "
-              "that lands exactly on the floor breaches it in about half the paths, above the 5% tolerance. The second rule is "
-              "the documented one; the expectation was corrected and the case kept as a record.",
-              "- **P32** — USD 10 bn cash was BLOCKED by the live service (the sandbox wallet holds about USD 10 M) while passing "
-              "in-process: a connected service grounds every plan in real balances. The case now uses amounts inside the wallet "
-              "and the note stays.",
-              "- **I04** — the lookalike's invoice LD-77 was already in the live intake queue, so the live service answered "
-              "DUPLICATE instead of QUARANTINED: the queue is shared state and the duplicate lock applies to it. The case uses "
-              "another invoice number; the behaviour is the intended one.", ""]
+              "- **P28 / N24** — the hand answer first said APPROVED when the headroom exactly covers the payment. The service answered REQUIRES_APPROVAL: the 72-hour simulation draws the unexpected outflow with a lognormal size, so a plan that lands exactly on the floor breaches it in about half the paths, above the 5% tolerance. The probabilistic rule is the documented one; the expectation was corrected and the case kept.",
+              "- **P32** — USD 10 bn cash was BLOCKED by the live service (the sandbox wallet holds about USD 10 M) while passing in-process: a connected service grounds every plan in real balances. The case now uses amounts inside the wallet.",
+              "- **I04** — the lookalike's invoice LD-77 was already in the live intake queue, so the live service answered DUPLICATE instead of QUARANTINED: the queue is shared state and the duplicate lock applies to it. The case uses another invoice number.",
+              "- **N41** — paying the same invoices twice: a second *plan* of the same state after the first execution is BLOCKED by the live-balance check before the duplicate lock is even reached (the fake wallet is lower); the case tops the wallet up so that the lock itself is what refuses the second run (`duplicate payment blocked before any money moved`).",
+              "- **Harness** — execution cases set fake credentials in the environment; without restoring them, later plan cases saw a configured-but-unreachable Airwallex and were BLOCKED. Restored after each execution case.", ""]
     (ROOT / "docs" / "GROUND_TRUTH.md").write_text("\n".join(lines), encoding="utf-8")
     print("docs/GROUND_TRUTH.md written")
 

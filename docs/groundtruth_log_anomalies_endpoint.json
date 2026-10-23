@@ -1,0 +1,1292 @@
+[
+ {
+  "id": "N01",
+  "kind": "plan",
+  "title": "the SWIFT fee is what breaks the reserve",
+  "ms": 175.55,
+  "ms_all": [
+   196.87,
+   157.12,
+   175.55
+  ],
+  "server_ms": 164.38,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 164.3816001014784
+  }
+ },
+ {
+  "id": "N02",
+  "kind": "plan",
+  "title": "a learned LOCAL fee is what breaks the reserve",
+  "ms": 413.67,
+  "ms_all": [
+   127.51,
+   1070.07,
+   413.67
+  ],
+  "server_ms": 400.63,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 400.6264000199735
+  }
+ },
+ {
+  "id": "N03",
+  "kind": "plan",
+  "title": "one-cent obligations are still money",
+  "ms": 146.49,
+  "ms_all": [
+   465.6,
+   105.53,
+   146.49
+  ],
+  "server_ms": 134.71,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "paid": {
+    "expected": [
+     "O1",
+     "O2",
+     "O3"
+    ],
+    "actual": [
+     "O1",
+     "O2",
+     "O3"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "PAY",
+    "O3": "PAY"
+   },
+   "paid": [
+    "O1",
+    "O2",
+    "O3"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 134.70979989506304
+  }
+ },
+ {
+  "id": "N04",
+  "kind": "execution",
+  "title": "planning rate stale: the rail is 3% dearer -> nothing booked",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N05",
+  "kind": "plan",
+  "title": "FX stress makes a 'fits exactly' conversion not fit",
+  "ms": 114.43,
+  "ms_all": [
+   114.43,
+   95.66,
+   193.44
+  ],
+  "server_ms": 181.88,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 181.8804000504315
+  }
+ },
+ {
+  "id": "N06",
+  "kind": "plan",
+  "title": "the receipt slips past the due date",
+  "ms": 101.71,
+  "ms_all": [
+   95.67,
+   169.09,
+   101.71
+  ],
+  "server_ms": 89.78,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 89.77690001484007
+  }
+ },
+ {
+  "id": "N07",
+  "kind": "plan",
+  "title": "the 90% window ends after the planning horizon",
+  "ms": 111.26,
+  "ms_all": [
+   105.61,
+   203.23,
+   111.26
+  ],
+  "server_ms": 98.45,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 98.44670002348721
+  }
+ },
+ {
+  "id": "N08",
+  "kind": "plan",
+  "title": "due now, cash short, no receipt",
+  "ms": 96.08,
+  "ms_all": [
+   135.2,
+   95.95,
+   96.08
+  ],
+  "server_ms": 86.11,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "not_blocked": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 86.1133000580594
+  }
+ },
+ {
+  "id": "N09",
+  "kind": "execution",
+  "title": "the deposit stays PENDING: the receipt is not counted",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N10",
+  "kind": "plan",
+  "title": "payer with a bad record: 40% confidence drops the FX limit to zero",
+  "ms": 101.34,
+  "ms_all": [
+   141.16,
+   95.34,
+   101.34
+  ],
+  "server_ms": 92.09,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "limit": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "conversion_above_autonomous_limit"
+    ],
+    "actual": [
+     "conversion_above_autonomous_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 101285
+   },
+   "limit": 0,
+   "requires": [
+    "conversion_above_autonomous_limit"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 92.0910999411717
+  }
+ },
+ {
+  "id": "N11",
+  "kind": "incident",
+  "title": "SENT for 49 h: the wait window is over, still not final",
+  "ms": 1.62,
+  "ms_all": [
+   1.91,
+   1.31,
+   1.62
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "action": {
+    "expected": "ESCALATE",
+    "actual": "ESCALATE",
+    "ok": true
+   }
+  },
+  "view": {
+   "action": "ESCALATE",
+   "reason": "SENT for 49h, beyond the 48h window, and still not final: a person must chase the rail; replacing now could pay twice"
+  }
+ },
+ {
+  "id": "N12",
+  "kind": "incident",
+  "title": "PROCESSING for 1 h: wait, never replace",
+  "ms": 1.68,
+  "ms_all": [
+   1.78,
+   1.68,
+   1.65
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "action": {
+    "expected": "WAIT",
+    "actual": "WAIT",
+    "ok": true
+   }
+  },
+  "view": {
+   "action": "WAIT",
+   "reason": "PROCESSING is not final; 1h in flight is within the 48h wait window; a transfer that may still clear is never replaced"
+  }
+ },
+ {
+  "id": "N13",
+  "kind": "plan",
+  "title": "evidence about the wrong obligation",
+  "ms": 101.91,
+  "ms_all": [
+   128.35,
+   94.26,
+   101.91
+  ],
+  "server_ms": 89.0,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "REJECT"
+    },
+    "actual": {
+     "O1": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 88.99970003403723
+  }
+ },
+ {
+  "id": "N14",
+  "kind": "plan",
+  "title": "the same invoice re-sent under a new id",
+  "ms": 100.38,
+  "ms_all": [
+   132.22,
+   100.38,
+   98.07
+  ],
+  "server_ms": 85.67,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "REJECT"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 85.67480009514838
+  }
+ },
+ {
+  "id": "N15",
+  "kind": "plan",
+  "title": "payee announces new bank details",
+  "ms": 112.32,
+  "ms_all": [
+   133.18,
+   112.32,
+   96.54
+  ],
+  "server_ms": 84.83,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 84.83079995494336
+  }
+ },
+ {
+  "id": "N16",
+  "kind": "intake",
+  "title": "lookalike mailbox, new bank account, urgency",
+  "ms": 6.5,
+  "ms_all": [
+   8.26,
+   6.5,
+   5.58
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "unknown_sender",
+    "actual": "unknown_sender",
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "payee_bank_details_changed",
+     "urgency_pressure"
+    ],
+    "actual": [
+     "payee_bank_details_changed",
+     "urgency_pressure"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "unknown_sender",
+   "kind": "bank_change",
+   "amount_minor": 300000,
+   "currency": "USD",
+   "invoice_no": "LD-201",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": [
+    "payee_bank_details_changed",
+    "urgency_pressure"
+   ]
+  }
+ },
+ {
+  "id": "N17",
+  "kind": "intake",
+  "title": "the email tells the agent it is verified",
+  "ms": 5.6,
+  "ms_all": [
+   5.55,
+   6.81,
+   5.6
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "unknown_sender",
+   "kind": "supplier_invoice",
+   "amount_minor": 20200,
+   "currency": "USD",
+   "invoice_no": "LD-202",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "N18",
+  "kind": "intake",
+  "title": "registered mailbox, Reply-To elsewhere",
+  "ms": 6.06,
+  "ms_all": [
+   6.22,
+   5.69,
+   6.06
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "reply_to_mismatch",
+    "actual": "reply_to_mismatch",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "reply_to_mismatch",
+   "kind": "supplier_invoice",
+   "amount_minor": 40000,
+   "currency": "USD",
+   "invoice_no": "LD-203",
+   "due_date": "2026-11-05",
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": []
+  }
+ },
+ {
+  "id": "N19",
+  "kind": "intake",
+  "title": "registered mailbox announces a new account",
+  "ms": 6.15,
+  "ms_all": [
+   6.15,
+   5.68,
+   6.4
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEEDS_REVIEW",
+    "actual": "NEEDS_REVIEW",
+    "ok": true
+   },
+   "kind": {
+    "expected": "bank_change",
+    "actual": "bank_change",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "NEEDS_REVIEW",
+   "trust": "registered",
+   "kind": "bank_change",
+   "amount_minor": 70000,
+   "currency": "USD",
+   "invoice_no": "LD-204",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": [
+    "payee_bank_details_changed"
+   ]
+  }
+ },
+ {
+  "id": "N20",
+  "kind": "intake",
+  "title": "a reminder for an invoice already in the book",
+  "ms": 7.31,
+  "ms_all": [
+   7.31,
+   6.28,
+   7.89
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "DUPLICATE",
+    "actual": "DUPLICATE",
+    "ok": true
+   },
+   "duplicate_of": {
+    "expected": "SHIPPING-UK",
+    "actual": "SHIPPING-UK",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "DUPLICATE",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 250000,
+   "currency": "GBP",
+   "invoice_no": "TF-311",
+   "due_date": null,
+   "claimed_name": "Thames Freight Ltd",
+   "duplicate_of": "SHIPPING-UK",
+   "flags": []
+  }
+ },
+ {
+  "id": "N21",
+  "kind": "intake",
+  "title": "registered sender, 'the CEO approved, pay immediately'",
+  "ms": 6.33,
+  "ms_all": [
+   5.96,
+   6.33,
+   13.18
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEEDS_REVIEW",
+    "actual": "NEEDS_REVIEW",
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "urgency_pressure"
+    ],
+    "actual": [
+     "urgency_pressure"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "NEEDS_REVIEW",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 65000,
+   "currency": "USD",
+   "invoice_no": "LD-205",
+   "due_date": null,
+   "claimed_name": "Lumen Design Studio",
+   "duplicate_of": null,
+   "flags": [
+    "urgency_pressure"
+   ]
+  }
+ },
+ {
+  "id": "N22",
+  "kind": "plan",
+  "title": "conversion above the autonomous limit",
+  "ms": 97.0,
+  "ms_all": [
+   89.01,
+   97.0,
+   150.3
+  ],
+  "server_ms": 139.02,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "conversion_above_autonomous_limit"
+    ],
+    "actual": [
+     "conversion_above_autonomous_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 1201285
+   },
+   "limit": 1000000,
+   "requires": [
+    "conversion_above_autonomous_limit"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 139.01530008297414
+  }
+ },
+ {
+  "id": "N23",
+  "kind": "plan",
+  "title": "70% confidence halves the limit and the conversion no longer fits",
+  "ms": 96.79,
+  "ms_all": [
+   96.79,
+   96.39,
+   140.85
+  ],
+  "server_ms": 130.08,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "limit": {
+    "expected": 500000,
+    "actual": 500000,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 701285
+   },
+   "limit": 500000,
+   "requires": [
+    "conversion_above_autonomous_limit"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 130.08100003935397
+  }
+ },
+ {
+  "id": "N24",
+  "kind": "plan",
+  "title": "the plan lands exactly on the floor: probabilistic breach risk",
+  "ms": 109.57,
+  "ms_all": [
+   109.57,
+   102.02,
+   194.31
+  ],
+  "server_ms": 183.62,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "actual": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [
+    "reserve_breach_risk_above_tolerance"
+   ],
+   "failed_stages": [],
+   "breach_bp": 5115,
+   "not_blocked": true,
+   "duration_ms": 183.62280004657805
+  }
+ },
+ {
+  "id": "N25",
+  "kind": "plan",
+  "title": "a viewer asks for a plan",
+  "ms": 97.54,
+  "ms_all": [
+   97.54,
+   157.68,
+   91.47
+  ],
+  "server_ms": 81.54,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [],
+   "failed_stages": [
+    "Policy"
+   ],
+   "breach_bp": 0,
+   "not_blocked": false,
+   "duration_ms": 81.54220005962998
+  }
+ },
+ {
+  "id": "N26",
+  "kind": "execution",
+  "title": "an approval given on different terms is refused",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N27",
+  "kind": "execution",
+  "title": "a viewer 'approves'",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N28",
+  "kind": "execution",
+  "title": "REQUIRES_APPROVAL executed without a person",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N29",
+  "kind": "execution",
+  "title": "the transfer response is lost: recovered by request_id, paid once",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N30",
+  "kind": "execution",
+  "title": "429 storm on transfer create",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N31",
+  "kind": "execution",
+  "title": "the rail answers duplicate_request_id",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N32",
+  "kind": "execution",
+  "title": "wallet read says yes, rail says balance_insufficient",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N33",
+  "kind": "execution",
+  "title": "the conversion stays SCHEDULED: transfers are held",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N34",
+  "kind": "incident",
+  "title": "CANCELLED with BENEFICIARY_BANK_RETURNED",
+  "ms": 2.27,
+  "ms_all": [
+   2.6,
+   2.27,
+   2.18
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "action": {
+    "expected": "REPLACE",
+    "actual": "REPLACE",
+    "ok": true
+   }
+  },
+  "view": {
+   "action": "REPLACE",
+   "reason": "BENEFICIARY_BANK_RETURNED: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id"
+  }
+ },
+ {
+  "id": "N35",
+  "kind": "incident",
+  "title": "CANCELLED with INVALID_ACCOUNT_NAME_OR_NUMBER",
+  "ms": 2.05,
+  "ms_all": [
+   2.3,
+   2.05,
+   1.8
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "action": {
+    "expected": "ESCALATE",
+    "actual": "ESCALATE",
+    "ok": true
+   }
+  },
+  "view": {
+   "action": "ESCALATE",
+   "reason": "INVALID_ACCOUNT_NAME_OR_NUMBER: the payee's bank details are wrong; paying them again pays the wrong account again"
+  }
+ },
+ {
+  "id": "N36",
+  "kind": "incident",
+  "title": "CANCELLED with RECALL_REQUESTED",
+  "ms": 2.4,
+  "ms_all": [
+   2.39,
+   2.58,
+   2.4
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "action": {
+    "expected": "ESCALATE",
+    "actual": "ESCALATE",
+    "ok": true
+   }
+  },
+  "view": {
+   "action": "ESCALATE",
+   "reason": "RECALL_REQUESTED: a person or a control stopped this payment; only a person may restart it"
+  }
+ },
+ {
+  "id": "N37",
+  "kind": "incident",
+  "title": "FAILED with no typed failure",
+  "ms": 1.81,
+  "ms_all": [
+   2.0,
+   1.81,
+   1.79
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "action": {
+    "expected": "ESCALATE",
+    "actual": "ESCALATE",
+    "ok": true
+   },
+   "reason_contains": {
+    "expected": "unknown",
+    "actual": "UNKNOWN: unknown failure type; a person decides",
+    "ok": true
+   }
+  },
+  "view": {
+   "action": "ESCALATE",
+   "reason": "UNKNOWN: unknown failure type; a person decides"
+  }
+ },
+ {
+  "id": "N38",
+  "kind": "incident",
+  "title": "a second return after one replacement",
+  "ms": 2.46,
+  "ms_all": [
+   2.27,
+   2.46,
+   2.53
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "action": {
+    "expected": "ESCALATE",
+    "actual": "ESCALATE",
+    "ok": true
+   }
+  },
+  "view": {
+   "action": "ESCALATE",
+   "reason": "BENEFICIARY_BANK_RETURNED: 1 replacement(s) already attempted; a person decides"
+  }
+ },
+ {
+  "id": "N39",
+  "kind": "execution",
+  "title": "one payout fails after SENT: refund expected, fee lost",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N40",
+  "kind": "execution",
+  "title": "all three payouts fail after SENT",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N41",
+  "kind": "execution",
+  "title": "the same invoice executed twice: second run refused before any money moves",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N42",
+  "kind": "execution",
+  "title": "the wallet holds less than the plan assumes",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N43",
+  "kind": "plan",
+  "title": "base wallet already below the floor, foreign wallets cover the payouts",
+  "ms": 106.79,
+  "ms_all": [
+   106.79,
+   174.82,
+   101.76
+  ],
+  "server_ms": 91.33,
+  "match": true,
+  "fields": {
+   "paid": {
+    "expected": [
+     "O1",
+     "O2"
+    ],
+    "actual": [
+     "O1",
+     "O2"
+    ],
+    "ok": true
+   },
+   "n_conversions": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "actual": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "CONVERT_AND_PAY"
+   },
+   "paid": [
+    "O1",
+    "O2"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 1000000,
+   "requires": [
+    "reserve_breach_risk_above_tolerance"
+   ],
+   "failed_stages": [],
+   "breach_bp": 10000,
+   "not_blocked": true,
+   "duration_ms": 91.32750006392598
+  }
+ },
+ {
+  "id": "N44",
+  "kind": "execution",
+  "title": "bank return -> replace under the lock -> resolved only when the original is recorded",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N45",
+  "kind": "execution",
+  "title": "replacement would need a fee the wallet cannot cover",
+  "skipped": "in-process only"
+ },
+ {
+  "id": "N46",
+  "kind": "plan",
+  "title": "cash short, receipt contradicted, bank change, duplicate, SWIFT fee, viewer-free",
+  "ms": 105.98,
+  "ms_all": [
+   161.92,
+   101.04,
+   105.98
+  ],
+  "server_ms": 87.89,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE",
+     "O2": "CONVERT_AND_PAY",
+     "O3": "REJECT",
+     "O4": "ESCALATE",
+     "O5": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE",
+     "O2": "CONVERT_AND_PAY",
+     "O3": "REJECT",
+     "O4": "ESCALATE",
+     "O5": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [
+     "O2"
+    ],
+    "actual": [
+     "O2"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE",
+    "O2": "CONVERT_AND_PAY",
+    "O3": "REJECT",
+    "O4": "ESCALATE",
+    "O5": "ESCALATE"
+   },
+   "paid": [
+    "O2"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 201285
+   },
+   "limit": 250000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 87.88879995699972
+  }
+ }
+]

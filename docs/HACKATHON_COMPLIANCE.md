@@ -162,10 +162,20 @@ reports and the scenario-matrix summary.
 
 ## (8) Ground truth and the submission form
 
-`data/groundtruth/cases.json`: 54 cases (37 plans, 17 intake emails) whose answers were derived by hand from the
-published rules (`scripts/make_groundtruth.py`, each with its derivation). All 54 are reproduced by the service
-in-process (CI), through the HTTP endpoints (`scripts/groundtruth_bench.py`) and through the dashboard's
-`Submit a case` form in a browser; latency is measured on every path ([GROUND_TRUTH.md](GROUND_TRUTH.md)).
+Two suites whose answers were derived by hand from the published rules, never by running the service, each case with
+its derivation ([GROUND_TRUTH.md](GROUND_TRUTH.md)):
+
+- `data/groundtruth/cases.json` — 54 cases (37 plans, 17 intake emails), one rule each (`scripts/make_groundtruth.py`).
+- `data/groundtruth/anomalies.json` — **46 anomalies, no normal day**, the organizers' own failure modes ordered from
+  the smallest to the largest (`scripts/make_anomaly_groundtruth.py`): fees and FX buffers that break a reserve, stale
+  quotes, receipts that slip or fall outside the horizon, PENDING deposits, lookalike mailboxes, injection, Reply-To
+  diversion, duplicates, bank changes, limits scaling with confidence, approvals on wrong terms or by the wrong role,
+  lost responses, 429 storms, `duplicate_request_id`, `balance_insufficient` at the rail, conversions that never settle,
+  every Kit 03 failure class, bank returns after SENT, paying the same invoices twice, stale state, a base wallet already
+  below the floor, and everything at once.
+
+All 100 are reproduced in-process (CI); the 84 that do not move money also through the HTTP endpoints
+(`scripts/groundtruth_bench.py`) and through the dashboard's `Submit a case` form in a browser, with latency on every path.
 
 ## Not applicable to this build
 

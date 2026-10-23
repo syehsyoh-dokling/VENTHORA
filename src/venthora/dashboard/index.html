@@ -52,8 +52,9 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
 
  <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtCase"><option value="">— free input —</option></select>
-    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option></select>
+    <select id="gtCase"><option value="">— free input —</option></select>
+    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
     <button id="submitCase" class="primary">Submit</button></span></h2>
   <textarea id="subInput" spellcheck="false" style="width:100%;min-height:150px;font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)" placeholder='Paste a TreasuryState JSON or a raw email (RFC 822), or pick a ground-truth case.'></textarea>
@@ -140,13 +141,17 @@ async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$
 
 // ---- submit a case (manual input via the UI, or a ground-truth case) ----
 let GT=[];const submissions=[];
-async function gtCases(){try{GT=await api("/api/groundtruth");$("#gtCase").innerHTML='<option value="">— free input —</option>'+GT.map(c=>`<option value="${c.id}">${c.id} · ${esc(c.title)}</option>`).join("")}catch(e){}}
-$("#gtCase").onchange=()=>{const c=GT.find(x=>x.id===$("#gtCase").value);if(!c)return;$("#subKind").value=c.kind;$("#subInput").value=c.kind==="plan"?JSON.stringify(c.input,null,1):c.input;
- $("#subOut").innerHTML=`<b>${esc(c.id)}</b> ${esc(c.title)} · expects <span class="mono">${esc(JSON.stringify(c.expect))}</span><br><span class="muted">derivation: ${esc(c.derivation)}</span>`};
+async function gtCases(){try{GT=await api("/api/groundtruth?suite="+$("#gtSuite").value);const usable=GT.filter(c=>c.kind!=="execution");
+ $("#gtCase").innerHTML='<option value="">— free input —</option>'+usable.map(c=>`<option value="${c.id}">${c.id} · ${esc(c.title)}</option>`).join("")}catch(e){}}
+$("#gtSuite").onchange=gtCases;
+$("#gtCase").onchange=()=>{const c=GT.find(x=>x.id===$("#gtCase").value);if(!c)return;$("#subKind").value=c.kind;$("#subInput").value=c.kind==="intake"?c.input:JSON.stringify(c.input,null,1);
+ $("#subOut").innerHTML=`<b>${esc(c.id)}</b> ${esc(c.title)}${c.pain?` · <i>${esc(c.pain)}</i>`:""} · expects <span class="mono">${esc(JSON.stringify(c.expect))}</span><br><span class="muted">derivation: ${esc(c.derivation)}</span>`};
 async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").value,caseId=$("#gtCase").value;const c=GT.find(x=>x.id===caseId);
  const t0=performance.now();let res,body;
  if(kind==="plan"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
   res=await fetch("/v1/plans",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
+ else if(kind==="incident"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
+  res=await fetch("/v1/incidents/decide",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
  else{const q=new URLSearchParams({dry_run:$("#queueIt").checked?"false":"true"});if(c&&c.book)q.set("book",c.book);
   res=await fetch("/v1/intake/emails?"+q,{method:"POST",headers:{"content-type":"message/rfc822"},body:raw})}
  const ms=performance.now()-t0;body=await res.json();
@@ -154,6 +159,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  let judge=null;if(c){judge=await api("/api/groundtruth/judge",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({case_id:c.id,result:body})})}
  const serverMs=kind==="plan"?body.duration_ms:null;
  const summary=kind==="plan"?`${pill(body.decision)} ${Object.entries(body.obligations.reduce((m,d)=>(m[d.obligation_id]=d.action,m),{})).map(([o,a])=>`${esc(o)}=${esc(a)}`).join(", ")}`
+  :kind==="incident"?`${pill(body.action)} <span class="small">${esc(body.reason)}</span>`
   :`${pill(body.status)} ${esc(body.trust)} · ${esc(body.kind)} · ${fmt(body.amount_minor,body.currency||"")} · ${esc(body.invoice_no||"-")}`;
  const rec={id:c?c.id:"free",kind,ui_ms:+ms.toFixed(1),server_ms:serverMs!=null?+serverMs.toFixed(1):null,match:judge?judge.match:null,
   bad:judge?Object.entries(judge.fields).filter(([k,v])=>!v.ok).map(([k,v])=>`${k}: expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)}`):[]};

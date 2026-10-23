@@ -94,7 +94,8 @@ class Variant:
     inbox: dict | None = None  # {"messages": [...], "as_of": "YYYY-MM-DD"}
     model: ChatModel | None = None
     execute: bool = True
-    approve: bool = True
+    approve: bool | str = True  # True | False | "wrong-terms" | "viewer"
+    twice: bool = False  # execute the same invoices a second time (must be refused)
     receipt: bool = False
     incident: tuple[str | None, int] | None = None  # (failure_type, hours_in_flight)
     replan: dict | None = None  # second state to re-plan with previous=(state, plan)
@@ -486,15 +487,25 @@ async def run_variant(v: Variant, workdir: Path) -> dict:
                                             "changes": [(c.obligation_id, c.before, c.after) for c in plan.recalculation.changes]}
 
         if v.execute and plan.decision != "BLOCKED" and any(a in PAYING for a in actions.values()):
+            # approve: True = a finance manager on the plan's own terms; "wrong-terms" = a finance manager whose
+            # approval carries another plan's terms; "viewer" = someone without the role; False = nobody.
             approval = None
-            if plan.decision == "REQUIRES_APPROVAL":
-                if not v.approve:
-                    rec["execution"] = {"status": "NOT_APPROVED"}
+            if v.approve == "wrong-terms":
+                approval = Approval(approver="matrix", role="finance_manager", terms_digest="0" * 64)
+            elif v.approve == "viewer":
+                approval = Approval(approver="matrix", role="viewer", terms_digest=terms_digest(plan))
+            elif plan.decision == "REQUIRES_APPROVAL" and v.approve:
                 approval = Approval(approver="matrix (finance manager)", role="finance_manager", terms_digest=terms_digest(plan))
-            if v.approve or plan.decision == "APPROVED":
+            if True:
                 t1 = time.perf_counter()
                 result = await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash, approval=approval,
                                                                  simulate_settlement=v.incident is None))
+                if v.twice and result.status == "COMPLETED":  # the same invoices again, on a fresh plan of the same state
+                    from decimal import Decimal
+                    for c, amt in state.balances.items():  # top the wallet back up so the second plan is feasible
+                        fake.balances[c] = fake.balances.get(c, Decimal(0)) + Decimal(amt) / 100
+                    plan2 = await agent.decide(state)
+                    result = await executor.execute(ExecutionRequest(state=state, plan_hash=plan2.plan_hash, approval=approval))
                 exec_ms = (time.perf_counter() - t1) * 1000
                 rec["execution"] = {"status": result.status, "message": result.message[:200], "ms": round(exec_ms, 1),
                                     "transfers": len(fake.transfers), "conversions": len(fake.conversions),
