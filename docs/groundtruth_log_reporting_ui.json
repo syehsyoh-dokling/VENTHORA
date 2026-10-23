@@ -1,0 +1,13 @@
+{"_note": "UI bench, reporting suite: every case submitted through the dashboard form (Submit a case, suite = reporting, POST /v1/reporting/eval) in the Claude in-app browser against the running service on 23 Oct 2026; ui_ms = round trip measured by the browser. 18/18 matched the hand-derived expectation.",
+ "n": 18, "matched": 18, "p50_ms": 2.9, "max_ms": 5.9,
+ "rows": [
+  {"id": "R01", "kind": "reporting", "match": true, "ui_ms": 5.9}, {"id": "R02", "kind": "reporting", "match": true, "ui_ms": 2.4},
+  {"id": "R03", "kind": "reporting", "match": true, "ui_ms": 2.8}, {"id": "R04", "kind": "reporting", "match": true, "ui_ms": 2.5},
+  {"id": "R05", "kind": "reporting", "match": true, "ui_ms": 2.8}, {"id": "R06", "kind": "reporting", "match": true, "ui_ms": 3.3},
+  {"id": "R07", "kind": "reporting", "match": true, "ui_ms": 2.5}, {"id": "R08", "kind": "reporting", "match": true, "ui_ms": 2.9},
+  {"id": "R09", "kind": "reporting", "match": true, "ui_ms": 3.2}, {"id": "R10", "kind": "reporting", "match": true, "ui_ms": 2.9},
+  {"id": "R11", "kind": "reporting", "match": true, "ui_ms": 2.6}, {"id": "R12", "kind": "reporting", "match": true, "ui_ms": 2.8},
+  {"id": "R13", "kind": "reporting", "match": true, "ui_ms": 5.0}, {"id": "R14", "kind": "reporting", "match": true, "ui_ms": 2.6},
+  {"id": "R15", "kind": "reporting", "match": true, "ui_ms": 2.9}, {"id": "R16", "kind": "reporting", "match": true, "ui_ms": 3.5},
+  {"id": "R17", "kind": "reporting", "match": true, "ui_ms": 3.4}, {"id": "R18", "kind": "reporting", "match": true, "ui_ms": 2.6}
+ ]}

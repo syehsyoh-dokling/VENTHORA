@@ -43,6 +43,7 @@ class Obligation(StrictModel):
                                              description="PO / contract amount (three-way match)")
     paid_so_far_minor: int = Field(default=0, ge=0, le=MAX_MINOR, description="earlier instalments already paid on this invoice")
     due_date: str | None = Field(default=None, description="ISO date; with as_of it places the obligation in a period")
+    posted_at: str | None = Field(default=None, description="ISO datetime the document arrived; decides its REPORT period")
 
 
 class BudgetLine(StrictModel):

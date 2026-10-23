@@ -6,6 +6,7 @@ import contextlib
 import json
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -32,6 +33,10 @@ from .intake.models import IntakeRequest, ReviewRequest  # noqa: E402
 from .intake.pipeline import Intake  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
 from .proofcore.budget import attach_budget, cutoff_report, load_budget  # noqa: E402
+from .reporting import ReportingConfig, period_report  # noqa: E402
+from .reporting import evaluate as reporting_evaluate  # noqa: E402
+from .reporting import load_config as load_reporting_config  # noqa: E402
+from .reporting import save_config as save_reporting_config  # noqa: E402
 from .testing.groundtruth import book_fingerprints, compare, load_cases, run_case, view_of  # noqa: E402
 
 SCENARIOS = ROOT / "data" / "scenarios"
@@ -213,6 +218,74 @@ async def period_cutoff(period: str):
     if closed is None:
         raise HTTPException(404, "period not closed")
     return closed
+
+
+# -- reporting periods ---------------------------------------------------------------------------
+
+@app.get("/v1/reporting/config")
+async def reporting_config():
+    return load_reporting_config().model_dump()
+
+
+@app.put("/v1/reporting/config")
+async def set_reporting_config(cfg: ReportingConfig, role: str = "admin"):
+    """The admin's cut-off (day, time, timezone), reporting currency and fallback closing rates."""
+    if role != "admin":
+        raise HTTPException(403, "only an admin may change the reporting configuration")
+    save_reporting_config(cfg)
+    await asyncio.to_thread(app.state.audit.append, "reporting_config", cfg.model_dump())
+    return cfg.model_dump()
+
+
+@app.post("/v1/reporting/eval")
+async def reporting_eval(inp: Annotated[dict, Body()]):
+    """Pure evaluation (ground truth / the form): which report a posting belongs to, a period's report from a ledger."""
+    try:
+        return reporting_evaluate(inp)
+    except (KeyError, ValueError, TypeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.get("/v1/reporting/periods/{period}")
+async def reporting_period_report(period: str):
+    """Layer 1 (monthly spend by payment instant), layer 2 (invoice statements as of the period's end), layer 3
+    (consolidation in the reporting currency at the period's closing rates)."""
+    cfg = load_reporting_config()
+    store = app.state.executor.store
+    rates = store.closing_rates(period) or cfg.closing_rates.get(period, {})
+    source = "snapshot" if store.closing_rates(period) else "admin fallback"
+    return period_report(period, store.ledger(), cfg, rates) | {"rates_source": source}
+
+
+@app.post("/v1/reporting/periods/{period}/rates")
+async def snapshot_closing_rates(period: str, rates: Annotated[dict[str, str] | None, Body()] = None, role: str = "admin"):
+    """Record the period's closing rates: from Airwallex's indicative rates now, or the admin's own figures."""
+    if role != "admin":
+        raise HTTPException(403, "only an admin may set closing rates")
+    cfg = load_reporting_config()
+    store = app.state.executor.store
+    if rates:
+        store.set_closing_rates(period, rates, f"admin ({len(rates)} rates)")
+        return {"period": period, "rates": rates, "source": "admin"}
+    # Per currency: Airwallex's indicative rate when the sandbox quotes the pair; otherwise the admin's fallback for
+    # that currency, with the source recorded (observed 23 Oct 2026: the sandbox answers unsupported_currency for IDR).
+    bank = _bank()
+    out: dict[str, str] = {}
+    sources: dict[str, str] = {}
+    fallback = cfg.closing_rates.get(period, {})
+    for ccy in ("USD", "EUR", "GBP"):
+        try:
+            out[ccy] = format(await bank.rate_to_base(ccy, cfg.reporting_currency), "f")
+            sources[ccy] = "airwallex"
+        except AirwallexError as exc:
+            if ccy not in fallback:
+                raise HTTPException(502, f"Airwallex rate {ccy}/{cfg.reporting_currency}: {exc}; no admin fallback") from exc
+            out[ccy], sources[ccy] = fallback[ccy], f"admin fallback ({exc.code or 'airwallex error'})"
+    label = "; ".join(f"{c}: {s}" for c, s in sources.items()) + f" @ {datetime.now(UTC).isoformat()}"
+    store.set_closing_rates(period, out, label)
+    await asyncio.to_thread(app.state.audit.append, "closing_rates", {"period": period, "rates": out, "sources": sources})
+    overall = "airwallex" if all(s == "airwallex" for s in sources.values()) else "mixed"
+    return {"period": period, "rates": out, "sources": sources, "source": overall}
 
 
 class GrantRequest(BaseModel):
@@ -405,7 +478,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies", "budget", "controls"):
+    for suite in ("cases", "anomalies", "budget", "controls", "reporting"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

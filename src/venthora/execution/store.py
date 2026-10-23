@@ -54,6 +54,13 @@ CREATE TABLE IF NOT EXISTS recon_cases (
     discrepancies_json TEXT NOT NULL, note TEXT, opened_at TEXT NOT NULL, closed_at TEXT, closed_by TEXT, closing_note TEXT);
 CREATE TABLE IF NOT EXISTS budget_periods (
     period TEXT PRIMARY KEY, closed_at TEXT NOT NULL, closed_by TEXT NOT NULL, report_json TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS spend_ledger (
+    transfer_id TEXT PRIMARY KEY, book_id TEXT NOT NULL, obligation_id TEXT NOT NULL, invoice_fingerprint TEXT,
+    installment TEXT, contract_total_minor INTEGER, line TEXT, currency TEXT NOT NULL, amount_minor INTEGER NOT NULL,
+    base_cost_minor INTEGER NOT NULL, paid_at TEXT NOT NULL, reporting_period TEXT NOT NULL, recorded_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS closing_rates (
+    period TEXT NOT NULL, currency TEXT NOT NULL, rate TEXT NOT NULL, source TEXT NOT NULL, recorded_at TEXT NOT NULL,
+    PRIMARY KEY (period, currency));
 """
 
 LIVE_PAYOUT_STATUSES = ("IN_FLIGHT", "PAID")
@@ -323,6 +330,33 @@ class ExecutionStore:
                       " WHERE case_id = ? AND status = 'OPEN'", (_now(), closed_by, note, case_id))
             row = c.execute("SELECT * FROM recon_cases WHERE case_id = ?", (case_id,)).fetchone()
         return (dict(row) | {"discrepancies": json.loads(row["discrepancies_json"])}) if row else None
+
+    # -- reporting: the spend ledger by payment instant, closing rates per period -------------------
+
+    def book_payment(self, row: dict) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("INSERT OR IGNORE INTO spend_ledger VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                      (row["transfer_id"], row["book_id"], row["obligation_id"], row.get("invoice_fingerprint"),
+                       row.get("installment"), row.get("contract_total_minor"), row.get("line"), row["currency"],
+                       row["amount_minor"], row["base_cost_minor"], row["paid_at"], row["reporting_period"], _now()))
+
+    def ledger(self, period: str | None = None) -> list[dict]:
+        with self._lock, self._connect() as c:
+            if period:
+                rows = c.execute("SELECT * FROM spend_ledger WHERE reporting_period = ? ORDER BY paid_at", (period,)).fetchall()
+            else:
+                rows = c.execute("SELECT * FROM spend_ledger ORDER BY paid_at").fetchall()
+        return [dict(r) for r in rows]
+
+    def set_closing_rates(self, period: str, rates: dict[str, str], source: str) -> None:
+        with self._lock, self._connect() as c:
+            for ccy, rate in rates.items():
+                c.execute("INSERT OR REPLACE INTO closing_rates VALUES (?, ?, ?, ?, ?)", (period, ccy, str(rate), source, _now()))
+
+    def closing_rates(self, period: str) -> dict[str, str]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT currency, rate FROM closing_rates WHERE period = ?", (period,)).fetchall()
+        return {r["currency"]: r["rate"] for r in rows}
 
     # -- period cut-off ---------------------------------------------------------------------------
 

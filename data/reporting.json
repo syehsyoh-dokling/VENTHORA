@@ -1,0 +1,12 @@
+{
+  "timezone": "Asia/Jakarta",
+  "cutoff_day": 25,
+  "cutoff_time": "23:59",
+  "reporting_currency": "IDR",
+  "base_currency": "USD",
+  "closing_rates": {
+    "2026-10": {"USD": "15800", "EUR": "17900", "GBP": "21400"},
+    "2026-11": {"USD": "15800", "EUR": "17900", "GBP": "21400"}
+  },
+  "set_by": "admin (bootstrap values; replace with a snapshot from Airwallex at each cut-off)"
+}

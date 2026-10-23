@@ -57,10 +57,15 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
  </section>
 
  <section class="span12">
+  <h2><span>Reporting periods</span><span class="row"><input id="repPeriod" value="" placeholder="YYYY-MM" style="width:90px;font:inherit;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:var(--surface);color:var(--ink)"><button id="repLoad">Load</button><button id="repRates" title="record the period's closing rates from Airwallex (admin)">Snapshot rates</button><span class="small muted" id="repMeta"></span></span></h2>
+  <div id="reporting" class="empty">loading…</div>
+ </section>
+
+ <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
-    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option></select>
+    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
     <button id="submitCase" class="primary">Submit</button></span></h2>
   <textarea id="subInput" spellcheck="false" style="width:100%;min-height:150px;font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)" placeholder='Paste a TreasuryState JSON or a raw email (RFC 822), or pick a ground-truth case.'></textarea>
@@ -175,6 +180,25 @@ async function budget(){try{if(!$("#budgetBook").options.length){const s=await a
   const note=prompt("note (why):")||"";try{await api(`/v1/budgets/${x.dataset.period}/${x.dataset.line}/grant`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({extra_minor:Math.round(parseFloat(amt)*100),approver:"finance manager",role:"finance_manager",note})});budget()}catch(e){alert(e.message)}})}
  catch(e){$("#budget").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
+// ---- reporting periods: monthly spend by payment instant, invoice statements, consolidation ----
+const fmtAny=(m,c)=>c==="IDR"||c==="JPY"||c==="KRW"?`${c} ${Number(m).toLocaleString()}`:fmt(m,c);
+async function reporting(){try{const cfg=await api("/v1/reporting/config");if(!$("#repPeriod").value){const d=new Date();$("#repPeriod").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
+ const p=$("#repPeriod").value;const r=await api(`/v1/reporting/periods/${p}`);const s=r.spend;
+ $("#repMeta").textContent=`cut-off day ${cfg.cutoff_day} ${cfg.cutoff_time} ${cfg.timezone} · reporting in ${cfg.reporting_currency} · rates: ${r.rates_source}`;
+ $("#reporting").innerHTML=`<div class="tiles">${[["Payments booked",s.payments,`window ${r.window.after.slice(0,16)} → ${r.window.until.slice(0,16)}`],["Base cost",fmt(s.base_cost_minor,"USD"),"what the agent actually paid"],
+   ["Consolidated",s.missing_rates.length?`missing ${s.missing_rates.join(", ")}`:fmtAny(s.reporting_total_minor,s.reporting_currency),"at the period's closing rates"],
+   ["FX difference",s.fx_difference_minor==null?"-":fmtAny(s.fx_difference_minor,s.reporting_currency),"consolidated − base cost at base closing rate"],
+   ["Invoices completed",r.invoices_completed.length,"reconciled in this period"],["Invoices open",r.invoices_open.length,"instalments outstanding at period end"]]
+   .map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:16px">${esc(String(v))}</div><div class="d">${esc(d)}</div></div>`).join("")}</div>
+  <div class="two"><div><h3 class="small muted" style="margin:0 0 6px">Layer 1 · by currency and line</h3>${table([{h:"Currency",f:x=>esc(x.ccy)},{h:"Paid",num:1,f:x=>fmt(x.amt,x.ccy)},{h:"Closing rate",num:1,f:x=>esc(x.rate||"-")},{h:cfg.reporting_currency,num:1,f:x=>x.rep==null?"-":fmtAny(x.rep,cfg.reporting_currency)}],
+   Object.entries(s.by_currency).map(([ccy,amt])=>{const c=s.consolidated.find(z=>z.currency===ccy);return {ccy,amt,rate:c&&c.closing_rate,rep:c&&c.reporting_minor}}),"no payments in this period")}
+   <div class="small muted" style="margin-top:6px">${Object.entries(s.by_line_base_minor).map(([l,v])=>`${esc(l)}: ${fmt(v,"USD")}`).join(" · ")}</div></div>
+  <div><h3 class="small muted" style="margin:0 0 6px">Layer 2 · invoice statements as of period end</h3>${table([{h:"Invoice",f:x=>esc(x.invoice_fingerprint)},{h:"Status",f:x=>pill(x.status==="RECONCILED"?"COMPLETED":"IN_FLIGHT")+" "+esc(x.status)},{h:"Paid",num:1,f:x=>x.paid_minor.toLocaleString()},{h:"Outstanding",num:1,f:x=>x.outstanding_minor==null?"-":x.outstanding_minor.toLocaleString()},{h:"Instalments",f:x=>`<span class="small">${x.instalments.map(i=>`${esc(i.installment||"whole")} ${esc(i.reporting_period)}`).join(", ")}</span>`}],
+   [...r.invoices_completed,...r.invoices_open],"no instalment invoices")}</div></div>`}
+ catch(e){$("#reporting").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
+$("#repLoad").onclick=reporting;
+$("#repRates").onclick=async()=>{try{const r=await api(`/v1/reporting/periods/${$("#repPeriod").value}/rates?role=admin`,{method:"POST",headers:{"content-type":"application/json"}});alert(`closing rates recorded from ${r.source}: ${JSON.stringify(r.rates)}`);reporting()}catch(e){alert(e.message)}};
+
 // ---- submit a case (manual input via the UI, or a ground-truth case) ----
 let GT=[];const submissions=[];
 async function gtCases(){try{GT=await api("/api/groundtruth?suite="+$("#gtSuite").value);const usable=GT.filter(c=>c.kind!=="execution");
@@ -186,8 +210,8 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const t0=performance.now();let res,body;
  if(kind==="plan"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
   res=await fetch("/v1/plans",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
- else if(kind==="incident"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
-  res=await fetch("/v1/incidents/decide",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
+ else if(kind==="incident"||kind==="reporting"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
+  res=await fetch(kind==="incident"?"/v1/incidents/decide":"/v1/reporting/eval",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
  else{const q=new URLSearchParams({dry_run:$("#queueIt").checked?"false":"true"});if(c&&c.book)q.set("book",c.book);
   res=await fetch("/v1/intake/emails?"+q,{method:"POST",headers:{"content-type":"message/rfc822"},body:raw})}
  const ms=performance.now()-t0;body=await res.json();
@@ -196,6 +220,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const serverMs=kind==="plan"?body.duration_ms:null;
  const summary=kind==="plan"?`${pill(body.decision)} ${Object.entries(body.obligations.reduce((m,d)=>(m[d.obligation_id]=d.action,m),{})).map(([o,a])=>`${esc(o)}=${esc(a)}`).join(", ")}`
   :kind==="incident"?`${pill(body.action)} <span class="small">${esc(body.reason)}</span>`
+  :kind==="reporting"?`<span class="mono small">${esc(JSON.stringify(body))}</span>`
   :`${pill(body.status)} ${esc(body.trust)} · ${esc(body.kind)} · ${fmt(body.amount_minor,body.currency||"")} · ${esc(body.invoice_no||"-")}`;
  const rec={id:c?c.id:"free",kind,ui_ms:+ms.toFixed(1),server_ms:serverMs!=null?+serverMs.toFixed(1):null,match:judge?judge.match:null,
   bad:judge?Object.entries(judge.fields).filter(([k,v])=>!v.ok).map(([k,v])=>`${k}: expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)}`):[]};
@@ -206,7 +231,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
 $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<span class="err">${esc(e.message)}</span>`});
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
-platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();
+platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();reporting();
 setInterval(()=>{intake();executions();incidents()},15000);
 </script>
 </body>

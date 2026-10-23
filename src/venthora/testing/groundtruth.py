@@ -77,8 +77,13 @@ def execution_view(rec: dict) -> dict:
             "invariants_ok": rec.get("ok"), "errors": rec.get("errors")}
 
 
+def reporting_view(d: dict) -> dict:
+    return dict(d)
+
+
 def view_of(kind: str, result) -> dict:
-    return {"plan": plan_view, "intake": intake_view, "incident": incident_view, "execution": execution_view}[kind](result)
+    return {"plan": plan_view, "intake": intake_view, "incident": incident_view, "execution": execution_view,
+            "reporting": reporting_view}[kind](result)
 
 
 def compare(expect: dict, view: dict) -> dict:
@@ -97,7 +102,7 @@ def compare(expect: dict, view: dict) -> dict:
             ok = sorted(exp) == sorted(act or [])
         elif key == "conversions" and isinstance(exp, dict):
             ok = all((act or {}).get(c) == v for c, v in exp.items())
-        elif key.endswith("_in"):
+        elif key.endswith("_in") and isinstance(exp, list) and key not in view:
             act = view.get(key[:-3])
             ok = act in exp
         elif key.endswith("_contains"):
@@ -170,6 +175,10 @@ async def run_case(case: dict, agent, intake, workdir: Path | None = None) -> di
         view = intake_view(req)
     elif kind == "incident":
         view = incident_view(decide_incident(case["input"]))
+    elif kind == "reporting":
+        from ..reporting import evaluate
+
+        view = reporting_view(evaluate(case["input"]))
     else:
         # The fake sandbox needs "credentials" to exist; restore the environment afterwards so later plan cases
         # (which share the agent) do not suddenly see a configured-but-unreachable Airwallex and get BLOCKED.

@@ -1,0 +1,630 @@
+[
+ {
+  "id": "R01",
+  "kind": "reporting",
+  "title": "posted at the cut-off minute belongs to the month",
+  "ms": 1.3,
+  "ms_all": [
+   7.2,
+   1.3,
+   1.18
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-11",
+    "actual": "2026-11",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-11"
+  }
+ },
+ {
+  "id": "R02",
+  "kind": "reporting",
+  "title": "posted one minute after the cut-off belongs to next month",
+  "ms": 1.01,
+  "ms_all": [
+   1.22,
+   0.84,
+   1.01
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-12",
+    "actual": "2026-12",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-12"
+  }
+ },
+ {
+  "id": "R03",
+  "kind": "reporting",
+  "title": "posted on the 1st belongs to the running month",
+  "ms": 1.27,
+  "ms_all": [
+   1.27,
+   1.2,
+   1.67
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-11",
+    "actual": "2026-11",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-11"
+  }
+ },
+ {
+  "id": "R04",
+  "kind": "reporting",
+  "title": "timezone matters: 25 Nov 17:30 UTC is 26 Nov 00:30 Jakarta",
+  "ms": 1.22,
+  "ms_all": [
+   1.22,
+   1.23,
+   1.06
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-12",
+    "actual": "2026-12",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-12"
+  }
+ },
+ {
+  "id": "R05",
+  "kind": "reporting",
+  "title": "a naive timestamp is read as local time",
+  "ms": 1.36,
+  "ms_all": [
+   0.72,
+   1.48,
+   1.36
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-11",
+    "actual": "2026-11",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-11"
+  }
+ },
+ {
+  "id": "R06",
+  "kind": "reporting",
+  "title": "December posting after the cut-off rolls into January",
+  "ms": 1.21,
+  "ms_all": [
+   1.45,
+   1.21,
+   0.99
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2027-01",
+    "actual": "2027-01",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2027-01"
+  }
+ },
+ {
+  "id": "R07",
+  "kind": "reporting",
+  "title": "cut-off day 31 is clamped in a 30-day month",
+  "ms": 1.04,
+  "ms_all": [
+   1.06,
+   0.91,
+   1.04
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-11",
+    "actual": "2026-11",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-11"
+  }
+ },
+ {
+  "id": "R08",
+  "kind": "reporting",
+  "title": "cut-off day 31 clamped: 1 Dec is December",
+  "ms": 1.27,
+  "ms_all": [
+   1.32,
+   1.1,
+   1.27
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-12",
+    "actual": "2026-12",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-12"
+  }
+ },
+ {
+  "id": "R09",
+  "kind": "reporting",
+  "title": "cut-off 28 at noon: 28th 12:01 is next month",
+  "ms": 0.97,
+  "ms_all": [
+   0.95,
+   1.02,
+   0.97
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-12",
+    "actual": "2026-12",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-12"
+  }
+ },
+ {
+  "id": "R10",
+  "kind": "reporting",
+  "title": "November report: three payments, the deposit of A among them",
+  "ms": 1.36,
+  "ms_all": [
+   1.73,
+   1.36,
+   1.09
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "payments": {
+    "expected": 3,
+    "actual": 3,
+    "ok": true
+   },
+   "by_currency": {
+    "expected": {
+     "USD": 30000,
+     "EUR": 40000,
+     "GBP": 20000
+    },
+    "actual": {
+     "USD": 30000,
+     "EUR": 40000,
+     "GBP": 20000
+    },
+    "ok": true
+   },
+   "invoices_completed": {
+    "expected": [
+     "inv-B"
+    ],
+    "actual": [
+     "inv-B"
+    ],
+    "ok": true
+   },
+   "invoices_open": {
+    "expected": [
+     "inv-A",
+     "inv-C"
+    ],
+    "actual": [
+     "inv-A",
+     "inv-C"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "payments": 3,
+   "by_currency": {
+    "USD": 30000,
+    "EUR": 40000,
+    "GBP": 20000
+   },
+   "reporting_total_minor": 16180000,
+   "missing_rates": [],
+   "fx_difference_minor": 569600,
+   "invoices_completed": [
+    "inv-B"
+   ],
+   "invoices_open": [
+    "inv-A",
+    "inv-C"
+   ]
+  }
+ },
+ {
+  "id": "R11",
+  "kind": "reporting",
+  "title": "December report: the balance of A completes the invoice",
+  "ms": 1.1,
+  "ms_all": [
+   1.1,
+   0.99,
+   1.42
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "payments": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "by_currency": {
+    "expected": {
+     "USD": 70000
+    },
+    "actual": {
+     "USD": 70000
+    },
+    "ok": true
+   },
+   "invoices_completed": {
+    "expected": [
+     "inv-A"
+    ],
+    "actual": [
+     "inv-A"
+    ],
+    "ok": true
+   },
+   "invoices_open": {
+    "expected": [
+     "inv-C"
+    ],
+    "actual": [
+     "inv-C"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "payments": 1,
+   "by_currency": {
+    "USD": 70000
+   },
+   "reporting_total_minor": 11200000,
+   "missing_rates": [],
+   "fx_difference_minor": 0,
+   "invoices_completed": [
+    "inv-A"
+   ],
+   "invoices_open": [
+    "inv-C"
+   ]
+  }
+ },
+ {
+  "id": "R12",
+  "kind": "reporting",
+  "title": "invoice statement across months",
+  "ms": 1.18,
+  "ms_all": [
+   1.18,
+   1.11,
+   1.27
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "invoice_status": {
+    "expected": "RECONCILED",
+    "actual": "RECONCILED",
+    "ok": true
+   },
+   "invoice_paid_minor": {
+    "expected": 100000,
+    "actual": 100000,
+    "ok": true
+   },
+   "invoice_outstanding_minor": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "invoice_completed_in": {
+    "expected": "2026-12",
+    "actual": "2026-12",
+    "ok": true
+   },
+   "instalment_periods": {
+    "expected": [
+     "2026-11",
+     "2026-12"
+    ],
+    "actual": [
+     "2026-11",
+     "2026-12"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "invoice_status": "RECONCILED",
+   "invoice_paid_minor": 100000,
+   "invoice_outstanding_minor": 0,
+   "invoice_completed_in": "2026-12",
+   "instalment_periods": [
+    "2026-11",
+    "2026-12"
+   ]
+  }
+ },
+ {
+  "id": "R13",
+  "kind": "reporting",
+  "title": "an open invoice shows what is outstanding",
+  "ms": 0.97,
+  "ms_all": [
+   0.84,
+   0.97,
+   1.21
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "invoice_status": {
+    "expected": "OPEN",
+    "actual": "OPEN",
+    "ok": true
+   },
+   "invoice_paid_minor": {
+    "expected": 20000,
+    "actual": 20000,
+    "ok": true
+   },
+   "invoice_outstanding_minor": {
+    "expected": 30000,
+    "actual": 30000,
+    "ok": true
+   },
+   "invoice_completed_in": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   }
+  },
+  "view": {
+   "invoice_status": "OPEN",
+   "invoice_paid_minor": 20000,
+   "invoice_outstanding_minor": 30000,
+   "invoice_completed_in": null,
+   "instalment_periods": [
+    "2026-11"
+   ]
+  }
+ },
+ {
+  "id": "R14",
+  "kind": "reporting",
+  "title": "November consolidated to IDR at closing rates",
+  "ms": 1.23,
+  "ms_all": [
+   1.23,
+   1.18,
+   1.64
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_total_minor": {
+    "expected": 16180000,
+    "actual": 16180000,
+    "ok": true
+   },
+   "missing_rates": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "payments": 3,
+   "by_currency": {
+    "USD": 30000,
+    "EUR": 40000,
+    "GBP": 20000
+   },
+   "reporting_total_minor": 16180000,
+   "missing_rates": [],
+   "fx_difference_minor": 569600,
+   "invoices_completed": [
+    "inv-B"
+   ],
+   "invoices_open": [
+    "inv-A",
+    "inv-C"
+   ]
+  }
+ },
+ {
+  "id": "R15",
+  "kind": "reporting",
+  "title": "FX difference: base cost at the base closing rate vs each currency at its own",
+  "ms": 0.92,
+  "ms_all": [
+   1.49,
+   0.92,
+   0.84
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "fx_difference_minor": {
+    "expected": 569600,
+    "actual": 569600,
+    "ok": true
+   }
+  },
+  "view": {
+   "payments": 3,
+   "by_currency": {
+    "USD": 30000,
+    "EUR": 40000,
+    "GBP": 20000
+   },
+   "reporting_total_minor": 16180000,
+   "missing_rates": [],
+   "fx_difference_minor": 569600,
+   "invoices_completed": [
+    "inv-B"
+   ],
+   "invoices_open": [
+    "inv-A",
+    "inv-C"
+   ]
+  }
+ },
+ {
+  "id": "R16",
+  "kind": "reporting",
+  "title": "a missing closing rate is reported, not guessed",
+  "ms": 1.1,
+  "ms_all": [
+   1.07,
+   1.43,
+   1.1
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "missing_rates": {
+    "expected": [
+     "GBP"
+    ],
+    "actual": [
+     "GBP"
+    ],
+    "ok": true
+   },
+   "fx_difference_minor": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   }
+  },
+  "view": {
+   "payments": 3,
+   "by_currency": {
+    "USD": 30000,
+    "EUR": 40000,
+    "GBP": 20000
+   },
+   "reporting_total_minor": 11900000,
+   "missing_rates": [
+    "GBP"
+   ],
+   "fx_difference_minor": null,
+   "invoices_completed": [
+    "inv-B"
+   ],
+   "invoices_open": [
+    "inv-A",
+    "inv-C"
+   ]
+  }
+ },
+ {
+  "id": "R17",
+  "kind": "reporting",
+  "title": "December uses December's closing rates",
+  "ms": 1.12,
+  "ms_all": [
+   1.39,
+   0.88,
+   1.12
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_total_minor": {
+    "expected": 11200000,
+    "actual": 11200000,
+    "ok": true
+   }
+  },
+  "view": {
+   "payments": 1,
+   "by_currency": {
+    "USD": 70000
+   },
+   "reporting_total_minor": 11200000,
+   "missing_rates": [],
+   "fx_difference_minor": 0,
+   "invoices_completed": [
+    "inv-A"
+   ],
+   "invoices_open": [
+    "inv-C"
+   ]
+  }
+ },
+ {
+  "id": "R18",
+  "kind": "reporting",
+  "title": "a 14-day cut-off puts a 15th posting into next month",
+  "ms": 0.85,
+  "ms_all": [
+   0.91,
+   0.82,
+   0.85
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reporting_period": {
+    "expected": "2026-12",
+    "actual": "2026-12",
+    "ok": true
+   }
+  },
+  "view": {
+   "reporting_period": "2026-12"
+  }
+ }
+]

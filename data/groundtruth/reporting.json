@@ -1,0 +1,1070 @@
+{
+ "_note": "Reporting-period ground truth, hand-derived; see scripts/make_reporting_groundtruth.py.",
+ "cases": [
+  {
+   "id": "R01",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "posted at the cut-off minute belongs to the month",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-25T23:59:30+07:00"
+   },
+   "expect": {
+    "reporting_period": "2026-11"
+   },
+   "derivation": "25 Nov 23:59:30 <= cut-off 25 Nov 23:59:59.999 -> November"
+  },
+  {
+   "id": "R02",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "posted one minute after the cut-off belongs to next month",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-26T00:00:00+07:00"
+   },
+   "expect": {
+    "reporting_period": "2026-12"
+   },
+   "derivation": "after the cut-off -> December"
+  },
+  {
+   "id": "R03",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "posted on the 1st belongs to the running month",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-01T09:00:00+07:00"
+   },
+   "expect": {
+    "reporting_period": "2026-11"
+   },
+   "derivation": "1 Nov is after October's cut-off (25 Oct) and before November's -> November"
+  },
+  {
+   "id": "R04",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "timezone matters: 25 Nov 17:30 UTC is 26 Nov 00:30 Jakarta",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-25T17:30:00+00:00"
+   },
+   "expect": {
+    "reporting_period": "2026-12"
+   },
+   "derivation": "converted to Asia/Jakarta it is past the cut-off -> December"
+  },
+  {
+   "id": "R05",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "a naive timestamp is read as local time",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-25T22:00:00"
+   },
+   "expect": {
+    "reporting_period": "2026-11"
+   },
+   "derivation": "no offset -> treated as Jakarta time, before the cut-off -> November"
+  },
+  {
+   "id": "R06",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "December posting after the cut-off rolls into January",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-12-28T10:00:00+07:00"
+   },
+   "expect": {
+    "reporting_period": "2027-01"
+   },
+   "derivation": "year roll-over"
+  },
+  {
+   "id": "R07",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "cut-off day 31 is clamped in a 30-day month",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 31,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-30T23:00:00+07:00"
+   },
+   "expect": {
+    "reporting_period": "2026-11"
+   },
+   "derivation": "day 31 -> 30 Nov; 23:00 <= 23:59 -> November"
+  },
+  {
+   "id": "R08",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "cut-off day 31 clamped: 1 Dec is December",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 31,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-12-01T00:30:00+07:00"
+   },
+   "expect": {
+    "reporting_period": "2026-12"
+   },
+   "derivation": "after 30 Nov 23:59 -> December"
+  },
+  {
+   "id": "R09",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "cut-off 28 at noon: 28th 12:01 is next month",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 28,
+     "cutoff_time": "12:00",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-28T12:01:00+07:00"
+   },
+   "expect": {
+    "reporting_period": "2026-12"
+   },
+   "derivation": "12:01 > 12:00:59 -> December"
+  },
+  {
+   "id": "R10",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "two-layer reporting",
+   "title": "November report: three payments, the deposit of A among them",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "period": "2026-11"
+   },
+   "expect": {
+    "payments": 3,
+    "by_currency": {
+     "USD": 30000,
+     "EUR": 40000,
+     "GBP": 20000
+    },
+    "invoices_completed": [
+     "inv-B"
+    ],
+    "invoices_open": [
+     "inv-A",
+     "inv-C"
+    ]
+   },
+   "derivation": "t1, t3, t4 paid before 25 Nov 23:59 -> November; inv-B fully paid in November -> completed; A and C still open"
+  },
+  {
+   "id": "R11",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "two-layer reporting",
+   "title": "December report: the balance of A completes the invoice",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "period": "2026-12"
+   },
+   "expect": {
+    "payments": 1,
+    "by_currency": {
+     "USD": 70000
+    },
+    "invoices_completed": [
+     "inv-A"
+    ],
+    "invoices_open": [
+     "inv-C"
+    ]
+   },
+   "derivation": "t2 paid 3 Dec -> December; deposit 30,000 + balance 70,000 = contract 100,000 -> RECONCILED in December; C still open"
+  },
+  {
+   "id": "R12",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "two-layer reporting",
+   "title": "invoice statement across months",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "invoice": "inv-A"
+   },
+   "expect": {
+    "invoice_status": "RECONCILED",
+    "invoice_paid_minor": 100000,
+    "invoice_outstanding_minor": 0,
+    "invoice_completed_in": "2026-12",
+    "instalment_periods": [
+     "2026-11",
+     "2026-12"
+    ]
+   },
+   "derivation": "each instalment stays in the month it was paid; the invoice is reconciled when they add up"
+  },
+  {
+   "id": "R13",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "two-layer reporting",
+   "title": "an open invoice shows what is outstanding",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "invoice": "inv-C"
+   },
+   "expect": {
+    "invoice_status": "OPEN",
+    "invoice_paid_minor": 20000,
+    "invoice_outstanding_minor": 30000,
+    "invoice_completed_in": null
+   },
+   "derivation": "deposit 20,000 of 50,000 -> 30,000 outstanding, not reconciled"
+  },
+  {
+   "id": "R14",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "one reporting currency",
+   "title": "November consolidated to IDR at closing rates",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "period": "2026-11"
+   },
+   "expect": {
+    "reporting_total_minor": 16180000,
+    "missing_rates": []
+   },
+   "derivation": "USD 300 x 15,800 + EUR 400 x 17,900 + GBP 200 x 21,400 = 4,740,000 + 7,160,000 + 4,280,000 = IDR 16,180,000 (IDR has no minor unit)"
+  },
+  {
+   "id": "R15",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "one reporting currency",
+   "title": "FX difference: base cost at the base closing rate vs each currency at its own",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "period": "2026-11"
+   },
+   "expect": {
+    "fx_difference_minor": 569600
+   },
+   "derivation": "base cost USD 300 + 434 + 254 = 988 x 15,800 = 15,610,400; consolidated 16,180,000; difference +569,600 IDR (the agent's realised USD cost was cheaper than closing rates imply)"
+  },
+  {
+   "id": "R16",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "one reporting currency",
+   "title": "a missing closing rate is reported, not guessed",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "period": "2026-11",
+    "rates": {
+     "USD": "15800",
+     "EUR": "17900"
+    }
+   },
+   "expect": {
+    "missing_rates": [
+     "GBP"
+    ],
+    "fx_difference_minor": null
+   },
+   "derivation": "no GBP rate -> consolidation flags GBP and gives no FX difference"
+  },
+  {
+   "id": "R17",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "one reporting currency",
+   "title": "December uses December's closing rates",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t1",
+      "book_id": "b",
+      "obligation_id": "t1",
+      "invoice_fingerprint": "inv-A",
+      "installment": "deposit",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 30000,
+      "base_cost_minor": 30000,
+      "paid_at": "2026-11-10T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t2",
+      "book_id": "b",
+      "obligation_id": "t2",
+      "invoice_fingerprint": "inv-A",
+      "installment": "balance",
+      "contract_total_minor": 100000,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 70000,
+      "base_cost_minor": 70000,
+      "paid_at": "2026-12-03T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t3",
+      "book_id": "b",
+      "obligation_id": "t3",
+      "invoice_fingerprint": "inv-B",
+      "installment": null,
+      "contract_total_minor": 40000,
+      "line": "suppliers",
+      "currency": "EUR",
+      "amount_minor": 40000,
+      "base_cost_minor": 43400,
+      "paid_at": "2026-11-20T10:00:00+07:00"
+     },
+     {
+      "transfer_id": "t4",
+      "book_id": "b",
+      "obligation_id": "t4",
+      "invoice_fingerprint": "inv-C",
+      "installment": "deposit",
+      "contract_total_minor": 50000,
+      "line": "suppliers",
+      "currency": "GBP",
+      "amount_minor": 20000,
+      "base_cost_minor": 25400,
+      "paid_at": "2026-11-24T10:00:00+07:00"
+     }
+    ],
+    "period": "2026-12"
+   },
+   "expect": {
+    "reporting_total_minor": 11200000
+   },
+   "derivation": "USD 700 x 16,000 = IDR 11,200,000"
+  },
+  {
+   "id": "R18",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "period cut-off and reporting",
+   "title": "a 14-day cut-off puts a 15th posting into next month",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 14,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "posted": "2026-11-15T08:00:00+07:00"
+   },
+   "expect": {
+    "reporting_period": "2026-12"
+   },
+   "derivation": "admin chooses the day; 15 Nov is after 14 Nov 23:59 -> December"
+  }
+ ]
+}

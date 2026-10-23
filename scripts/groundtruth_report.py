@@ -60,7 +60,7 @@ def section(suite: str, title: str, intro: list[str]) -> list[str]:
     inproc = asyncio.run(in_process(cases))
     endpoint = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_endpoint.json").read_text(encoding="utf-8"))}
     ui = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_ui.json").read_text(encoding="utf-8"))["rows"]}
-    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "execution"].index)
+    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "execution"].index)
     lines = [f"## {title}", ""] + intro + ["", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
     for kind in kinds:
         ids = [c["id"] for c in cases if c["kind"] == kind]
@@ -113,6 +113,12 @@ def main() -> None:
         "the three-way match (contract − paid so far vs what the invoice claims; over-claims beyond tolerance need a person), the period "
         "cut-off (due after period_end carries forward to the next period; due before period_start is late-posted; a closed period takes "
         "no autonomous spend) and reconciliation cases (a mismatch opens a case that locks the book until a person closes it with a note)."])
+    lines += [""] + section("reporting", "Suite 5 — reporting periods: the admin's cut-off, payments by payment instant, one reporting currency", [
+        "Cut-off day + time + timezone set by an admin (inclusive to the last second of the cut-off minute, day clamped to the month's end, "
+        "year roll-over, timezone conversion); payments booked to the period of their payment instant; an invoice paid in instalments is "
+        "reported as reconciled only when its parts add up to the contract, in the month of the last part; consolidation of every currency "
+        "to the reporting currency at the period's recorded closing rates, beside the base cost actually paid (FX difference); a missing "
+        "rate is flagged, never guessed."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

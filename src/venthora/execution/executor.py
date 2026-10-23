@@ -21,7 +21,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -399,13 +399,32 @@ class Executor:
 
     async def _reconcile(self, state, plan, before, conversions, transfers, steps) -> Reconciliation:
         # Budget · mandate: money that actually left on a line is realized spend for the period (facts.py reads it back).
+        by_id = {o.obligation_id: o for o in state.obligations}
+        cost = {d.obligation_id: d.base_cost_minor for d in plan.obligations}
         if state.budget is not None:
-            by_id = {o.obligation_id: o for o in state.obligations}
-            cost = {d.obligation_id: d.base_cost_minor for d in plan.obligations}
             for oid, (_key, t) in transfers.items():
                 o = by_id.get(oid)
                 if t.status == "PAID" and o is not None and o.budget_line and state.budget.line(o.budget_line):
                     self.store.record_spend(t.transfer_id, state.budget.period, o.budget_line, oid, cost.get(oid, 0))
+        # Reporting: every payment is booked to the report period of its PAYMENT instant (admin cut-off), with its
+        # instalment and contract so the invoice statement can tell when the invoice is fully paid.
+        from ..reporting import load_config, reporting_period
+
+        cfg = load_config()
+        for oid, (_key, t) in transfers.items():
+            o = by_id.get(oid)
+            if t.status != "PAID" or o is None:
+                continue
+            paid_at = str(t.raw.get("updated_at") or t.raw.get("transfer_date") or datetime.now(UTC).isoformat())
+            try:
+                period = reporting_period(paid_at.replace("+0000", "+00:00"), cfg)
+            except ValueError:
+                paid_at, period = datetime.now(UTC).isoformat(), reporting_period(datetime.now(UTC), cfg)
+            self.store.book_payment({"transfer_id": t.transfer_id, "book_id": state.book_id, "obligation_id": oid,
+                                     "invoice_fingerprint": o.invoice_fingerprint, "installment": o.installment,
+                                     "contract_total_minor": o.contract_total_minor, "line": o.budget_line,
+                                     "currency": o.currency, "amount_minor": o.amount_minor, "base_cost_minor": cost.get(oid, 0),
+                                     "paid_at": paid_at, "reporting_period": period})
         expected = dict(before)
         for c in conversions:
             expected[c.sell_currency] = expected.get(c.sell_currency, 0) - c.sell_amount_minor

@@ -198,10 +198,28 @@ Approved by the owner as finance manager; 23 Oct 2026, ~20:30 WIB.
 - The Rego mirror was re-proven on the real OPA with the two new reasons (`amount_mismatch`, `period_closed`):
   7,646 inputs, 0 disagreements.
 
+## Cycle 11: reporting periods on the real sandbox
+
+23 Oct 2026, ~21:40 WIB. The instalments cycle (`scripts/controls_real.py`) ran again so the new spend ledger holds real
+payments: deposit USD 300 and balance USD 700 of invoice `cloudloom:CT-203634`, both PAID today → both booked to report
+period **2026-10** (cut-off day 25 23:59 Asia/Jakarta, so 23 Oct is October's report). `GET /v1/reporting/periods/2026-10`:
+
+| Layer | What it shows |
+|---|---|
+| 1 · monthly spend | 2 payments, USD 1,000.00 paid, base cost USD 1,006.00 (the two learned LOCAL fees) |
+| 2 · invoice statements | `cloudloom:CT-203634` **RECONCILED** in 2026-10: deposit + balance = contract USD 1,000 |
+| 3 · consolidation | IDR 15,800,000 at the October closing rate USD 15,800; FX difference −IDR 94,800 (the fees, at the base closing rate) |
+
+**Finding.** `POST /v1/reporting/periods/2026-10/rates` tried to snapshot USD/EUR/GBP → IDR from Airwallex and the sandbox
+answered `unsupported_currency` (and on a later call `invalid_parameter`) for IDR. The endpoint now falls back **per currency** to the admin's rates and records the
+source of each rate (`admin fallback (unsupported_currency)`), rather than failing or guessing; with a reporting currency
+the sandbox quotes (e.g. EUR) the snapshot comes from Airwallex.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| Airwallex quotes any reporting currency | the sandbox answers `unsupported_currency` for IDR | closing-rate snapshot falls back per currency to the admin's figures, source recorded per rate |
 | A resumed execution reconciles against its original "before" balances | other runs moved money in the shared wallet between the run and its resume → mismatch reported although every payout is PAID and recorded | stated as a limit (cycle 9); the book-level ledger (TigerBeetle, optional) is the proper fix |
 | The original's refund is in the wallet before the replacement is made | on the real rail the refund can land **between** the balance read before the replacement and the read after it (cycle 9, step 2: discrepancy of exactly EUR 1,500) | the replacement's reconciliation accepts both timings of the same money and records which one it saw (`refund_timing`); the CLI treats `REPLACED_AWAITING_ORIGINAL` as a correct open state and follows up until the original is on file |
 | A follow-up on an incident finds the same incident | after a replacement, the invoice's live payout *is* the replacement; a follow-up opened a second incident on it | the commander looks up the invoice's existing incident before anything else; see cycle 7 |

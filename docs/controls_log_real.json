@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-10-23T13:24:01.195460+00:00",
- "book": "controls-real-202401",
+ "generated_at": "2026-10-23T13:36:34.146144+00:00",
+ "book": "controls-real-203634",
  "runs": [
   {
    "run": "run 1: deposit and balance of one invoice",
@@ -12,7 +12,7 @@
    "match": {
     "rows": [
      {
-      "obligation_id": "INST-deposit-202401",
+      "obligation_id": "INST-deposit-203634",
       "installment": "deposit",
       "contract_total_minor": 100000,
       "paid_so_far_minor": 0,
@@ -24,7 +24,7 @@
       "action": "PAY"
      },
      {
-      "obligation_id": "INST-balance-202401",
+      "obligation_id": "INST-balance-203634",
       "installment": "balance",
       "contract_total_minor": 100000,
       "paid_so_far_minor": 30000,
@@ -38,7 +38,7 @@
     ],
     "over_claims": [],
     "under_claims": [
-     "INST-deposit-202401"
+     "INST-deposit-203634"
     ],
     "paying_over_claims": []
    },
@@ -46,8 +46,8 @@
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,994.00 >= USD 5,000.00",
     "transfers": {
-     "INST-balance-202401": "91487fb8-0b7e-43e9-a84b-977c859adfb9",
-     "INST-deposit-202401": "36eab530-4216-4b72-ba0c-991ad7f4aa6b"
+     "INST-balance-203634": "b3dc9ecd-4c15-4b2b-8543-bd93729fd947",
+     "INST-deposit-203634": "e80e662a-a830-4f6e-8fb0-0927c3a2a384"
     },
     "refused": []
    }
@@ -61,7 +61,7 @@
    "match": {
     "rows": [
      {
-      "obligation_id": "INST-balance-202401",
+      "obligation_id": "INST-balance-203634",
       "installment": "balance",
       "contract_total_minor": 100000,
       "paid_so_far_minor": 30000,
@@ -83,7 +83,7 @@
     "transfers": {},
     "refused": [
      {
-      "reason": "INST-balance-202401 already paid by execution ae5a213f-77c8-48fa-a8cb-66b0c0382b89"
+      "reason": "INST-balance-203634 already paid by execution d9093ff4-0c5b-4614-b6fb-47a96d07ced0"
      }
     ]
    }

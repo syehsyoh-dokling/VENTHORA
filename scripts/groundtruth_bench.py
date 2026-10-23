@@ -30,6 +30,8 @@ def send(client: httpx.Client, case: dict) -> httpx.Response:
         return client.post("/v1/plans", json=case["input"])
     if case["kind"] == "incident":
         return client.post("/v1/incidents/decide", json=case["input"])
+    if case["kind"] == "reporting":
+        return client.post("/v1/reporting/eval", json=case["input"])
     params = {"dry_run": "true"} | ({"book": case["book"]} if case.get("book") else {})
     return client.post("/v1/intake/emails", content=case["input"].encode("utf-8"),
                        headers={"content-type": "message/rfc822"}, params=params)
@@ -39,8 +41,9 @@ def run(base: str, suite: str, repeat: int) -> list[dict]:
     out = []
     cases = load_cases(suite)
     with httpx.Client(base_url=base, timeout=60) as client:
-        warm = next(c for c in cases if c["kind"] == "plan")
-        client.post("/v1/plans", json=warm["input"])  # warm the process once, like a real deployment
+        warm = next((c for c in cases if c["kind"] == "plan"), None)
+        if warm:
+            client.post("/v1/plans", json=warm["input"])  # warm the process once, like a real deployment
         for case in cases:
             if case["kind"] == "execution":
                 out.append({"id": case["id"], "kind": case["kind"], "title": case["title"], "skipped": "in-process only"})
