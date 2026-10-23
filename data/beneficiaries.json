@@ -4,15 +4,30 @@
     "transfer_reason": "payroll",
     "payload": {
       "nickname": "Payroll provider (US)",
-      "transfer_methods": ["LOCAL"],
+      "transfer_methods": [
+        "LOCAL"
+      ],
       "beneficiary": {
-        "type": "BANK_ACCOUNT", "entity_type": "COMPANY", "company_name": "Northwind Payroll Services Inc",
-        "address": {"street_address": "100 Market Street", "city": "San Francisco", "state": "CA",
-                    "postcode": "94105", "country_code": "US"},
-        "bank_details": {"account_currency": "USD", "account_name": "Northwind Payroll Services Inc",
-                         "bank_country_code": "US", "bank_name": "Bank of America",
-                         "account_number": "483101090001", "account_routing_type1": "aba",
-                         "account_routing_value1": "026009593", "bank_account_category": "Checking"}
+        "type": "BANK_ACCOUNT",
+        "entity_type": "COMPANY",
+        "company_name": "Northwind Payroll Services Inc",
+        "address": {
+          "street_address": "100 Market Street",
+          "city": "San Francisco",
+          "state": "CA",
+          "postcode": "94105",
+          "country_code": "US"
+        },
+        "bank_details": {
+          "account_currency": "USD",
+          "account_name": "Northwind Payroll Services Inc",
+          "bank_country_code": "US",
+          "bank_name": "Bank of America",
+          "account_number": "483101090001",
+          "account_routing_type1": "aba",
+          "account_routing_value1": "026009593",
+          "bank_account_category": "Checking"
+        }
       }
     }
   },
@@ -20,15 +35,30 @@
     "transfer_reason": "business_expenses",
     "payload": {
       "nickname": "SaaS vendor (US)",
-      "transfer_methods": ["LOCAL"],
+      "transfer_methods": [
+        "LOCAL"
+      ],
       "beneficiary": {
-        "type": "BANK_ACCOUNT", "entity_type": "COMPANY", "company_name": "Cloudloom Software LLC",
-        "address": {"street_address": "500 Howard Street", "city": "San Francisco", "state": "CA",
-                    "postcode": "94105", "country_code": "US"},
-        "bank_details": {"account_currency": "USD", "account_name": "Cloudloom Software LLC",
-                         "bank_country_code": "US", "bank_name": "Bank of America",
-                         "account_number": "483101090002", "account_routing_type1": "aba",
-                         "account_routing_value1": "026009593", "bank_account_category": "Checking"}
+        "type": "BANK_ACCOUNT",
+        "entity_type": "COMPANY",
+        "company_name": "Cloudloom Software LLC",
+        "address": {
+          "street_address": "500 Howard Street",
+          "city": "San Francisco",
+          "state": "CA",
+          "postcode": "94105",
+          "country_code": "US"
+        },
+        "bank_details": {
+          "account_currency": "USD",
+          "account_name": "Cloudloom Software LLC",
+          "bank_country_code": "US",
+          "bank_name": "Bank of America",
+          "account_number": "483101090002",
+          "account_routing_type1": "aba",
+          "account_routing_value1": "026009593",
+          "bank_account_category": "Checking"
+        }
       }
     }
   },
@@ -36,14 +66,28 @@
     "transfer_reason": "goods_purchased",
     "payload": {
       "nickname": "EU components supplier (DE)",
-      "transfer_methods": ["SWIFT"],
+      "transfer_methods": [
+        "SWIFT"
+      ],
       "beneficiary": {
-        "type": "BANK_ACCOUNT", "entity_type": "COMPANY", "company_name": "Rheinwerk Komponenten GmbH",
-        "address": {"street_address": "Kaiserstrasse 16", "city": "Frankfurt am Main", "state": "HE",
-                    "postcode": "60311", "country_code": "DE"},
-        "bank_details": {"account_currency": "EUR", "account_name": "Rheinwerk Komponenten GmbH",
-                         "bank_country_code": "DE", "bank_name": "Commerzbank",
-                         "iban": "DE89370400440532013000", "swift_code": "COBADEFFXXX"}
+        "type": "BANK_ACCOUNT",
+        "entity_type": "COMPANY",
+        "company_name": "Rheinwerk Komponenten GmbH",
+        "address": {
+          "street_address": "Kaiserstrasse 16",
+          "city": "Frankfurt am Main",
+          "state": "HE",
+          "postcode": "60311",
+          "country_code": "DE"
+        },
+        "bank_details": {
+          "account_currency": "EUR",
+          "account_name": "Rheinwerk Komponenten GmbH",
+          "bank_country_code": "DE",
+          "bank_name": "Commerzbank",
+          "iban": "DE89370400440532013000",
+          "swift_code": "COBADEFFXXX"
+        }
       }
     }
   },
@@ -51,15 +95,92 @@
     "transfer_reason": "logistics",
     "payload": {
       "nickname": "UK logistics vendor",
-      "transfer_methods": ["LOCAL"],
+      "transfer_methods": [
+        "LOCAL"
+      ],
       "beneficiary": {
-        "type": "BANK_ACCOUNT", "entity_type": "COMPANY", "company_name": "Thames Freight Ltd",
-        "address": {"street_address": "1 Canada Square", "city": "London", "state": "London",
-                    "postcode": "E14 5AB", "country_code": "GB"},
-        "bank_details": {"account_currency": "GBP", "account_name": "Thames Freight Ltd",
-                         "bank_country_code": "GB", "bank_name": "Monzo Bank",
-                         "account_number": "31926819", "account_routing_type1": "sort_code",
-                         "account_routing_value1": "040004"}
+        "type": "BANK_ACCOUNT",
+        "entity_type": "COMPANY",
+        "company_name": "Thames Freight Ltd",
+        "address": {
+          "street_address": "1 Canada Square",
+          "city": "London",
+          "state": "London",
+          "postcode": "E14 5AB",
+          "country_code": "GB"
+        },
+        "bank_details": {
+          "account_currency": "GBP",
+          "account_name": "Thames Freight Ltd",
+          "bank_country_code": "GB",
+          "bank_name": "Monzo Bank",
+          "account_number": "31926819",
+          "account_routing_type1": "sort_code",
+          "account_routing_value1": "040004"
+        }
+      }
+    }
+  },
+  "ben-lumen-design": {
+    "transfer_reason": "professional_services",
+    "payload": {
+      "nickname": "Design studio (US)",
+      "transfer_methods": [
+        "LOCAL"
+      ],
+      "beneficiary": {
+        "type": "BANK_ACCOUNT",
+        "entity_type": "COMPANY",
+        "company_name": "Lumen Design Studio LLC",
+        "address": {
+          "street_address": "2200 Mission Street",
+          "city": "San Francisco",
+          "state": "CA",
+          "postcode": "94110",
+          "country_code": "US"
+        },
+        "bank_details": {
+          "account_currency": "USD",
+          "account_name": "Lumen Design Studio LLC",
+          "bank_country_code": "US",
+          "bank_name": "Bank of America",
+          "account_number": "483101090003",
+          "account_routing_type1": "aba",
+          "account_routing_value1": "026009593",
+          "bank_account_category": "Checking"
+        }
+      }
+    }
+  },
+  "ben-contractor-okafor": {
+    "transfer_reason": "professional_services",
+    "payload": {
+      "nickname": "Contractor M. Okafor (US)",
+      "transfer_methods": [
+        "LOCAL"
+      ],
+      "beneficiary": {
+        "type": "BANK_ACCOUNT",
+        "entity_type": "PERSONAL",
+        "address": {
+          "street_address": "77 Pine Street",
+          "city": "Seattle",
+          "state": "WA",
+          "postcode": "98101",
+          "country_code": "US"
+        },
+        "bank_details": {
+          "account_currency": "USD",
+          "account_name": "Mia Okafor",
+          "bank_country_code": "US",
+          "bank_name": "Bank of America",
+          "account_number": "483101090004",
+          "account_routing_type1": "aba",
+          "account_routing_value1": "026009593",
+          "bank_account_category": "Checking"
+        },
+        "first_name": "Mia",
+        "last_name": "Okafor"
       }
     }
   }

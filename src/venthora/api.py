@@ -7,8 +7,8 @@ import json
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from . import __version__
 from .audit import AuditStore
@@ -28,9 +28,13 @@ from .execution.live import with_live_balances_and_rates  # noqa: E402
 from .execution.models import ExecutionRequest, ExecutionResult  # noqa: E402
 from .execution.store import ExecutionStore  # noqa: E402
 from .gateways.airwallex import AirwallexError  # noqa: E402
+from .intake.models import IntakeRequest, ReviewRequest  # noqa: E402
+from .intake.pipeline import Intake  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
 
 SCENARIOS = ROOT / "data" / "scenarios"
+DASHBOARD = ROOT / "src" / "venthora" / "dashboard" / "index.html"
+RUNS = ROOT / "data" / "runs"
 
 
 @asynccontextmanager
@@ -38,6 +42,7 @@ async def lifespan(app: FastAPI):
     app.state.agent = Orchestrator()
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
+    app.state.intake = Intake()
     await asyncio.to_thread(_warm_horizon)
     yield
     await app.state.agent.close()
@@ -75,7 +80,7 @@ def _scenario_file(scenario_id: str):
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return RedirectResponse("/docs")
+    return FileResponse(DASHBOARD, media_type="text/html")
 
 
 @app.get("/health")
@@ -222,6 +227,103 @@ async def get_incident(incident_id: str):
     if record is None:
         raise HTTPException(404, "unknown incident")
     return record
+
+
+# -- intake: payment requests from external users ---------------------------------------------
+
+@app.get("/v1/intake", response_model=list[IntakeRequest])
+async def list_intake():
+    return app.state.intake.store.list()
+
+
+@app.post("/v1/intake/emails", response_model=IntakeRequest)
+async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822")):
+    """Submit one raw email (RFC 822). The sender is verified against the counterparty registry, every
+    field is tied to a verbatim quote, and the request is queued as VERIFIED / NEEDS_REVIEW / QUARANTINED
+    / DUPLICATE. Nothing in the email text can change that outcome."""
+    if len(raw) > 200_000:
+        raise HTTPException(413, "email too large")
+    req = await asyncio.to_thread(app.state.intake.ingest, raw)
+    await asyncio.to_thread(app.state.audit.append, "intake", req.model_dump(exclude={"text"}))
+    return req
+
+
+@app.post("/v1/intake/{intake_id}/review", response_model=IntakeRequest)
+async def review_intake(intake_id: str, review: ReviewRequest):
+    try:
+        req = await asyncio.to_thread(app.state.intake.review, intake_id, review)
+    except KeyError as exc:
+        raise HTTPException(404, "unknown intake request") from exc
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "intake_review", {"intake_id": intake_id, **review.model_dump()})
+    return req
+
+
+class IntakePlanRequest(BaseModel):
+    scenario_id: str = "kit01_initial"
+    as_of: str = Field(default_factory=lambda: datetime.now(UTC).date().isoformat())
+
+
+@app.post("/v1/intake/plan", response_model=PlanResult)
+async def plan_with_intake(req: IntakePlanRequest):
+    """Add the intake queue to a book and run the full loop. Verified requests are payable; anything
+    unverified appears in the plan as REJECT (evidence pending) and can never be paid."""
+    data = json.loads(_scenario_file(req.scenario_id).read_text(encoding="utf-8"))
+    base = TreasuryState.model_validate(data["state"])
+    try:
+        state = app.state.intake.to_state(base, as_of=datetime.fromisoformat(req.as_of).date())
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return await plan(state)
+
+
+@app.get("/v1/intake/state/{scenario_id}", response_model=TreasuryState)
+async def intake_state(scenario_id: str, as_of: str | None = None):
+    data = json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
+    base = TreasuryState.model_validate(data["state"])
+    day = datetime.fromisoformat(as_of).date() if as_of else datetime.now(UTC).date()
+    return app.state.intake.to_state(base, as_of=day)
+
+
+# -- dashboard data ----------------------------------------------------------------------------
+
+@app.get("/api/runs")
+async def list_runs(limit: int = Query(30, ge=1, le=200)):
+    """Run reports written by the CLIs (sandbox cycles, intake runs), newest first."""
+    out = []
+    for path in sorted(RUNS.glob("*.json"), reverse=True)[:limit]:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        plans = data.get("plans") or ([data["plan"]] if isinstance(data.get("plan"), dict) else [])
+        last = plans[-1] if plans else {}
+        out.append({"file": path.name, "scenario": data.get("scenario") or ("intake" if "intake" in path.name else None),
+                    "fake": path.name.endswith("-fake.json"), "started_at": data.get("started_at") or data.get("as_of"),
+                    "decision": last.get("decision"), "execution": (data.get("execution") or {}).get("status"),
+                    "incident": (data.get("incident") or {}).get("status"),
+                    "intake": [r.get("status") for r in data.get("intake", [])] if "intake" in data else None})
+    return out
+
+
+@app.get("/api/matrix")
+async def matrix_summary():
+    path = ROOT / "docs" / "scenario_matrix_log.json"
+    if not path.is_file():
+        raise HTTPException(404, "scenario matrix has not been run; python scripts/scenario_matrix.py")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = [{k: r.get(k) for k in ("id", "family", "severity", "title", "ok", "total_ms")}
+            | {"plan": (r.get("plan") or {}).get("decision"), "execution": (r.get("execution") or {}).get("status"),
+               "incident": (r.get("incident") or {}).get("status"), "breach_bp": (r.get("plan") or {}).get("breach_bp"),
+               "failed": [k for k, ok in (r.get("invariants") or {}).items() if not ok]}
+            for r in data["records"]]
+    return {"generated_at": data["generated_at"], "summary": data["summary"], "findings": data.get("findings", []), "rows": rows}
+
+
+@app.get("/v1/executions")
+async def list_executions(limit: int = Query(30, ge=1, le=200)):
+    return app.state.executor.store.list_executions(limit)
 
 
 @app.get("/api/airwallex/balances")

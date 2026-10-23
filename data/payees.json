@@ -1,0 +1,28 @@
+{
+  "_note": "Synthetic counterparties for the intake pipeline. `contacts` are the exact mailboxes a counterparty registered with us when onboarded; a message from any other mailbox, whatever its display name claims, is an unknown sender. Freemail providers (gmail, yahoo, outlook) are common for small vendors and contractors, so trust is anchored on the exact registered address, never on the domain or the display name.",
+  "payees": {
+    "payroll-group-us": {"name": "Northwind Payroll Services Inc", "aliases": ["Northwind Payroll Services"],
+                         "contacts": ["payments@northwind-payroll.example"], "domains": ["northwind-payroll.example"],
+                         "currency": "USD", "payout_method": "LOCAL", "default_priority": 10, "invoice_prefix": "northwind"},
+    "ben-saas-vendor": {"name": "Cloudloom Software LLC", "aliases": ["Cloudloom"],
+                        "contacts": ["billing@cloudloom.example"], "domains": ["cloudloom.example"],
+                        "currency": "USD", "payout_method": "LOCAL", "default_priority": 2, "invoice_prefix": "cloudloom"},
+    "ben-eu-components": {"name": "Rheinwerk Komponenten GmbH", "aliases": ["Rheinwerk Komponenten", "Rheinwerk"],
+                          "contacts": ["debitoren@rheinwerk.example"], "domains": ["rheinwerk.example"],
+                          "currency": "EUR", "payout_method": "SWIFT", "default_priority": 9, "invoice_prefix": "eu-components"},
+    "ben-uk-logistics": {"name": "Thames Freight Ltd", "aliases": ["Thames Freight"],
+                         "contacts": ["thames.freight.accounts@gmail.com"], "domains": [],
+                         "currency": "GBP", "payout_method": "LOCAL", "default_priority": 10, "invoice_prefix": "thames-freight"},
+    "ben-lumen-design": {"name": "Lumen Design Studio", "aliases": ["Lumen Design", "Lumen"],
+                         "contacts": ["lumen.design.studio.billing@gmail.com"], "domains": [],
+                         "currency": "USD", "payout_method": "LOCAL", "default_priority": 6, "invoice_prefix": "lumen"},
+    "ben-contractor-okafor": {"name": "Mia Okafor", "aliases": ["M. Okafor", "Okafor"],
+                              "contacts": ["mia.okafor.design@yahoo.com"], "domains": [],
+                              "currency": "USD", "payout_method": "LOCAL", "default_priority": 7, "invoice_prefix": "okafor"}
+  },
+  "payers": {
+    "acme-retail": {"name": "Acme Retail Ltd", "aliases": ["Acme Retail", "Acme"],
+                    "contacts": ["ar@acme-retail.example", "acme.retail.ar@outlook.com"], "domains": ["acme-retail.example"],
+                    "currency": "USD", "history": {"kept": 6, "missed": 1}}
+  }
+}

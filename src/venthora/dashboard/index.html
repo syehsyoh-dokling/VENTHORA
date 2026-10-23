@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VENTHORA Treasury</title>
+<style>
+:root{--bg:#f6f7f9;--surface:#fff;--ink:#17202a;--ink2:#4b5563;--muted:#8a94a6;--line:#e3e6eb;--accent:#1f4e8c;
+ --good:#1e7f4f;--warn:#b7791f;--serious:#c2410c;--critical:#b42318;--seq:#2f6db3;--seqlt:#dbe7f6;--radius:10px}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f141b;--surface:#171e27;--ink:#e8edf3;--ink2:#b8c1cc;
+ --muted:#7d8896;--line:#2a333f;--accent:#8ab4f8;--seq:#79a7e8;--seqlt:#243448}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:baseline;gap:16px;padding:18px 24px 6px}header h1{font-size:20px;margin:0;letter-spacing:.3px}
+header .sub{color:var(--ink2)}main{padding:8px 24px 32px;display:grid;gap:16px;grid-template-columns:repeat(12,1fr)}
+section{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;grid-column:span 12}
+section h2{font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+section h2>span:first-child{white-space:nowrap}
+.span6{grid-column:span 6}.span4{grid-column:span 4}.span8{grid-column:span 8}
+@media (max-width:980px){.span6,.span4,.span8{grid-column:span 12}main{padding:8px 16px 24px}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px 12px}.tile .k{color:var(--muted);font-size:12px}.tile .v{font-size:22px;font-weight:600;margin-top:2px}
+.tile .d{color:var(--ink2);font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);padding:6px 8px;white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}tr:last-child td{border-bottom:0}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600;border:1px solid var(--line);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.pill.good::before{background:var(--good)}.pill.warn::before{background:var(--warn)}.pill.serious::before{background:var(--serious)}.pill.critical::before{background:var(--critical)}
+.pill.good{color:var(--good)}.pill.warn{color:var(--warn)}.pill.serious{color:var(--serious)}.pill.critical{color:var(--critical)}
+.bar{display:flex;align-items:center;gap:8px}.bar i{display:block;height:10px;border-radius:0 4px 4px 0;background:var(--seq);min-width:2px}
+.bar span{font-variant-numeric:tabular-nums;color:var(--ink2);font-size:12px}
+button,select{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:7px;padding:5px 10px;cursor:pointer}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.muted{color:var(--muted)}.small{font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid var(--seqlt);padding:2px 8px;margin:2px 0;color:var(--ink2);font-size:12px}
+.err{color:var(--critical)}.empty{color:var(--muted);padding:12px 0}
+</style>
+</head>
+<body>
+<header><h1>VENTHORA</h1><span class="sub">evidence-gated treasury agent on Airwallex · AI proposes, engines verify, Airwallex executes</span>
+<span id="status" class="small muted" style="margin-left:auto"></span></header>
+<main>
+ <section class="span8">
+  <h2><span>Plan &amp; proof</span>
+   <span class="row"><select id="scenario"></select>
+    <button id="plan" class="primary">Plan</button>
+    <button id="planIntake" title="add the intake queue to this book, then plan">Plan with intake queue</button></span></h2>
+  <div id="planOut" class="empty">Choose a book and press Plan.</div>
+ </section>
+ <section class="span4"><h2>Platform</h2><div id="platform" class="tiles"></div></section>
+
+ <section class="span12">
+  <h2><span>Intake · payment requests from external users</span><span class="small muted" id="intakeMeta"></span></h2>
+  <div id="intake" class="empty">loading…</div>
+ </section>
+
+ <section class="span6"><h2>Executions</h2><div id="executions" class="empty">loading…</div></section>
+ <section class="span6"><h2>Kit 03 incidents</h2><div id="incidents" class="empty">loading…</div></section>
+
+ <section class="span6"><h2><span>Run reports</span><span class="small muted">data/runs</span></h2><div id="runs" class="empty">loading…</div></section>
+ <section class="span6"><h2><span>Scenario matrix</span><span class="small muted" id="matrixMeta"></span></h2><div id="matrix" class="empty">loading…</div></section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const fmt=(m,c)=>{if(m==null)return"-";const s=m<0?"-":"",a=Math.abs(m);return`${s}${c} ${Math.floor(a/100).toLocaleString()}.${String(a%100).padStart(2,"0")}`};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tone={APPROVED:"good",COMPLETED:"good",RESOLVED:"good",VERIFIED:"good",PASS:"good",OK:"good",PAID:"good",
+ REQUIRES_APPROVAL:"warn",NEEDS_REVIEW:"warn",WAITING:"warn",IN_FLIGHT:"warn",WARN:"warn",RUNNING:"warn",
+ ESCALATED:"serious",QUARANTINED:"serious",REFUSED:"serious",ESCALATE:"serious",
+ BLOCKED:"critical",FAILED:"critical",REJECTED:"critical",DUPLICATE:"critical",RECONCILIATION_MISMATCH:"critical",FAIL:"critical"};
+const pill=s=>`<span class="pill ${tone[s]||""}">${esc(s??"-")}</span>`;
+const api=async(u,o)=>{const r=await fetch(u,o);if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch{}throw new Error(`${r.status} ${m}`)}return r.json()};
+const table=(cols,rows,empty="nothing yet")=>rows.length?`<table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${
+ rows.map(r=>`<tr>${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<div class="empty">${empty}</div>`;
+
+async function platform(){try{const s=await api("/api/status");const a=s.authorities;
+ $("#platform").innerHTML=[["Version",s.version,s.solver],["OPA policy",a.opa?"live":"local mirror","Rego mirrored in Python"],
+  ["Airwallex",a.airwallex?"sandbox":"not configured","sandbox-only, refuses production"],["TigerBeetle",a.tigerbeetle?"on":"optional",""],
+  ["Audit chain",s.audit.verified?"intact":"BROKEN",`${s.audit.checked} events hash-chained`]]
+  .map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:16px">${esc(v)}</div><div class="d">${esc(d)}</div></div>`).join("");
+ $("#status").textContent=`api ok · ${new Date().toLocaleTimeString()}`}catch(e){$("#status").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+
+function renderPlan(p){const sim=p.simulation||{};const pol=(p.stages.find(s=>s.engine==="Policy")||{}).details||{};const req=(pol.local||{}).requires_approval||[];
+ const tiles=[["Decision",pill(p.decision),req.join(", ")],["Base cost",fmt(p.total_base_cost_minor,"USD"),`after: ${fmt(p.projected_base_balance_minor,"USD")}`],
+  ["Reserve floor",fmt(p.required_base_floor_minor,"USD"),"floor + FX stress"],["P(breach 72h)",sim.breach_probability_bp!=null?(sim.breach_probability_bp/100).toFixed(1)+"%":"-",sim.paths?`${sim.paths.toLocaleString()} Horizon paths`:""],
+  ["FX limit",fmt(p.conversion_limit_minor,"USD"),p.forecast_confidence_bp!=null?`confidence ${(p.forecast_confidence_bp/100).toFixed(0)}%`:"no open receipt"],["Latency",`${p.duration_ms.toFixed(0)} ms`,p.solver]];
+ const maxB=Math.max(1,...p.counterfactuals.map(c=>c.breach_probability_bp||0));
+ $("#planOut").innerHTML=`<div class="tiles">${tiles.map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:17px">${v}</div><div class="d">${esc(d)}</div></div>`).join("")}</div>
+ <h3 class="small muted" style="margin:14px 0 6px">Decisions</h3>${table([{h:"Action",f:r=>pill(r.action)},{h:"Obligation",f:r=>esc(r.obligation_id)},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Why",f:r=>`<span class="small">${esc(r.reason)}</span>`}],p.obligations)}
+ <div class="row" style="margin-top:12px;gap:24px;align-items:flex-start">
+  <div style="flex:1;min-width:280px"><h3 class="small muted" style="margin:0 0 6px">Engines</h3>${table([{h:"Stage",f:r=>pill(r.status)},{h:"Engine",f:r=>esc(r.engine)},{h:"",f:r=>`<span class="small">${esc(r.summary)}</span>`}],p.stages)}</div>
+  <div style="flex:1;min-width:280px"><h3 class="small muted" style="margin:0 0 6px">Counterfactual proof · P(reserve breached)</h3>
+   ${table([{h:"Alternative",f:r=>`<span class="small">${esc(r.question)}</span>`},{h:"Feasible",f:r=>r.feasible?pill("PASS"):pill("FAIL")},
+   {h:"P(breach)",f:r=>`<div class="bar"><i style="width:${Math.round(100*(r.breach_probability_bp||0)/maxB)}px"></i><span>${r.breach_probability_bp!=null?(r.breach_probability_bp/100).toFixed(1)+"%":"-"}</span></div>`}],p.counterfactuals)}</div></div>
+ ${p.approval_terms.length?`<details style="margin-top:10px"><summary>Approval terms (${p.approval_terms.length}) · plan ${esc(p.plan_hash.slice(0,16))}…</summary>${table([{h:"Type",f:r=>esc(r.type||r.kind||"")},{h:"Terms",f:r=>`<span class="mono">${esc(JSON.stringify(r))}</span>`}],p.approval_terms)}</details>`:""}
+ <details style="margin-top:6px"><summary>Explanation</summary><ul class="small">${p.explanation.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></details>`}
+
+async function scenarios(){const s=await api("/api/scenarios");$("#scenario").innerHTML=s.map(x=>`<option value="${x.id}" ${x.id==="kit01_initial"?"selected":""}>${esc(x.title||x.id)}</option>`).join("")}
+$("#plan").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">planning…</div>';try{renderPlan(await api(`/api/scenarios/${$("#scenario").value}/plan`,{method:"POST"}))}catch(e){$("#planOut").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
+$("#planIntake").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">adding the intake queue to the book and planning…</div>';
+ try{renderPlan(await api("/v1/intake/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario_id:$("#scenario").value,as_of:"2026-10-24"})}))}catch(e){$("#planOut").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
+
+async function intake(){try{const rows=await api("/v1/intake");const c={};rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+ $("#intakeMeta").textContent=Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · ");
+ $("#intake").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
+  {h:"Trust",f:r=>`<span class="small">${esc(r.trust)}${r.counterparty_name?` · ${esc(r.counterparty_name)}`:r.claimed_name?` · claims ${esc(r.claimed_name)}`:""}</span>`},
+  {h:"Kind",f:r=>esc(r.kind)},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>esc(r.invoice_no||"-")},{h:"Due",f:r=>esc(r.due_date||"-")},
+  {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}</details>`},
+  {h:"",f:r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`:""}],
+  rows,"no requests yet · POST /v1/intake/emails or run venthora-intake");
+ $("#intake").querySelectorAll("button").forEach(b=>b.onclick=async()=>{const note=prompt(`${b.dataset.d} as finance manager — note (e.g. call-back done on the registered phone number):`);if(note===null)return;
+  try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:"finance manager",role:"finance_manager",note})});intake()}catch(e){alert(e.message)}})}
+ catch(e){$("#intake").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+
+async function executions(){try{const rows=await api("/v1/executions?limit=15");
+ $("#executions").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"Execution",f:r=>`<span class="mono">${esc(r.execution_id.slice(0,8))}…</span>`},{h:"Plan",f:r=>`<span class="mono">${esc(r.plan_hash.slice(0,12))}…</span>`},{h:"Updated",f:r=>`<span class="small">${esc(r.updated_at.slice(0,19).replace("T"," "))}</span>`}],rows)}catch(e){$("#executions").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function incidents(){try{const rows=await api("/v1/incidents");
+ $("#incidents").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"Obligation",f:r=>esc(r.obligation_id)},{h:"Decision",f:r=>pill(r.decision||"OPEN")},{h:"Failure type",f:r=>`<span class="small">${esc(r.failure_type||"-")}</span>`},{h:"Original → replacement",f:r=>`<span class="mono">${esc((r.original_transfer_id||"").slice(0,8))}… → ${r.replacement_transfer_id?esc(r.replacement_transfer_id.slice(0,8))+"…":"-"}</span>`}],rows)}catch(e){$("#incidents").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function runs(){try{const rows=await api("/api/runs?limit=20");
+ $("#runs").innerHTML=table([{h:"When",f:r=>`<span class="small">${esc((r.started_at||"").slice(0,16).replace("T"," "))}</span>`},{h:"Scenario",f:r=>`${esc(r.scenario||"-")}${r.fake?' <span class="small muted">fake</span>':' <span class="small" style="color:var(--accent)">real sandbox</span>'}`},
+  {h:"Plan",f:r=>r.decision?pill(r.decision):"-"},{h:"Execution",f:r=>r.execution?pill(r.execution):"-"},{h:"Incident",f:r=>r.incident?pill(r.incident):(r.intake?`<span class="small">intake: ${r.intake.map(s=>s.toLowerCase()).join(", ")}</span>`:"-")}],rows)}catch(e){$("#runs").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$("#matrixMeta").textContent=`${s.ok} / ${s.variants} variants · plan p50 ${s.plan_ms?.p50} ms · ${m.generated_at.slice(0,10)}`;
+ const fam=Object.entries(s.by_family);const bad=m.rows.filter(r=>!r.ok);
+ $("#matrix").innerHTML=`<div class="tiles">${fam.map(([f,c])=>`<div class="tile"><div class="k">${esc(f)}</div><div class="v" style="font-size:16px">${c.ok}/${c.total}</div></div>`).join("")}</div>
+ ${bad.length?`<h3 class="small err" style="margin:10px 0 4px">Invariant failures</h3>${table([{h:"ID",f:r=>esc(r.id)},{h:"Situation",f:r=>esc(r.title)},{h:"Failed",f:r=>esc(r.failed.join(", "))}],bad)}`:`<div class="small muted" style="margin-top:8px">every variant satisfies every invariant · <a href="https://github.com/syehsyoh-dokling/VENTHORA/blob/main/docs/SCENARIO_MATRIX.md">report</a></div>`}
+ <details style="margin-top:6px"><summary class="small">Findings (${m.findings.length})</summary><ul class="small">${m.findings.map(f=>`<li>${esc(f.replace(/\*\*/g,""))}</li>`).join("")}</ul></details>`}
+ catch(e){$("#matrix").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
+
+platform();scenarios();intake();executions();incidents();runs();matrix();
+setInterval(()=>{intake();executions();incidents()},15000);
+</script>
+</body>
+</html>

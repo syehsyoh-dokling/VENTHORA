@@ -146,6 +146,19 @@ failure type, load and stability, roles and recalculation) through the full pipe
 [`docs/SCENARIO_MATRIX.md`](SCENARIO_MATRIX.md) plus a JSON log under `data/runs/matrix/`. The same variants run in
 CI (`tests/test_scenario_matrix.py`). Result on 23 Oct 2026: 136 / 136; one product bug found and fixed (B10, see AUDIT.md §3).
 
+## (7) Intake from external users and the dashboard
+
+`venthora-intake` / `POST /v1/intake/emails`: payment requests arrive as email from mailboxes we do not control
+(three Gmail, one Yahoo, one Outlook in `data/intake/`). The sender is verified against the exact registered mailbox
+(`data/payees.json`), never the display name or the provider; amount, invoice, due date, bank-change and urgency
+language are extracted with verbatim quotes; the status (VERIFIED / NEEDS_REVIEW / QUARANTINED / DUPLICATE) is decided
+by code. Verified requests join the book as payable obligations (or a receivable with the payer's history); everything
+else is visible in the plan and can never be paid; a duplicate of an invoice already in the book is never paid twice.
+Tested end to end on the fake sandbox (`tests/test_intake.py`): the lookalike "new bank account, urgent" request and
+the duplicate reminder are never paid; the registered invoices are. The dashboard at `/` shows the plan with its
+counterfactual breach probabilities, the intake queue with role-checked verify/reject, executions, incidents, run
+reports and the scenario-matrix summary.
+
 ## Not applicable to this build
 
 - **#14, #16–18, #23, #25–26, #28–29** (MCP setup and MCP-only tools): VENTHORA uses REST behind typed methods, which the guide allows (#17, #24).

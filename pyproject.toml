@@ -21,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 venthora-sandbox = "venthora.cli:main"
+venthora-intake = "venthora.intake.cli:main"
 
 [project.optional-dependencies]
 solver = ["ortools>=9.10,<10"]

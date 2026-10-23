@@ -31,6 +31,14 @@ ALIASES = {
 }
 
 
+def data_path(name: str, default: str) -> Path:
+    """A store path from the environment; a relative value is anchored at the project root, not the
+    process's working directory (observed: the API started from another folder created empty stores)."""
+    value = env(name) or default
+    path = Path(value)
+    return path if path.is_absolute() else (ROOT / path).resolve()
+
+
 def env(name: str, default: str = "") -> str:
     value = os.getenv(name, "").strip()
     if not value and name in ALIASES:

@@ -84,7 +84,32 @@ python -m venv .venv
 uvicorn venthora.api:app --reload
 ```
 
-Open http://127.0.0.1:8000/docs and call `POST /api/scenarios/kit01_initial/plan`, then `POST /api/scenarios/kit01_receipt_delayed/plan`.
+Open http://127.0.0.1:8000/ for the **dashboard** (plan and proof with counterfactual breach probabilities, the intake
+queue with verify/reject, executions, Kit 03 incidents, run reports, the scenario-matrix summary) or
+http://127.0.0.1:8000/docs for the API.
+
+### Intake: payment requests from external users (`venthora-intake`)
+
+Real requests arrive as email, from mailboxes we do not control. `data/intake/` holds five such emails from three
+providers (three Gmail, one Yahoo, one Outlook):
+
+| Mailbox | What it says | Outcome |
+|---|---|---|
+| `lumen.design.studio.billing@gmail.com` (registered) | invoice LD-78, USD 1,800, due 31 Oct | **VERIFIED** → payable obligation |
+| `ld.studio.payments2026@gmail.com` (unknown, *claims* to be Lumen) | "URGENT – new bank account for LD-77, pay immediately, do not call" | **QUARANTINED** → visible, never payable |
+| `thames.freight.accounts@gmail.com` (registered) | second reminder for TF-311, already in the book | **DUPLICATE** → never paid twice |
+| `mia.okafor.design@yahoo.com` (registered contractor) | timesheet OK-2026-10, USD 2,400, within 14 days | **VERIFIED** → payable obligation |
+| `acme.retail.ar@outlook.com` (registered customer) | remittance advice AR-5540, USD 6,500 on 27 Oct | **VERIFIED** → receivable with the payer's history |
+
+Trust is anchored on the exact registered mailbox (`data/payees.json`), never on the display name, the text, or
+the provider; every extracted field carries the verbatim quote it was read from; the status is decided by code,
+so nothing written in an email (injection, urgency, "the CEO approved") can change it. The queue is then added
+to the book and the same loop runs: verified requests are payable, everything else appears as REJECT (evidence
+pending) and cannot be paid. A finance manager can verify or reject from the dashboard after an out-of-band call-back.
+
+```bash
+venthora-intake --as-of 2026-10-24 --fake --execute --approve "Dana"
+```
 
 ### Run the whole agent loop: `venthora-sandbox`
 
@@ -170,6 +195,10 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 | `GET` | `/v1/executions/{id}` | Execution result and every operation with its `request_id` |
 | `POST` | `/v1/incidents` | Kit 03: a sent transfer did not arrive; decide wait / replace / escalate under the duplicate lock |
 | `GET` | `/v1/incidents`, `/v1/incidents/{id}` | Incident records (original, failure type, replacement, resolution) |
+| `POST` | `/v1/intake/emails` | Submit a raw email (RFC 822); verified sender, grounded fields, queued by code |
+| `GET` | `/v1/intake` · `POST /v1/intake/{id}/review` | The queue; a role-checked verify / reject |
+| `POST` | `/v1/intake/plan` | Add the queue to a book and run the whole loop |
+| `GET` | `/` · `/api/runs` · `/api/matrix` · `/v1/executions` | Dashboard and its data |
 
 ## Tests
 

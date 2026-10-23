@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
-from ..config import ROOT, env
+from ..config import data_path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS executions (
@@ -62,7 +62,7 @@ class QuoteReused(RuntimeError):
 
 class ExecutionStore:
     def __init__(self, path: str | None = None):
-        self.path = Path(path or env("VENTHORA_EXECUTION_DB", str(ROOT / "data" / "venthora_execution.db")))
+        self.path = Path(path) if path else data_path("VENTHORA_EXECUTION_DB", "data/venthora_execution.db")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         with self._connect() as c:
