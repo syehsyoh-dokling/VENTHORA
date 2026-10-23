@@ -154,10 +154,42 @@ What this shows: the agent never proposed beyond the line (Theorem's per-line ca
 missing and for which obligation, a person — not the agent — raised the mandate, and the alert fired on the way to the
 line's end. Log: `docs/budget_log_real.json`.
 
+## Cycle 9: the whole set in one command (`python scripts/real_suite.py --approve "…"`)
+
+Approved by the owner as finance manager; 23 Oct 2026, 17:32–19:55 WIB (two attempts). Eight steps, each on a fresh
+book, the runner stopping at the first failure. Report: [REAL_SUITE.md](REAL_SUITE.md), full output per step in
+`docs/real_suite_log.json`.
+
+| Step | Result |
+|---|---|
+| 1 Kit 01 cycle, fresh book `kit01-nov-1023173244` | ✅ plan → approve → EUR/GBP conversions → three transfers → deposit lands → incremental re-plan → reconciled (51 s) |
+| 2 Kit 03 incident, fresh book | attempt 1 ❌ (see below); attempt 2 ✅ original `e59198af-…` CANCELLED / BENEFICIARY_BANK_RETURNED, replacement `bfb116c8-…` PAID, reconciled with `refund_timing` recorded, incident `040de823-…` RESOLVED (15 s) |
+| 3 Intake of the five external emails, fresh book | ✅ two verified requests paid (`aa9690db-…`, `e750f983-…`); the lookalike, the duplicate and the flagged contractor not; the sandbox's simulation transition failed once, so one transfer was left **in flight** (resumable) — see below |
+| 4 Ground truth suites 1 + 2 on the real sandbox | ✅ 84 / 84 through the live service, 7 / 7 reproducible execution anomalies, 9 fake-only with reasons |
+| 5a Budget suite through the live service | ✅ 20 / 20, round trip p50 122 ms |
+| 5b Budget mandate cycle on the rail | ✅ pay inside the line, stop with a request, grant, continue, alert at 98% |
+| 6a Rego mirror on a real OPA 0.70.0 | ✅ 7,638 inputs, 0 disagreements |
+| 6b Oracle audit | ✅ 7 / 7 mutations change the answer |
+
+**Attempt 1 stopped at step 2 — a real-rail timing the fake never showed.** The original's EUR 1,500 refund landed
+*between* the balance read before the replacement and the read after it; the reconciliation expected the refund to be in
+the wallet already and reported a discrepancy of exactly EUR 1,500, so the incident stayed `REPLACED_AWAITING_ORIGINAL`
+and the CLI treated that correct open state as a failure. Fixed: the replacement's reconciliation accepts both timings
+of the same money and records which it saw; the CLI follows up until the original's fate is on file and treats the
+open state as success. The attempt-1 incident (`bc5ffe06-…`) was then closed RESOLVED by the follow-up.
+
+**Step 3's transfer left in flight** was resumed afterwards (`POST /v1/executions/{id}/resume` semantics): the rail
+reported it PAID and the payout record was settled. The resumed run's *reconciliation* then reported a mismatch, because
+its "before" balances date from the original run and steps 4–6 had since moved money in the same shared wallet. That is a
+known limit, now written down: on a shared wallet a resume can only reconcile to the cent when nothing else moved money
+in between (a book-level ledger — TigerBeetle, optional here — is the real answer). The payouts themselves are correct.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| A resumed execution reconciles against its original "before" balances | other runs moved money in the shared wallet between the run and its resume → mismatch reported although every payout is PAID and recorded | stated as a limit (cycle 9); the book-level ledger (TigerBeetle, optional) is the proper fix |
+| The original's refund is in the wallet before the replacement is made | on the real rail the refund can land **between** the balance read before the replacement and the read after it (cycle 9, step 2: discrepancy of exactly EUR 1,500) | the replacement's reconciliation accepts both timings of the same money and records which one it saw (`refund_timing`); the CLI treats `REPLACED_AWAITING_ORIGINAL` as a correct open state and follows up until the original is on file |
 | A follow-up on an incident finds the same incident | after a replacement, the invoice's live payout *is* the replacement; a follow-up opened a second incident on it | the commander looks up the invoice's existing incident before anything else; see cycle 7 |
 | Beneficiary payload needs `transfer_methods` | the corridor schema (`POST /beneficiaries/schema`) marks **`payment_methods`** required and relevant (23 Oct 2026) | both fields are sent for every registered payee; the schema check caught it before anything was created |
 | A failed transfer carries `failure_type` | status **`CANCELLED`**, failure in `failure.code` (**90802**) and `failure.details.type` (`INCORRECT_ROUTING`); the transition response carries the detail type, not the enum sent | `failure_type_of()` maps the code through the documented table first, then `failure_reason` ("90802: …"), then the typed fields; unknown shapes still fail closed to ESCALATE |

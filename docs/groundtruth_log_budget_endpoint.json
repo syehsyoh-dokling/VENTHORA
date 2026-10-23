@@ -3,13 +3,13 @@
   "id": "B01",
   "kind": "plan",
   "title": "inside the line, inside the auto share",
-  "ms": 95.68,
+  "ms": 129.28,
   "ms_all": [
-   95.68,
-   92.44,
-   168.81
+   487.52,
+   129.28,
+   128.41
   ],
-  "server_ms": 159.45,
+  "server_ms": 120.62,
   "match": true,
   "fields": {
    "decision": {
@@ -69,20 +69,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 159.45409995038062
+   "duration_ms": 120.62009994406253
   }
  },
  {
   "id": "B02",
   "kind": "plan",
   "title": "exactly the mandate",
-  "ms": 116.48,
+  "ms": 122.71,
   "ms_all": [
-   103.53,
-   512.04,
-   116.48
+   117.41,
+   122.71,
+   124.41
   ],
-  "server_ms": 107.42,
+  "server_ms": 118.05,
   "match": true,
   "fields": {
    "actions": {
@@ -137,20 +137,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 107.42120002396405
+   "duration_ms": 118.05349995847791
   }
  },
  {
   "id": "B03",
   "kind": "plan",
   "title": "one cent over the mandate: the agent stops at the line",
-  "ms": 101.61,
+  "ms": 121.82,
   "ms_all": [
-   101.61,
-   100.1,
-   110.42
+   127.45,
+   121.57,
+   121.82
   ],
-  "server_ms": 99.95,
+  "server_ms": 115.0,
   "match": true,
   "fields": {
    "actions": {
@@ -205,20 +205,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 99.95489998254925
+   "duration_ms": 115.00230000820011
   }
  },
  {
   "id": "B04",
   "kind": "plan",
   "title": "above the auto share needs a person",
-  "ms": 91.63,
+  "ms": 121.37,
   "ms_all": [
-   356.41,
-   90.32,
-   91.63
+   121.37,
+   119.42,
+   323.71
   ],
-  "server_ms": 82.05,
+  "server_ms": 317.58,
   "match": true,
   "fields": {
    "decision": {
@@ -275,20 +275,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 82.05450000241399
+   "duration_ms": 317.5757999997586
   }
  },
  {
   "id": "B05",
   "kind": "plan",
   "title": "exactly the auto share is still autonomous",
-  "ms": 85.93,
+  "ms": 126.53,
   "ms_all": [
-   92.61,
-   85.93,
-   82.01
+   319.66,
+   126.53,
+   118.28
   ],
-  "server_ms": 72.06,
+  "server_ms": 110.99,
   "match": true,
   "fields": {
    "decision": {
@@ -339,20 +339,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 72.06389994826168
+   "duration_ms": 110.98510003648698
   }
  },
  {
   "id": "B06",
   "kind": "plan",
   "title": "alert threshold reached (notification, still autonomous)",
-  "ms": 95.71,
+  "ms": 121.48,
   "ms_all": [
-   88.91,
-   100.08,
-   95.71
+   121.48,
+   117.65,
+   122.59
   ],
-  "server_ms": 85.0,
+  "server_ms": 117.21,
   "match": true,
   "fields": {
    "decision": {
@@ -403,20 +403,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 85.00399999320507
+   "duration_ms": 117.21090006176382
   }
  },
  {
   "id": "B07",
   "kind": "plan",
   "title": "alert threshold with require_approval_on_alert",
-  "ms": 96.9,
+  "ms": 122.18,
   "ms_all": [
-   98.98,
-   92.04,
-   96.9
+   124.89,
+   122.18,
+   121.7
   ],
-  "server_ms": 86.06,
+  "server_ms": 114.52,
   "match": true,
   "fields": {
    "decision": {
@@ -469,20 +469,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 86.05739998165518
+   "duration_ms": 114.51520002447069
   }
  },
  {
   "id": "B08",
   "kind": "plan",
   "title": "realized spend eats the line",
-  "ms": 95.37,
+  "ms": 123.51,
   "ms_all": [
-   99.87,
-   95.37,
-   88.03
+   119.54,
+   123.51,
+   166.3
   ],
-  "server_ms": 77.49,
+  "server_ms": 159.48,
   "match": true,
   "fields": {
    "actions": {
@@ -532,20 +532,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 77.48599990736693
+   "duration_ms": 159.47870002128184
   }
  },
  {
   "id": "B09",
   "kind": "plan",
   "title": "a grant restores the mandate",
-  "ms": 94.61,
+  "ms": 127.99,
   "ms_all": [
-   94.61,
-   89.11,
-   97.83
+   115.64,
+   127.99,
+   530.08
   ],
-  "server_ms": 88.06,
+  "server_ms": 522.65,
   "match": true,
   "fields": {
    "decision": {
@@ -600,20 +600,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 88.05930009111762
+   "duration_ms": 522.6468000328168
   }
  },
  {
   "id": "B10",
   "kind": "plan",
   "title": "two lines, one exhausted, the other fine",
-  "ms": 122.03,
+  "ms": 122.29,
   "ms_all": [
-   122.03,
-   95.94,
-   362.69
+   122.29,
+   327.7,
+   120.77
   ],
-  "server_ms": 351.24,
+  "server_ms": 113.46,
   "match": true,
   "fields": {
    "actions": {
@@ -671,20 +671,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 351.23979998752475
+   "duration_ms": 113.4584000101313
   }
  },
  {
   "id": "B11",
   "kind": "plan",
   "title": "priority within a line: the line pays the urgent one",
-  "ms": 101.13,
+  "ms": 119.59,
   "ms_all": [
-   368.17,
-   101.13,
-   91.38
+   120.07,
+   118.8,
+   119.59
   ],
-  "server_ms": 80.54,
+  "server_ms": 112.46,
   "match": true,
   "fields": {
    "actions": {
@@ -739,20 +739,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 80.53740009199828
+   "duration_ms": 112.45619994588196
   }
  },
  {
   "id": "B12",
   "kind": "plan",
   "title": "unbudgeted obligation needs a person",
-  "ms": 90.69,
+  "ms": 120.25,
   "ms_all": [
-   90.69,
-   97.93,
-   88.73
+   120.25,
+   118.92,
+   120.59
   ],
-  "server_ms": 78.61,
+  "server_ms": 113.31,
   "match": true,
   "fields": {
    "decision": {
@@ -809,20 +809,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 78.60569993499666
+   "duration_ms": 113.31019992940128
   }
  },
  {
   "id": "B13",
   "kind": "plan",
   "title": "unbudgeted allowed by the budget's setting",
-  "ms": 94.64,
+  "ms": 122.61,
   "ms_all": [
-   94.64,
-   87.41,
-   352.05
+   117.35,
+   124.42,
+   122.61
   ],
-  "server_ms": 341.2,
+  "server_ms": 114.07,
   "match": true,
   "fields": {
    "decision": {
@@ -873,20 +873,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 341.20020002592355
+   "duration_ms": 114.07060001511127
   }
  },
  {
   "id": "B14",
   "kind": "plan",
   "title": "bypass nobody signed keeps the cap",
-  "ms": 95.1,
+  "ms": 116.66,
   "ms_all": [
-   86.37,
-   95.1,
-   95.37
+   113.06,
+   116.66,
+   117.51
   ],
-  "server_ms": 85.84,
+  "server_ms": 109.82,
   "match": true,
   "fields": {
    "actions": {
@@ -936,20 +936,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 85.84389998577535
+   "duration_ms": 109.81729999184608
   }
  },
  {
   "id": "B15",
   "kind": "plan",
   "title": "signed bypass lifts the cap",
-  "ms": 92.92,
+  "ms": 119.16,
   "ms_all": [
-   100.32,
-   92.92,
-   90.87
+   119.16,
+   122.16,
+   116.79
   ],
-  "server_ms": 81.54,
+  "server_ms": 108.35,
   "match": true,
   "fields": {
    "decision": {
@@ -1009,20 +1009,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 81.53540000785142
+   "duration_ms": 108.34989999420941
   }
  },
  {
   "id": "B16",
   "kind": "plan",
   "title": "bypass signed but spending inside it is still recorded",
-  "ms": 89.23,
+  "ms": 115.67,
   "ms_all": [
-   99.68,
-   86.51,
-   89.23
+   114.37,
+   115.67,
+   141.5
   ],
-  "server_ms": 79.82,
+  "server_ms": 133.9,
   "match": true,
   "fields": {
    "decision": {
@@ -1068,20 +1068,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 79.82310000807047
+   "duration_ms": 133.9018999133259
   }
  },
  {
   "id": "B17",
   "kind": "plan",
   "title": "the whole November book against the November plan",
-  "ms": 91.67,
+  "ms": 125.7,
   "ms_all": [
-   99.1,
-   91.4,
-   91.67
+   125.7,
+   119.73,
+   428.88
   ],
-  "server_ms": 82.16,
+  "server_ms": 420.01,
   "match": true,
   "fields": {
    "decision": {
@@ -1165,20 +1165,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 82.16410002205521
+   "duration_ms": 420.01370002981275
   }
  },
  {
   "id": "B18",
   "kind": "plan",
   "title": "minus from what is still owed",
-  "ms": 94.55,
+  "ms": 121.02,
   "ms_all": [
-   350.81,
-   94.55,
-   89.66
+   121.02,
+   121.06,
+   120.98
   ],
-  "server_ms": 81.25,
+  "server_ms": 113.86,
   "match": true,
   "fields": {
    "actions": {
@@ -1242,20 +1242,20 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 81.24950004275888
+   "duration_ms": 113.86390007101
   }
  },
  {
   "id": "B19",
   "kind": "plan",
   "title": "viewer with a budget is still blocked",
-  "ms": 97.83,
+  "ms": 123.34,
   "ms_all": [
-   97.83,
-   100.76,
-   83.84
+   123.34,
+   120.09,
+   125.29
   ],
-  "server_ms": 74.83,
+  "server_ms": 117.17,
   "match": true,
   "fields": {
    "decision": {
@@ -1294,20 +1294,20 @@
    ],
    "breach_bp": 0,
    "not_blocked": false,
-   "duration_ms": 74.82930005062371
+   "duration_ms": 117.17400001361966
   }
  },
  {
   "id": "B20",
   "kind": "plan",
   "title": "no budget attached: nothing changes",
-  "ms": 92.26,
+  "ms": 121.46,
   "ms_all": [
-   92.26,
-   93.11,
-   87.63
+   121.52,
+   120.36,
+   121.46
   ],
-  "server_ms": 78.71,
+  "server_ms": 115.68,
   "match": true,
   "fields": {
    "decision": {
@@ -1352,7 +1352,7 @@
    "failed_stages": [],
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 78.71459994930774
+   "duration_ms": 115.6785999191925
   }
  }
 ]

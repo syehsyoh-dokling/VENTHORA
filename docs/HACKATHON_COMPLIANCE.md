@@ -19,7 +19,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| Working demo | ✅ | `venthora-sandbox` on the real sandbox; four executed cycles, cycle 4 = the Kit 01 flow word for word |
+| Working demo | ✅ | `venthora-sandbox` on the real sandbox; nine recorded cycles (SANDBOX_RESULTS.md), cycle 4 = the Kit 01 flow word for word; `python scripts/real_suite.py` runs the whole set on the real sandbox in one command, 8 / 8 steps ([REAL_SUITE.md](REAL_SUITE.md)) |
 | Video walkthrough under 5 minutes | ⬜ | script: [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
 | Repository link with setup instructions | ✅ | https://github.com/syehsyoh-dokling/VENTHORA, README quick start |
 | Built on Airwallex APIs | ✅ | balances, rates, quotes, conversions, beneficiaries (schema/validate/create), transfers, deposits, simulation |

@@ -141,6 +141,16 @@ async def run_incident(executor, state: TreasuryState, spec: str, *, fake: bool)
     req = IncidentRequest(state=state, obligation_id=obligation_id, simulate_failure_type=failure, hours_in_flight=hours)
     try:
         result = await IncidentCommander(executor).handle(req)
+        # Real rail: the original reads FAILED first and becomes CANCELLED with its typed failure and refund a few
+        # seconds later; the incident stays open until that is on file. Ask again, as an operator would.
+        for _ in range(6 if not fake else 0):
+            if result.status != "REPLACED_AWAITING_ORIGINAL":
+                break
+            await asyncio.sleep(5)
+            result = await IncidentCommander(executor).handle(IncidentRequest(state=state, obligation_id=obligation_id,
+                                                                              hours_in_flight=hours))
+            print(f"  [follow-up] original {result.original_status}"
+                  f"{' / ' + result.original_failure_type if result.original_failure_type else ''} -> incident {result.status}")
     except (KeyError, LookupError) as exc:
         print(f"  no transfer on record for {obligation_id}: {exc}")
         return {"error": str(exc)}
@@ -304,7 +314,7 @@ async def run(args) -> int:
     load_env()
     scenario = json.loads((ROOT / "data" / "scenarios" / f"{args.scenario}.json").read_text(encoding="utf-8"))
     state = attach_budget(TreasuryState.model_validate(scenario["state"]))  # the period's plan = the agent's mandate
-    if args.fresh:  # the same scenario under new ids, so the cycle can be repeated on the real sandbox
+    if getattr(args, "fresh", False):  # the same scenario under new ids, so the cycle can be repeated on the real sandbox
         tag = fresh_tag()
         state = fresh_book(state, tag)
         if args.incident:
@@ -454,7 +464,10 @@ async def run(args) -> int:
         if args.incident:
             line("8 · Kit 03 incident: the supplier says the money never arrived")
             report["incident"] = await run_incident(executor, state, args.incident, fake=args.fake)
-            return 0 if report["incident"].get("status") in ("RESOLVED", "WAITING", "ESCALATED") else 1
+            # REPLACED_AWAITING_ORIGINAL is a correct open state (the replacement is out, the original's fate not yet
+            # on file); only an error or an unknown state is a failure of the run.
+            fine = ("RESOLVED", "WAITING", "ESCALATED", "REPLACED_AWAITING_ORIGINAL")
+            return 0 if report["incident"].get("status") in fine else 1
         return 0 if result.status == "COMPLETED" else 1
     finally:
         await agent.close()

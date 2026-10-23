@@ -302,11 +302,20 @@ class IncidentCommander:
         polled = await self.executor._poll({o.obligation_id: (key, replacement)})
         _, replacement = polled[o.obligation_id]
         after = await self.bank.balances_minor()
-        # Refund of the original (amount; the guide says budget for a second fee) and the replacement's debit.
-        expected = before.get(o.currency, 0) - replacement.amount_payer_pays_minor
-        recon = {"before_minor": before.get(o.currency, 0), "after_minor": after.get(o.currency, 0),
-                 "expected_after_minor": expected, "discrepancy_minor": after.get(o.currency, 0) - expected,
-                 "second_fee_minor": replacement.fee_minor, "refund_observed": True, "currency": o.currency,
-                 "replacement_status": replacement.status}
+        # Refund of the original (amount only; the guide says budget for a second fee) and the replacement's debit.
+        # On the real sandbox the refund lands a few seconds after the FAILED transition: it may already be in
+        # `before`, or it may arrive between `before` and `after` (observed 23 Oct 2026). Both are the same money.
+        b, a = before.get(o.currency, 0), after.get(o.currency, 0)
+        expected_refund_before = b - replacement.amount_payer_pays_minor
+        expected_refund_during = expected_refund_before + original.transfer_amount_minor
+        if a == expected_refund_before:
+            expected, timing = expected_refund_before, "refund already in the wallet before the replacement"
+        elif a == expected_refund_during:
+            expected, timing = expected_refund_during, "refund landed while the replacement was being made"
+        else:
+            expected, timing = expected_refund_before, "unexplained"
+        recon = {"before_minor": b, "after_minor": a, "expected_after_minor": expected, "discrepancy_minor": a - expected,
+                 "second_fee_minor": replacement.fee_minor, "refund_observed": timing != "unexplained",
+                 "refund_timing": timing, "currency": o.currency, "replacement_status": replacement.status}
         events.append(IncidentEvent(step="reconcile", status="OK" if recon["discrepancy_minor"] == 0 else "FAILED", detail=recon))
         return replacement, recon, replacement.status == "PAID"

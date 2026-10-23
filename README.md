@@ -141,6 +141,18 @@ With Docker (includes a real OPA sidecar):
 docker compose up --build
 ```
 
+### The whole set on the real sandbox, one command
+
+```bash
+python scripts/real_suite.py --approve "Dana"
+```
+
+Starts the service, then runs on fresh books: the Kit 01 cycle, the Kit 03 incident, the intake of the five external
+emails, both ground-truth suites (84 cases through the live service + the execution anomalies a real rail can reproduce),
+the budget suite and the budget-mandate cycle, the Rego mirror on a real OPA and the oracle audit — stopping at the first
+failure and writing [`docs/REAL_SUITE.md`](docs/REAL_SUITE.md). Last run: 8 / 8 steps (23 Oct 2026). `--fresh` on
+`venthora-sandbox` / `venthora-intake` repeats a cycle under new ids; `--from N` resumes the suite.
+
 ### Connect Airwallex sandbox
 
 ```bash

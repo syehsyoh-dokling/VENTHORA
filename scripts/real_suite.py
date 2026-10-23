@@ -65,6 +65,7 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=8010)
     ap.add_argument("--opa", default=os.environ.get("OPA_BIN"), help="official OPA binary (else the Docker image is used)")
     ap.add_argument("--skip-opa", action="store_true")
+    ap.add_argument("--from", dest="start", type=int, default=1, help="resume from step N, keeping earlier steps from the last log")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
     env = os.environ.copy()
@@ -97,7 +98,13 @@ def main() -> int:
             opa_env = env | ({"OPA_BIN": args.opa} if args.opa else {})
             steps.append(("6a Rego mirror on a real OPA", [PY, "scripts/check_policy_mirror.py"], opa_env))
         steps.append(("6b Oracle audit", [PY, "scripts/oracle_audit.py"]))
-        for step in steps:
+        if args.start > 1:
+            previous = json.loads((ROOT / "docs" / "real_suite_log.json").read_text(encoding="utf-8"))["steps"]
+            log["steps"] = [s for s in previous[: args.start - 1] if s["ok"]]
+            log["resumed_from"] = args.start
+        for n, step in enumerate(steps, 1):
+            if n < args.start:
+                continue
             name, cmd, step_env = (step + (env,))[:3]
             rec = run_step(name, cmd, step_env)
             log["steps"].append(rec)
