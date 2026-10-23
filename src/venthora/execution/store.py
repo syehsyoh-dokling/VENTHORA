@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS payouts (
     status TEXT NOT NULL, transfer_id TEXT, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS used_quotes (
     quote_id TEXT PRIMARY KEY, execution_id TEXT NOT NULL, used_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS counted_deposits (
+    deposit_id TEXT PRIMARY KEY, receivable_id TEXT NOT NULL, amount_minor INTEGER NOT NULL,
+    currency TEXT NOT NULL, execution_id TEXT, counted_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS observed_fees (
+    fee_key TEXT PRIMARY KEY, fee_minor INTEGER NOT NULL, transfer_id TEXT, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS beneficiaries (
     internal_id TEXT PRIMARY KEY, airwallex_id TEXT NOT NULL, created_at TEXT NOT NULL);
 """
@@ -151,6 +156,44 @@ class ExecutionStore:
                 c.execute("INSERT INTO used_quotes VALUES (?, ?, ?)", (quote_id, execution_id, _now()))
         except sqlite3.IntegrityError as exc:
             raise QuoteReused(f"quote {quote_id} was already booked") from exc
+
+    def counted_deposits(self) -> set[str]:
+        with self._lock, self._connect() as c:
+            return {r["deposit_id"] for r in c.execute("SELECT deposit_id FROM counted_deposits")}
+
+    def count_deposit(self, deposit_id: str, receivable_id: str, amount_minor: int, currency: str,
+                      execution_id: str | None) -> None:
+        """A deposit is counted into the budget once, when an execution built on it completes."""
+        with self._lock, self._connect() as c:
+            c.execute("INSERT OR IGNORE INTO counted_deposits VALUES (?, ?, ?, ?, ?, ?)",
+                      (deposit_id, receivable_id, amount_minor, currency, execution_id, _now()))
+
+    def record_fee(self, fee_key: str, fee_minor: int, transfer_id: str) -> None:
+        """Keep the highest fee Airwallex actually charged per 'METHOD:CCY' (conservative)."""
+        with self._lock, self._connect() as c:
+            c.execute("INSERT INTO observed_fees VALUES (?, ?, ?, ?) ON CONFLICT(fee_key) DO UPDATE SET"
+                      " fee_minor = MAX(fee_minor, excluded.fee_minor), transfer_id = excluded.transfer_id,"
+                      " updated_at = excluded.updated_at", (fee_key, fee_minor, transfer_id, _now()))
+
+    def observed_fees(self) -> dict[str, int]:
+        with self._lock, self._connect() as c:
+            return {r["fee_key"]: r["fee_minor"] for r in c.execute("SELECT fee_key, fee_minor FROM observed_fees")}
+
+    def last_managed_budget(self) -> tuple[str, dict[str, int]] | None:
+        """(execution_id, managed budget after) of the most recent reconciled execution."""
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT execution_id, result_json FROM executions WHERE result_json IS NOT NULL"
+                             " ORDER BY updated_at DESC").fetchall()
+        for r in rows:
+            recon = (json.loads(r["result_json"]) or {}).get("reconciliation") or {}
+            if recon.get("managed_after_minor"):
+                return r["execution_id"], recon["managed_after_minor"]
+        return None
+
+    def paid_payouts(self) -> dict[str, dict]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT * FROM payouts WHERE status = 'PAID'").fetchall()
+        return {r["payout_key"]: dict(r) for r in rows}
 
     def beneficiary(self, internal_id: str) -> str | None:
         with self._lock, self._connect() as c:

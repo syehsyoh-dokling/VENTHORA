@@ -15,7 +15,10 @@ def obligation_needs(o: Obligation, state: TreasuryState) -> dict[str, int]:
     """Cash each currency wallet must supply for one payout, fees included."""
     needs: dict[str, int] = defaultdict(int)
     needs[o.currency] += o.amount_minor
-    if o.payout_method == "SWIFT":
+    observed = state.policy.payout_fees_minor.get(f"{o.payout_method}:{o.currency}")
+    if observed is not None:  # Airwallex charges the fee in the source (= payout) currency
+        needs[o.currency] += observed
+    elif o.payout_method == "SWIFT":  # Kit 01 guidance: flat EUR 12.85 per SWIFT payout
         needs[state.policy.swift_fee_currency] += state.policy.swift_fee_minor
     return dict(needs)
 

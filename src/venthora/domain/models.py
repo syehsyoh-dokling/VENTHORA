@@ -64,7 +64,11 @@ class TreasuryPolicy(StrictModel):
     autonomous_conversion_limit_minor: int = Field(ge=0, le=MAX_MINOR)
     low_confidence_conversion_limit_minor: int = Field(ge=0, le=MAX_MINOR)
     swift_fee_currency: Currency = "EUR"
-    swift_fee_minor: int = Field(default=1_285, ge=0)
+    swift_fee_minor: int = Field(default=1_285, ge=0, description="Kit 01 flat SWIFT fee (guide)")
+    payout_fees_minor: dict[str, int] = Field(
+        default_factory=dict,
+        description="per-payout fee by 'METHOD:CCY' (e.g. 'SWIFT:EUR', 'LOCAL:USD'), charged in that currency; "
+                    "overrides the flat Kit fee. Filled from fees observed on Airwallex.")
     planning_horizon_hours: int = Field(default=72, ge=1, le=720)
     approver_roles: list[str] = Field(default_factory=lambda: ["finance_manager"])
 
@@ -89,6 +93,8 @@ class TreasuryState(StrictModel):
     policy: TreasuryPolicy
     actor_role: Literal["treasury_agent", "finance_manager", "viewer"] = "treasury_agent"
     use_ecb_stress: bool = False
+    fx_stress_model: Literal["horizon_m0", "ecb_empirical"] = Field(
+        default="horizon_m0", description="horizon_m0 = original Horizon scenario engine; ecb_empirical = 5-day p95")
 
     @model_validator(mode="after")
     def consistent(self):
@@ -150,6 +156,34 @@ class ObligationDecision(StrictModel):
     reason: str
 
 
+class PlanChange(StrictModel):
+    obligation_id: str
+    before: Action | None
+    after: Action
+    reason: str
+
+
+class Counterfactual(StrictModel):
+    """An alternative the agent did not take, proven against the same invariants as the plan."""
+    name: str
+    question: str
+    pays: list[str]
+    feasible: bool
+    base_after_minor: int
+    floor_minor: int
+    headroom_minor: int = Field(description="base balance after minus floor; negative = reserve breach")
+    consequence: str
+
+
+class Recalculation(StrictModel):
+    mode: Literal["full", "incremental"]
+    triggers: list[str]
+    locked: list[str]
+    reconsidered: list[str]
+    changes: list[PlanChange]
+    fallback_reason: str | None = None
+
+
 class PlanResult(StrictModel):
     case_id: str
     plan_hash: str = Field(description="sha256 of state + decisions; an approval binds to exactly this plan")
@@ -162,4 +196,6 @@ class PlanResult(StrictModel):
     solver: str
     stages: list[StageResult]
     explanation: list[str]
+    counterfactuals: list[Counterfactual] = Field(default_factory=list)
+    recalculation: Recalculation | None = None
     duration_ms: float

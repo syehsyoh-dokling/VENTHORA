@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -19,6 +20,8 @@ from pydantic import BaseModel, Field  # noqa: E402
 
 from .config import env  # noqa: E402
 from .domain.models import PlanResult, TreasuryState  # noqa: E402
+from .engines.llm_planner import llm_proposal  # noqa: E402
+from .evidence.llm import ChatModel  # noqa: E402
 from .execution.executor import Executor  # noqa: E402
 from .execution.live import with_live_balances_and_rates  # noqa: E402
 from .execution.models import ExecutionRequest, ExecutionResult  # noqa: E402
@@ -34,8 +37,20 @@ async def lifespan(app: FastAPI):
     app.state.agent = Orchestrator()
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
+    await asyncio.to_thread(_warm_horizon)
     yield
     await app.state.agent.close()
+
+
+def _warm_horizon() -> None:
+    """Compute Horizon's daily FX stress once at startup so requests stay in milliseconds."""
+    from .data.ecb import ecb_path
+    from .engines.horizon_m0 import fx_stress_ppm
+
+    if ecb_path().is_file():
+        for ccy in ("EUR", "GBP"):
+            with contextlib.suppress(Exception):  # best effort; the request path fails closed on its own
+                fx_stress_ppm(ccy, "USD")
 
 
 def _bank():
@@ -108,6 +123,41 @@ async def plan(state: TreasuryState):
     return result
 
 
+class ReplanRequest(BaseModel):
+    state: TreasuryState
+    previous_state: TreasuryState
+    previous_plan: PlanResult
+
+
+@app.post("/v1/plans/replan", response_model=PlanResult)
+async def replan(req: ReplanRequest):
+    """New information arrived: recalculate only the decisions it affects, with a decision diff."""
+    result = await app.state.agent.decide(req.state, previous=(req.previous_state, req.previous_plan))
+    await asyncio.to_thread(app.state.audit.append, "replan", {
+        "state": req.state.model_dump(), "previous_plan_hash": req.previous_plan.plan_hash,
+        "result": result.model_dump()})
+    return result
+
+
+class ChallengeRequest(BaseModel):
+    state: TreasuryState
+    proposal: list[str] | None = Field(default=None, description="obligation ids to pay; omit to ask the LLM")
+    source: str = Field(default="external recommendation", max_length=120)
+
+
+@app.post("/v1/plans/challenge", response_model=PlanResult)
+async def challenge(req: ChallengeRequest):
+    """Run an outside recommendation (yours, or the LLM's) through Verity, Horizon and ProofCore."""
+    if req.proposal is None:
+        proposal, source = await llm_proposal(req.state, ChatModel())
+    else:
+        proposal, source = req.proposal, req.source
+    result = await app.state.agent.challenge(req.state, proposal, source)
+    await asyncio.to_thread(app.state.audit.append, "challenge", {
+        "source": source, "proposal": proposal, "decision": result.decision})
+    return result
+
+
 @app.get("/api/audit")
 async def audit(limit: int = Query(20, ge=1, le=200)):
     store = app.state.audit
@@ -175,7 +225,7 @@ async def simulate_deposit(req: DepositRequest):
     """Sandbox: simulate an incoming customer payment (Kit 01 'simulate the deposit')."""
     account = req.global_account_id or env("AIRWALLEX_GLOBAL_ACCOUNT_ID")
     if not account:
-        raise HTTPException(400, "set AIRWALLEX_GLOBAL_ACCOUNT_ID or pass global_account_id")
+        raise HTTPException(400, "set AWX_GLOBAL_ACCOUNT_ID or pass global_account_id")
     try:
         result = await _bank().simulate_deposit(global_account_id=account, amount_minor=req.amount_minor,
                                                 payer_name=req.payer_name)

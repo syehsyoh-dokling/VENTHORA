@@ -48,21 +48,31 @@ def _cost(state: TreasuryState, items: list[Obligation], bits) -> int:
     return total
 
 
-def _solve_exact(state: TreasuryState, items: list[Obligation], budget: int) -> tuple[list[str], str]:
+def _solve_exact(state: TreasuryState, items: list[Obligation], budget: int,
+                 locked: frozenset[str] = frozenset()) -> tuple[list[str], str] | None:
+    """Best selection that keeps every `locked` obligation paid; None if that is infeasible."""
     scores = _scores(items)
-    best, best_bits = -1, ()
+    best, best_bits = -1, None
     for bits in product((0, 1), repeat=len(items)):
+        if any(o.obligation_id in locked and not b for o, b in zip(items, bits, strict=True)):
+            continue
         score = sum(s for s, b in zip(scores, bits, strict=True) if b)
         if score > best and _cost(state, items, bits) <= budget:
             best, best_bits = score, bits
+    if best_bits is None:
+        return None
     return [o.obligation_id for o, b in zip(items, best_bits, strict=True) if b], "exact-enumeration"
 
 
-def _solve_cp_sat(state: TreasuryState, items: list[Obligation], budget: int) -> tuple[list[str], str]:
+def _solve_cp_sat(state: TreasuryState, items: list[Obligation], budget: int,
+                  locked: frozenset[str] = frozenset()) -> tuple[list[str], str] | None:
     from ortools.sat.python import cp_model
 
     model = cp_model.CpModel()
     x = [model.new_bool_var(f"x_{i}") for i in range(len(items))]
+    for o, xi in zip(items, x, strict=True):
+        if o.obligation_id in locked:
+            model.add(xi == 1)
     needs = [obligation_needs(o, state) for o in items]
     base_terms = [n.get(state.base_currency, 0) * xi for n, xi in zip(needs, x, strict=True)]
     currencies = sorted({c for n in needs for c in n} - {state.base_currency})
@@ -79,28 +89,44 @@ def _solve_cp_sat(state: TreasuryState, items: list[Obligation], budget: int) ->
     solver.parameters.max_time_in_seconds = 2.0
     solver.parameters.num_search_workers = 1
     status = solver.solve(model)
+    if status == cp_model.INFEASIBLE and locked:
+        return None
     if status != cp_model.OPTIMAL:
         raise RuntimeError(f"CP-SAT status {solver.status_name(status)}")
     return [o.obligation_id for o, xi in zip(items, x, strict=True) if solver.value(xi)], "ortools-cp-sat-optimal"
 
 
 async def theorem(state: TreasuryState, eligible: dict[str, Obligation], rejected: dict[str, str],
-                  risk: HorizonResult) -> TheoremResult:
+                  risk: HorizonResult, locked: set[str] | None = None) -> TheoremResult:
+    """Plan. With `locked`, keep those payment decisions and re-optimise only the open ones."""
     started = perf_counter()
     budget = max(0, state.balance(state.base_currency) - state.policy.reserve_floor_minor - risk.stress_minor)
     items = sorted(eligible.values(), key=lambda o: o.obligation_id)
     try:
         import ortools  # noqa: F401
+        solve = _solve_cp_sat
     except ImportError:
-        selected, solver = await asyncio.to_thread(_solve_exact, state, items, budget)
+        solve = _solve_exact
+
+    keep = frozenset(locked or set()) & set(eligible)
+    # A re-plan with nothing left to keep (e.g. every earlier payment already settled) is still incremental.
+    recalc = {"mode": "incremental" if locked is not None and not keep else "full", "locked": [], "fallback_reason": None}
+    result = await asyncio.to_thread(solve, state, items, budget, keep) if keep else None
+    if result is not None:
+        recalc = {"mode": "incremental", "locked": sorted(keep), "fallback_reason": None}
     else:
-        selected, solver = await asyncio.to_thread(_solve_cp_sat, state, items, budget)
+        if keep:
+            recalc["fallback_reason"] = "keeping the earlier payments no longer fits the budget; full recalculation"
+        result = await asyncio.to_thread(solve, state, items, budget)
+    selected, solver = result
 
     decisions = classify(state, selected, eligible, rejected, risk)
     summary = f"pay {len(selected)} of {len(eligible)} verified obligations within {budget} minor budget"
+    if recalc["mode"] == "incremental":
+        summary += f"; {len(keep)} earlier decisions kept, {len(eligible) - len(keep)} re-optimised"
     return TheoremResult(selected, decisions, solver, budget, StageResult(
         engine="Theorem · optimizer", status="INFO", summary=summary,
-        details={"selected": selected, "budget_minor": budget, "solver": solver,
+        details={"selected": selected, "budget_minor": budget, "solver": solver, "recalculation": recalc,
                  "actions": {d.obligation_id: d.action for d in decisions}},
         duration_ms=(perf_counter() - started) * 1000))
 

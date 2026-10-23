@@ -4,7 +4,6 @@ from decimal import Decimal
 
 import httpx
 import pytest
-from fake_airwallex import FakeAirwallex
 
 from conftest import scenario
 from venthora.audit import AuditStore
@@ -16,6 +15,7 @@ from venthora.execution.store import ExecutionStore
 from venthora.gateways.airwallex import PRODUCTION_URL, SANDBOX_URL, Airwallex, AirwallexError
 from venthora.orchestrator import Orchestrator
 from venthora.proofcore.gate import ProofCore
+from venthora.testing.fake_airwallex import FakeAirwallex
 
 FINANCE_MANAGER = Approval(approver="Dana (Head of Finance)", role="finance_manager")
 
@@ -75,7 +75,7 @@ def test_baseline_executes_converts_pays_and_reconciles(tmp_path):
     assert recon.discrepancies_minor == {}
     assert recon.live_after_minor == {"USD": 2_000_000 - 435_394 - 800_000 - 120_000, "EUR": 0, "GBP": 0}
     assert recon.base_floor_ok and recon.live_after_minor["USD"] >= recon.base_floor_minor
-    assert "reserve confirmed" in result.message
+    assert "confirmed at USD 6,446.06" in result.message
     assert executor.audit.verify()["verified"]
 
 

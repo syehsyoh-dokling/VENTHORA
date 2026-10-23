@@ -11,3 +11,4 @@ data/imports/*
 native/*.so
 native/*.dll
 native/*.dylib
+data/runs/

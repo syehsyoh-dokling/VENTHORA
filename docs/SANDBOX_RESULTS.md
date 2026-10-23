@@ -1,0 +1,66 @@
+# Real Airwallex sandbox results (23 Oct 2026)
+
+These runs went against `https://api.sandbox.airwallex.com` using simulated money only. Run reports
+are written to `data/runs/` (git-ignored; IDs below are copied from them). The approver was a
+person acting as finance manager.
+
+## Cycle 1: plan, approve, convert, pay, reconcile
+
+| Step | Result |
+|---|---|
+| Inbox | Local Qwen2.5-0.5B read the Acme delay email; Verity verified the citation; receipt 24h/90% → 144h/40% |
+| Plan | `REQUIRES_APPROVAL`: conversion above the low-confidence limit, VENDOR-UK escalated |
+| Quote | EUR 4,012.85 for USD 4,551.54 at 1.134241 (within slippage of the 4,547.94 estimate) |
+| Conversion | `87e36310-…` **SETTLED** |
+| Transfers | PAYROLL-USD `82b441f6-…`, SUPPLIER-EU `5e333106-…` (SWIFT), SAAS-USD `dae0c920-…`: created as `SCHEDULED`, simulated SENT → **PAID** |
+| Reconciliation | live balances equal to expected (no discrepancy); reserve held: USD 6,242.46 ≥ 6,135.03 |
+
+## Cycle 2: what was learned, and a recommendation refused
+
+- The paid invoices were recognised as settled. Learned fees were applied. The budget continued at
+  USD 6,242.46.
+- **The local LLM recommended paying PAYROLL-USD and SAAS-USD again. ProofCore BLOCKED it:** both
+  are already settled and not payable, the USD wallet would go negative, and the reserve would be
+  breached.
+- A USD Global Account was created (`2d8a3a52-…`, ACTIVE). The simulated deposit was *not yet
+  visible* when first checked, so it was correctly **not counted**.
+- The plan moved no money (escalation only), so nothing was executed.
+
+## Cycle 3: the delayed receipt lands, recalculate, execute
+
+| Step | Result |
+|---|---|
+| Deposit | Airwallex deposit `f251d8f6-…` from Acme Retail Ltd, USD 10,000, **SETTLED**, found through `GET /api/v1/deposits` and not deposited twice |
+| Recalculation | VENDOR-UK `ESCALATE → CONVERT_AND_PAY`; the plan is now `APPROVED` within the autonomous limit |
+| Conversion | GBP 3,000 → `8a7e71dc-…` **SETTLED** |
+| Transfer | VENDOR-UK `9e401900-…` **PAID** |
+| Reconciliation | no discrepancy; reserve held: USD 12,177.51 ≥ 6,135.05 |
+
+## Findings the sandbox revealed (and the fixes)
+
+| Assumption (guide / fake) | Real sandbox | Fix |
+|---|---|---|
+| Flat EUR 12.85 per SWIFT payout | **EUR 13.37** | fees observed per `METHOD:CCY` are stored and used by later plans |
+| LOCAL payouts are free | **USD 3.00**, **GBP 2.24** per LOCAL payout | same; plan-vs-actual variance reported in the reconciliation |
+| Deposit balance appears immediately | the deposit settled **after** the first check | the receipt counts only when the deposit record says `SETTLED` (`/api/v1/deposits`), with polling and reuse of a settled, uncounted deposit |
+| Deposit lands in USD | to the HK Global Account it landed in **HKD** (the account's primary currency) | only accounts whose primary currency is USD are used; a US USD account is created if none exists |
+| New transfer is `PROCESSING` | `SCHEDULED` | treated as in flight, like every non-terminal status |
+| Quote is single-use | returned as `MULTI_USE` | VENTHORA still books each quote once (used-quote registry) |
+
+The fee difference showed up as exactly what reconciliation is for: the live wallet matched to
+the cent, while the **managed budget** ended a few cents to a few dollars below the plan (EUR
+−0.52, GBP −2.24). VENTHORA reports this as `budget exceeded by …`, learns the real fee, and
+the next plan includes it.
+
+## Speed
+
+| Path | Measured |
+|---|---|
+| Local decision loop: Verity → Horizon → Theorem (CP-SAT) → ProofCore → counterfactuals | **p50 2.7 ms, p99 4.5 ms** (`python scripts/benchmark.py`, 300 runs) |
+| Re-plan on the real sandbox (live balances read included) | **85 ms**, of which about 77 ms is the Airwallex network round trip |
+| Horizon M0 FX stress | 428 ms the first time per day (ECB file); **0.04 ms** cached afterwards; warmed at API start |
+| Local LLM inbox read (Qwen2.5-0.5B, RTX 4060) | about 2.8 s |
+| End-to-end execution (quotes, conversion, beneficiaries, transfers, settlement, reconciliation) | seconds: bounded by sequential Airwallex calls and status polling |
+
+The decision itself runs at millisecond speed. What remains is time spent waiting on the bank and
+on the language model.

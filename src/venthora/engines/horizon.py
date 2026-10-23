@@ -16,6 +16,7 @@ from ..data.ecb import fx_stress_ppm
 from ..domain.models import Obligation, StageResult, TreasuryState
 from ..domain.money import apply_ppm_up, cost_in_base, value_in_base
 from ..domain.projection import obligation_needs
+from . import horizon_m0
 
 
 @dataclass
@@ -50,8 +51,12 @@ async def horizon(state: TreasuryState, eligible: dict[str, Obligation] | None =
                 if ccy != state.base_currency:
                     exposure[ccy] = exposure.get(ccy, 0) + amount
         ecb = {}
+        model = horizon_m0.fx_stress_ppm if state.fx_stress_model == "horizon_m0" else fx_stress_ppm
         for ccy, amount in sorted(exposure.items()):
-            result = await asyncio.to_thread(fx_stress_ppm, ccy, state.base_currency)
+            try:
+                result = await asyncio.to_thread(model, ccy, state.base_currency)
+            except Exception as exc:  # the original engine refused the series: fail closed
+                result = {"available": False, "stress_ppm": 0, "reason": f"{type(exc).__name__}: {exc}"}
             ecb[ccy] = result
             if not result["available"]:
                 status = "FAIL"
@@ -59,7 +64,7 @@ async def horizon(state: TreasuryState, eligible: dict[str, Obligation] | None =
                 continue
             add_on = apply_ppm_up(cost_in_base(amount, state.ppm_up(ccy)), result["stress_ppm"])
             stress += add_on
-            notes.append(f"{ccy} exposure: +{add_on} minor stress (p95 adverse 5-day move)")
+            notes.append(f"{ccy} exposure: +{add_on} minor stress ({result.get('method', 'p95 adverse move')})")
 
     views = []
     for r in sorted(state.receivables, key=lambda x: x.expected_in_hours):

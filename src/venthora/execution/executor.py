@@ -149,8 +149,14 @@ class Executor:
                 status, message = "RECONCILIATION_MISMATCH", "live balances differ from expected or reserve breached"
             else:
                 base = state.base_currency
-                message = (f"executed and reconciled; {base} reserve confirmed at "
-                           f"{fmt(recon.live_after_minor.get(base, 0), base)} >= {fmt(recon.base_floor_minor, base)}")
+                message = (f"executed and reconciled; {base} reserve (managed budget) confirmed at "
+                           f"{fmt(recon.managed_after_minor.get(base, 0), base)} >= {fmt(recon.base_floor_minor, base)}")
+                if recon.plan_variance_minor:
+                    message += ("; variance vs plan " + ", ".join(fmt(v, c) for c, v in sorted(recon.plan_variance_minor.items()))
+                                + " (actual Airwallex fees; learned for the next plan)")
+                over = {c: v for c, v in recon.managed_after_minor.items() if v < 0}
+                if over:
+                    message += "; budget exceeded by " + ", ".join(fmt(-v, c) for c, v in sorted(over.items()))
 
         result = ExecutionResult(execution_id=eid, plan_hash=plan.plan_hash, status=status, message=message,
                                  steps=steps, reconciliation=recon)
@@ -283,6 +289,8 @@ class Executor:
         if transfer is None:
             transfer = await self._create_transfer(op, o, payout_key, steps)
         self.store.update_operation(op["op_key"], "SUCCEEDED", transfer.transfer_id, transfer.raw)
+        self.store.record_fee(f"{o.payout_method}:{transfer.source_currency or o.currency}", transfer.fee_minor,
+                              transfer.transfer_id)
         self.store.settle_payout(payout_key, "IN_FLIGHT", transfer.transfer_id)
         steps.append(Step(kind="transfer", key=o.obligation_id, status="OK", request_id=op["request_id"],
                           airwallex_id=transfer.transfer_id, detail={
@@ -373,13 +381,22 @@ class Executor:
             steps.append(Step(kind="reconcile", key="balances", status="FAILED", detail={"error": str(exc)}))
             live = {}
         diffs = {c: live.get(c, 0) - v for c, v in expected.items() if live.get(c, 0) != v}
+        # The managed budget (the plan's balances, possibly ring-fenced below the wallet) moves by
+        # exactly what moved in the live wallet; the reserve floor is checked on that budget.
+        managed = {c: v + live.get(c, 0) - before.get(c, 0) for c, v in state.balances.items()} if live else {}
+        # Plan vs actual: what the plan projected for the budget, against what really moved
+        # (e.g. a fee Airwallex charged that the plan did not assume).
+        gate = next((s for s in plan.stages if s.engine == "ProofCore · invariants"), None)
+        planned = (gate.details.get("balances_after") if gate else None) or {}
+        variance = {c: managed[c] - planned[c] for c in managed if c in planned and managed[c] != planned[c]}
         base = state.base_currency
-        floor_ok = live.get(base, 0) >= plan.required_base_floor_minor if live else False
+        floor_ok = managed.get(base, 0) >= plan.required_base_floor_minor if live else False
         steps.append(Step(kind="reconcile", key="balances", status="OK" if not diffs and floor_ok else "FAILED", detail={
-            "expected_minor": expected, "live_minor": live, "discrepancies_minor": diffs, "base_floor_ok": floor_ok}))
+            "expected_minor": {c: expected[c] for c in state.balances if c in expected}, "discrepancies_minor": diffs,
+            "managed_after_minor": managed, "plan_variance_minor": variance, "base_floor_ok": floor_ok}))
         return Reconciliation(balances_before_minor=before, expected_after_minor=expected, live_after_minor=live,
-                              discrepancies_minor=diffs, base_floor_minor=plan.required_base_floor_minor,
-                              base_floor_ok=floor_ok)
+                              managed_after_minor=managed, plan_variance_minor=variance, discrepancies_minor=diffs,
+                              base_floor_minor=plan.required_base_floor_minor, base_floor_ok=floor_ok)
 
     @staticmethod
     async def _find(finder, request_id: str):

@@ -21,5 +21,18 @@ def load_env(path: Path | None = None) -> None:
             os.environ.setdefault(key, value.strip().strip("'\""))
 
 
+# The organizers' guide (airwallexdev.com/guide) names the sandbox credentials AWX_CLIENT_ID and
+# AWX_API_KEY. Those are the primary names; the longer AIRWALLEX_* names are accepted as aliases.
+ALIASES = {
+    "AIRWALLEX_CLIENT_ID": "AWX_CLIENT_ID",
+    "AIRWALLEX_API_KEY": "AWX_API_KEY",
+    "AIRWALLEX_BASE_URL": "AWX_BASE_URL",
+    "AIRWALLEX_GLOBAL_ACCOUNT_ID": "AWX_GLOBAL_ACCOUNT_ID",
+}
+
+
 def env(name: str, default: str = "") -> str:
-    return os.getenv(name, default).strip()
+    value = os.getenv(name, "").strip()
+    if not value and name in ALIASES:
+        value = os.getenv(ALIASES[name], "").strip()
+    return value or default

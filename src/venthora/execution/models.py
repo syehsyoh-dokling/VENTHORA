@@ -35,6 +35,10 @@ class Reconciliation(StrictModel):
     balances_before_minor: dict[str, int]
     expected_after_minor: dict[str, int]
     live_after_minor: dict[str, int]
+    managed_after_minor: dict[str, int] = Field(
+        default_factory=dict, description="the plan's (possibly ring-fenced) budget after execution")
+    plan_variance_minor: dict[str, int] = Field(
+        default_factory=dict, description="managed budget after minus what the plan projected (e.g. unexpected fees)")
     discrepancies_minor: dict[str, int]
     base_floor_minor: int
     base_floor_ok: bool

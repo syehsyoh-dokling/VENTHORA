@@ -30,10 +30,12 @@ flowchart LR
 
 | Engine | Answers | How |
 |---|---|---|
-| **Verity** | Which obligations are backed by trustworthy evidence? | Matches every obligation to its document; rejects settled records, unverified evidence and duplicate invoice fingerprints |
-| **Horizon** | What could change before money moves? | Stress buffer from scenarios plus optional empirical FX stress (p95 adverse 5-day move from ECB history); classifies receipts as reliable or not |
-| **Theorem** | What is the best feasible plan? | Exact integer optimization (OR-Tools CP-SAT, or exact enumeration) with strict priority, FX conversion cost and SWIFT fees; defers when a reliable receipt lands first, otherwise escalates |
-| **ProofCore** | Is this action safe to execute? | Recomputes post-action balances independently, then checks invariants, policy (local and OPA, which must agree), live Airwallex balances and the TigerBeetle ledger. Any failure blocks |
+| **Verity** | Which obligations and receipts are backed by trustworthy evidence? | Matches every obligation to its document and rejects settled records, unverified evidence and duplicate invoice fingerprints. A language model reads the inbox; the original Verity corpus, BM25 retriever and citation validator decide whether its claim is cited and pre-embargo |
+| **Horizon** | What could change before money moves? | The original Horizon M0 scenario engine draws seeded joint EUR/USD and GBP/USD paths from ECB history; the p95 adverse 3-business-day move becomes the FX stress buffer. It also classifies receipts as reliable or not |
+| **Theorem** | What is the best feasible plan? | Exact integer optimization (OR-Tools CP-SAT, or exact enumeration) with strict priority, FX conversion cost and SWIFT fees. It defers when a reliable receipt lands first and escalates otherwise. The original Theorem quant toolkit independently nets every conversion leg |
+| **ProofCore** | Is this action safe to execute? | Recomputes post-action balances independently, then checks invariants, policy (local and OPA, which must agree), live Airwallex balances and the TigerBeetle ledger. Any failure blocks. This is SeismoForge's evidence-gate pattern, applied to finance |
+
+The original engines are vendored unmodified, with SHA-256 provenance and a test that fails if they change: [`src/venthora/originals/PROVENANCE.md`](src/venthora/originals/PROVENANCE.md).
 
 **Design rule (following the organizers' guidance):** amounts, limits, reserves, duplicate protection and state transitions live in code. The model reads unstructured text, compares evidence and explains. It never sets an amount or holds credentials.
 
@@ -70,6 +72,27 @@ uvicorn venthora.api:app --reload
 
 Open http://127.0.0.1:8000/docs and call `POST /api/scenarios/kit01_baseline/plan`, then `POST /api/scenarios/kit01_receipt_delayed/plan`.
 
+### Run the whole agent loop: `venthora-sandbox`
+
+```bash
+python scripts/import_ecb.py                                   # real FX history for Horizon (once)
+python scripts/local_llm_server.py --port 8001                 # optional: local LLM (needs torch + transformers)
+venthora-sandbox --fake --approve "Dana"                       # offline, in-process fake sandbox
+venthora-sandbox --deposit 1000000 --approve "Dana"            # real Airwallex sandbox (.env credentials)
+```
+
+One command runs the steps below and writes a JSON run report to `data/runs/`:
+
+1. Simulate the customer deposit.
+2. Ground the scenario in live balances and rates.
+3. Read the inbox: the LLM proposes, Verity verifies.
+4. Apply Horizon's FX stress, plan with Theorem and prove with ProofCore.
+5. Ask a finance manager to approve, if the plan needs it.
+6. Execute on Airwallex.
+7. Reconcile and confirm the reserve.
+
+The LLM is any OpenAI-compatible endpoint (`MODEL_ENDPOINT`, `MODEL_NAME`, `MODEL_TOKEN`). `scripts/local_llm_server.py` serves a model from the local Hugging Face cache, by default `Qwen/Qwen2.5-0.5B-Instruct` on GPU. Without an endpoint, a deterministic lexicon reader is used. The model can only *propose* a delay. Code locates its quote in the email, and the original Verity validator checks the citation and the embargo. The delay figure must be written in the cited span. Unverified bad news lowers reliance on the receipt; it never makes a receipt earlier or more certain.
+
 With Docker (includes a real OPA sidecar):
 
 ```bash
@@ -79,14 +102,14 @@ docker compose up --build
 ### Connect Airwallex sandbox
 
 ```bash
-cp .env.example .env    # then fill AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY (sandbox keys only)
+cp .env.example .env    # then fill AWX_CLIENT_ID and AWX_API_KEY (sandbox keys only, names as in the organizers' guide)
 ```
 
 With credentials set, ProofCore cross-checks every plan against live sandbox balances (`GET /api/v1/balances/current`). `GET /api/airwallex/balances` shows them.
 
 ### Execute on the sandbox (Kit 01 end to end)
 
-1. `POST /api/sandbox/deposits` `{"amount_minor": 1000000}`: simulate the customer receipt landing (needs `AIRWALLEX_GLOBAL_ACCOUNT_ID`; list accounts with `GET /api/airwallex/global-accounts`).
+1. `POST /api/sandbox/deposits` `{"amount_minor": 1000000}`: simulate the customer receipt landing (needs `AWX_GLOBAL_ACCOUNT_ID`; list accounts with `GET /api/airwallex/global-accounts`).
 2. `POST /api/scenarios/kit01_baseline/live-state`: obligations grounded in live balances and indicative rates.
 3. `POST /v1/plans` with that state: review the plan and copy its `plan_hash`.
 4. `POST /v1/executions` `{"state": ..., "plan_hash": ..., "approval": {"approver": "...", "role": "finance_manager"}}`. The `approval` is only needed for `REQUIRES_APPROVAL` plans.
@@ -137,9 +160,12 @@ pytest -q
 ruff check src tests scripts
 ```
 
-The 70 tests cover:
+The 95 tests cover:
 
 - planning: the full Kit 01 flow, 40 randomized states that must never breach the reserve, CP-SAT vs exact-solver agreement
+- real-sandbox findings: fee variance and learning, settled invoices never re-proposed, budget carried forward
+- differentiators: incremental recalculation (locked decisions, full fallback, diff), counterfactual proof, AI challenger blocked or approved by the same gate
+- original engines: unmodified-hash check, Horizon M0 stress flowing into the plan, Theorem leg netting, Verity accepting a cited delay and rejecting invented figures, invented quotes and embargoed email, lexicon fallback, and an end-to-end CLI run
 - safety: duplicate-payment defense, remote engines that try to approve rejected invoices, fail-closed behavior, audit-chain tamper detection
 - execution against a stateful fake Airwallex sandbox ([`tests/fake_airwallex.py`](tests/fake_airwallex.py)), which models single-use quotes, `duplicate_request_id`, the EUR 12.85 SWIFT fee, the transfer lifecycle and refunds:
   - end-to-end conversion and payout with reconciliation
@@ -172,11 +198,11 @@ docs/            architecture, hackathon compliance, demo script
 - [x] Airwallex execution tools: FX quote → conversion → transfer, single-use quotes, persisted `request_id`
 - [x] Sandbox simulation: deposit + transfer transition; post-execution reconciliation
 - [x] Human approval for `REQUIRES_APPROVAL` plans, bound to `plan_hash`
-- [ ] Run end to end against the real Airwallex sandbox (validated so far against a stateful fake)
-- [ ] LLM evidence reader: turns the customer's delay email into a typed receivable update
+- [x] Run end to end against the real Airwallex sandbox: three cycles, see docs/SANDBOX_RESULTS.md
+- [x] LLM evidence reader (local Qwen or any OpenAI-compatible model), verified by the original Verity validator
 - [ ] Treasury dashboard for the demo video
 
-Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md).
+Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).
 
 ## License
 

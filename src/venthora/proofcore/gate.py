@@ -13,6 +13,7 @@ from time import perf_counter
 
 from ..domain.models import Conversion, ObligationDecision, StageResult, TreasuryState
 from ..domain.projection import Projection, project
+from ..engines.theorem_fx import check_conversion_legs
 from ..gateways.airwallex import Airwallex
 from ..gateways.native import native_gate
 from ..gateways.opa import OPA
@@ -60,7 +61,8 @@ class ProofCore:
         fingerprints = [by_id[i].invoice_fingerprint for i in selected if i in by_id and by_id[i].invoice_fingerprint]
         if len(fingerprints) != len(set(fingerprints)):
             structural.append("two selected obligations share an invoice fingerprint")
-        proj = Projection({}, [], {}, 0, structural) if structural else project(state, selected)
+        # Project even a structurally invalid proposal so every reason it fails is reported.
+        proj = project(state, [i for i in dict.fromkeys(selected) if i in by_id])
 
         base_after = proj.balances_after.get(base, state.balance(base))
         # The floor binds any plan that spends base cash; a plan funded entirely from
@@ -79,6 +81,12 @@ class ProofCore:
                           "balances_after": proj.balances_after,
                           "conversions": [c.model_dump() for c in proj.conversions],
                           "native_gate": "not-configured" if native is None else native}, started)]
+        if proj.conversions:
+            legs_started = perf_counter()
+            legs_ok, legs = check_conversion_legs(state, proj.conversions)
+            stages.append(_stage("Theorem · FX legs", legs_ok,
+                                 "quant toolkit nets conversions to the projected shortfalls" if legs_ok
+                                 else "; ".join(legs["problems"]), legs, legs_started))
 
         conversion_cost = sum(c.estimated_sell_minor for c in proj.conversions)
         escalations = [d.obligation_id for d in decisions if d.action == "ESCALATE"]

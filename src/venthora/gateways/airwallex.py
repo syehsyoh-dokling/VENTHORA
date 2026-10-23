@@ -215,9 +215,21 @@ class Airwallex:
         items = body.get("items", []) if isinstance(body, dict) else body
         return _conversion(items[0]) if items else None
 
+    async def list_deposits(self) -> list[dict]:
+        """Incoming deposits (authoritative status, e.g. SETTLED), newest last as returned."""
+        body = await self._request("GET", "/api/v1/deposits")
+        return body.get("items", body) if isinstance(body, dict) else body
+
     async def list_global_accounts(self) -> list[dict]:
         body = await self._request("GET", "/api/v1/global_accounts")
         return body.get("items", body) if isinstance(body, dict) else body
+
+    async def create_global_account(self, *, request_id: str, country_code: str, currency: str,
+                                    nick_name: str = "VENTHORA receipts") -> dict:
+        """Create a Global Account (guide: only when no suitable one exists)."""
+        return await self._request("POST", "/api/v1/global_accounts/create", json={
+            "request_id": request_id, "country_code": country_code, "nick_name": nick_name,
+            "required_features": [{"currency": currency, "transfer_method": "LOCAL"}]})
 
     # -- write tools ---------------------------------------------------------
 
