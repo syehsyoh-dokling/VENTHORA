@@ -1,0 +1,20 @@
+{"_note": "UI bench, aging suite: every case submitted through the dashboard form (Submit a case, suite = aging; plan cases to POST /v1/plans, table cases to POST /v1/aging/eval, emails to POST /v1/intake/emails dry run) in the Claude in-app browser against the running service on 24 Oct 2026; ui_ms = round trip measured by the browser, server_ms = the plan's own duration_ms (plan cases only). 30/30 matched the hand-derived expectation.",
+ "n": 30, "matched": 30, "p50_ms": 91.5, "max_ms": 222.4, "plan_server_p50_ms": 82.7,
+ "rows": [
+  {"id": "G01", "kind": "plan", "match": true, "server_ms": 205.9, "ui_ms": 222.4}, {"id": "G02", "kind": "plan", "match": true, "server_ms": 87.2, "ui_ms": 103.7},
+  {"id": "G03", "kind": "plan", "match": true, "server_ms": 90.0, "ui_ms": 105.0}, {"id": "G04", "kind": "plan", "match": true, "server_ms": 76.4, "ui_ms": 91.6},
+  {"id": "G05", "kind": "plan", "match": true, "server_ms": 85.5, "ui_ms": 99.4}, {"id": "G06", "kind": "plan", "match": true, "server_ms": 78.3, "ui_ms": 93.8},
+  {"id": "G07", "kind": "plan", "match": true, "server_ms": 80.7, "ui_ms": 95.9}, {"id": "G08", "kind": "plan", "match": true, "server_ms": 78.8, "ui_ms": 92.3},
+  {"id": "G09", "kind": "plan", "match": true, "server_ms": 82.7, "ui_ms": 97.8}, {"id": "G10", "kind": "plan", "match": true, "server_ms": 92.4, "ui_ms": 107.8},
+  {"id": "G11", "kind": "plan", "match": true, "server_ms": 88.4, "ui_ms": 101.3}, {"id": "G12", "kind": "plan", "match": true, "server_ms": 99.2, "ui_ms": 113.7},
+  {"id": "G13", "kind": "plan", "match": true, "server_ms": 81.7, "ui_ms": 96.0}, {"id": "G14", "kind": "plan", "match": true, "server_ms": 78.5, "ui_ms": 91.5},
+  {"id": "G15", "kind": "plan", "match": true, "server_ms": 77.8, "ui_ms": 92.2},
+  {"id": "H01", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 6.3}, {"id": "H02", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 8.2},
+  {"id": "H03", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 5.5}, {"id": "H04", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 4.7},
+  {"id": "H05", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 19.9}, {"id": "H06", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 14.1},
+  {"id": "H07", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 6.3}, {"id": "H08", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 6.7},
+  {"id": "H09", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 24.5}, {"id": "H10", "kind": "aging", "match": true, "server_ms": null, "ui_ms": 5.9},
+  {"id": "D01", "kind": "intake", "match": true, "server_ms": null, "ui_ms": 17.0}, {"id": "D02", "kind": "intake", "match": true, "server_ms": null, "ui_ms": 7.4},
+  {"id": "D03", "kind": "intake", "match": true, "server_ms": null, "ui_ms": 10.5}, {"id": "D04", "kind": "intake", "match": true, "server_ms": null, "ui_ms": 7.8},
+  {"id": "D05", "kind": "intake", "match": true, "server_ms": null, "ui_ms": 11.6}
+ ]}

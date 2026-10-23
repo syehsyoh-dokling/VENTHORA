@@ -11,6 +11,9 @@ import asyncio
 from dataclasses import dataclass
 from time import perf_counter
 
+from ..aging import active as aging_active
+from ..aging import aging_facts, aging_reasons
+from ..aging import describe as describe_aging
 from ..domain.models import Conversion, ObligationDecision, StageResult, TreasuryState
 from ..domain.projection import Projection, project
 from ..engines.theorem_fx import check_conversion_legs
@@ -152,8 +155,16 @@ class ProofCore:
             stages.append(StageResult(engine="Policy · FX exposure", status="WARN" if fx_rs else "PASS",
                                       summary=describe_fx(fx, fx_rs), details=fx | {"reasons": fx_rs},
                                       duration_ms=(perf_counter() - fx_started) * 1000))
+        # Invoice aging and dunning: how old what we owe is, who has been reminding us, what lateness costs.
+        ag_started = perf_counter()
+        ag = aging_facts(state, decisions)
+        ag_rs = aging_reasons(ag)
+        if aging_active(ag):
+            stages.append(StageResult(engine="Verity · aging", status="WARN" if ag_rs else "PASS",
+                                      summary=describe_aging(ag, ag_rs), details=ag | {"reasons": ag_rs},
+                                      duration_ms=(perf_counter() - ag_started) * 1000))
         inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts,
-                                        paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf, fx=fx)
+                                        paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf, fx=fx, aging=ag)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         # Approval matrix: who, and how many different people, must approve what the policy stopped.

@@ -303,6 +303,25 @@ book was refused by the ledger pre-flight ("the book's own cash is short, whatev
 the rule working: a book never spends another book's money, and a person adjusts it (`POST /v1/ledger/{book}/adjust`).
 The plan's notes now say so (`facts.py`).
 
+## Cycle 17: invoice aging and dunning on the real sandbox (`python scripts/aging_real.py`)
+
+Approved by the owner as finance manager; 24 Oct 2026, ~05:31 WIB; books dated today, USD 1,000 invoices to
+`ben-saas-vendor`; policy: escalation at 30 days overdue, interest exposure cap USD 5.00, dunning escalation at level 3.
+Log: `docs/aging_log_real.json`.
+
+| Run | Aging | Plan | Execution |
+|---|---|---|---|
+| 1 · due 45 days ago, fundable | bucket 31-60, accrued interest USD 9.86 (8 % a year) | **APPROVED**, paid now | COMPLETED |
+| 2a · the same on a book that cannot fund it | accrued 9.86 + 3 projected days 0.66 = exposure 10.52 | `ESCALATE`; **REQUIRES_APPROVAL** `overdue_obligation_unpaid`, `late_interest_exposure_above_limit` | **REFUSED** without a person |
+| 2b · the same, approved | | same | COMPLETED with 0 transfers: an escalation is never paid, the person now owns it |
+| 3 · a final-notice email from the registered Cloudloom mailbox about the invoice in book 3 (intake, dry run) | **DUPLICATE**, dunning level 3, tied to the existing obligation; the book still holds one payable | | |
+| 3b · that book, unfundable (plan only) | level 3, current | `ESCALATE`; `final_notice_unpaid` | |
+| 3a · that book, fundable | level 3 | **APPROVED**, paid, no reason | COMPLETED |
+
+**Finding.** In the first attempt 3a ran before 3b: once 3a had paid the invoice, the books marked it settled and 3b's
+plan rejected it ("already paid"), so the order was swapped. The duplicate lock and the settled-record rule held across
+the two books, as they should.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |

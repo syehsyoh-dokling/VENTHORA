@@ -150,6 +150,26 @@ approval_reasons contains "daily_conversion_cap_exceeded" if {
 	input.fx.converted_24h_minor + input.fx.converting_now_minor > input.fx.max_conversion_daily_minor
 }
 
+# Aging and dunning (src/venthora/aging.py). A null threshold does not apply; a row the plan pays is never a reason.
+approval_reasons contains "overdue_obligation_unpaid" if {
+	input.aging.overdue_escalation_days != null
+	some r in input.aging.rows
+	not r.paying
+	r.days_overdue > input.aging.overdue_escalation_days
+}
+
+approval_reasons contains "final_notice_unpaid" if {
+	input.aging.dunning_escalation_level != null
+	some r in input.aging.rows
+	not r.paying
+	r.dunning_level >= input.aging.dunning_escalation_level
+}
+
+approval_reasons contains "late_interest_exposure_above_limit" if {
+	input.aging.max_late_interest_exposure_minor != null
+	input.aging.exposure_minor > input.aging.max_late_interest_exposure_minor
+}
+
 # Approval matrix (proofcore/approvals.py): the last applicable tier decides; a tier applies when the paying total reaches
 # its min_total_minor or when one of its reason codes was raised; no tier: one approver from approver_roles; no reason: null.
 tier_applies(t) if {

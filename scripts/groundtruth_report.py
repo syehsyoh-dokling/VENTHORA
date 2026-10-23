@@ -60,7 +60,7 @@ def section(suite: str, title: str, intro: list[str]) -> list[str]:
     inproc = asyncio.run(in_process(cases))
     endpoint = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_endpoint.json").read_text(encoding="utf-8"))}
     ui = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_ui.json").read_text(encoding="utf-8"))["rows"]}
-    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "payees", "approvals", "execution"].index)
+    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "payees", "approvals", "aging", "execution"].index)
     lines = [f"## {title}", ""] + intro + ["", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
     for kind in kinds:
         ids = [c["id"] for c in cases if c["kind"] == kind]
@@ -146,6 +146,12 @@ def main() -> None:
         "a daily cap; foreign cash held plus bought against the foreign obligations due inside the planning horizon (a paid obligation "
         "is covered by construction, a deferred or escalated one is the exposure, beyond the horizon it is not one yet, nothing due "
         "means nothing to hedge); three reasons at once, each named; no limits = nothing changes."])
+    lines += [""] + section("aging", "Suite 11 — invoice aging and dunning: how old what we owe is, who is reminding us, what lateness costs", [
+        "Days overdue from the book's date and each due date, buckets current / 1-30 / 31-60 / 61-90 / 90+ per payee in the base "
+        "currency; late interest accrued so far and projected over the horizon for what the plan leaves unpaid (the obligation's "
+        "rate, else the policy default); a reminder, second reminder or final notice read from a payee's email raises the book's "
+        "dunning level and never creates a second payable; an item overdue beyond the escalation days, a final notice, or a "
+        "late-interest exposure above its cap left unpaid by the plan needs a person; a paid item is never a reason."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

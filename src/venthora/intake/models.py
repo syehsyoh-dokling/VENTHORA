@@ -40,6 +40,7 @@ class IntakeRequest(BaseModel):
     invoice_fingerprint: str | None = None
     due_date: str | None = None
     flags: list[str] = Field(default_factory=list)
+    dunning_level: int = Field(default=0, ge=0, le=3, description="0 none, 1 reminder, 2 second reminder, 3 final notice")
     quotes: list[Quote] = Field(default_factory=list)
     status: Status
     reasons: list[str] = Field(default_factory=list)

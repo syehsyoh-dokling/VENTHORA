@@ -45,6 +45,10 @@ class Obligation(StrictModel):
     paid_so_far_minor: int = Field(default=0, ge=0, le=MAX_MINOR, description="earlier instalments already paid on this invoice")
     due_date: str | None = Field(default=None, description="ISO date; with as_of it places the obligation in a period")
     posted_at: str | None = Field(default=None, description="ISO datetime the document arrived; decides its REPORT period")
+    # Aging and dunning: reminders the payee sent (0 none, 1 reminder, 2 second reminder, 3 final notice) and the late-payment
+    # interest the contract carries (per year, basis points; None = the policy's default rate).
+    dunning_level: int = Field(default=0, ge=0, le=3)
+    late_interest_bp: int | None = Field(default=None, ge=0, le=10_000)
 
 
 class BudgetLine(StrictModel):
@@ -237,6 +241,17 @@ class TreasuryPolicy(StrictModel):
     min_hedge_ratio_bp: int | None = Field(default=None, ge=0, le=10_000,
                                            description="foreign cash held + bought must cover at least this share of the "
                                                        "foreign obligations due inside the planning horizon")
+    # Aging and dunning (src/venthora/aging.py). None = off.
+    late_interest_bp_default: int = Field(default=800, ge=0, le=10_000, description="late-payment interest per year when the "
+                                                                                    "obligation carries none (statutory-style)")
+    overdue_escalation_days: int | None = Field(default=None, ge=0, le=3650,
+                                                description="an obligation overdue beyond this and still not paid needs a person")
+    max_late_interest_exposure_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR,
+                                                         description="accrued + projected late interest on unpaid overdue "
+                                                                     "obligations (base) above this needs a person")
+    dunning_escalation_level: int | None = Field(default=None, ge=1, le=3,
+                                                 description="an obligation whose payee reached this dunning level, left unpaid, "
+                                                             "needs a person")
 
     @model_validator(mode="after")
     def confidence_band(self):
@@ -391,4 +406,6 @@ class PlanResult(StrictModel):
                                                            "available / minus per line, alerts, and budget requests")
     approval_requirement: dict | None = Field(default=None, description="approval matrix: tier, how many different "
                                                                         "people, which roles (None = no approval needed)")
+    aging: dict = Field(default_factory=dict, description="invoice aging: buckets per payee, overdue items, dunning levels, "
+                                                          "late-interest accrued and projected")
     duration_ms: float

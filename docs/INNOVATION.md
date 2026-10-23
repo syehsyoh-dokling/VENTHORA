@@ -208,6 +208,14 @@ volume sold in a day, and foreign obligations the plan could not fund. Each is a
 gate already proves and from the journal every book writes, judged by both engines, and above its limit the plan stops
 for the person whose decision it is: sell down, accept the day's sales, or pre-buy the hedge.
 
+### K. What lateness costs, and who is already asking
+
+An agent that optimises cash will happily defer the cheapest bill forever. The aging table makes the cost of that
+visible and bounded: every payable is bucketed by age per payee, late interest is accrued at the contract's rate and
+projected over the horizon for whatever the plan leaves unpaid, and the supplier's own reminders, read from the inbox
+with a verbatim quote, raise the book's dunning level without ever creating a second payable. Past the escalation
+days, under a final notice, or above the interest cap, deferring is no longer the agent's call.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

@@ -32,6 +32,7 @@ without the person it stops and says so.
 | `single_payment_above_limit`, `payee_period_limit_exceeded`, `first_payment_to_new_payee_above_limit`, `daily_outflow_limit_exceeded`, `weekly_outflow_limit_exceeded` | the payouts, payees, history and totals behind each reason | finance manager |
 | `payee_in_cooling_period`, `payee_not_yet_active` — a verified payee inside the cooling period after a bank change, or never paid on these details | the payee's record, cooling end, the payout | finance manager; the first PAID payout after cooling makes the payee ACTIVE |
 | `open_position_above_cap`, `daily_conversion_cap_exceeded`, `hedge_ratio_below_minimum` — what the plan leaves open per currency, sells today, or leaves unhedged inside the horizon | the position, the day's sales, the coverage per currency | finance manager (sell down, accept the day's sales, or pre-buy) |
+| `overdue_obligation_unpaid`, `final_notice_unpaid`, `late_interest_exposure_above_limit` — what the plan leaves overdue, under a final notice, or accruing interest beyond the cap | the aging table per payee, the reminders received, interest accrued and projected | finance manager (fund it, negotiate, or accept the cost) |
 | Incident: replacement blocked by funds (`max_replacements`, second fee) | decided REPLACE, computed the budget | a person re-plans or funds |
 
 An approval is refused by code when: the role is not an approver for the tier, the terms digest differs from the plan

@@ -20,6 +20,7 @@ load_env()
 
 from pydantic import BaseModel, Field  # noqa: E402
 
+from .aging import evaluate as aging_evaluate  # noqa: E402
 from .config import env  # noqa: E402
 from .domain.models import PlanResult, TreasuryState  # noqa: E402
 from .engines.llm_planner import llm_proposal  # noqa: E402
@@ -286,6 +287,26 @@ async def get_payee(beneficiary_id: str):
     if rec is None:
         raise HTTPException(404, "unregistered payee")
     return rec | {"events": store.payee_events(beneficiary_id)}
+
+
+@app.post("/v1/aging/eval")
+async def aging_eval(inp: Annotated[dict, Body()]):
+    """Pure evaluation of invoice aging (ground truth / the form): buckets per payee, days overdue, late interest, reasons."""
+    return aging_evaluate(inp)
+
+
+@app.get("/v1/aging")
+async def aging_report(scenario_id: str = "kit01_initial", as_of: str | None = None):
+    """The aging table of a book as of a date: every payable obligation with its bucket, dunning level and late interest,
+    per payee, with the plan's own actions (what this plan pays, what it leaves overdue)."""
+    path = _scenario_file(scenario_id)
+    if path is None:
+        raise HTTPException(404, "unknown scenario")
+    state = TreasuryState.model_validate(json.loads(path.read_text(encoding="utf-8"))["state"])
+    if as_of:
+        state = state.model_copy(update={"as_of": as_of})
+    plan = await app.state.agent.decide(state)
+    return {"scenario_id": scenario_id, "decision": plan.decision, "aging": plan.aging}
 
 
 @app.post("/v1/approvals/eval")
@@ -634,7 +655,8 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees", "approvals", "fx"):
+    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees", "approvals", "fx",
+                  "aging"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

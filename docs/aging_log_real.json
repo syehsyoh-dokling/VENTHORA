@@ -1,0 +1,136 @@
+{
+ "generated_at": "2026-10-23T22:31:49.760868+00:00",
+ "as_of": "2026-10-24",
+ "runs": [
+  {
+   "run": "run 1: overdue 45 d, fundable",
+   "decision": "APPROVED",
+   "actions": {
+    "AGE-1-053149": "PAY"
+   },
+   "requires_approval": [],
+   "aging": [
+    {
+     "obligation_id": "AGE-1-053149",
+     "days_overdue": 45,
+     "bucket": "31-60",
+     "dunning_level": 0,
+     "accrued_interest_minor": 986,
+     "projected_interest_minor": 0
+    }
+   ],
+   "exposure_minor": 0,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,997.00 >= USD 5,000.00",
+    "transfers": 1
+   }
+  },
+  {
+   "run": "run 2a: overdue 45 d, unfundable, nobody approves",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "AGE-2-053149": "ESCALATE"
+   },
+   "requires_approval": [
+    "late_interest_exposure_above_limit",
+    "overdue_obligation_unpaid"
+   ],
+   "aging": [
+    {
+     "obligation_id": "AGE-2-053149",
+     "days_overdue": 45,
+     "bucket": "31-60",
+     "dunning_level": 0,
+     "accrued_interest_minor": 986,
+     "projected_interest_minor": 66
+    }
+   ],
+   "exposure_minor": 1052,
+   "execution": {
+    "status": "REFUSED",
+    "message": "plan requires a person's approval: late_interest_exposure_above_limit, overdue_obligation_unpaid",
+    "transfers": 0
+   }
+  },
+  {
+   "run": "run 2b: the same, approved (an escalation is never paid)",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "AGE-2-053149": "ESCALATE"
+   },
+   "requires_approval": [
+    "late_interest_exposure_above_limit",
+    "overdue_obligation_unpaid"
+   ],
+   "aging": [
+    {
+     "obligation_id": "AGE-2-053149",
+     "days_overdue": 45,
+     "bucket": "31-60",
+     "dunning_level": 0,
+     "accrued_interest_minor": 986,
+     "projected_interest_minor": 66
+    }
+   ],
+   "exposure_minor": 1052,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 5,500.00 >= USD 5,000.00",
+    "transfers": 0
+   }
+  },
+  {
+   "run": "run 3b: after the final notice, unfundable -> final_notice_unpaid (plan only)",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "AGE-3-053149": "ESCALATE"
+   },
+   "requires_approval": [
+    "final_notice_unpaid"
+   ],
+   "aging": [
+    {
+     "obligation_id": "AGE-3-053149",
+     "days_overdue": 0,
+     "bucket": "current",
+     "dunning_level": 3,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    }
+   ],
+   "exposure_minor": 0
+  },
+  {
+   "run": "run 3a: after the final notice, fundable -> paid, no reason",
+   "decision": "APPROVED",
+   "actions": {
+    "AGE-3-053149": "PAY"
+   },
+   "requires_approval": [],
+   "aging": [
+    {
+     "obligation_id": "AGE-3-053149",
+     "days_overdue": 0,
+     "bucket": "current",
+     "dunning_level": 3,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    }
+   ],
+   "exposure_minor": 0,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,997.00 >= USD 5,000.00",
+    "transfers": 1
+   }
+  }
+ ],
+ "intake": {
+  "status": "DUPLICATE",
+  "trust": "registered",
+  "dunning_level": 3,
+  "duplicate_of": "AGE-3-053149"
+ },
+ "ok": true
+}

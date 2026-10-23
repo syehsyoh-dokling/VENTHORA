@@ -98,6 +98,12 @@ def main() -> int:
                                               "due_in_horizon_minor": 1, "coverage_bp": coverage, "cap_minor": cap}],
                                    "min_hedge_ratio_bp": ratio, "max_conversion_daily_minor": daily, "converted_24h_minor": conv24,
                                    "converting_now_minor": now, "horizon_hours": 72, "base_currency": "USD"}})
+    # Aging and dunning: escalation days, dunning level and the interest cap around every threshold, paid or left unpaid.
+    for esc, days, level, lvl, cap, exposure, paying in itertools.product(
+            [None, 30], [0, 30, 31], [None, 3], [0, 2, 3], [None, 1000], [0, 1000, 1001], [False, True]):
+        grid.append(base | {"aging": {"rows": [{"obligation_id": "O1", "days_overdue": days, "dunning_level": lvl, "paying": paying}],
+                                      "exposure_minor": exposure, "overdue_escalation_days": esc, "dunning_escalation_level": level,
+                                      "max_late_interest_exposure_minor": cap}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

@@ -56,6 +56,12 @@ REMITTANCE = ("remittance", "will transfer", "will pay", "we will settle", "paym
               "will be released", "has been released", "released the payment", "we are paying")
 CLAIM = ("please pay", "kindly pay", "payment for", "please settle", "please find attached", "invoice", "amount due",
          "please remit", "please transfer", "hours worked", "timesheet", "please process")
+# Dunning: a payee reminding us. Level 3 = final notice, 2 = second reminder, 1 = reminder; the highest phrase found wins.
+DUNNING = {3: ("final notice", "final reminder", "last reminder", "legal action", "debt collection", "collections agency",
+               "suspend your account", "suspend service", "suspend deliveries"),
+           2: ("second reminder", "2nd reminder", "still outstanding", "remains unpaid", "remains outstanding", "past due",
+               "second notice"),
+           1: ("reminder", "overdue", "not yet received", "has not been received", "payment is due", "outstanding invoice")}
 MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 
 SCHEMA = """
@@ -308,6 +314,14 @@ class Intake:
             flags.append("payee_bank_details_changed")
         if urgency:
             flags.append("urgency_pressure")
+        dunning_level = 0
+        for level in (3, 2, 1):
+            found = _phrases(text + " " + subject, DUNNING[level], "dunning")
+            if found:
+                dunning_level = level
+                quotes += found[:1]
+                flags.append(f"dunning_notice_L{level}")
+                break
 
         is_payer = role == "payer" or (claimed and claimed[2] == "payer" and not hit)
         if bank:
@@ -359,6 +373,7 @@ class Intake:
             amount_minor=amount[1] if amount else None, currency=amount[2] if amount else None,
             invoice_no=inv.value if inv else None, invoice_fingerprint=fingerprint,
             due_date=due.value if due else None, flags=flags, quotes=quotes, status=status, reasons=reasons,
+            dunning_level=dunning_level,
             duplicate_of=duplicate_of, text_sha256=hashlib.sha256(text.encode()).hexdigest(), text=text)
         _ = counterparty_rec
         if save:
@@ -394,6 +409,8 @@ class Intake:
         visible in the plan but Verity never lets them be paid; DUPLICATE and REJECTED are recorded as
         evidence only. A VERIFIED remittance becomes a receivable with the payer's history."""
         data = base.model_dump()
+        if not data.get("as_of"):
+            data["as_of"] = as_of.isoformat()  # aging and the period cut-off reason from the same date
         reqs = requests if requests is not None else self.store.list()
         existing_ids = {o["obligation_id"] for o in data["obligations"]}
         for r in sorted(reqs, key=lambda x: x.received_at):
@@ -414,6 +431,13 @@ class Intake:
             if r.status in ("DUPLICATE", "REJECTED") or r.kind in ("unknown", "remittance_notice"):
                 data["evidence"].append({"ref": ref, "subject_id": r.duplicate_of or r.intake_id,
                                          "source": f"intake:email:{r.sender}", "status": "rejected", "summary": summary})
+                # Dunning: a reminder for an invoice already in the book raises that obligation's dunning level and never
+                # creates a second payable.
+                if r.status == "DUPLICATE" and r.dunning_level:
+                    for o in data["obligations"]:
+                        same_invoice = r.invoice_fingerprint and o.get("invoice_fingerprint") == r.invoice_fingerprint
+                        if o["obligation_id"] == r.duplicate_of or same_invoice:
+                            o["dunning_level"] = max(int(o.get("dunning_level") or 0), r.dunning_level)
                 continue
             rec = self.registry.payees.get(r.counterparty_id or "") or {}
             if not rec:  # unknown sender: still shown, pending, never payable (no beneficiary to pay)
@@ -436,7 +460,8 @@ class Intake:
                 "beneficiary_id": next(cid for cid, p in self.registry.payees.items() if p is rec),
                 "payee_name": rec["name"], "payout_method": rec.get("payout_method", "LOCAL"), "evidence_ref": ref,
                 "invoice_fingerprint": r.invoice_fingerprint, "budget_line": rec.get("budget_line"),
-                "policy_flags": [f for f in r.flags if f == "payee_bank_details_changed"]})
+                "policy_flags": [f for f in r.flags if f == "payee_bank_details_changed"],
+                "due_date": r.due_date, "dunning_level": r.dunning_level})
             data["evidence"].append({"ref": ref, "subject_id": oid, "source": f"intake:email:{r.sender}",
                                      "status": "verified" if r.status == "VERIFIED" else "pending", "summary": summary})
         data["obligations"] = data["obligations"][:12]

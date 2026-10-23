@@ -1,0 +1,2955 @@
+[
+ {
+  "id": "G01",
+  "kind": "plan",
+  "title": "an overdue invoice the plan pays: accrued interest reported, no reason",
+  "ms": 90.16,
+  "ms_all": [
+   90.16
+  ],
+  "server_ms": 79.63,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "aging_days": {
+    "expected": {
+     "O1": 45
+    },
+    "actual": {
+     "O1": 45
+    },
+    "ok": true
+   },
+   "aging_buckets": {
+    "expected": {
+     "O1": "31-60"
+    },
+    "actual": {
+     "O1": "31-60"
+    },
+    "ok": true
+   },
+   "aging_accrued": {
+    "expected": {
+     "O1": 9863
+    },
+    "actual": {
+     "O1": 9863
+    },
+    "ok": true
+   },
+   "aging_exposure": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "31-60"
+   },
+   "aging_days": {
+    "O1": 45
+   },
+   "aging_accrued": {
+    "O1": 9863
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 79.63069999823347
+  }
+ },
+ {
+  "id": "G02",
+  "kind": "plan",
+  "title": "an overdue invoice the plan cannot fund: escalated, and overdue beyond 30 days -> a person",
+  "ms": 118.4,
+  "ms_all": [
+   118.4
+  ],
+  "server_ms": 110.72,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "overdue_obligation_unpaid"
+    ],
+    "actual": [
+     "overdue_obligation_unpaid"
+    ],
+    "ok": true
+   },
+   "aging_exposure": {
+    "expected": 10521,
+    "actual": 10521,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [
+    "overdue_obligation_unpaid"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "aging_buckets": {
+    "O1": "31-60"
+   },
+   "aging_days": {
+    "O1": 45
+   },
+   "aging_accrued": {
+    "O1": 9863
+   },
+   "aging_exposure": 10521,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 110.71850000007544
+  }
+ },
+ {
+  "id": "G03",
+  "kind": "plan",
+  "title": "overdue but inside the escalation days: no reason",
+  "ms": 99.81,
+  "ms_all": [
+   99.81
+  ],
+  "server_ms": 91.25,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "aging_days": {
+    "expected": {
+     "O1": 14
+    },
+    "actual": {
+     "O1": 14
+    },
+    "ok": true
+   },
+   "aging_buckets": {
+    "expected": {
+     "O1": "1-30"
+    },
+    "actual": {
+     "O1": "1-30"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "1-30"
+   },
+   "aging_days": {
+    "O1": 14
+   },
+   "aging_accrued": {
+    "O1": 3068
+   },
+   "aging_exposure": 3726,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 91.25049999784096
+  }
+ },
+ {
+  "id": "G04",
+  "kind": "plan",
+  "title": "exactly at the escalation days",
+  "ms": 96.45,
+  "ms_all": [
+   96.45
+  ],
+  "server_ms": 86.25,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "aging_days": {
+    "expected": {
+     "O1": 30
+    },
+    "actual": {
+     "O1": 30
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "1-30"
+   },
+   "aging_days": {
+    "O1": 30
+   },
+   "aging_accrued": {
+    "O1": 6575
+   },
+   "aging_exposure": 7233,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 86.25459999893792
+  }
+ },
+ {
+  "id": "G05",
+  "kind": "plan",
+  "title": "a final notice left unpaid needs a person, whatever the age",
+  "ms": 87.87,
+  "ms_all": [
+   87.87
+  ],
+  "server_ms": 78.67,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "final_notice_unpaid"
+    ],
+    "actual": [
+     "final_notice_unpaid"
+    ],
+    "ok": true
+   },
+   "aging_days": {
+    "expected": {
+     "O1": 0
+    },
+    "actual": {
+     "O1": 0
+    },
+    "ok": true
+   },
+   "aging_dunning": {
+    "expected": {
+     "O1": 3
+    },
+    "actual": {
+     "O1": 3
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [
+    "final_notice_unpaid"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "aging_buckets": {
+    "O1": "current"
+   },
+   "aging_days": {
+    "O1": 0
+   },
+   "aging_accrued": {
+    "O1": 0
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 3
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 78.66590000048745
+  }
+ },
+ {
+  "id": "G06",
+  "kind": "plan",
+  "title": "a second reminder is below the dunning threshold",
+  "ms": 101.48,
+  "ms_all": [
+   101.48
+  ],
+  "server_ms": 86.18,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "current"
+   },
+   "aging_days": {
+    "O1": 0
+   },
+   "aging_accrued": {
+    "O1": 0
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 2
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 86.18290000231354
+  }
+ },
+ {
+  "id": "G07",
+  "kind": "plan",
+  "title": "a final notice the plan pays is not a reason",
+  "ms": 98.55,
+  "ms_all": [
+   98.55
+  ],
+  "server_ms": 87.71,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "current"
+   },
+   "aging_days": {
+    "O1": 0
+   },
+   "aging_accrued": {
+    "O1": 0
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 3
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 87.70549999826471
+  }
+ },
+ {
+  "id": "G08",
+  "kind": "plan",
+  "title": "late-interest exposure above its cap",
+  "ms": 97.65,
+  "ms_all": [
+   97.65
+  ],
+  "server_ms": 85.63,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "late_interest_exposure_above_limit"
+    ],
+    "actual": [
+     "late_interest_exposure_above_limit"
+    ],
+    "ok": true
+   },
+   "aging_days": {
+    "expected": {
+     "O1": 115
+    },
+    "actual": {
+     "O1": 115
+    },
+    "ok": true
+   },
+   "aging_buckets": {
+    "expected": {
+     "O1": "90+"
+    },
+    "actual": {
+     "O1": "90+"
+    },
+    "ok": true
+   },
+   "aging_exposure": {
+    "expected": 25863,
+    "actual": 25863,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [
+    "late_interest_exposure_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "aging_buckets": {
+    "O1": "90+"
+   },
+   "aging_days": {
+    "O1": 115
+   },
+   "aging_accrued": {
+    "O1": 25205
+   },
+   "aging_exposure": 25863,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 85.6327000001329
+  }
+ },
+ {
+  "id": "G09",
+  "kind": "plan",
+  "title": "exposure exactly at the cap",
+  "ms": 86.39,
+  "ms_all": [
+   86.39
+  ],
+  "server_ms": 77.13,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "90+"
+   },
+   "aging_days": {
+    "O1": 115
+   },
+   "aging_accrued": {
+    "O1": 25205
+   },
+   "aging_exposure": 25863,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 77.13240000157384
+  }
+ },
+ {
+  "id": "G10",
+  "kind": "plan",
+  "title": "the obligation's own rate beats the policy default",
+  "ms": 95.42,
+  "ms_all": [
+   95.42
+  ],
+  "server_ms": 85.94,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "aging_accrued": {
+    "expected": {
+     "O1": 14795
+    },
+    "actual": {
+     "O1": 14795
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "31-60"
+   },
+   "aging_days": {
+    "O1": 45
+   },
+   "aging_accrued": {
+    "O1": 14795
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 85.93690000270726
+  }
+ },
+ {
+  "id": "G11",
+  "kind": "plan",
+  "title": "a foreign invoice is aged in the base currency",
+  "ms": 88.59,
+  "ms_all": [
+   88.59
+  ],
+  "server_ms": 78.28,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "ok": true
+   },
+   "aging_accrued": {
+    "expected": {
+     "O1": 4281
+    },
+    "actual": {
+     "O1": 4281
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "31-60"
+   },
+   "aging_days": {
+    "O1": 45
+   },
+   "aging_accrued": {
+    "O1": 4281
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 78.27799999722629
+  }
+ },
+ {
+  "id": "G12",
+  "kind": "plan",
+  "title": "three reasons at once, each named",
+  "ms": 86.29,
+  "ms_all": [
+   86.29
+  ],
+  "server_ms": 76.6,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "final_notice_unpaid",
+     "late_interest_exposure_above_limit",
+     "overdue_obligation_unpaid"
+    ],
+    "actual": [
+     "final_notice_unpaid",
+     "late_interest_exposure_above_limit",
+     "overdue_obligation_unpaid"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [
+    "final_notice_unpaid",
+    "late_interest_exposure_above_limit",
+    "overdue_obligation_unpaid"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "aging_buckets": {
+    "O1": "90+"
+   },
+   "aging_days": {
+    "O1": 115
+   },
+   "aging_accrued": {
+    "O1": 25205
+   },
+   "aging_exposure": 25863,
+   "aging_dunning": {
+    "O1": 3
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 76.59650000277907
+  }
+ },
+ {
+  "id": "G13",
+  "kind": "plan",
+  "title": "no thresholds: the table is reported, nothing stops",
+  "ms": 99.64,
+  "ms_all": [
+   99.64
+  ],
+  "server_ms": 88.34,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "aging_days": {
+    "expected": {
+     "O1": 115
+    },
+    "actual": {
+     "O1": 115
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "90+"
+   },
+   "aging_days": {
+    "O1": 115
+   },
+   "aging_accrued": {
+    "O1": 25205
+   },
+   "aging_exposure": 25863,
+   "aging_dunning": {
+    "O1": 3
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 88.3389000009629
+  }
+ },
+ {
+  "id": "G14",
+  "kind": "plan",
+  "title": "no as_of: nothing can be overdue",
+  "ms": 88.77,
+  "ms_all": [
+   88.77
+  ],
+  "server_ms": 77.7,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "aging_days": {
+    "expected": {
+     "O1": 0
+    },
+    "actual": {
+     "O1": 0
+    },
+    "ok": true
+   },
+   "aging_buckets": {
+    "expected": {
+     "O1": "current"
+    },
+    "actual": {
+     "O1": "current"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "current"
+   },
+   "aging_days": {
+    "O1": 0
+   },
+   "aging_accrued": {
+    "O1": 0
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 77.70410000011907
+  }
+ },
+ {
+  "id": "G15",
+  "kind": "plan",
+  "title": "a viewer: blocked before any aging rule",
+  "ms": 93.96,
+  "ms_all": [
+   93.96
+  ],
+  "server_ms": 84.48,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [
+    "Policy"
+   ],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {
+    "O1": "90+"
+   },
+   "aging_days": {
+    "O1": 115
+   },
+   "aging_accrued": {
+    "O1": 25205
+   },
+   "aging_exposure": 0,
+   "aging_dunning": {
+    "O1": 0
+   },
+   "breach_bp": 0,
+   "not_blocked": false,
+   "duration_ms": 84.47620000151801
+  }
+ },
+ {
+  "id": "H01",
+  "kind": "aging",
+  "title": "buckets and days per item",
+  "ms": 2.8,
+  "ms_all": [
+   2.8
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "buckets": {
+    "expected": {
+     "A": "current",
+     "B": "1-30",
+     "C": "61-90",
+     "D": "90+"
+    },
+    "actual": {
+     "A": "current",
+     "B": "1-30",
+     "C": "61-90",
+     "D": "90+"
+    },
+    "ok": true
+   },
+   "days_overdue": {
+    "expected": {
+     "A": 0,
+     "B": 23,
+     "C": 65,
+     "D": 145
+    },
+    "actual": {
+     "A": 0,
+     "B": 23,
+     "C": 65,
+     "D": 145
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "B",
+     "beneficiary_id": "p1",
+     "amount_minor": 200000,
+     "currency": "USD",
+     "base_minor": 200000,
+     "due_date": "2026-10-01",
+     "days_overdue": 23,
+     "bucket": "1-30",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 1008,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "C",
+     "beneficiary_id": "p2",
+     "amount_minor": 300000,
+     "currency": "USD",
+     "base_minor": 300000,
+     "due_date": "2026-08-20",
+     "days_overdue": 65,
+     "bucket": "61-90",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 2,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 4274,
+     "projected_interest_minor": 197
+    },
+    {
+     "obligation_id": "D",
+     "beneficiary_id": "p2",
+     "amount_minor": 100000,
+     "currency": "EUR",
+     "base_minor": 108500,
+     "due_date": "2026-06-01",
+     "days_overdue": 145,
+     "bucket": "90+",
+     "action": "ESCALATE",
+     "paying": false,
+     "dunning_level": 3,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 3448,
+     "projected_interest_minor": 71
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100000,
+      "1-30": 200000,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 200000,
+     "oldest_days": 23,
+     "dunning_level": 0,
+     "items": 2
+    },
+    {
+     "beneficiary_id": "p2",
+     "buckets": {
+      "current": 0,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 300000,
+      "90+": 108500
+     },
+     "overdue_minor": 408500,
+     "oldest_days": 145,
+     "dunning_level": 3,
+     "items": 2
+    }
+   ],
+   "overdue_total_minor": 608500,
+   "unpaid_overdue_minor": 408500,
+   "accrued_interest_minor": 8730,
+   "exposure_minor": 7990,
+   "overdue_escalation_days": null,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "A": "current",
+    "B": "1-30",
+    "C": "61-90",
+    "D": "90+"
+   },
+   "days_overdue": {
+    "A": 0,
+    "B": 23,
+    "C": 65,
+    "D": 145
+   },
+   "accrued": {
+    "A": 0,
+    "B": 1008,
+    "C": 4274,
+    "D": 3448
+   },
+   "projected": {
+    "A": 0,
+    "B": 0,
+    "C": 197,
+    "D": 71
+   },
+   "payee_overdue": {
+    "p1": 200000,
+    "p2": 408500
+   },
+   "payee_oldest": {
+    "p1": 23,
+    "p2": 145
+   }
+  }
+ },
+ {
+  "id": "H02",
+  "kind": "aging",
+  "title": "per payee: overdue totals in base and the oldest item",
+  "ms": 1.75,
+  "ms_all": [
+   1.75
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "payee_overdue": {
+    "expected": {
+     "p1": 200000,
+     "p2": 408500
+    },
+    "actual": {
+     "p1": 200000,
+     "p2": 408500
+    },
+    "ok": true
+   },
+   "payee_oldest": {
+    "expected": {
+     "p1": 23,
+     "p2": 145
+    },
+    "actual": {
+     "p1": 23,
+     "p2": 145
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "B",
+     "beneficiary_id": "p1",
+     "amount_minor": 200000,
+     "currency": "USD",
+     "base_minor": 200000,
+     "due_date": "2026-10-01",
+     "days_overdue": 23,
+     "bucket": "1-30",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 1008,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "C",
+     "beneficiary_id": "p2",
+     "amount_minor": 300000,
+     "currency": "USD",
+     "base_minor": 300000,
+     "due_date": "2026-08-20",
+     "days_overdue": 65,
+     "bucket": "61-90",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 2,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 4274,
+     "projected_interest_minor": 197
+    },
+    {
+     "obligation_id": "D",
+     "beneficiary_id": "p2",
+     "amount_minor": 100000,
+     "currency": "EUR",
+     "base_minor": 108500,
+     "due_date": "2026-06-01",
+     "days_overdue": 145,
+     "bucket": "90+",
+     "action": "ESCALATE",
+     "paying": false,
+     "dunning_level": 3,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 3448,
+     "projected_interest_minor": 71
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100000,
+      "1-30": 200000,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 200000,
+     "oldest_days": 23,
+     "dunning_level": 0,
+     "items": 2
+    },
+    {
+     "beneficiary_id": "p2",
+     "buckets": {
+      "current": 0,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 300000,
+      "90+": 108500
+     },
+     "overdue_minor": 408500,
+     "oldest_days": 145,
+     "dunning_level": 3,
+     "items": 2
+    }
+   ],
+   "overdue_total_minor": 608500,
+   "unpaid_overdue_minor": 408500,
+   "accrued_interest_minor": 8730,
+   "exposure_minor": 7990,
+   "overdue_escalation_days": null,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "A": "current",
+    "B": "1-30",
+    "C": "61-90",
+    "D": "90+"
+   },
+   "days_overdue": {
+    "A": 0,
+    "B": 23,
+    "C": 65,
+    "D": 145
+   },
+   "accrued": {
+    "A": 0,
+    "B": 1008,
+    "C": 4274,
+    "D": 3448
+   },
+   "projected": {
+    "A": 0,
+    "B": 0,
+    "C": 197,
+    "D": 71
+   },
+   "payee_overdue": {
+    "p1": 200000,
+    "p2": 408500
+   },
+   "payee_oldest": {
+    "p1": 23,
+    "p2": 145
+   }
+  }
+ },
+ {
+  "id": "H03",
+  "kind": "aging",
+  "title": "accrued interest per item at the default 8 %",
+  "ms": 1.79,
+  "ms_all": [
+   1.79
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "accrued": {
+    "expected": {
+     "A": 0,
+     "B": 1008,
+     "C": 4274,
+     "D": 3448
+    },
+    "actual": {
+     "A": 0,
+     "B": 1008,
+     "C": 4274,
+     "D": 3448
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "B",
+     "beneficiary_id": "p1",
+     "amount_minor": 200000,
+     "currency": "USD",
+     "base_minor": 200000,
+     "due_date": "2026-10-01",
+     "days_overdue": 23,
+     "bucket": "1-30",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 1008,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "C",
+     "beneficiary_id": "p2",
+     "amount_minor": 300000,
+     "currency": "USD",
+     "base_minor": 300000,
+     "due_date": "2026-08-20",
+     "days_overdue": 65,
+     "bucket": "61-90",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 2,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 4274,
+     "projected_interest_minor": 197
+    },
+    {
+     "obligation_id": "D",
+     "beneficiary_id": "p2",
+     "amount_minor": 100000,
+     "currency": "EUR",
+     "base_minor": 108500,
+     "due_date": "2026-06-01",
+     "days_overdue": 145,
+     "bucket": "90+",
+     "action": "ESCALATE",
+     "paying": false,
+     "dunning_level": 3,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 3448,
+     "projected_interest_minor": 71
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100000,
+      "1-30": 200000,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 200000,
+     "oldest_days": 23,
+     "dunning_level": 0,
+     "items": 2
+    },
+    {
+     "beneficiary_id": "p2",
+     "buckets": {
+      "current": 0,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 300000,
+      "90+": 108500
+     },
+     "overdue_minor": 408500,
+     "oldest_days": 145,
+     "dunning_level": 3,
+     "items": 2
+    }
+   ],
+   "overdue_total_minor": 608500,
+   "unpaid_overdue_minor": 408500,
+   "accrued_interest_minor": 8730,
+   "exposure_minor": 7990,
+   "overdue_escalation_days": null,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "A": "current",
+    "B": "1-30",
+    "C": "61-90",
+    "D": "90+"
+   },
+   "days_overdue": {
+    "A": 0,
+    "B": 23,
+    "C": 65,
+    "D": 145
+   },
+   "accrued": {
+    "A": 0,
+    "B": 1008,
+    "C": 4274,
+    "D": 3448
+   },
+   "projected": {
+    "A": 0,
+    "B": 0,
+    "C": 197,
+    "D": 71
+   },
+   "payee_overdue": {
+    "p1": 200000,
+    "p2": 408500
+   },
+   "payee_oldest": {
+    "p1": 23,
+    "p2": 145
+   }
+  }
+ },
+ {
+  "id": "H04",
+  "kind": "aging",
+  "title": "projected interest only for what is left unpaid",
+  "ms": 1.93,
+  "ms_all": [
+   1.93
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "projected": {
+    "expected": {
+     "A": 0,
+     "B": 0,
+     "C": 197,
+     "D": 71
+    },
+    "actual": {
+     "A": 0,
+     "B": 0,
+     "C": 197,
+     "D": 71
+    },
+    "ok": true
+   },
+   "exposure_minor": {
+    "expected": 7990,
+    "actual": 7990,
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "B",
+     "beneficiary_id": "p1",
+     "amount_minor": 200000,
+     "currency": "USD",
+     "base_minor": 200000,
+     "due_date": "2026-10-01",
+     "days_overdue": 23,
+     "bucket": "1-30",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 1008,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "C",
+     "beneficiary_id": "p2",
+     "amount_minor": 300000,
+     "currency": "USD",
+     "base_minor": 300000,
+     "due_date": "2026-08-20",
+     "days_overdue": 65,
+     "bucket": "61-90",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 2,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 4274,
+     "projected_interest_minor": 197
+    },
+    {
+     "obligation_id": "D",
+     "beneficiary_id": "p2",
+     "amount_minor": 100000,
+     "currency": "EUR",
+     "base_minor": 108500,
+     "due_date": "2026-06-01",
+     "days_overdue": 145,
+     "bucket": "90+",
+     "action": "ESCALATE",
+     "paying": false,
+     "dunning_level": 3,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 3448,
+     "projected_interest_minor": 71
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100000,
+      "1-30": 200000,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 200000,
+     "oldest_days": 23,
+     "dunning_level": 0,
+     "items": 2
+    },
+    {
+     "beneficiary_id": "p2",
+     "buckets": {
+      "current": 0,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 300000,
+      "90+": 108500
+     },
+     "overdue_minor": 408500,
+     "oldest_days": 145,
+     "dunning_level": 3,
+     "items": 2
+    }
+   ],
+   "overdue_total_minor": 608500,
+   "unpaid_overdue_minor": 408500,
+   "accrued_interest_minor": 8730,
+   "exposure_minor": 7990,
+   "overdue_escalation_days": null,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "A": "current",
+    "B": "1-30",
+    "C": "61-90",
+    "D": "90+"
+   },
+   "days_overdue": {
+    "A": 0,
+    "B": 23,
+    "C": 65,
+    "D": 145
+   },
+   "accrued": {
+    "A": 0,
+    "B": 1008,
+    "C": 4274,
+    "D": 3448
+   },
+   "projected": {
+    "A": 0,
+    "B": 0,
+    "C": 197,
+    "D": 71
+   },
+   "payee_overdue": {
+    "p1": 200000,
+    "p2": 408500
+   },
+   "payee_oldest": {
+    "p1": 23,
+    "p2": 145
+   }
+  }
+ },
+ {
+  "id": "H05",
+  "kind": "aging",
+  "title": "reasons: escalation days, final notice, exposure cap",
+  "ms": 2.07,
+  "ms_all": [
+   2.07
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reasons": {
+    "expected": [
+     "final_notice_unpaid",
+     "late_interest_exposure_above_limit",
+     "overdue_obligation_unpaid"
+    ],
+    "actual": [
+     "final_notice_unpaid",
+     "late_interest_exposure_above_limit",
+     "overdue_obligation_unpaid"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "B",
+     "beneficiary_id": "p1",
+     "amount_minor": 200000,
+     "currency": "USD",
+     "base_minor": 200000,
+     "due_date": "2026-10-01",
+     "days_overdue": 23,
+     "bucket": "1-30",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 1008,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "C",
+     "beneficiary_id": "p2",
+     "amount_minor": 300000,
+     "currency": "USD",
+     "base_minor": 300000,
+     "due_date": "2026-08-20",
+     "days_overdue": 65,
+     "bucket": "61-90",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 2,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 4274,
+     "projected_interest_minor": 197
+    },
+    {
+     "obligation_id": "D",
+     "beneficiary_id": "p2",
+     "amount_minor": 100000,
+     "currency": "EUR",
+     "base_minor": 108500,
+     "due_date": "2026-06-01",
+     "days_overdue": 145,
+     "bucket": "90+",
+     "action": "ESCALATE",
+     "paying": false,
+     "dunning_level": 3,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 3448,
+     "projected_interest_minor": 71
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100000,
+      "1-30": 200000,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 200000,
+     "oldest_days": 23,
+     "dunning_level": 0,
+     "items": 2
+    },
+    {
+     "beneficiary_id": "p2",
+     "buckets": {
+      "current": 0,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 300000,
+      "90+": 108500
+     },
+     "overdue_minor": 408500,
+     "oldest_days": 145,
+     "dunning_level": 3,
+     "items": 2
+    }
+   ],
+   "overdue_total_minor": 608500,
+   "unpaid_overdue_minor": 408500,
+   "accrued_interest_minor": 8730,
+   "exposure_minor": 7990,
+   "overdue_escalation_days": 30,
+   "dunning_escalation_level": 3,
+   "max_late_interest_exposure_minor": 5000,
+   "reasons": [
+    "final_notice_unpaid",
+    "late_interest_exposure_above_limit",
+    "overdue_obligation_unpaid"
+   ],
+   "buckets": {
+    "A": "current",
+    "B": "1-30",
+    "C": "61-90",
+    "D": "90+"
+   },
+   "days_overdue": {
+    "A": 0,
+    "B": 23,
+    "C": 65,
+    "D": 145
+   },
+   "accrued": {
+    "A": 0,
+    "B": 1008,
+    "C": 4274,
+    "D": 3448
+   },
+   "projected": {
+    "A": 0,
+    "B": 0,
+    "C": 197,
+    "D": 71
+   },
+   "payee_overdue": {
+    "p1": 200000,
+    "p2": 408500
+   },
+   "payee_oldest": {
+    "p1": 23,
+    "p2": 145
+   }
+  }
+ },
+ {
+  "id": "H06",
+  "kind": "aging",
+  "title": "paying the old items clears every reason",
+  "ms": 1.93,
+  "ms_all": [
+   1.93
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "reasons": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "exposure_minor": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "B",
+     "beneficiary_id": "p1",
+     "amount_minor": 200000,
+     "currency": "USD",
+     "base_minor": 200000,
+     "due_date": "2026-10-01",
+     "days_overdue": 23,
+     "bucket": "1-30",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 1008,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "C",
+     "beneficiary_id": "p2",
+     "amount_minor": 300000,
+     "currency": "USD",
+     "base_minor": 300000,
+     "due_date": "2026-08-20",
+     "days_overdue": 65,
+     "bucket": "61-90",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 2,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 4274,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "D",
+     "beneficiary_id": "p2",
+     "amount_minor": 100000,
+     "currency": "EUR",
+     "base_minor": 108500,
+     "due_date": "2026-06-01",
+     "days_overdue": 145,
+     "bucket": "90+",
+     "action": "CONVERT_AND_PAY",
+     "paying": true,
+     "dunning_level": 3,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 3448,
+     "projected_interest_minor": 0
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100000,
+      "1-30": 200000,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 200000,
+     "oldest_days": 23,
+     "dunning_level": 0,
+     "items": 2
+    },
+    {
+     "beneficiary_id": "p2",
+     "buckets": {
+      "current": 0,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 300000,
+      "90+": 108500
+     },
+     "overdue_minor": 408500,
+     "oldest_days": 145,
+     "dunning_level": 3,
+     "items": 2
+    }
+   ],
+   "overdue_total_minor": 608500,
+   "unpaid_overdue_minor": 0,
+   "accrued_interest_minor": 8730,
+   "exposure_minor": 0,
+   "overdue_escalation_days": 30,
+   "dunning_escalation_level": 3,
+   "max_late_interest_exposure_minor": 5000,
+   "reasons": [],
+   "buckets": {
+    "A": "current",
+    "B": "1-30",
+    "C": "61-90",
+    "D": "90+"
+   },
+   "days_overdue": {
+    "A": 0,
+    "B": 23,
+    "C": 65,
+    "D": 145
+   },
+   "accrued": {
+    "A": 0,
+    "B": 1008,
+    "C": 4274,
+    "D": 3448
+   },
+   "projected": {
+    "A": 0,
+    "B": 0,
+    "C": 0,
+    "D": 0
+   },
+   "payee_overdue": {
+    "p1": 200000,
+    "p2": 408500
+   },
+   "payee_oldest": {
+    "p1": 23,
+    "p2": 145
+   }
+  }
+ },
+ {
+  "id": "H07",
+  "kind": "aging",
+  "title": "a rejected item owes nothing",
+  "ms": 2.11,
+  "ms_all": [
+   2.11
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "buckets": {
+    "expected": {
+     "A": "current"
+    },
+    "actual": {
+     "A": "current"
+    },
+    "ok": true
+   },
+   "reasons": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100000,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 0,
+     "oldest_days": 0,
+     "dunning_level": 0,
+     "items": 1
+    }
+   ],
+   "overdue_total_minor": 0,
+   "unpaid_overdue_minor": 0,
+   "accrued_interest_minor": 0,
+   "exposure_minor": 0,
+   "overdue_escalation_days": 30,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "A": "current"
+   },
+   "days_overdue": {
+    "A": 0
+   },
+   "accrued": {
+    "A": 0
+   },
+   "projected": {
+    "A": 0
+   },
+   "payee_overdue": {
+    "p1": 0
+   },
+   "payee_oldest": {
+    "p1": 0
+   }
+  }
+ },
+ {
+  "id": "H08",
+  "kind": "aging",
+  "title": "an item without a due date ages from due_in_hours",
+  "ms": 2.16,
+  "ms_all": [
+   2.16
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "days_overdue": {
+    "expected": {
+     "F": 0
+    },
+    "actual": {
+     "F": 0
+    },
+    "ok": true
+   },
+   "buckets": {
+    "expected": {
+     "F": "current"
+    },
+    "actual": {
+     "F": "current"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "F",
+     "beneficiary_id": "p1",
+     "amount_minor": 100,
+     "currency": "USD",
+     "base_minor": 100,
+     "due_date": "2026-10-26",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 100,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 0,
+     "oldest_days": 0,
+     "dunning_level": 0,
+     "items": 1
+    }
+   ],
+   "overdue_total_minor": 0,
+   "unpaid_overdue_minor": 0,
+   "accrued_interest_minor": 0,
+   "exposure_minor": 0,
+   "overdue_escalation_days": null,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "F": "current"
+   },
+   "days_overdue": {
+    "F": 0
+   },
+   "accrued": {
+    "F": 0
+   },
+   "projected": {
+    "F": 0
+   },
+   "payee_overdue": {
+    "p1": 0
+   },
+   "payee_oldest": {
+    "p1": 0
+   }
+  }
+ },
+ {
+  "id": "H09",
+  "kind": "aging",
+  "title": "the rate on the item overrides the default",
+  "ms": 1.84,
+  "ms_all": [
+   1.84
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "accrued": {
+    "expected": {
+     "G": 0
+    },
+    "actual": {
+     "G": 0
+    },
+    "ok": true
+   },
+   "projected": {
+    "expected": {
+     "G": 0
+    },
+    "actual": {
+     "G": 0
+    },
+    "ok": true
+   },
+   "exposure_minor": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": "2026-10-24",
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "G",
+     "beneficiary_id": "p1",
+     "amount_minor": 1000000,
+     "currency": "USD",
+     "base_minor": 1000000,
+     "due_date": "2026-09-09",
+     "days_overdue": 45,
+     "bucket": "31-60",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 0,
+     "late_interest_bp": 0,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 0,
+      "1-30": 0,
+      "31-60": 1000000,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 1000000,
+     "oldest_days": 45,
+     "dunning_level": 0,
+     "items": 1
+    }
+   ],
+   "overdue_total_minor": 1000000,
+   "unpaid_overdue_minor": 1000000,
+   "accrued_interest_minor": 0,
+   "exposure_minor": 0,
+   "overdue_escalation_days": null,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "G": "31-60"
+   },
+   "days_overdue": {
+    "G": 45
+   },
+   "accrued": {
+    "G": 0
+   },
+   "projected": {
+    "G": 0
+   },
+   "payee_overdue": {
+    "p1": 1000000
+   },
+   "payee_oldest": {
+    "p1": 45
+   }
+  }
+ },
+ {
+  "id": "H10",
+  "kind": "aging",
+  "title": "no as_of: nothing is overdue",
+  "ms": 2.1,
+  "ms_all": [
+   2.1
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "days_overdue": {
+    "expected": {
+     "A": 0,
+     "B": 0,
+     "C": 0,
+     "D": 0
+    },
+    "actual": {
+     "A": 0,
+     "B": 0,
+     "C": 0,
+     "D": 0
+    },
+    "ok": true
+   },
+   "reasons": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "as_of": null,
+   "base_currency": "USD",
+   "horizon_days": 3,
+   "rows": [
+    {
+     "obligation_id": "A",
+     "beneficiary_id": "p1",
+     "amount_minor": 100000,
+     "currency": "USD",
+     "base_minor": 100000,
+     "due_date": "2026-10-30",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "PAY",
+     "paying": true,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "B",
+     "beneficiary_id": "p1",
+     "amount_minor": 200000,
+     "currency": "USD",
+     "base_minor": 200000,
+     "due_date": "2026-10-01",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 0,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "C",
+     "beneficiary_id": "p2",
+     "amount_minor": 300000,
+     "currency": "USD",
+     "base_minor": 300000,
+     "due_date": "2026-08-20",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 2,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    },
+    {
+     "obligation_id": "D",
+     "beneficiary_id": "p2",
+     "amount_minor": 100000,
+     "currency": "EUR",
+     "base_minor": 108500,
+     "due_date": "2026-06-01",
+     "days_overdue": 0,
+     "bucket": "current",
+     "action": "DEFER",
+     "paying": false,
+     "dunning_level": 3,
+     "late_interest_bp": 800,
+     "accrued_interest_minor": 0,
+     "projected_interest_minor": 0
+    }
+   ],
+   "payees": [
+    {
+     "beneficiary_id": "p1",
+     "buckets": {
+      "current": 300000,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 0,
+     "oldest_days": 0,
+     "dunning_level": 0,
+     "items": 2
+    },
+    {
+     "beneficiary_id": "p2",
+     "buckets": {
+      "current": 408500,
+      "1-30": 0,
+      "31-60": 0,
+      "61-90": 0,
+      "90+": 0
+     },
+     "overdue_minor": 0,
+     "oldest_days": 0,
+     "dunning_level": 3,
+     "items": 2
+    }
+   ],
+   "overdue_total_minor": 0,
+   "unpaid_overdue_minor": 0,
+   "accrued_interest_minor": 0,
+   "exposure_minor": 0,
+   "overdue_escalation_days": 0,
+   "dunning_escalation_level": null,
+   "max_late_interest_exposure_minor": null,
+   "reasons": [],
+   "buckets": {
+    "A": "current",
+    "B": "current",
+    "C": "current",
+    "D": "current"
+   },
+   "days_overdue": {
+    "A": 0,
+    "B": 0,
+    "C": 0,
+    "D": 0
+   },
+   "accrued": {
+    "A": 0,
+    "B": 0,
+    "C": 0,
+    "D": 0
+   },
+   "projected": {
+    "A": 0,
+    "B": 0,
+    "C": 0,
+    "D": 0
+   },
+   "payee_overdue": {
+    "p1": 0,
+    "p2": 0
+   },
+   "payee_oldest": {
+    "p1": 0,
+    "p2": 0
+   }
+  }
+ },
+ {
+  "id": "D01",
+  "kind": "intake",
+  "title": "a friendly reminder from a registered payee",
+  "ms": 8.81,
+  "ms_all": [
+   8.81
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "registered",
+    "actual": "registered",
+    "ok": true
+   },
+   "kind": {
+    "expected": "supplier_invoice",
+    "actual": "supplier_invoice",
+    "ok": true
+   },
+   "dunning_level": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "dunning_notice_L1"
+    ],
+    "actual": [
+     "dunning_notice_L1"
+    ],
+    "ok": true
+   },
+   "invoice_no": {
+    "expected": "CL-2041",
+    "actual": "CL-2041",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 240000,
+   "currency": "USD",
+   "invoice_no": "CL-2041",
+   "due_date": null,
+   "claimed_name": "Cloudloom Software LLC",
+   "duplicate_of": null,
+   "flags": [
+    "dunning_notice_L1"
+   ],
+   "dunning_level": 1
+  }
+ },
+ {
+  "id": "D02",
+  "kind": "intake",
+  "title": "a second reminder",
+  "ms": 6.64,
+  "ms_all": [
+   6.64
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "dunning_level": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "dunning_notice_L2"
+    ],
+    "actual": [
+     "dunning_notice_L2"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 120000,
+   "currency": "USD",
+   "invoice_no": "CL-2042",
+   "due_date": null,
+   "claimed_name": "Cloudloom Software LLC",
+   "duplicate_of": null,
+   "flags": [
+    "dunning_notice_L2"
+   ],
+   "dunning_level": 2
+  }
+ },
+ {
+  "id": "D03",
+  "kind": "intake",
+  "title": "a final notice",
+  "ms": 5.42,
+  "ms_all": [
+   5.42
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "dunning_level": {
+    "expected": 3,
+    "actual": 3,
+    "ok": true
+   },
+   "flags": {
+    "expected": [
+     "dunning_notice_L3"
+    ],
+    "actual": [
+     "dunning_notice_L3"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "VERIFIED",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 310000,
+   "currency": "USD",
+   "invoice_no": "CL-2043",
+   "due_date": "2026-10-31",
+   "claimed_name": "Cloudloom Software LLC",
+   "duplicate_of": null,
+   "flags": [
+    "dunning_notice_L3"
+   ],
+   "dunning_level": 3
+  }
+ },
+ {
+  "id": "D04",
+  "kind": "intake",
+  "title": "a final notice for an invoice already in the book is a duplicate that carries its level",
+  "ms": 6.24,
+  "ms_all": [
+   6.24
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "DUPLICATE",
+    "actual": "DUPLICATE",
+    "ok": true
+   },
+   "dunning_level": {
+    "expected": 3,
+    "actual": 3,
+    "ok": true
+   },
+   "duplicate_of": {
+    "expected": "SAAS-USD",
+    "actual": "SAAS-USD",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "DUPLICATE",
+   "trust": "registered",
+   "kind": "supplier_invoice",
+   "amount_minor": 198000,
+   "currency": "USD",
+   "invoice_no": "CL-2026-11",
+   "due_date": null,
+   "claimed_name": "Cloudloom Software LLC",
+   "duplicate_of": "SAAS-USD",
+   "flags": [
+    "dunning_notice_L3"
+   ],
+   "dunning_level": 3
+  }
+ },
+ {
+  "id": "D05",
+  "kind": "intake",
+  "title": "a final notice from an unregistered mailbox is quarantined, not believed",
+  "ms": 5.58,
+  "ms_all": [
+   5.58
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "QUARANTINED",
+    "actual": "QUARANTINED",
+    "ok": true
+   },
+   "trust": {
+    "expected": "unknown_sender",
+    "actual": "unknown_sender",
+    "ok": true
+   },
+   "dunning_level": {
+    "expected": 3,
+    "actual": 3,
+    "ok": true
+   }
+  },
+  "view": {
+   "status": "QUARANTINED",
+   "trust": "unknown_sender",
+   "kind": "supplier_invoice",
+   "amount_minor": 500000,
+   "currency": "USD",
+   "invoice_no": "CL-9999",
+   "due_date": null,
+   "claimed_name": "Cloudloom Software LLC",
+   "duplicate_of": null,
+   "flags": [
+    "dunning_notice_L3"
+   ],
+   "dunning_level": 3
+  }
+ }
+]

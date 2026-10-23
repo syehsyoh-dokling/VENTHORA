@@ -184,7 +184,8 @@ class Orchestrator:
             frame=worked, simulation=sim.as_dict(), duration_ms=(perf_counter() - started) * 1000,
             budget=next((s.details for s in gate.stages if s.engine == "Budget · mandate"), {"attached": False}),
             approval_requirement=next((s.details for s in gate.stages if s.engine == "Policy · approvals"), None)
-            if decision == "REQUIRES_APPROVAL" else None)
+            if decision == "REQUIRES_APPROVAL" else None,
+            aging=next((s.details for s in gate.stages if s.engine == "Verity · aging"), {}))
 
 
     async def _apply_remote_evidence_and_risk(self, state, v: VerityResult, h: HorizonResult) -> list[StageResult]:

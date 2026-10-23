@@ -1,0 +1,1773 @@
+{
+ "_note": "Invoice aging and dunning ground truth, hand-derived; see scripts/make_aging_groundtruth.py.",
+ "cases": [
+  {
+   "id": "G01",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "an overdue invoice the plan pays: accrued interest reported, no reason",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-09-09"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": [],
+    "aging_days": {
+     "O1": 45
+    },
+    "aging_buckets": {
+     "O1": "31-60"
+    },
+    "aging_accrued": {
+     "O1": 9863
+    },
+    "aging_exposure": 0
+   },
+   "derivation": "24 Oct \u2212 9 Sep = 45 days -> bucket 31-60; accrued 10,000 \u00d7 8 % \u00d7 45/365 = 98.63; paid now -> exposure 0"
+  },
+  {
+   "id": "G02",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "an overdue invoice the plan cannot fund: escalated, and overdue beyond 30 days -> a person",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-09-09"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "requires": [
+     "overdue_obligation_unpaid"
+    ],
+    "aging_exposure": 10521
+   },
+   "derivation": "USD 12,000 \u2212 floor 5,000 < 10,000 -> ESCALATE; 45 > 30 days -> overdue_obligation_unpaid; exposure = accrued 98.63 + 3 projected days 6.58"
+  },
+  {
+   "id": "G03",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "overdue but inside the escalation days: no reason",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-10-10"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "requires": [],
+    "aging_days": {
+     "O1": 14
+    },
+    "aging_buckets": {
+     "O1": "1-30"
+    }
+   },
+   "derivation": "14 days <= 30 -> escalated to a person as unfundable, but not by this rule"
+  },
+  {
+   "id": "G04",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "exactly at the escalation days",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-09-24"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": [],
+    "aging_days": {
+     "O1": 30
+    }
+   },
+   "derivation": "30 is not above 30"
+  },
+  {
+   "id": "G05",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "a final notice left unpaid needs a person, whatever the age",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-10-27",
+      "dunning_level": 3
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "dunning_escalation_level": 3
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "requires": [
+     "final_notice_unpaid"
+    ],
+    "aging_days": {
+     "O1": 0
+    },
+    "aging_dunning": {
+     "O1": 3
+    }
+   },
+   "derivation": "not even due yet, but the payee sent a final notice (L3) and the plan leaves it unpaid"
+  },
+  {
+   "id": "G06",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "a second reminder is below the dunning threshold",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-10-27",
+      "dunning_level": 2
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "dunning_escalation_level": 3
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "L2 < 3"
+  },
+  {
+   "id": "G07",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "a final notice the plan pays is not a reason",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-10-27",
+      "dunning_level": 3
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "dunning_escalation_level": 3
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": []
+   },
+   "derivation": "paid now -> never a reason"
+  },
+  {
+   "id": "G08",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "late-interest exposure above its cap",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-07-01"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_late_interest_exposure_minor": 20000
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "late_interest_exposure_above_limit"
+    ],
+    "aging_days": {
+     "O1": 115
+    },
+    "aging_buckets": {
+     "O1": "90+"
+    },
+    "aging_exposure": 25863
+   },
+   "derivation": "115 days: accrued 10,000 \u00d7 8 % \u00d7 115/365 = 252.05; projected 3 days 6.58; 258.63 > cap 200"
+  },
+  {
+   "id": "G09",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "exposure exactly at the cap",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-07-01"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_late_interest_exposure_minor": 25863
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "25,863 is not above 25,863"
+  },
+  {
+   "id": "G10",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "the obligation's own rate beats the policy default",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-09-09",
+      "late_interest_bp": 1200
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "aging_accrued": {
+     "O1": 14795
+    }
+   },
+   "derivation": "10,000 \u00d7 12 % \u00d7 45/365 = 147.95"
+  },
+  {
+   "id": "G11",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "a foreign invoice is aged in the base currency",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 400000,
+      "currency": "EUR",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-eu-components",
+      "payee_name": "Payee 1",
+      "payout_method": "SWIFT",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-09-09"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "aging_accrued": {
+     "O1": 4281
+    }
+   },
+   "derivation": "EUR 4,000 \u00d7 1.0850 = USD 4,340.00; \u00d7 8 % \u00d7 45/365 = 42.81"
+  },
+  {
+   "id": "G12",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "three reasons at once, each named",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-07-01",
+      "dunning_level": 3
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30,
+     "dunning_escalation_level": 3,
+     "max_late_interest_exposure_minor": 20000
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "final_notice_unpaid",
+     "late_interest_exposure_above_limit",
+     "overdue_obligation_unpaid"
+    ]
+   },
+   "derivation": "115 d > 30; L3; 258.63 > 200"
+  },
+  {
+   "id": "G13",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "no thresholds: the table is reported, nothing stops",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-07-01",
+      "dunning_level": 3
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "requires": [],
+    "aging_days": {
+     "O1": 115
+    }
+   },
+   "derivation": "the control reports; the policy sets no limit"
+  },
+  {
+   "id": "G14",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "no as_of: nothing can be overdue",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1200000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-07-01"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "treasury_agent",
+    "as_of": null
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": [],
+    "aging_days": {
+     "O1": 0
+    },
+    "aging_buckets": {
+     "O1": "current"
+    }
+   },
+   "derivation": "without the book's date nothing can be overdue: the item is current"
+  },
+  {
+   "id": "G15",
+   "kind": "plan",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "a viewer: blocked before any aging rule",
+   "input": {
+    "case_id": "aging",
+    "book_id": "aging",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "due_date": "2026-07-01"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "actor_role": "viewer",
+    "as_of": "2026-10-24"
+   },
+   "expect": {
+    "decision": "BLOCKED"
+   },
+   "derivation": "role first"
+  },
+  {
+   "id": "H01",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "buckets and days per item",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "PAY",
+     "C": "DEFER",
+     "D": "ESCALATE"
+    }
+   },
+   "expect": {
+    "buckets": {
+     "A": "current",
+     "B": "1-30",
+     "C": "61-90",
+     "D": "90+"
+    },
+    "days_overdue": {
+     "A": 0,
+     "B": 23,
+     "C": 65,
+     "D": 145
+    }
+   },
+   "derivation": "A due in 6 days; B 1 Oct -> 23 d; C 20 Aug -> 65 d; D 1 Jun -> 145 d; E is settled and left out"
+  },
+  {
+   "id": "H02",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "per payee: overdue totals in base and the oldest item",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "PAY",
+     "C": "DEFER",
+     "D": "ESCALATE"
+    }
+   },
+   "expect": {
+    "payee_overdue": {
+     "p1": 200000,
+     "p2": 408500
+    },
+    "payee_oldest": {
+     "p1": 23,
+     "p2": 145
+    }
+   },
+   "derivation": "p2: C 3,000 + D EUR 1,000 \u00d7 1.0850 = 1,085.00"
+  },
+  {
+   "id": "H03",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "accrued interest per item at the default 8 %",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "PAY",
+     "C": "DEFER",
+     "D": "ESCALATE"
+    }
+   },
+   "expect": {
+    "accrued": {
+     "A": 0,
+     "B": 1008,
+     "C": 4274,
+     "D": 3448
+    }
+   },
+   "derivation": "B 2,000 \u00d7 8 % \u00d7 23/365 = 10.08; C 3,000 \u00d7 65/365 \u00d7 8 % = 42.74; D 1,085 \u00d7 145/365 \u00d7 8 % = 34.48"
+  },
+  {
+   "id": "H04",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "projected interest only for what is left unpaid",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "PAY",
+     "C": "DEFER",
+     "D": "ESCALATE"
+    }
+   },
+   "expect": {
+    "projected": {
+     "A": 0,
+     "B": 0,
+     "C": 197,
+     "D": 71
+    },
+    "exposure_minor": 7990
+   },
+   "derivation": "3 horizon days: C 3,000 \u00d7 8 % \u00d7 3/365 = 1.97; D 1,085 \u00d7 8 % \u00d7 3/365 = 0.71; exposure 79.90"
+  },
+  {
+   "id": "H05",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "reasons: escalation days, final notice, exposure cap",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30,
+     "dunning_escalation_level": 3,
+     "max_late_interest_exposure_minor": 5000
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "PAY",
+     "C": "DEFER",
+     "D": "ESCALATE"
+    }
+   },
+   "expect": {
+    "reasons": [
+     "final_notice_unpaid",
+     "late_interest_exposure_above_limit",
+     "overdue_obligation_unpaid"
+    ]
+   },
+   "derivation": "C and D unpaid beyond 30 d; D is L3; exposure 79.90 > 50"
+  },
+  {
+   "id": "H06",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "paying the old items clears every reason",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30,
+     "dunning_escalation_level": 3,
+     "max_late_interest_exposure_minor": 5000
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "PAY",
+     "C": "PAY",
+     "D": "CONVERT_AND_PAY"
+    }
+   },
+   "expect": {
+    "reasons": [],
+    "exposure_minor": 0
+   },
+   "derivation": "paid now -> no projection, no reason"
+  },
+  {
+   "id": "H07",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "a rejected item owes nothing",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 30
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "REJECT",
+     "C": "REJECT",
+     "D": "REJECT"
+    }
+   },
+   "expect": {
+    "buckets": {
+     "A": "current"
+    },
+    "reasons": []
+   },
+   "derivation": "duplicates / unverified items are left out of the table"
+  },
+  {
+   "id": "H08",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "an item without a due date ages from due_in_hours",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72
+    },
+    "obligations": [
+     {
+      "obligation_id": "F",
+      "beneficiary_id": "p1",
+      "amount_minor": 100,
+      "currency": "USD",
+      "due_in_hours": 48
+     }
+    ],
+    "actions": {
+     "F": "DEFER"
+    }
+   },
+   "expect": {
+    "days_overdue": {
+     "F": 0
+    },
+    "buckets": {
+     "F": "current"
+    }
+   },
+   "derivation": "as_of + 48 h is in the future"
+  },
+  {
+   "id": "H09",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "the rate on the item overrides the default",
+   "input": {
+    "as_of": "2026-10-24",
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72
+    },
+    "obligations": [
+     {
+      "obligation_id": "G",
+      "beneficiary_id": "p1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "due_date": "2026-09-09",
+      "late_interest_bp": 0
+     }
+    ],
+    "actions": {
+     "G": "DEFER"
+    }
+   },
+   "expect": {
+    "accrued": {
+     "G": 0
+    },
+    "projected": {
+     "G": 0
+    },
+    "exposure_minor": 0
+   },
+   "derivation": "a contract without late interest: 0 % beats the 8 % default"
+  },
+  {
+   "id": "H10",
+   "kind": "aging",
+   "level": 3,
+   "pain": "what we owe, how late, what it costs",
+   "title": "no as_of: nothing is overdue",
+   "input": {
+    "as_of": null,
+    "base_currency": "USD",
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "policy": {
+     "planning_horizon_hours": 72,
+     "overdue_escalation_days": 0
+    },
+    "obligations": [
+     {
+      "obligation_id": "A",
+      "beneficiary_id": "p1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "due_date": "2026-10-30"
+     },
+     {
+      "obligation_id": "B",
+      "beneficiary_id": "p1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "due_date": "2026-10-01"
+     },
+     {
+      "obligation_id": "C",
+      "beneficiary_id": "p2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "due_date": "2026-08-20",
+      "dunning_level": 2
+     },
+     {
+      "obligation_id": "D",
+      "beneficiary_id": "p2",
+      "amount_minor": 100000,
+      "currency": "EUR",
+      "due_date": "2026-06-01",
+      "dunning_level": 3
+     },
+     {
+      "obligation_id": "E",
+      "beneficiary_id": "p3",
+      "amount_minor": 50000,
+      "currency": "USD",
+      "due_date": "2026-09-24",
+      "record_kind": "settled"
+     }
+    ],
+    "actions": {
+     "A": "PAY",
+     "B": "DEFER",
+     "C": "DEFER",
+     "D": "DEFER"
+    }
+   },
+   "expect": {
+    "days_overdue": {
+     "A": 0,
+     "B": 0,
+     "C": 0,
+     "D": 0
+    },
+    "reasons": []
+   },
+   "derivation": "without a date the table cannot age anything"
+  },
+  {
+   "id": "D01",
+   "kind": "intake",
+   "level": 3,
+   "pain": "who is reminding us",
+   "title": "a friendly reminder from a registered payee",
+   "input": "Message-ID: <d01@gt.example>\nDate: Fri, 24 Oct 2026 09:00:00 +0700\nFrom: Cloudloom Billing <billing@cloudloom.example>\nTo: accounts@venthora.example\nSubject: Reminder: invoice CL-2041\nMIME-Version: 1.0\nContent-Type: text/plain; charset=utf-8\n\nA friendly reminder that invoice CL-2041 for USD 2,400.00 is overdue since 10 October 2026. Please pay at your earliest convenience.\n",
+   "expect": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "dunning_level": 1,
+    "flags": [
+     "dunning_notice_L1"
+    ],
+    "invoice_no": "CL-2041"
+   },
+   "derivation": "registered mailbox; 'reminder' / 'overdue' -> L1; the invoice itself is new to the book -> a payable with dunning level 1"
+  },
+  {
+   "id": "D02",
+   "kind": "intake",
+   "level": 3,
+   "pain": "who is reminding us",
+   "title": "a second reminder",
+   "input": "Message-ID: <d02@gt.example>\nDate: Fri, 24 Oct 2026 09:00:00 +0700\nFrom: Cloudloom Billing <billing@cloudloom.example>\nTo: accounts@venthora.example\nSubject: Second reminder: invoice CL-2042\nMIME-Version: 1.0\nContent-Type: text/plain; charset=utf-8\n\nOur second reminder: invoice CL-2042 for USD 1,200.00 remains unpaid. Please settle it this week.\n",
+   "expect": {
+    "status": "VERIFIED",
+    "dunning_level": 2,
+    "flags": [
+     "dunning_notice_L2"
+    ]
+   },
+   "derivation": "'second reminder' / 'remains unpaid' -> L2"
+  },
+  {
+   "id": "D03",
+   "kind": "intake",
+   "level": 3,
+   "pain": "who is reminding us",
+   "title": "a final notice",
+   "input": "Message-ID: <d03@gt.example>\nDate: Fri, 24 Oct 2026 09:00:00 +0700\nFrom: Cloudloom Billing <billing@cloudloom.example>\nTo: accounts@venthora.example\nSubject: FINAL NOTICE: invoice CL-2043\nMIME-Version: 1.0\nContent-Type: text/plain; charset=utf-8\n\nThis is our final notice. Invoice CL-2043 for USD 3,100.00 is 60 days past due; without payment within 7 days we will suspend your account.\n",
+   "expect": {
+    "status": "VERIFIED",
+    "dunning_level": 3,
+    "flags": [
+     "dunning_notice_L3"
+    ]
+   },
+   "derivation": "'final notice' / 'suspend your account' -> L3 (the highest phrase wins over 'past due')"
+  },
+  {
+   "id": "D04",
+   "kind": "intake",
+   "level": 3,
+   "pain": "who is reminding us",
+   "title": "a final notice for an invoice already in the book is a duplicate that carries its level",
+   "input": "Message-ID: <d04@gt.example>\nDate: Fri, 24 Oct 2026 09:00:00 +0700\nFrom: Cloudloom Billing <billing@cloudloom.example>\nTo: accounts@venthora.example\nSubject: Final reminder: invoice CL-2026-11\nMIME-Version: 1.0\nContent-Type: text/plain; charset=utf-8\n\nFinal reminder: invoice CL-2026-11 for USD 1,980.00 is still outstanding. Please pay today.\n",
+   "expect": {
+    "status": "DUPLICATE",
+    "dunning_level": 3,
+    "duplicate_of": "SAAS-USD"
+   },
+   "derivation": "the book already holds CL-2026-11 (SAAS-USD) -> never a second payable; the level travels to the existing obligation in to_state",
+   "book": "kit01_initial"
+  },
+  {
+   "id": "D05",
+   "kind": "intake",
+   "level": 3,
+   "pain": "who is reminding us",
+   "title": "a final notice from an unregistered mailbox is quarantined, not believed",
+   "input": "Message-ID: <d05@gt.example>\nDate: Fri, 24 Oct 2026 09:00:00 +0700\nFrom: Cloudloom <cloudloom.billing.desk@gmail.com>\nTo: accounts@venthora.example\nSubject: FINAL NOTICE invoice CL-9999\nMIME-Version: 1.0\nContent-Type: text/plain; charset=utf-8\n\nFinal notice: invoice CL-9999 for USD 5,000.00. Legal action will follow. Pay today.\n",
+   "expect": {
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "dunning_level": 3
+   },
+   "derivation": "pressure from an unknown sender changes nothing: quarantined with the level recorded"
+  }
+ ]
+}
