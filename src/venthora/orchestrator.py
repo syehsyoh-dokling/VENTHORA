@@ -182,7 +182,9 @@ class Orchestrator:
             conversion_limit_minor=_policy_limit(gate.stages), approval_terms=approval_terms(state, t.decisions,
                                                                                             gate.projection.conversions),
             frame=worked, simulation=sim.as_dict(), duration_ms=(perf_counter() - started) * 1000,
-            budget=next((s.details for s in gate.stages if s.engine == "Budget · mandate"), {"attached": False}))
+            budget=next((s.details for s in gate.stages if s.engine == "Budget · mandate"), {"attached": False}),
+            approval_requirement=next((s.details for s in gate.stages if s.engine == "Policy · approvals"), None)
+            if decision == "REQUIRES_APPROVAL" else None)
 
 
     async def _apply_remote_evidence_and_risk(self, state, v: VerityResult, h: HorizonResult) -> list[StageResult]:
@@ -256,7 +258,11 @@ def _explain(state, t: TheoremResult, gate, stages, decision: str, base_after: i
     if escalated:
         lines.append("Escalated to a person (not paid, the rest of the plan can proceed): " + ", ".join(escalated) + ".")
     if decision == "REQUIRES_APPROVAL":
-        lines.append("A finance manager must approve: " + ", ".join(gate.requires_approval) + ".")
+        req = next((s.details for s in gate.stages if s.engine == "Policy · approvals"), None)
+        roles = ", ".join(req["roles"]) if req else "finance manager"
+        who = (f"{req['approvals_required']} different people ({roles}) must approve"
+               if req and req["approvals_required"] > 1 else f"a person ({roles}) must approve")
+        lines.append(f"{who[0].upper() + who[1:]}: " + ", ".join(gate.requires_approval) + ".")
     elif decision == "BLOCKED":
         lines.append("Blocked: " + "; ".join(f"{s.engine}: {s.summary}" for s in stages if s.status == "FAIL") + ".")
     return lines

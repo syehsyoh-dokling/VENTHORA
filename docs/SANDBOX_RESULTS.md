@@ -270,6 +270,20 @@ executions were resumed afterwards (both PAID, COMPLETED; the payee's paid count
 IN_FLIGHT executions left over from fake-sandbox cycles were resumed in the same pass and closed as FAILED by the
 duplicate lock, no money moved.
 
+## Cycle 15: the approval matrix on the real sandbox (`python scripts/approvals_real.py`)
+
+Approved by the owner as finance manager (and, for the second signature, as CFO); 23 Oct 2026, ~22:05 WIB; fresh book,
+payee `ben-saas-vendor`. Policy: every payout above USD 500 stops for a person; matrix: one finance manager up to
+USD 1,500 of paying total, two different people (finance manager or CFO) from USD 1,500. Log: `docs/approvals_log_real.json`.
+
+| Run | Tier the plan announced | Approvals given | Execution |
+|---|---|---|---|
+| 1 · USD 1,000 | `one`: 1 finance manager | finance manager | COMPLETED |
+| 2a · USD 2,000 | `two`: 2 different people | finance manager only | **REFUSED**: "needs 2 approval(s) from 2 different people; 1 valid" |
+| 2b · USD 2,000 | `two` | the same finance manager twice | **REFUSED**: "approved twice; one person counts once" |
+| 2c · USD 2,000 | `two` | finance manager + CFO, but the finance manager had requested the plan | **REFUSED**: "requested this plan and may not approve it (four-eyes)" |
+| 2d · USD 2,000 | `two` | finance manager + CFO | COMPLETED; the authorization step names both |
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |

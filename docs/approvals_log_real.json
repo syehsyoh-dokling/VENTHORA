@@ -1,0 +1,133 @@
+{
+ "generated_at": "2026-10-23T14:56:15.321806+00:00",
+ "book": "approvals-real-215615",
+ "matrix": [
+  {
+   "name": "one",
+   "min_total_minor": 0,
+   "reasons": [],
+   "approvals_required": 1,
+   "roles": [
+    "finance_manager"
+   ]
+  },
+  {
+   "name": "two",
+   "min_total_minor": 150000,
+   "reasons": [
+    "payee_in_cooling_period",
+    "payee_not_yet_active"
+   ],
+   "approvals_required": 2,
+   "roles": [
+    "finance_manager",
+    "cfo"
+   ]
+  }
+ ],
+ "runs": [
+  {
+   "run": "run 1: USD 1,000, one finance manager",
+   "decision": "REQUIRES_APPROVAL",
+   "tier": "one",
+   "approvals_required": 1,
+   "roles": [
+    "finance_manager"
+   ],
+   "approvers": [
+    "finance manager (owner)"
+   ],
+   "requested_by": "treasury agent (scheduled run)",
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,997.00 >= USD 5,000.00",
+    "approved_by": [
+     "finance manager (owner)"
+    ]
+   }
+  },
+  {
+   "run": "run 2a: USD 2,000, one approval",
+   "decision": "REQUIRES_APPROVAL",
+   "tier": "two",
+   "approvals_required": 2,
+   "roles": [
+    "finance_manager",
+    "cfo"
+   ],
+   "approvers": [
+    "finance manager (owner)"
+   ],
+   "requested_by": "treasury agent (scheduled run)",
+   "execution": {
+    "status": "REFUSED",
+    "message": "approval refused: tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid",
+    "approved_by": null
+   }
+  },
+  {
+   "run": "run 2b: USD 2,000, the same person twice",
+   "decision": "REQUIRES_APPROVAL",
+   "tier": "two",
+   "approvals_required": 2,
+   "roles": [
+    "finance_manager",
+    "cfo"
+   ],
+   "approvers": [
+    "finance manager (owner)",
+    "finance manager (owner)"
+   ],
+   "requested_by": "treasury agent (scheduled run)",
+   "execution": {
+    "status": "REFUSED",
+    "message": "approval refused: finance manager (owner) approved twice; one person counts once; tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid",
+    "approved_by": null
+   }
+  },
+  {
+   "run": "run 2c: USD 2,000, the requester approves",
+   "decision": "REQUIRES_APPROVAL",
+   "tier": "two",
+   "approvals_required": 2,
+   "roles": [
+    "finance_manager",
+    "cfo"
+   ],
+   "approvers": [
+    "finance manager (owner)",
+    "CFO (owner, second signature)"
+   ],
+   "requested_by": "finance manager (owner)",
+   "execution": {
+    "status": "REFUSED",
+    "message": "approval refused: finance manager (owner) requested this plan and may not approve it (four-eyes); tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid",
+    "approved_by": null
+   }
+  },
+  {
+   "run": "run 2d: USD 2,000, finance manager + CFO",
+   "decision": "REQUIRES_APPROVAL",
+   "tier": "two",
+   "approvals_required": 2,
+   "roles": [
+    "finance_manager",
+    "cfo"
+   ],
+   "approvers": [
+    "finance manager (owner)",
+    "CFO (owner, second signature)"
+   ],
+   "requested_by": "treasury agent (scheduled run)",
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 16,994.00 >= USD 5,000.00",
+    "approved_by": [
+     "finance manager (owner)",
+     "CFO (owner, second signature)"
+    ]
+   }
+  }
+ ],
+ "ok": true
+}

@@ -36,6 +36,7 @@ from ..gateways.airwallex import Airwallex, AirwallexError, ConversionResult, Qu
 from ..ledger import LedgerError
 from ..orchestrator import Orchestrator
 from ..payees import PayeeError, onboarding_records
+from ..proofcore.approvals import check as check_approvals
 from .models import ExecutionRequest, ExecutionResult, Reconciliation, Step
 from .store import DuplicatePayout, ExecutionStore, QuoteReused
 
@@ -138,16 +139,21 @@ class Executor:
                            "registered number before any payment")
         if plan.decision == "BLOCKED":
             refuse("ProofCore blocked this plan")
-        policy = req.state.policy
+        approvals = [a.model_dump() for a in ([req.approval] if req.approval else []) + list(req.approvals)]
+        approved_by: list[str] = []
         if plan.decision == "REQUIRES_APPROVAL":
-            if req.approval is None:
+            if not approvals:
                 refuse("plan requires a person's approval: " + ", ".join(_approval_reasons(plan)))
-            if req.approval.role not in policy.approver_roles:
-                refuse(f"role {req.approval.role!r} may not approve; allowed: {policy.approver_roles}")
-            if req.approval.terms_digest and req.approval.terms_digest != terms_digest(plan):
-                refuse("the approval was given on different terms (amount, counterparty or evidence changed)")
+            # The approval matrix: how many different people, which roles, on the plan's own terms; never the requester.
+            requirement = plan.approval_requirement or {"tier": "default", "approvals_required": 1,
+                                                        "roles": req.state.policy.approver_roles}
+            verdict = check_approvals(requirement, approvals, req.requested_by, terms_digest(plan))
+            if not verdict["ok"]:
+                refuse("approval refused: " + "; ".join(verdict["problems"]))
+            approved_by = verdict["approved_by"]
         steps.append(Step(kind="preflight", key="authorization", status="OK", detail={
-            "decision": plan.decision, "approved_by": req.approval.approver if req.approval else "policy (autonomous)"}))
+            "decision": plan.decision, "approved_by": approved_by or "policy (autonomous)",
+            "tier": (plan.approval_requirement or {}).get("tier") if approved_by else None}))
         return plan
 
     async def _run(self, eid: str, state: TreasuryState, plan: PlanResult, before: dict[str, int],

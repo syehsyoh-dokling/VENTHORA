@@ -33,8 +33,10 @@ without the person it stops and says so.
 | `payee_in_cooling_period`, `payee_not_yet_active` — a verified payee inside the cooling period after a bank change, or never paid on these details | the payee's record, cooling end, the payout | finance manager; the first PAID payout after cooling makes the payee ACTIVE |
 | Incident: replacement blocked by funds (`max_replacements`, second fee) | decided REPLACE, computed the budget | a person re-plans or funds |
 
-An approval is refused by code when: the role is not an approver, the terms digest differs from the plan shown, the
-plan hash changed since review, or the book is locked by an open reconciliation case.
+An approval is refused by code when: the role is not an approver for the tier, the terms digest differs from the plan
+shown, the plan hash changed since review, or the book is locked by an open reconciliation case. The approval matrix
+(`policy.approval_matrix`) decides how many **different** people a tier needs, by the plan's paying total and by the
+reason codes raised; the same person twice counts once, and the requester may never approve their own plan.
 
 ## Tier 3 — human only (the agent cannot produce the action; it stops and names the person)
 

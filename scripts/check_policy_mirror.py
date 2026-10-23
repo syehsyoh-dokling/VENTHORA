@@ -82,6 +82,15 @@ def main() -> int:
         if s2 != "-":
             rows.append({"obligation_id": "O2", "beneficiary_id": "b", "status": s2, "in_cooling": c2, "cooling_until": None, "paid_count": 0})
         grid.append(base | {"payees": {"attached": attached, "rows": rows, "as_of": "2026-10-23T12:00:00+00:00"}})
+    # Approval matrix: tiers by amount and by reason, totals around every threshold, with and without a reason raised.
+    tiers = [{"name": "one", "min_total_minor": 0, "reasons": [], "approvals_required": 1, "roles": ["finance_manager"]},
+             {"name": "two", "min_total_minor": 2_500_000, "reasons": ["payee_in_cooling_period"], "approvals_required": 2, "roles": ["finance_manager", "cfo"]},
+             {"name": "board", "min_total_minor": 10_000_000, "reasons": [], "approvals_required": 3, "roles": ["cfo"]}]
+    for matrix, total, conversion, cooling in itertools.product(
+            [[], tiers[:1], tiers[:2], tiers, [tiers[1]]], [0, 2_499_999, 2_500_000, 10_000_000], [0, 1_000_001], [False, True]):
+        grid.append(base | {"approval_matrix": matrix, "paying_total_minor": total, "conversion_base_minor": conversion,
+                            "payees": {"attached": True, "as_of": None,
+                                       "rows": [{"obligation_id": "O1", "beneficiary_id": "a", "status": "VERIFIED", "in_cooling": cooling, "cooling_until": None, "paid_count": 0}]}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

@@ -37,6 +37,7 @@ from .ledger import evaluate as ledger_evaluate  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
 from .payees import PayeeError  # noqa: E402
 from .payees import evaluate as payees_evaluate  # noqa: E402
+from .proofcore.approvals import evaluate as approvals_evaluate  # noqa: E402
 from .proofcore.budget import attach_budget, cutoff_report, load_budget  # noqa: E402
 from .reporting import ReportingConfig, period_report  # noqa: E402
 from .reporting import evaluate as reporting_evaluate  # noqa: E402
@@ -285,6 +286,13 @@ async def get_payee(beneficiary_id: str):
     if rec is None:
         raise HTTPException(404, "unregistered payee")
     return rec | {"events": store.payee_events(beneficiary_id)}
+
+
+@app.post("/v1/approvals/eval")
+async def approvals_eval(inp: Annotated[dict, Body()]):
+    """Pure evaluation of the approval matrix (ground truth / the form): the tier that applies and whether the approvals
+    given satisfy it (roles, terms, different people, never the requester)."""
+    return approvals_evaluate(inp)
 
 
 @app.post("/v1/payees/eval")
@@ -626,7 +634,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees"):
+    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees", "approvals"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

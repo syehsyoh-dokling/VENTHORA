@@ -73,9 +73,9 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
 
  <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option><option value="limits">limits</option><option value="payees">payees</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option><option value="limits">limits</option><option value="payees">payees</option><option value="approvals">approvals</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
-    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option><option value="ledger">ledger postings (JSON) → /v1/ledger/eval</option><option value="payees">payee lifecycle events (JSON) → /v1/payees/eval</option></select>
+    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option><option value="ledger">ledger postings (JSON) → /v1/ledger/eval</option><option value="payees">payee lifecycle events (JSON) → /v1/payees/eval</option><option value="approvals">approval matrix check (JSON) → /v1/approvals/eval</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
     <button id="submitCase" class="primary">Submit</button></span></h2>
   <textarea id="subInput" spellcheck="false" style="width:100%;min-height:150px;font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)" placeholder='Paste a TreasuryState JSON or a raw email (RFC 822), or pick a ground-truth case.'></textarea>
@@ -115,7 +115,7 @@ async function platform(){try{const s=await api("/api/status");const a=s.authori
  $("#status").textContent=`api ok · ${new Date().toLocaleTimeString()}`}catch(e){$("#status").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
 
 function renderPlan(p){const sim=p.simulation||{};const pol=(p.stages.find(s=>s.engine==="Policy")||{}).details||{};const req=(pol.local||{}).requires_approval||[];
- const tiles=[["Decision",pill(p.decision),req.join(", ")],["Base cost",fmt(p.total_base_cost_minor,"USD"),`after: ${fmt(p.projected_base_balance_minor,"USD")}`],
+ const ar=p.approval_requirement;const tiles=[["Decision",pill(p.decision),req.join(", ")+(ar?` · ${ar.approvals_required} approval(s)${ar.approvals_required>1?" from different people":""} (${ar.roles.join(", ")}); tier ${ar.tier}; never the requester`:"")],["Base cost",fmt(p.total_base_cost_minor,"USD"),`after: ${fmt(p.projected_base_balance_minor,"USD")}`],
   ["Reserve floor",fmt(p.required_base_floor_minor,"USD"),"floor + FX stress"],["P(breach 72h)",sim.breach_probability_bp!=null?(sim.breach_probability_bp/100).toFixed(1)+"%":"-",sim.paths?`${sim.paths.toLocaleString()} Horizon paths`:""],
   ["FX limit",fmt(p.conversion_limit_minor,"USD"),p.forecast_confidence_bp!=null?`confidence ${(p.forecast_confidence_bp/100).toFixed(0)}%`:"no open receipt"],["Latency",`${p.duration_ms.toFixed(0)} ms`,p.solver]];
  const maxB=Math.max(1,...p.counterfactuals.map(c=>c.breach_probability_bp||0));
@@ -244,8 +244,8 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const t0=performance.now();let res,body;
  if(kind==="plan"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
   res=await fetch("/v1/plans",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
- else if(kind==="incident"||kind==="reporting"||kind==="ledger"||kind==="payees"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
-  const ep={incident:"/v1/incidents/decide",reporting:"/v1/reporting/eval",ledger:"/v1/ledger/eval",payees:"/v1/payees/eval"}[kind];
+ else if(kind==="incident"||kind==="reporting"||kind==="ledger"||kind==="payees"||kind==="approvals"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
+  const ep={incident:"/v1/incidents/decide",reporting:"/v1/reporting/eval",ledger:"/v1/ledger/eval",payees:"/v1/payees/eval",approvals:"/v1/approvals/eval"}[kind];
   res=await fetch(ep,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
  else{const q=new URLSearchParams({dry_run:$("#queueIt").checked?"false":"true"});if(c&&c.book)q.set("book",c.book);
   res=await fetch("/v1/intake/emails?"+q,{method:"POST",headers:{"content-type":"message/rfc822"},body:raw})}
@@ -255,7 +255,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const serverMs=kind==="plan"?body.duration_ms:null;
  const summary=kind==="plan"?`${pill(body.decision)} ${Object.entries(body.obligations.reduce((m,d)=>(m[d.obligation_id]=d.action,m),{})).map(([o,a])=>`${esc(o)}=${esc(a)}`).join(", ")}`
   :kind==="incident"?`${pill(body.action)} <span class="small">${esc(body.reason)}</span>`
-  :(kind==="reporting"||kind==="ledger"||kind==="payees")?`<span class="mono small">${esc(JSON.stringify(body)).slice(0,600)}</span>`
+  :(kind==="reporting"||kind==="ledger"||kind==="payees"||kind==="approvals")?`<span class="mono small">${esc(JSON.stringify(body)).slice(0,600)}</span>`
   :`${pill(body.status)} ${esc(body.trust)} · ${esc(body.kind)} · ${fmt(body.amount_minor,body.currency||"")} · ${esc(body.invoice_no||"-")}`;
  const rec={id:c?c.id:"free",kind,ui_ms:+ms.toFixed(1),server_ms:serverMs!=null?+serverMs.toFixed(1):null,match:judge?judge.match:null,
   bad:judge?Object.entries(judge.fields).filter(([k,v])=>!v.ok).map(([k,v])=>`${k}: expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)}`):[]};

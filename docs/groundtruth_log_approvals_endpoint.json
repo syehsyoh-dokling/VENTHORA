@@ -1,0 +1,1453 @@
+[
+ {
+  "id": "Q01",
+  "kind": "plan",
+  "title": "a small plan that stops for a person: one finance manager",
+  "ms": 106.4,
+  "ms_all": [
+   106.4
+  ],
+  "server_ms": 85.78,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "single_payment_above_limit"
+    ],
+    "actual": [
+     "single_payment_above_limit"
+    ],
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "one",
+    "actual": "one",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "approval_roles": {
+    "expected": [
+     "finance_manager"
+    ],
+    "actual": [
+     "finance_manager"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "one",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 85.78220009803772
+  }
+ },
+ {
+  "id": "Q02",
+  "kind": "plan",
+  "title": "one cent below the two-person threshold",
+  "ms": 131.91,
+  "ms_all": [
+   131.91
+  ],
+  "server_ms": 117.24,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "one",
+    "actual": "one",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "one",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 117.24109994247556
+  }
+ },
+ {
+  "id": "Q03",
+  "kind": "plan",
+  "title": "exactly the two-person threshold",
+  "ms": 129.54,
+  "ms_all": [
+   129.54
+  ],
+  "server_ms": 112.11,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "two",
+    "actual": "two",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   },
+   "approval_roles": {
+    "expected": [
+     "cfo",
+     "finance_manager"
+    ],
+    "actual": [
+     "cfo",
+     "finance_manager"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "two",
+   "approvals_required": 2,
+   "approval_roles": [
+    "cfo",
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 112.10630007553846
+  }
+ },
+ {
+  "id": "Q04",
+  "kind": "plan",
+  "title": "two payouts whose total crosses the threshold",
+  "ms": 108.98,
+  "ms_all": [
+   108.98
+  ],
+  "server_ms": 94.97,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "two",
+    "actual": "two",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY",
+    "O2": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1",
+    "O2"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "two",
+   "approvals_required": 2,
+   "approval_roles": [
+    "cfo",
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 94.9720999924466
+  }
+ },
+ {
+  "id": "Q05",
+  "kind": "plan",
+  "title": "the board tier",
+  "ms": 100.05,
+  "ms_all": [
+   100.05
+  ],
+  "server_ms": 86.35,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "board",
+    "actual": "board",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 3,
+    "actual": 3,
+    "ok": true
+   },
+   "approval_roles": {
+    "expected": [
+     "cfo"
+    ],
+    "actual": [
+     "cfo"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "board",
+   "approvals_required": 3,
+   "approval_roles": [
+    "cfo"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 86.35090000461787
+  }
+ },
+ {
+  "id": "Q06",
+  "kind": "plan",
+  "title": "a small amount but a payee-change reason: the reason lifts the tier",
+  "ms": 106.49,
+  "ms_all": [
+   106.49
+  ],
+  "server_ms": 92.54,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "payee_in_cooling_period"
+    ],
+    "actual": [
+     "payee_in_cooling_period",
+     "single_payment_above_limit"
+    ],
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "two",
+    "actual": "two",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_in_cooling_period",
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "two",
+   "approvals_required": 2,
+   "approval_roles": [
+    "cfo",
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 92.53749996423721
+  }
+ },
+ {
+  "id": "Q07",
+  "kind": "plan",
+  "title": "no reason raised: no approval at all",
+  "ms": 105.03,
+  "ms_all": [
+   105.03
+  ],
+  "server_ms": 91.26,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 91.26079990528524
+  }
+ },
+ {
+  "id": "Q08",
+  "kind": "plan",
+  "title": "no matrix in the policy: one approver from approver_roles",
+  "ms": 101.76,
+  "ms_all": [
+   101.76
+  ],
+  "server_ms": 88.42,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "default",
+    "actual": "default",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "approval_roles": {
+    "expected": [
+     "finance_manager"
+    ],
+    "actual": [
+     "finance_manager"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 88.42309995088726
+  }
+ },
+ {
+  "id": "Q09",
+  "kind": "plan",
+  "title": "a matrix with only a two-person tier: small plans fall back to the default",
+  "ms": 103.26,
+  "ms_all": [
+   103.26
+  ],
+  "server_ms": 90.55,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "approval_tier": {
+    "expected": "default",
+    "actual": "default",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 90.54849995300174
+  }
+ },
+ {
+  "id": "Q10",
+  "kind": "plan",
+  "title": "an escalated payout does not count toward the total",
+  "ms": 99.25,
+  "ms_all": [
+   99.25
+  ],
+  "server_ms": 86.45,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 86.45019994582981
+  }
+ },
+ {
+  "id": "Q11",
+  "kind": "plan",
+  "title": "a viewer: blocked before any tier",
+  "ms": 97.95,
+  "ms_all": [
+   97.95
+  ],
+  "server_ms": 86.48,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [
+    "Policy"
+   ],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": false,
+   "duration_ms": 86.47890004795045
+  }
+ },
+ {
+  "id": "W01",
+  "kind": "approvals",
+  "title": "two different people on the plan's terms",
+  "ms": 2.35,
+  "ms_all": [
+   2.35
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "tier": {
+    "expected": "two",
+    "actual": "two",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   },
+   "approved_by": {
+    "expected": [
+     "Dana Finch",
+     "Omar Reyes"
+    ],
+    "actual": [
+     "Dana Finch",
+     "Omar Reyes"
+    ],
+    "ok": true
+   },
+   "problems_n": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "Dana Finch",
+    "Omar Reyes"
+   ]
+  }
+ },
+ {
+  "id": "W02",
+  "kind": "approvals",
+  "title": "one approval where two are needed",
+  "ms": 1.97,
+  "ms_all": [
+   1.97
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "problems_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "2 different people",
+    "actual": "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": false,
+   "problems": [
+    "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid"
+   ],
+   "problems_n": 1,
+   "first_problem": "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid",
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W03",
+  "kind": "approvals",
+  "title": "the same person twice",
+  "ms": 2.21,
+  "ms_all": [
+   2.21
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "problems_n": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "approved twice",
+    "actual": "Dana Finch approved twice; one person counts once",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": false,
+   "problems": [
+    "Dana Finch approved twice; one person counts once",
+    "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "Dana Finch approved twice; one person counts once",
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W04",
+  "kind": "approvals",
+  "title": "the same person twice, spelled differently",
+  "ms": 1.65,
+  "ms_all": [
+   1.65
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "approved twice",
+    "actual": "  dana   FINCH  approved twice; one person counts once",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": false,
+   "problems": [
+    "  dana   FINCH  approved twice; one person counts once",
+    "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "  dana   FINCH  approved twice; one person counts once",
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W05",
+  "kind": "approvals",
+  "title": "the requester approves their own plan",
+  "ms": 3.07,
+  "ms_all": [
+   3.07
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "may not approve it (four-eyes)",
+    "actual": "Dana Finch requested this plan and may not approve it (four-eyes)",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": false,
+   "problems": [
+    "Dana Finch requested this plan and may not approve it (four-eyes)",
+    "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "Dana Finch requested this plan and may not approve it (four-eyes)",
+   "approved_by": [
+    "Omar Reyes"
+   ]
+  }
+ },
+ {
+  "id": "W06",
+  "kind": "approvals",
+  "title": "a role the tier does not allow",
+  "ms": 2.43,
+  "ms_all": [
+   2.43
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "may not approve this tier",
+    "actual": "role 'ap_clerk' of Pat Lee may not approve this tier; allowed: ['finance_manager', 'cfo']",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": false,
+   "problems": [
+    "role 'ap_clerk' of Pat Lee may not approve this tier; allowed: ['finance_manager', 'cfo']",
+    "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "role 'ap_clerk' of Pat Lee may not approve this tier; allowed: ['finance_manager', 'cfo']",
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W07",
+  "kind": "approvals",
+  "title": "an approval on different terms",
+  "ms": 2.28,
+  "ms_all": [
+   2.28
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "different terms",
+    "actual": "the approval by Omar Reyes was given on different terms (amount, counterparty or evidence changed)",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": false,
+   "problems": [
+    "the approval by Omar Reyes was given on different terms (amount, counterparty or evidence changed)",
+    "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "the approval by Omar Reyes was given on different terms (amount, counterparty or evidence changed)",
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W08",
+  "kind": "approvals",
+  "title": "one person is enough below the threshold",
+  "ms": 2.34,
+  "ms_all": [
+   2.34
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "tier": {
+    "expected": "one",
+    "actual": "one",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "one",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager"
+    ],
+    "distinct_people": false
+   },
+   "tier": "one",
+   "approvals_required": 1,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W09",
+  "kind": "approvals",
+  "title": "a small amount with a payee-change reason needs two",
+  "ms": 2.27,
+  "ms_all": [
+   2.27
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "tier": {
+    "expected": "two",
+    "actual": "two",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": false,
+   "problems": [
+    "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid"
+   ],
+   "problems_n": 1,
+   "first_problem": "tier 'two' needs 2 approval(s) from 2 different people (finance_manager, cfo); 1 valid",
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W10",
+  "kind": "approvals",
+  "title": "no reason: nothing to approve, any approvals are fine",
+  "ms": 1.99,
+  "ms_all": [
+   1.99
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "tier": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": null,
+   "tier": null,
+   "approvals_required": 0,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": []
+  }
+ },
+ {
+  "id": "W11",
+  "kind": "approvals",
+  "title": "the board tier needs three CFO-role people",
+  "ms": 1.67,
+  "ms_all": [
+   1.67
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "tier": {
+    "expected": "board",
+    "actual": "board",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 3,
+    "actual": 3,
+    "ok": true
+   },
+   "problems_n": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "board",
+    "approvals_required": 3,
+    "roles": [
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "board",
+   "approvals_required": 3,
+   "ok": false,
+   "problems": [
+    "role 'finance_manager' of Dana Finch may not approve this tier; allowed: ['cfo']",
+    "tier 'board' needs 3 approval(s) from 3 different people (cfo); 2 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "role 'finance_manager' of Dana Finch may not approve this tier; allowed: ['cfo']",
+   "approved_by": [
+    "Omar Reyes",
+    "Ana Souza"
+   ]
+  }
+ },
+ {
+  "id": "W12",
+  "kind": "approvals",
+  "title": "the board tier satisfied",
+  "ms": 2.0,
+  "ms_all": [
+   2.0
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "approved_by": {
+    "expected": [
+     "Omar Reyes",
+     "Ana Souza",
+     "Kim Park"
+    ],
+    "actual": [
+     "Omar Reyes",
+     "Ana Souza",
+     "Kim Park"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "board",
+    "approvals_required": 3,
+    "roles": [
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "board",
+   "approvals_required": 3,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "Omar Reyes",
+    "Ana Souza",
+    "Kim Park"
+   ]
+  }
+ },
+ {
+  "id": "W13",
+  "kind": "approvals",
+  "title": "no matrix: the default tier takes one finance manager",
+  "ms": 1.86,
+  "ms_all": [
+   1.86
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "tier": {
+    "expected": "default",
+    "actual": "default",
+    "ok": true
+   },
+   "approvals_required": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "default",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager"
+    ],
+    "distinct_people": false
+   },
+   "tier": "default",
+   "approvals_required": 1,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "W14",
+  "kind": "approvals",
+  "title": "no matrix: a CFO is not in approver_roles",
+  "ms": 1.47,
+  "ms_all": [
+   1.47
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "may not approve",
+    "actual": "role 'cfo' of Omar Reyes may not approve this tier; allowed: ['finance_manager']",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "default",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager"
+    ],
+    "distinct_people": false
+   },
+   "tier": "default",
+   "approvals_required": 1,
+   "ok": false,
+   "problems": [
+    "role 'cfo' of Omar Reyes may not approve this tier; allowed: ['finance_manager']",
+    "tier 'default' needs 1 approval(s) from 1 different person (finance_manager); 0 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "role 'cfo' of Omar Reyes may not approve this tier; allowed: ['finance_manager']",
+   "approved_by": []
+  }
+ },
+ {
+  "id": "W15",
+  "kind": "approvals",
+  "title": "a terms digest missing on the approval is accepted (the executor binds it)",
+  "ms": 1.99,
+  "ms_all": [
+   1.99
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "two",
+    "approvals_required": 2,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": true
+   },
+   "tier": "two",
+   "approvals_required": 2,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "Dana Finch",
+    "Omar Reyes"
+   ]
+  }
+ }
+]

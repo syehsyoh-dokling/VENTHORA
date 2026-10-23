@@ -192,6 +192,15 @@ onboarding: a number printed in the email is refused by code. Even then the new 
 a cooling period and for its first payment; the agent pays it alone only after a PAID payout has proven it. The
 executor re-reads the live record before money moves, so a plan reviewed against a stale registry cannot pay either.
 
+### I. How many people it takes
+
+"A person approves" is not one rule but a matrix: the amount and the reason decide whether one finance manager is
+enough or two different people must sign, and above that a board tier. The matrix lives in the policy, is read by
+both engines, and is enforced where it matters, in the executor before money moves: one person approving twice is one
+approval, an approval signed on another plan's terms is none, and the person who submitted the plan can never be one
+of its approvers. The plan itself says what it will take, so the dashboard shows "2 approvals from different people"
+before anyone is asked.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

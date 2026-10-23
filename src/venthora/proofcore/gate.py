@@ -22,6 +22,7 @@ from ..payees import describe as describe_payees
 from ..payees import payee_facts, payee_reasons
 from . import budget
 from . import policy as local_policy
+from .approvals import describe as describe_approval
 from .limits import describe as describe_limits
 from .limits import limit_facts, limit_reasons
 from .match import three_way_match
@@ -144,6 +145,12 @@ class ProofCore:
                                         paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
+        # Approval matrix: who, and how many different people, must approve what the policy stopped.
+        if decision.get("approval"):
+            stages.append(StageResult(engine="Policy · approvals", status="WARN", summary=describe_approval(decision["approval"]),
+                                      details=decision["approval"] | {"reasons": decision["requires_approval"],
+                                                                      "paying_total_minor": inp["paying_total_minor"]},
+                                      duration_ms=0.0))
         stages.append(await self._balance_stage(state, proj.conversions))
         stages.append(await self._ledger_stage(state, proj.base_cost_minor, floor))
         return GateResult(stages, proj, decision["requires_approval"] if decision["allow"] else ["actor_not_permitted"])

@@ -22,6 +22,10 @@ class ExecutionRequest(StrictModel):
     state: TreasuryState
     plan_hash: str = Field(min_length=64, max_length=64, description="plan_hash of the plan being approved")
     approval: Approval | None = None
+    approvals: list[Approval] = Field(default_factory=list, max_length=5,
+                                      description="every approval given (the approval matrix may need more than one person)")
+    requested_by: str | None = Field(default=None, max_length=120,
+                                     description="who submitted the plan for execution; a requester may never approve it")
     simulate_settlement: bool = Field(default=True, description="sandbox: move transfers SENT -> PAID")
     max_quote_slippage_bp: int = Field(default=100, ge=0, le=1000)
 

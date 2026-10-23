@@ -1,0 +1,18 @@
+{"_note": "UI bench, approvals suite: every case submitted through the dashboard form (Submit a case, suite = approvals; plan cases to POST /v1/plans, check cases to POST /v1/approvals/eval) in the Claude in-app browser against the running service on 24 Oct 2026; ui_ms = round trip measured by the browser, server_ms = the plan's own duration_ms (plan cases only). 26/26 matched the hand-derived expectation.",
+ "n": 26, "matched": 26, "p50_ms": 3.5, "max_ms": 172.6, "plan_server_p50_ms": 81.7,
+ "rows": [
+  {"id": "Q01", "kind": "plan", "match": true, "server_ms": 159.9, "ui_ms": 172.6}, {"id": "Q02", "kind": "plan", "match": true, "server_ms": 119.2, "ui_ms": 128.9},
+  {"id": "Q03", "kind": "plan", "match": true, "server_ms": 76.4, "ui_ms": 86.1}, {"id": "Q04", "kind": "plan", "match": true, "server_ms": 77.6, "ui_ms": 87.4},
+  {"id": "Q05", "kind": "plan", "match": true, "server_ms": 74.2, "ui_ms": 83.9}, {"id": "Q06", "kind": "plan", "match": true, "server_ms": 81.7, "ui_ms": 91.9},
+  {"id": "Q07", "kind": "plan", "match": true, "server_ms": 86.4, "ui_ms": 95.6}, {"id": "Q08", "kind": "plan", "match": true, "server_ms": 104.1, "ui_ms": 113.8},
+  {"id": "Q09", "kind": "plan", "match": true, "server_ms": 76.2, "ui_ms": 85.8}, {"id": "Q10", "kind": "plan", "match": true, "server_ms": 81.9, "ui_ms": 94.5},
+  {"id": "Q11", "kind": "plan", "match": true, "server_ms": 81.6, "ui_ms": 92.7},
+  {"id": "W01", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 4.5}, {"id": "W02", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 3.4},
+  {"id": "W03", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.5}, {"id": "W04", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.8},
+  {"id": "W05", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.3}, {"id": "W06", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 3.0},
+  {"id": "W07", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.6}, {"id": "W08", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.4},
+  {"id": "W09", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.8}, {"id": "W10", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 3.5},
+  {"id": "W11", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.7}, {"id": "W12", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.5},
+  {"id": "W13", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 3.4}, {"id": "W14", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.3},
+  {"id": "W15", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 2.7}
+ ]}

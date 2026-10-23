@@ -42,7 +42,7 @@ PAID/CANCELLED/FAILED (#92–93); `request_id` is a 36-character UUID persisted 
 be paid (#48); learned fees keep the maximum observed (#70).
 
 **Policy mirror.** `policy/treasury.rego` and `proofcore/policy.py` were evaluated on a grid of
-9,518 inputs (confidence null/0–10000, three limits, three roles, with and without escalations,
+9,598 inputs (confidence null/0–10000, three limits, three roles, with and without escalations,
 five breach probabilities, five conversion sizes, and 2,688 budget-line inputs around every
 threshold: auto share, alert with and without a required approval, the mandate itself, bypass
 signed or not, unbudgeted obligations) by a real OPA 0.70.0 (the official binary, SHA-256
@@ -109,7 +109,7 @@ are thorough but not novel.
 | Execution teaches the next plan | real fees differed from the guide (13.37 vs 12.85; LOCAL not free); variance is reported and the fees are learned |
 | Ring-fenced mandate | the agent spends its allocation, never the wallet, and reconciles its budget against the live wallet to the cent |
 | AI challenger | any recommendation, including the LLM's own, goes through the same gate |
-| Rego mirror verified by OPA | policy in two engines that must agree, proven on 9,518 inputs including the budget mandate |
+| Rego mirror verified by OPA | policy in two engines that must agree, proven on 9,598 inputs including the budget mandate |
 | Safety independent of model quality | shown with a small local model; a stronger model improves proposals, not authority |
 
 **Honest weaknesses against the field:** no UI (judges from fintech and VC respond to a

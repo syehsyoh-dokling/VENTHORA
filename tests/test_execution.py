@@ -102,7 +102,7 @@ def test_finance_manager_approval_executes_and_escalated_items_are_not_paid(tmp_
     _, result, _ = run_plan_and_execute(fake, tmp_path, "kit01_receipt_delayed", approval=FINANCE_MANAGER)
     assert result.status == "COMPLETED", result.message
     assert "CONTRACTOR-US" not in paid(fake) and "SAAS-USD" not in paid(fake)
-    assert result.steps[0].detail["approved_by"] == FINANCE_MANAGER.approver
+    assert result.steps[0].detail["approved_by"] == [FINANCE_MANAGER.approver]
 
 
 def test_plan_hash_must_match_what_was_approved(tmp_path):

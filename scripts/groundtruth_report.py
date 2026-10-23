@@ -60,7 +60,7 @@ def section(suite: str, title: str, intro: list[str]) -> list[str]:
     inproc = asyncio.run(in_process(cases))
     endpoint = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_endpoint.json").read_text(encoding="utf-8"))}
     ui = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_ui.json").read_text(encoding="utf-8"))["rows"]}
-    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "payees", "execution"].index)
+    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "payees", "approvals", "execution"].index)
     lines = [f"## {title}", ""] + intro + ["", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
     for kind in kinds:
         ids = [c["id"] for c in cases if c["kind"] == kind]
@@ -135,6 +135,11 @@ def main() -> None:
         "control is off. The state machine itself: register, the call-back only by an approver role and only on the registered number "
         "(a number from the request is refused), a bank change that starts (or restarts) the cooling period, payments that promote only "
         "after it, suspend / reinstate (another call-back)."])
+    lines += [""] + section("approvals", "Suite 9 — the approval matrix (four-eyes): who, and how many different people, must approve", [
+        "Tiers by amount and by reason code, loosest first, the last applicable tier deciding (a plan that stops for a person at "
+        "USD 1,000 needs one finance manager; at USD 25,000, or for a payee-change reason, two different people); no tier = one "
+        "approver; no reason = no approval. The check the executor runs before money moves: an allowed role, the plan's own "
+        "terms digest, two approvals from one person count once, and the requester may never approve their own plan."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

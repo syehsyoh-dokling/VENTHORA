@@ -1,0 +1,1994 @@
+{
+ "_note": "Approval-matrix ground truth, hand-derived; see scripts/make_approvals_groundtruth.py.",
+ "cases": [
+  {
+   "id": "Q01",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "a small plan that stops for a person: one finance manager",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "single_payment_above_limit"
+    ],
+    "approval_tier": "one",
+    "approvals_required": 1,
+    "approval_roles": [
+     "finance_manager"
+    ]
+   },
+   "derivation": "USD 1,000 >= tier 'one' (0), < tier 'two' (25,000) -> one person"
+  },
+  {
+   "id": "Q02",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "one cent below the two-person threshold",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 2499999,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "approval_tier": "one",
+    "approvals_required": 1
+   },
+   "derivation": "24,999.99 < 25,000 -> still one person"
+  },
+  {
+   "id": "Q03",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "exactly the two-person threshold",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 2500000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "approval_tier": "two",
+    "approvals_required": 2,
+    "approval_roles": [
+     "cfo",
+     "finance_manager"
+    ]
+   },
+   "derivation": "25,000 >= 25,000 -> two different people"
+  },
+  {
+   "id": "Q04",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "two payouts whose total crosses the threshold",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 1200000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-uk-logistics",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "approval_tier": "two",
+    "approvals_required": 2
+   },
+   "derivation": "13,000 + 12,000 = 25,000: the tier reads the plan's paying total, not one payout"
+  },
+  {
+   "id": "Q05",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "the board tier",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 10000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "approval_tier": "board",
+    "approvals_required": 3,
+    "approval_roles": [
+     "cfo"
+    ]
+   },
+   "derivation": "100,000 >= tier 'board' -> three different CFO-role people; the last applicable tier wins"
+  },
+  {
+   "id": "Q06",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "a small amount but a payee-change reason: the reason lifts the tier",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "VERIFIED",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": "2026-10-26T12:00:00+00:00"
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "payee_in_cooling_period"
+    ],
+    "approval_tier": "two",
+    "approvals_required": 2
+   },
+   "derivation": "USD 1,000 would be tier 'one'; payee_in_cooling_period is listed on tier 'two' -> two people"
+  },
+  {
+   "id": "Q07",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "no reason raised: no approval at all",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 40000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "approvals_required": 0,
+    "approval_tier": null
+   },
+   "derivation": "USD 400 <= single limit 500 -> autonomous; the matrix is not consulted"
+  },
+  {
+   "id": "Q08",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "no matrix in the policy: one approver from approver_roles",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 5000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": []
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "approval_tier": "default",
+    "approvals_required": 1,
+    "approval_roles": [
+     "finance_manager"
+    ]
+   },
+   "derivation": "an empty matrix is the old rule: one finance manager"
+  },
+  {
+   "id": "Q09",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "a matrix with only a two-person tier: small plans fall back to the default",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "approval_tier": "default",
+    "approvals_required": 1
+   },
+   "derivation": "1,000 < 25,000 and no payee reason -> no tier applies -> default"
+  },
+  {
+   "id": "Q10",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "an escalated payout does not count toward the total",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 2500000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "NEW",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "approvals_required": 0
+   },
+   "derivation": "NEW payee -> ESCALATE, nothing paid, no reason raised -> no approval"
+  },
+  {
+   "id": "Q11",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "a viewer: blocked before any tier",
+   "input": {
+    "case_id": "approvals",
+    "book_id": "approvals",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 100000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 2500000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000,
+     "approval_matrix": [
+      {
+       "name": "one",
+       "min_total_minor": 0,
+       "reasons": [],
+       "approvals_required": 1,
+       "roles": [
+        "finance_manager"
+       ]
+      },
+      {
+       "name": "two",
+       "min_total_minor": 2500000,
+       "reasons": [
+        "payee_in_cooling_period",
+        "payee_not_yet_active"
+       ],
+       "approvals_required": 2,
+       "roles": [
+        "finance_manager",
+        "cfo"
+       ]
+      },
+      {
+       "name": "board",
+       "min_total_minor": 10000000,
+       "reasons": [],
+       "approvals_required": 3,
+       "roles": [
+        "cfo"
+       ]
+      }
+     ]
+    },
+    "actor_role": "viewer"
+   },
+   "expect": {
+    "decision": "BLOCKED"
+   },
+   "derivation": "role first"
+  },
+  {
+   "id": "W01",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "two different people on the plan's terms",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Omar Reyes",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": true,
+    "tier": "two",
+    "approvals_required": 2,
+    "approved_by": [
+     "Dana Finch",
+     "Omar Reyes"
+    ],
+    "problems_n": 0
+   },
+   "derivation": "finance manager + CFO, both on digest D -> satisfied"
+  },
+  {
+   "id": "W02",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "one approval where two are needed",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "problems_n": 1,
+    "first_problem_contains": "2 different people"
+   },
+   "derivation": "1 valid < 2"
+  },
+  {
+   "id": "W03",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "the same person twice",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "problems_n": 2,
+    "first_problem_contains": "approved twice"
+   },
+   "derivation": "one person counts once -> 1 valid < 2"
+  },
+  {
+   "id": "W04",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "the same person twice, spelled differently",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "  dana   FINCH ",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "first_problem_contains": "approved twice"
+   },
+   "derivation": "names are compared normalised (case, spacing)"
+  },
+  {
+   "id": "W05",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "the requester approves their own plan",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Omar Reyes",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Dana Finch",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "first_problem_contains": "may not approve it (four-eyes)"
+   },
+   "derivation": "requested_by = Dana Finch -> her approval does not count -> 1 valid < 2"
+  },
+  {
+   "id": "W06",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "a role the tier does not allow",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Pat Lee",
+      "role": "ap_clerk",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "first_problem_contains": "may not approve this tier"
+   },
+   "derivation": "ap_clerk is not in [finance_manager, cfo]"
+  },
+  {
+   "id": "W07",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "an approval on different terms",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Omar Reyes",
+      "role": "cfo",
+      "terms_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "first_problem_contains": "different terms"
+   },
+   "derivation": "the CFO signed another plan's digest -> does not count"
+  },
+  {
+   "id": "W08",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "one person is enough below the threshold",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 100000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": true,
+    "tier": "one",
+    "approvals_required": 1
+   },
+   "derivation": "total 1,000 -> tier 'one'"
+  },
+  {
+   "id": "W09",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "a small amount with a payee-change reason needs two",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "payee_not_yet_active"
+    ],
+    "paying_total_minor": 100000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "tier": "two",
+    "approvals_required": 2
+   },
+   "derivation": "reason lifts the tier"
+  },
+  {
+   "id": "W10",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "no reason: nothing to approve, any approvals are fine",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [],
+    "paying_total_minor": 2500000,
+    "approvals": [],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": true,
+    "tier": null,
+    "approvals_required": 0
+   },
+   "derivation": "no reason raised -> no requirement"
+  },
+  {
+   "id": "W11",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "the board tier needs three CFO-role people",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 10000000,
+    "approvals": [
+     {
+      "approver": "Omar Reyes",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Ana Souza",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "tier": "board",
+    "approvals_required": 3,
+    "problems_n": 2
+   },
+   "derivation": "two CFOs valid, the finance manager's role is not allowed on this tier -> 2 < 3"
+  },
+  {
+   "id": "W12",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "the board tier satisfied",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 10000000,
+    "approvals": [
+     {
+      "approver": "Omar Reyes",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Ana Souza",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "approver": "Kim Park",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": true,
+    "approved_by": [
+     "Omar Reyes",
+     "Ana Souza",
+     "Kim Park"
+    ]
+   },
+   "derivation": "three different CFO-role people"
+  },
+  {
+   "id": "W13",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "no matrix: the default tier takes one finance manager",
+   "input": {
+    "approval_matrix": [],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": true,
+    "tier": "default",
+    "approvals_required": 1
+   },
+   "derivation": "approver_roles decides"
+  },
+  {
+   "id": "W14",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "no matrix: a CFO is not in approver_roles",
+   "input": {
+    "approval_matrix": [],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Omar Reyes",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": false,
+    "first_problem_contains": "may not approve"
+   },
+   "derivation": "the default tier allows only approver_roles"
+  },
+  {
+   "id": "W15",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "who may approve, and how many",
+   "title": "a terms digest missing on the approval is accepted (the executor binds it)",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager"
+      ]
+     },
+     {
+      "name": "two",
+      "min_total_minor": 2500000,
+      "reasons": [
+       "payee_in_cooling_period",
+       "payee_not_yet_active"
+      ],
+      "approvals_required": 2,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     },
+     {
+      "name": "board",
+      "min_total_minor": 10000000,
+      "reasons": [],
+      "approvals_required": 3,
+      "roles": [
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 2500000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": null
+     },
+     {
+      "approver": "Omar Reyes",
+      "role": "cfo",
+      "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     }
+    ],
+    "requested_by": "Treasury agent run",
+    "terms_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": {
+    "ok": true
+   },
+   "derivation": "an approval without a digest is not 'different terms'; the CLI and API always set one"
+  }
+ ]
+}

@@ -49,6 +49,9 @@ def plan_view(plan: dict) -> dict:
             "n_conversions": len(plan["conversions"]),
             "conversions": {c["buy_currency"]: c["buy_amount_minor"] for c in plan["conversions"]},
             "limit": plan.get("conversion_limit_minor"), "requires": sorted(requires), "failed_stages": fails,
+            "approval_tier": (plan.get("approval_requirement") or {}).get("tier"),
+            "approvals_required": (plan.get("approval_requirement") or {}).get("approvals_required", 0),
+            "approval_roles": sorted((plan.get("approval_requirement") or {}).get("roles", [])),
             "breach_bp": (plan.get("simulation") or {}).get("breach_probability_bp"),
             "not_blocked": plan["decision"] != "BLOCKED", "duration_ms": plan.get("duration_ms")}
 
@@ -83,7 +86,8 @@ def reporting_view(d: dict) -> dict:
 
 def view_of(kind: str, result) -> dict:
     return {"plan": plan_view, "intake": intake_view, "incident": incident_view, "execution": execution_view,
-            "reporting": reporting_view, "ledger": reporting_view, "payees": reporting_view}[kind](result)
+            "reporting": reporting_view, "ledger": reporting_view, "payees": reporting_view,
+            "approvals": reporting_view}[kind](result)
 
 
 def compare(expect: dict, view: dict) -> dict:
@@ -187,6 +191,10 @@ async def run_case(case: dict, agent, intake, workdir: Path | None = None) -> di
         from ..payees import evaluate as payees_evaluate
 
         view = reporting_view(payees_evaluate(case["input"]))
+    elif kind == "approvals":
+        from ..proofcore.approvals import evaluate as approvals_evaluate
+
+        view = reporting_view(approvals_evaluate(case["input"]))
     else:
         # The fake sandbox needs "credentials" to exist; restore the environment afterwards so later plan cases
         # (which share the agent) do not suddenly see a configured-but-unreachable Airwallex and get BLOCKED.

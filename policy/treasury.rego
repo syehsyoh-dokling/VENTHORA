@@ -131,9 +131,42 @@ approval_reasons contains "payee_not_yet_active" if {
 	not r.in_cooling
 }
 
+# Approval matrix (proofcore/approvals.py): the last applicable tier decides; a tier applies when the paying total reaches
+# its min_total_minor or when one of its reason codes was raised; no tier: one approver from approver_roles; no reason: null.
+tier_applies(t) if {
+	t.min_total_minor != null
+	input.paying_total_minor >= t.min_total_minor
+}
+
+tier_applies(t) if {
+	some r in t.reasons
+	approval_reasons[r]
+}
+
+matching_tiers contains i if {
+	some i
+	tier_applies(input.approval_matrix[i])
+}
+
+approval := null if {
+	count(approval_reasons) == 0
+}
+
+approval := {"tier": t.name, "approvals_required": t.approvals_required, "roles": t.roles, "distinct_people": t.approvals_required > 1} if {
+	count(approval_reasons) > 0
+	count(matching_tiers) > 0
+	t := input.approval_matrix[max(matching_tiers)]
+}
+
+approval := {"tier": "default", "approvals_required": 1, "roles": input.approver_roles, "distinct_people": false} if {
+	count(approval_reasons) > 0
+	count(matching_tiers) == 0
+}
+
 decision := {
 	"allow": input.actor_role != "viewer",
 	"requires_approval": sort([r | some r in approval_reasons]),
 	"conversion_limit_minor": conversion_limit,
 	"escalations": input.escalations,
+	"approval": approval,
 }

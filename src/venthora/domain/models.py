@@ -161,6 +161,25 @@ class StressScenario(StrictModel):
     unexpected_outflow_minor: int = Field(ge=0, le=MAX_MINOR)
 
 
+class ApprovalTier(StrictModel):
+    """One row of the approval matrix: who, and how many, must approve a plan that stopped for a person.
+
+    A tier applies when the plan's paying total (base currency) reaches min_total_minor, or when any of its reason codes
+    was raised. Tiers are listed from loosest to strictest; the last applicable tier decides. approvals_required > 1
+    means that many DIFFERENT people (four-eyes); the requester never counts."""
+    name: str = Field(min_length=1, max_length=60)
+    min_total_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR)
+    reasons: list[str] = Field(default_factory=list, max_length=30)
+    approvals_required: int = Field(default=1, ge=1, le=3)
+    roles: list[str] = Field(default_factory=lambda: ["finance_manager"], min_length=1)
+
+    @model_validator(mode="after")
+    def applies_to_something(self):
+        if self.min_total_minor is None and not self.reasons:
+            raise ValueError("an approval tier needs a min_total_minor or reason codes")
+        return self
+
+
 class TreasuryPolicy(StrictModel):
     """Thresholds live here, in code-checked data, never in prompts."""
 
@@ -186,6 +205,9 @@ class TreasuryPolicy(StrictModel):
                     "overrides the flat Kit fee. Filled from fees observed on Airwallex.")
     planning_horizon_hours: int = Field(default=72, ge=1, le=720)
     approver_roles: list[str] = Field(default_factory=lambda: ["finance_manager"])
+    approval_matrix: list[ApprovalTier] = Field(default_factory=list, max_length=10,
+                                                description="approval tiers by amount and reason code (loosest first); "
+                                                            "empty = one approver from approver_roles")
     simulation_paths: int = Field(default=2_000, ge=100, le=200_000,
                                   description="paths for the 72-hour discrete-event reserve simulation")
     max_breach_probability_bp: int = Field(
@@ -357,4 +379,6 @@ class PlanResult(StrictModel):
     simulation: dict = Field(default_factory=dict, description="72-hour discrete-event reserve simulation")
     budget: dict = Field(default_factory=dict, description="budget pipeline: plan / realized / paying now / committed / "
                                                            "available / minus per line, alerts, and budget requests")
+    approval_requirement: dict | None = Field(default=None, description="approval matrix: tier, how many different "
+                                                                        "people, which roles (None = no approval needed)")
     duration_ms: float

@@ -26,6 +26,8 @@ def policy_input(state, conversion_base_minor: int, escalations: list[str],
         "budget": budget or {"attached": False, "lines": [], "unbudgeted_paying": 0, "unbudgeted_requires_approval": False},
         "actor_role": state.actor_role,
         "approver_roles": p.approver_roles,
+        "approval_matrix": [t.model_dump() for t in p.approval_matrix],
+        "paying_total_minor": (limits or {}).get("paying_now_total_minor", 0),
         "conversion_base_minor": conversion_base_minor,
         "forecast_confidence_bp": forecast_confidence(state),
         "autonomous_conversion_limit_minor": p.autonomous_conversion_limit_minor,
@@ -67,8 +69,11 @@ def evaluate(inp: dict) -> dict:
     # Period cut-off: a plan drawn against a closed period cannot spend on it.
     if (inp.get("budget") or {}).get("period_closed") and (inp.get("budget") or {}).get("paying_in_period", 0) > 0:
         reasons.append("period_closed")
-    return {"allow": inp["actor_role"] != "viewer", "requires_approval": sorted(set(reasons)),
-            "conversion_limit_minor": limit, "escalations": inp["escalations"]}
+    from .approvals import requirement
+
+    reasons = sorted(set(reasons))
+    return {"allow": inp["actor_role"] != "viewer", "requires_approval": reasons,
+            "conversion_limit_minor": limit, "escalations": inp["escalations"], "approval": requirement(inp, reasons)}
 
 
 def budget_reasons(b: dict) -> list[str]:
