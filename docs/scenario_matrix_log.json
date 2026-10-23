@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-23T04:06:25.650898+00:00",
+ "generated_at": "2026-10-23T04:24:27.787210+00:00",
  "summary": {
   "variants": 136,
   "ok": 136,
@@ -54,13 +54,13 @@
    }
   },
   "plan_ms": {
-   "p50": 23.4,
-   "p95": 46.6,
-   "max": 403.7
+   "p50": 12.8,
+   "p95": 20.3,
+   "max": 115.9
   },
   "exec_ms": {
-   "p50": 319.5,
-   "max": 759.8
+   "p50": 197.5,
+   "max": 581.8
   },
   "invariant_failures": {}
  },
@@ -97,7 +97,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 283.0,
+    "ms": 71.0,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -114,12 +114,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4063463
+    "sim_path_events_per_s": 6358654
    },
    "execution": {
     "status": "FAILED",
     "message": "transfer SHIPPING-UK failed: balance_insufficient",
-    "ms": 186.4,
+    "ms": 174.0,
     "transfers": 1,
     "conversions": 2,
     "discrepancies": {},
@@ -129,7 +129,7 @@
      "GBP": 250000
     }
    },
-   "total_ms": 533.9,
+   "total_ms": 292.2,
    "ok": true
   },
   {
@@ -151,7 +151,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 14.6,
+    "ms": 14.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -168,12 +168,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 6784001
+    "sim_path_events_per_s": 6938994
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 227.1,
+    "ms": 208.1,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -181,7 +181,7 @@
      "USD": 1
     }
    },
-   "total_ms": 288.5,
+   "total_ms": 265.6,
    "ok": true
   },
   {
@@ -203,7 +203,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 25.5,
+    "ms": 14.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -220,18 +220,18 @@
     "floor": 550000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2447679
+    "sim_path_events_per_s": 7130039
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,466.02 >= USD 5,500.00",
-    "ms": 319.5,
+    "ms": 210.9,
     "transfers": 3,
     "conversions": 1,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 419.4,
+   "total_ms": 266.4,
    "ok": true
   },
   {
@@ -253,7 +253,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 11.2,
+    "ms": 5.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -270,18 +270,18 @@
     "floor": 500000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 27793197
+    "sim_path_events_per_s": 55586395
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 13,577.27 >= USD 5,000.00",
-    "ms": 383.5,
+    "ms": 243.1,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 457.0,
+   "total_ms": 280.2,
    "ok": true
   },
   {
@@ -303,7 +303,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 16.1,
+    "ms": 10.0,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -320,12 +320,12 @@
     "floor": 650000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2296537
+    "sim_path_events_per_s": 4838340
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 8,725.53 >= USD 6,500.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 388.9,
+    "ms": 255.9,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
@@ -333,7 +333,7 @@
      "USD": 1
     }
    },
-   "total_ms": 467.6,
+   "total_ms": 303.0,
    "ok": true
   },
   {
@@ -355,7 +355,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 29.4,
+    "ms": 14.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -372,12 +372,12 @@
     "floor": 700000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2297516
+    "sim_path_events_per_s": 5915162
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 8,616.16 >= USD 7,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 296.0,
+    "ms": 209.4,
     "transfers": 3,
     "conversions": 1,
     "discrepancies": {},
@@ -385,7 +385,7 @@
      "USD": 1
     }
    },
-   "total_ms": 404.6,
+   "total_ms": 271.3,
    "ok": true
   },
   {
@@ -407,7 +407,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 16.8,
+    "ms": 12.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -424,18 +424,18 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4917206
+    "sim_path_events_per_s": 4764351
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 23,652.83 >= USD 6,000.00",
-    "ms": 369.2,
+    "ms": 270.8,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 447.9,
+   "total_ms": 321.9,
    "ok": true
   },
   {
@@ -456,7 +456,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 29.1,
+    "ms": 18.7,
     "actions": {
      "PAYROLL-NOV": "DEFER",
      "SHIPPING-UK": "ESCALATE",
@@ -475,9 +475,9 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 5166225
+    "sim_path_events_per_s": 9392005
    },
-   "total_ms": 98.4,
+   "total_ms": 62.7,
    "ok": true
   },
   {
@@ -498,7 +498,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 28.4,
+    "ms": 16.7,
     "actions": {
      "PAYROLL-NOV": "DEFER",
      "SHIPPING-UK": "ESCALATE",
@@ -517,9 +517,9 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 3219429
+    "sim_path_events_per_s": 9445453
    },
-   "total_ms": 108.1,
+   "total_ms": 63.7,
    "ok": true
   },
   {
@@ -540,7 +540,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 34.8,
+    "ms": 16.5,
     "actions": {
      "PAYROLL-NOV": "DEFER",
      "SHIPPING-UK": "ESCALATE",
@@ -559,9 +559,9 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 4693177
+    "sim_path_events_per_s": 9194955
    },
-   "total_ms": 120.6,
+   "total_ms": 68.7,
    "ok": true
   },
   {
@@ -582,7 +582,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 33.7,
+    "ms": 18.6,
     "actions": {
      "PAYROLL-NOV": "DEFER",
      "SHIPPING-UK": "ESCALATE",
@@ -601,9 +601,9 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 4962152
+    "sim_path_events_per_s": 7519035
    },
-   "total_ms": 106.4,
+   "total_ms": 70.9,
    "ok": true
   },
   {
@@ -625,7 +625,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 21.3,
+    "ms": 10.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -642,12 +642,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1846221
+    "sim_path_events_per_s": 4886232
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 9,999,983,261.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for th",
-    "ms": 435.3,
+    "ms": 241.8,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
@@ -655,7 +655,7 @@
      "USD": 1
     }
    },
-   "total_ms": 523.2,
+   "total_ms": 304.9,
    "ok": true
   },
   {
@@ -677,7 +677,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 21.5,
+    "ms": 9.5,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -694,12 +694,12 @@
     "floor": 100000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1597864
+    "sim_path_events_per_s": 4692592
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 5,761.65 >= USD 1,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 399.7,
+    "ms": 244.3,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
@@ -707,7 +707,7 @@
      "USD": 1
     }
    },
-   "total_ms": 492.9,
+   "total_ms": 293.4,
    "ok": true
   },
   {
@@ -728,7 +728,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 28.1,
+    "ms": 16.2,
     "actions": {
      "PAYROLL-NOV": "DEFER",
      "SHIPPING-UK": "ESCALATE",
@@ -747,9 +747,9 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 5001602
+    "sim_path_events_per_s": 6727319
    },
-   "total_ms": 103.1,
+   "total_ms": 58.5,
    "ok": true
   },
   {
@@ -770,7 +770,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 29.1,
+    "ms": 15.4,
     "actions": {
      "PAYROLL-NOV": "DEFER",
      "SHIPPING-UK": "ESCALATE",
@@ -789,9 +789,9 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 5897338
+    "sim_path_events_per_s": 9937580
    },
-   "total_ms": 110.7,
+   "total_ms": 63.9,
    "ok": true
   },
   {
@@ -813,7 +813,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 23.1,
+    "ms": 14.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -830,12 +830,12 @@
     "floor": 697105,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3151860
+    "sim_path_events_per_s": 6728137
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,116.16 >= USD 6,971.05; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 273.4,
+    "ms": 198.6,
     "transfers": 3,
     "conversions": 1,
     "discrepancies": {},
@@ -843,7 +843,7 @@
      "USD": 1
     }
    },
-   "total_ms": 374.4,
+   "total_ms": 255.2,
    "ok": true
   },
   {
@@ -865,7 +865,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 25.5,
+    "ms": 17.7,
     "actions": {
      "PAYROLL-NOV": "DEFER",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -884,18 +884,18 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 5007381
+    "sim_path_events_per_s": 9660679
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD wallet untouched at USD 0.00, which is already below the floor USD 6,000.00 (not caused by this run)",
-    "ms": 213.0,
+    "ms": 130.9,
     "transfers": 2,
     "conversions": 0,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 305.7,
+   "total_ms": 193.2,
    "ok": true
   },
   {
@@ -917,7 +917,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 11.0,
+    "ms": 7.6,
     "actions": {
      "OB-01": "PAY"
     },
@@ -929,18 +929,18 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1853875
+    "sim_path_events_per_s": 4330143
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 21,497.00 >= USD 6,000.00",
-    "ms": 96.7,
+    "ms": 83.6,
     "transfers": 1,
     "conversions": 0,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 168.1,
+   "total_ms": 130.1,
    "ok": true
   },
   {
@@ -962,7 +962,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 46.6,
+    "ms": 42.4,
     "actions": {
      "OB-09": "PAY",
      "OB-08": "CONVERT_AND_PAY",
@@ -987,12 +987,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 6731964
+    "sim_path_events_per_s": 8347779
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,351.55 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 759.8,
+    "ms": 581.8,
     "transfers": 10,
     "conversions": 2,
     "discrepancies": {},
@@ -1000,7 +1000,7 @@
      "USD": 1
     }
    },
-   "total_ms": 879.0,
+   "total_ms": 686.9,
    "ok": true
   },
   {
@@ -1022,7 +1022,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 22.8,
+    "ms": 11.7,
     "actions": {
      "OB-01": "ESCALATE",
      "OB-02": "ESCALATE",
@@ -1041,18 +1041,18 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 2190020
+    "sim_path_events_per_s": 3266867
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,488.00 >= USD 6,000.00",
-    "ms": 336.9,
+    "ms": 198.6,
     "transfers": 4,
     "conversions": 0,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 444.2,
+   "total_ms": 250.6,
    "ok": true
   },
   {
@@ -1074,7 +1074,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 11.8,
+    "ms": 7.7,
     "actions": {
      "OB-01": "PAY",
      "OB-02": "PAY",
@@ -1090,18 +1090,18 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1715097
+    "sim_path_events_per_s": 3510992
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 7,485.00 >= USD 6,000.00",
-    "ms": 359.4,
+    "ms": 257.9,
     "transfers": 5,
     "conversions": 0,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 432.5,
+   "total_ms": 301.3,
    "ok": true
   },
   {
@@ -1123,7 +1123,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 17.4,
+    "ms": 9.7,
     "actions": {
      "OB-01": "CONVERT_AND_PAY",
      "OB-02": "CONVERT_AND_PAY",
@@ -1141,12 +1141,12 @@
      "conversion_above_autonomous_limit"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1577964
+    "sim_path_events_per_s": 2824552
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 11,577.47 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 381.1,
+    "ms": 246.3,
     "transfers": 5,
     "conversions": 1,
     "discrepancies": {},
@@ -1154,7 +1154,7 @@
      "USD": 1
     }
    },
-   "total_ms": 468.7,
+   "total_ms": 296.3,
    "ok": true
   },
   {
@@ -1176,7 +1176,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 17.7,
+    "ms": 10.9,
     "actions": {
      "OB-01": "PAY",
      "OB-02": "REJECT",
@@ -1192,18 +1192,18 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2255518
+    "sim_path_events_per_s": 4869331
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 19,497.00 >= USD 6,000.00",
-    "ms": 112.7,
+    "ms": 76.1,
     "transfers": 1,
     "conversions": 0,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 191.0,
+   "total_ms": 123.8,
    "ok": true
   },
   {
@@ -1224,7 +1224,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 11.4,
+    "ms": 7.3,
     "actions": {
      "PAYROLL-NOV": "REJECT",
      "SHIPPING-UK": "REJECT",
@@ -1241,9 +1241,9 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2415633
+    "sim_path_events_per_s": 4650110
    },
-   "total_ms": 69.9,
+   "total_ms": 43.0,
    "ok": true
   },
   {
@@ -1265,7 +1265,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 10.7,
+    "ms": 7.5,
     "actions": {
      "OB-01": "PAY",
      "OB-02": "PAY",
@@ -1279,18 +1279,18 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2766979
+    "sim_path_events_per_s": 4945998
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 22,490.97 >= USD 6,000.00",
-    "ms": 221.2,
+    "ms": 145.3,
     "transfers": 3,
     "conversions": 0,
     "discrepancies": {},
     "variance": {}
    },
-   "total_ms": 283.7,
+   "total_ms": 186.1,
    "ok": true
   },
   {
@@ -1311,7 +1311,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 16.2,
+    "ms": 8.5,
     "actions": {
      "OB-01": "ESCALATE"
     },
@@ -1323,9 +1323,9 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2521727
+    "sim_path_events_per_s": 4815049
    },
-   "total_ms": 81.4,
+   "total_ms": 46.5,
    "ok": true
   },
   {
@@ -1346,7 +1346,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 20.9,
+    "ms": 11.7,
     "actions": {
      "OB-01": "ESCALATE",
      "OB-02": "ESCALATE",
@@ -1360,9 +1360,9 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2238515
+    "sim_path_events_per_s": 4966030
    },
-   "total_ms": 84.3,
+   "total_ms": 49.2,
    "ok": true
   },
   {
@@ -1383,7 +1383,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 10.7,
+    "ms": 7.1,
     "actions": {
      "PAYROLL-NOV": "REJECT",
      "SHIPPING-UK": "REJECT",
@@ -1400,9 +1400,9 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2346730
+    "sim_path_events_per_s": 4682764
    },
-   "total_ms": 63.8,
+   "total_ms": 41.8,
    "ok": true
   },
   {
@@ -1424,7 +1424,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 23.3,
+    "ms": 9.7,
     "actions": {
      "PAYROLL-NOV": "REJECT",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1441,12 +1441,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1495161
+    "sim_path_events_per_s": 4634800
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 13,764.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 313.2,
+    "ms": 191.0,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -1454,7 +1454,7 @@
      "USD": 1
     }
    },
-   "total_ms": 406.3,
+   "total_ms": 240.0,
    "ok": true
   },
   {
@@ -1476,7 +1476,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 16.8,
+    "ms": 10.2,
     "actions": {
      "PAYROLL-NOV": "REJECT",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1493,12 +1493,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1736329
+    "sim_path_events_per_s": 4666666
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 13,764.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 361.0,
+    "ms": 191.9,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -1506,7 +1506,7 @@
      "USD": 1
     }
    },
-   "total_ms": 437.2,
+   "total_ms": 238.7,
    "ok": true
   },
   {
@@ -1528,7 +1528,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 26.3,
+    "ms": 10.1,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1545,12 +1545,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4006112
+    "sim_path_events_per_s": 4586148
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,115.76 >= USD 6,000.00; variance vs plan USD 0.02 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 460.7,
+    "ms": 243.2,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
@@ -1558,7 +1558,7 @@
      "USD": 2
     }
    },
-   "total_ms": 559.4,
+   "total_ms": 290.3,
    "ok": true
   },
   {
@@ -1580,7 +1580,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 21.4,
+    "ms": 11.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1597,12 +1597,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1629023
+    "sim_path_events_per_s": 3771581
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,116.16 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 306.8,
+    "ms": 180.6,
     "transfers": 3,
     "conversions": 1,
     "discrepancies": {},
@@ -1610,7 +1610,7 @@
      "USD": 1
     }
    },
-   "total_ms": 413.5,
+   "total_ms": 229.2,
    "ok": true
   },
   {
@@ -1632,7 +1632,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 22.4,
+    "ms": 14.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1649,12 +1649,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4458192
+    "sim_path_events_per_s": 6131487
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.02 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 341.2,
+    "ms": 207.0,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -1662,7 +1662,7 @@
      "USD": 2
     }
    },
-   "total_ms": 436.2,
+   "total_ms": 260.5,
    "ok": true
   },
   {
@@ -1684,7 +1684,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 19.1,
+    "ms": 9.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1701,12 +1701,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2668866
+    "sim_path_events_per_s": 4890003
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,116.16 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 504.3,
+    "ms": 325.2,
     "transfers": 4,
     "conversions": 1,
     "discrepancies": {},
@@ -1714,7 +1714,7 @@
      "USD": 1
     }
    },
-   "total_ms": 592.6,
+   "total_ms": 372.9,
    "ok": true
   },
   {
@@ -1736,7 +1736,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 26.7,
+    "ms": 11.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1753,12 +1753,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1407465
+    "sim_path_events_per_s": 4821156
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 7,349.15 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 504.1,
+    "ms": 260.5,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
@@ -1766,7 +1766,7 @@
      "USD": 1
     }
    },
-   "total_ms": 604.2,
+   "total_ms": 317.8,
    "ok": true
   },
   {
@@ -1787,7 +1787,7 @@
    "errors": [],
    "plan": {
     "decision": "BLOCKED",
-    "ms": 48.9,
+    "ms": 20.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1806,9 +1806,9 @@
     "fails": [
      "Horizon \u00b7 risk: stress buffer 100000 minor; 1/1 receipts reliable"
     ],
-    "sim_path_events_per_s": 2724113
+    "sim_path_events_per_s": 6934018
    },
-   "total_ms": 153.7,
+   "total_ms": 69.4,
    "ok": true
   },
   {
@@ -1830,7 +1830,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 403.7,
+    "ms": 115.9,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1847,12 +1847,12 @@
     "floor": 611111,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2382340
+    "sim_path_events_per_s": 7391691
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,111.11; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 453.2,
+    "ms": 231.0,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -1860,7 +1860,7 @@
      "USD": 1
     }
    },
-   "total_ms": 976.5,
+   "total_ms": 405.3,
    "ok": true
   },
   {
@@ -1882,7 +1882,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 135.1,
+    "ms": 50.7,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1901,12 +1901,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 2340339
+    "sim_path_events_per_s": 7131792
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,322.03; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 459.0,
+    "ms": 233.2,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -1914,7 +1914,7 @@
      "USD": 1
     }
    },
-   "total_ms": 705.3,
+   "total_ms": 327.2,
    "ok": true
   },
   {
@@ -1936,7 +1936,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 28.3,
+    "ms": 11.9,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -1955,12 +1955,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1025273
+    "sim_path_events_per_s": 1819505
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 352.5,
+    "ms": 197.5,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -1968,7 +1968,7 @@
      "USD": 1
     }
    },
-   "total_ms": 461.2,
+   "total_ms": 247.8,
    "ok": true
   },
   {
@@ -1990,7 +1990,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 74.7,
+    "ms": 33.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2007,12 +2007,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 34499883
+    "sim_path_events_per_s": 64157069
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 354.2,
+    "ms": 229.5,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2020,7 +2020,7 @@
      "USD": 1
     }
    },
-   "total_ms": 556.9,
+   "total_ms": 325.0,
    "ok": true
   },
   {
@@ -2042,7 +2042,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 28.1,
+    "ms": 11.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2062,12 +2062,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1099203
+    "sim_path_events_per_s": 2755580
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 361.7,
+    "ms": 200.7,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2075,7 +2075,7 @@
      "USD": 1
     }
    },
-   "total_ms": 467.8,
+   "total_ms": 248.5,
    "ok": true
   },
   {
@@ -2097,7 +2097,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 25.8,
+    "ms": 13.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2114,12 +2114,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3452244
+    "sim_path_events_per_s": 6590509
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 382.6,
+    "ms": 199.7,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2127,7 +2127,7 @@
      "USD": 1
     }
    },
-   "total_ms": 490.0,
+   "total_ms": 262.5,
    "ok": true
   },
   {
@@ -2149,7 +2149,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 30.8,
+    "ms": 15.5,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2168,12 +2168,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 593647
+    "sim_path_events_per_s": 1834141
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 344.0,
+    "ms": 208.4,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2181,7 +2181,7 @@
      "USD": 1
     }
    },
-   "total_ms": 467.1,
+   "total_ms": 265.3,
    "ok": true
   },
   {
@@ -2203,7 +2203,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 23.5,
+    "ms": 13.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2220,12 +2220,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3936350
+    "sim_path_events_per_s": 7278544
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 359.1,
+    "ms": 242.6,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2233,7 +2233,7 @@
      "USD": 1
     }
    },
-   "total_ms": 447.4,
+   "total_ms": 295.6,
    "ok": true
   },
   {
@@ -2255,7 +2255,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 28.2,
+    "ms": 16.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2272,12 +2272,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4271094
+    "sim_path_events_per_s": 5455657
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 325.6,
+    "ms": 201.8,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2285,7 +2285,7 @@
      "USD": 1
     }
    },
-   "total_ms": 426.1,
+   "total_ms": 263.7,
    "ok": true
   },
   {
@@ -2307,7 +2307,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 23.7,
+    "ms": 13.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2324,12 +2324,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4006768
+    "sim_path_events_per_s": 7374777
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 352.9,
+    "ms": 203.4,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2337,7 +2337,7 @@
      "USD": 1
     }
    },
-   "total_ms": 443.2,
+   "total_ms": 261.5,
    "ok": true
   },
   {
@@ -2359,7 +2359,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 32.8,
+    "ms": 14.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2376,12 +2376,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4015644
+    "sim_path_events_per_s": 7356074
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 413.8,
+    "ms": 199.3,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2389,7 +2389,7 @@
      "USD": 1
     }
    },
-   "total_ms": 533.2,
+   "total_ms": 253.8,
    "ok": true
   },
   {
@@ -2411,7 +2411,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 32.8,
+    "ms": 15.0,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2428,12 +2428,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3594398
+    "sim_path_events_per_s": 5214382
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 375.9,
+    "ms": 212.5,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2441,7 +2441,7 @@
      "USD": 1
     }
    },
-   "total_ms": 494.5,
+   "total_ms": 270.8,
    "ok": true
   },
   {
@@ -2463,7 +2463,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 29.7,
+    "ms": 13.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2482,12 +2482,12 @@
      "conversion_above_autonomous_limit"
     ],
     "fails": [],
-    "sim_path_events_per_s": 2215898
+    "sim_path_events_per_s": 5944256
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 339.7,
+    "ms": 197.1,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2495,7 +2495,7 @@
      "USD": 1
     }
    },
-   "total_ms": 444.6,
+   "total_ms": 251.3,
    "ok": true
   },
   {
@@ -2517,7 +2517,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 27.4,
+    "ms": 13.1,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2534,12 +2534,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2820126
+    "sim_path_events_per_s": 6839188
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 325.8,
+    "ms": 196.9,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2547,7 +2547,7 @@
      "USD": 1
     }
    },
-   "total_ms": 427.9,
+   "total_ms": 249.5,
    "ok": true
   },
   {
@@ -2569,7 +2569,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 33.7,
+    "ms": 13.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2586,12 +2586,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3174281
+    "sim_path_events_per_s": 6839995
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 305.6,
+    "ms": 200.2,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2599,7 +2599,7 @@
      "USD": 1
     }
    },
-   "total_ms": 410.9,
+   "total_ms": 253.4,
    "ok": true
   },
   {
@@ -2632,7 +2632,7 @@
    },
    "plan": {
     "decision": "APPROVED",
-    "ms": 34.4,
+    "ms": 14.5,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2649,12 +2649,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4447294
+    "sim_path_events_per_s": 9416948
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 368.3,
+    "ms": 208.4,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2662,7 +2662,7 @@
      "USD": 1
     }
    },
-   "total_ms": 494.4,
+   "total_ms": 266.2,
    "ok": true
   },
   {
@@ -2684,7 +2684,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 35.0,
+    "ms": 13.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2703,12 +2703,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 2909081
+    "sim_path_events_per_s": 7320797
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 354.4,
+    "ms": 201.4,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2716,7 +2716,7 @@
      "USD": 1
     }
    },
-   "total_ms": 472.2,
+   "total_ms": 254.2,
    "ok": true
   },
   {
@@ -2738,7 +2738,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 20.3,
+    "ms": 9.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2755,12 +2755,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 440232
+    "sim_path_events_per_s": 731893
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 348.1,
+    "ms": 198.7,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2768,7 +2768,7 @@
      "USD": 1
     }
    },
-   "total_ms": 440.3,
+   "total_ms": 245.1,
    "ok": true
   },
   {
@@ -2790,7 +2790,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 15.1,
+    "ms": 7.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2809,12 +2809,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 39999974
+    "sim_path_events_per_s": 64102554
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 303.3,
+    "ms": 201.2,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2822,7 +2822,7 @@
      "USD": 1
     }
    },
-   "total_ms": 376.4,
+   "total_ms": 243.1,
    "ok": true
   },
   {
@@ -2844,7 +2844,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 23.4,
+    "ms": 13.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2861,12 +2861,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2067896
+    "sim_path_events_per_s": 4874951
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 317.4,
+    "ms": 197.5,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2874,7 +2874,7 @@
      "USD": 1
     }
    },
-   "total_ms": 413.6,
+   "total_ms": 249.2,
    "ok": true
   },
   {
@@ -2902,7 +2902,7 @@
    },
    "plan": {
     "decision": "APPROVED",
-    "ms": 34.0,
+    "ms": 13.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2919,12 +2919,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2324863
+    "sim_path_events_per_s": 7433367
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 363.0,
+    "ms": 203.8,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2932,7 +2932,7 @@
      "USD": 1
     }
    },
-   "total_ms": 473.3,
+   "total_ms": 256.9,
    "ok": true
   },
   {
@@ -2960,7 +2960,7 @@
    },
    "plan": {
     "decision": "APPROVED",
-    "ms": 33.2,
+    "ms": 13.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -2977,12 +2977,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2440881
+    "sim_path_events_per_s": 5777313
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 330.3,
+    "ms": 198.5,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -2990,7 +2990,7 @@
      "USD": 1
     }
    },
-   "total_ms": 444.3,
+   "total_ms": 251.0,
    "ok": true
   },
   {
@@ -3030,7 +3030,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 26.4,
+    "ms": 14.9,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3050,12 +3050,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 914313
+    "sim_path_events_per_s": 1647067
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 355.5,
+    "ms": 210.0,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3063,7 +3063,7 @@
      "USD": 1
     }
    },
-   "total_ms": 454.2,
+   "total_ms": 271.2,
    "ok": true
   },
   {
@@ -3103,7 +3103,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 30.7,
+    "ms": 15.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3123,12 +3123,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 2480774
+    "sim_path_events_per_s": 1867064
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 393.4,
+    "ms": 203.5,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3136,7 +3136,7 @@
      "USD": 1
     }
    },
-   "total_ms": 512.4,
+   "total_ms": 266.3,
    "ok": true
   },
   {
@@ -3176,7 +3176,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 28.7,
+    "ms": 16.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3196,12 +3196,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 715112
+    "sim_path_events_per_s": 1639101
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 436.3,
+    "ms": 236.5,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3209,7 +3209,7 @@
      "USD": 1
     }
    },
-   "total_ms": 551.9,
+   "total_ms": 299.8,
    "ok": true
   },
   {
@@ -3242,7 +3242,7 @@
    },
    "plan": {
     "decision": "APPROVED",
-    "ms": 61.5,
+    "ms": 12.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3259,12 +3259,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 540628
+    "sim_path_events_per_s": 7628878
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 382.9,
+    "ms": 198.2,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3272,7 +3272,7 @@
      "USD": 1
     }
    },
-   "total_ms": 569.2,
+   "total_ms": 250.2,
    "ok": true
   },
   {
@@ -3312,7 +3312,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 26.1,
+    "ms": 12.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3332,12 +3332,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 739152
+    "sim_path_events_per_s": 2658513
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 362.8,
+    "ms": 202.9,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3345,7 +3345,7 @@
      "USD": 1
     }
    },
-   "total_ms": 467.2,
+   "total_ms": 256.6,
    "ok": true
   },
   {
@@ -3385,7 +3385,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 22.6,
+    "ms": 13.7,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3405,12 +3405,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1505570
+    "sim_path_events_per_s": 2695054
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 313.7,
+    "ms": 204.2,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3418,7 +3418,7 @@
      "USD": 1
     }
    },
-   "total_ms": 408.7,
+   "total_ms": 261.5,
    "ok": true
   },
   {
@@ -3458,7 +3458,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 20.7,
+    "ms": 12.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3478,12 +3478,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1501163
+    "sim_path_events_per_s": 2595716
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 329.5,
+    "ms": 207.4,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3491,7 +3491,7 @@
      "USD": 1
     }
    },
-   "total_ms": 421.9,
+   "total_ms": 262.7,
    "ok": true
   },
   {
@@ -3531,7 +3531,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 21.2,
+    "ms": 12.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3551,12 +3551,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1190830
+    "sim_path_events_per_s": 2637478
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 322.2,
+    "ms": 201.9,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3564,7 +3564,7 @@
      "USD": 1
     }
    },
-   "total_ms": 413.4,
+   "total_ms": 255.4,
    "ok": true
   },
   {
@@ -3604,7 +3604,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 27.2,
+    "ms": 13.0,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3624,12 +3624,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1418741
+    "sim_path_events_per_s": 1613814
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 362.7,
+    "ms": 203.3,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3637,7 +3637,7 @@
      "USD": 1
     }
    },
-   "total_ms": 477.5,
+   "total_ms": 255.8,
    "ok": true
   },
   {
@@ -3677,7 +3677,7 @@
    },
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 29.4,
+    "ms": 13.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3697,12 +3697,12 @@
      "reserve_breach_risk_above_tolerance"
     ],
     "fails": [],
-    "sim_path_events_per_s": 1132246
+    "sim_path_events_per_s": 1944201
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 345.4,
+    "ms": 202.8,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3710,7 +3710,7 @@
      "USD": 1
     }
    },
-   "total_ms": 451.2,
+   "total_ms": 258.8,
    "ok": true
   },
   {
@@ -3732,7 +3732,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 24.1,
+    "ms": 13.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3749,12 +3749,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3592617
+    "sim_path_events_per_s": 7599895
    },
    "execution": {
     "status": "FAILED",
     "message": "EUR quote costs USD 4,485.34, above the slippage limit USD 4,398.06; nothing booked, re-plan",
-    "ms": 99.1,
+    "ms": 61.8,
     "transfers": 0,
     "conversions": 0,
     "discrepancies": {},
@@ -3762,7 +3762,7 @@
      "USD": 1553536
     }
    },
-   "total_ms": 192.6,
+   "total_ms": 118.0,
    "ok": true
   },
   {
@@ -3784,7 +3784,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 27.4,
+    "ms": 12.7,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3801,12 +3801,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2525467
+    "sim_path_events_per_s": 7635908
    },
    "execution": {
     "status": "FAILED",
     "message": "EUR quote costs USD 4,555.17, above the slippage limit USD 4,398.06; nothing booked, re-plan",
-    "ms": 138.6,
+    "ms": 62.3,
     "transfers": 0,
     "conversions": 0,
     "discrepancies": {},
@@ -3814,7 +3814,7 @@
      "USD": 1553536
     }
    },
-   "total_ms": 276.2,
+   "total_ms": 116.2,
    "ok": true
   },
   {
@@ -3836,7 +3836,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 40.6,
+    "ms": 13.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3853,12 +3853,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2026975
+    "sim_path_events_per_s": 7535724
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 7,095.09 >= USD 6,000.00; variance vs plan USD 130.45 (actual Airwallex amounts: fees and rounding; fees are learned for the next",
-    "ms": 370.6,
+    "ms": 197.3,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3866,7 +3866,7 @@
      "USD": 13045
     }
    },
-   "total_ms": 498.5,
+   "total_ms": 250.9,
    "ok": true
   },
   {
@@ -3888,7 +3888,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 28.2,
+    "ms": 15.9,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3905,12 +3905,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3554098
+    "sim_path_events_per_s": 7187461
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,906.01 >= USD 6,000.00; variance vs plan -USD 58.63 (actual Airwallex amounts: fees and rounding; fees are learned for the next",
-    "ms": 320.2,
+    "ms": 244.0,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3918,7 +3918,7 @@
      "USD": -5863
     }
    },
-   "total_ms": 436.6,
+   "total_ms": 301.5,
    "ok": true
   },
   {
@@ -3940,7 +3940,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 29.3,
+    "ms": 18.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -3957,12 +3957,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2791626
+    "sim_path_events_per_s": 6347521
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 362.1,
+    "ms": 307.7,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -3970,7 +3970,7 @@
      "USD": 1
     }
    },
-   "total_ms": 472.2,
+   "total_ms": 388.2,
    "ok": true
   },
   {
@@ -3992,7 +3992,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 37.9,
+    "ms": 16.9,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4009,12 +4009,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 1677656
+    "sim_path_events_per_s": 6807087
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 369.2,
+    "ms": 250.0,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -4022,7 +4022,7 @@
      "USD": 1
     }
    },
-   "total_ms": 493.0,
+   "total_ms": 318.1,
    "ok": true
   },
   {
@@ -4044,7 +4044,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 37.2,
+    "ms": 15.0,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4061,12 +4061,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3047864
+    "sim_path_events_per_s": 7457256
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 381.7,
+    "ms": 242.8,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -4074,7 +4074,7 @@
      "USD": 1
     }
    },
-   "total_ms": 501.7,
+   "total_ms": 308.7,
    "ok": true
   },
   {
@@ -4096,7 +4096,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 28.2,
+    "ms": 14.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4113,12 +4113,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3533316
+    "sim_path_events_per_s": 6920781
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 376.3,
+    "ms": 255.6,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -4126,7 +4126,7 @@
      "USD": 1
     }
    },
-   "total_ms": 486.9,
+   "total_ms": 316.4,
    "ok": true
   },
   {
@@ -4148,7 +4148,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 34.7,
+    "ms": 15.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4165,12 +4165,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2077796
+    "sim_path_events_per_s": 6963986
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 379.9,
+    "ms": 239.9,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -4178,7 +4178,7 @@
      "USD": 1
     }
    },
-   "total_ms": 505.2,
+   "total_ms": 303.2,
    "ok": true
   },
   {
@@ -4199,7 +4199,7 @@
    "errors": [],
    "plan": {
     "decision": "BLOCKED",
-    "ms": 34.4,
+    "ms": 15.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4218,9 +4218,9 @@
     "fails": [
      "Airwallex \u00b7 live balances: plan uses more cash than Airwallex shows"
     ],
-    "sim_path_events_per_s": 2149872
+    "sim_path_events_per_s": 6607062
    },
-   "total_ms": 116.6,
+   "total_ms": 59.6,
    "ok": true
   },
   {
@@ -4242,7 +4242,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 31.6,
+    "ms": 15.7,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4259,12 +4259,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3726711
+    "sim_path_events_per_s": 7096892
    },
    "execution": {
     "status": "FAILED",
     "message": "beneficiary payroll-group-us rejected by Airwallex: validation_failed",
-    "ms": 199.2,
+    "ms": 125.9,
     "transfers": 0,
     "conversions": 2,
     "discrepancies": {},
@@ -4274,7 +4274,7 @@
      "GBP": 250224
     }
    },
-   "total_ms": 308.6,
+   "total_ms": 191.5,
    "ok": true
   },
   {
@@ -4296,7 +4296,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 26.3,
+    "ms": 14.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4313,12 +4313,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3155632
+    "sim_path_events_per_s": 5117777
    },
    "execution": {
     "status": "IN_FLIGHT",
-    "message": "conversion c-658b7be3-8d63-40f3-82b8-60b0d27dff66 is SCHEDULED; transfers held",
-    "ms": 165.5,
+    "message": "conversion c-02bb9876-4c5e-45a6-a913-c4ac7d610034 is SCHEDULED; transfers held",
+    "ms": 103.7,
     "transfers": 0,
     "conversions": 1,
     "discrepancies": {
@@ -4330,7 +4330,7 @@
      "EUR": 401337
     }
    },
-   "total_ms": 268.7,
+   "total_ms": 169.7,
    "ok": true
   },
   {
@@ -4352,7 +4352,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 30.2,
+    "ms": 14.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4369,7 +4369,7 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2466306
+    "sim_path_events_per_s": 7083893
    },
    "receipt": {
     "landed": false,
@@ -4378,7 +4378,7 @@
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 344.1,
+    "ms": 245.7,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -4386,7 +4386,7 @@
      "USD": 1
     }
    },
-   "total_ms": 504.5,
+   "total_ms": 334.4,
    "ok": true
   },
   {
@@ -4408,7 +4408,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 33.9,
+    "ms": 16.7,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4425,7 +4425,7 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2474934
+    "sim_path_events_per_s": 6894461
    },
    "receipt": {
     "landed": true,
@@ -4445,7 +4445,7 @@
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 15,761.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
-    "ms": 431.6,
+    "ms": 282.7,
     "transfers": 4,
     "conversions": 2,
     "discrepancies": {},
@@ -4453,7 +4453,7 @@
      "USD": 1
     }
    },
-   "total_ms": 581.4,
+   "total_ms": 369.1,
    "ok": true
   },
   {
@@ -4475,7 +4475,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 34.3,
+    "ms": 16.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4492,12 +4492,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2577076
+    "sim_path_events_per_s": 6213581
    },
    "execution": {
     "status": "FAILED",
     "message": "transfer PAYROLL-NOV failed: duplicate_request_id",
-    "ms": 228.5,
+    "ms": 176.9,
     "transfers": 0,
     "conversions": 2,
     "discrepancies": {},
@@ -4507,7 +4507,7 @@
      "GBP": 250224
     }
    },
-   "total_ms": 342.5,
+   "total_ms": 239.8,
    "ok": true
   },
   {
@@ -4529,7 +4529,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 33.9,
+    "ms": 16.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4546,12 +4546,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2126622
+    "sim_path_events_per_s": 3997381
    },
    "execution": {
     "status": "FAILED",
     "message": "transfer PAYROLL-NOV failed: balance_insufficient",
-    "ms": 225.9,
+    "ms": 157.3,
     "transfers": 0,
     "conversions": 2,
     "discrepancies": {},
@@ -4561,7 +4561,7 @@
      "GBP": 250224
     }
    },
-   "total_ms": 348.8,
+   "total_ms": 230.7,
    "ok": true
   },
   {
@@ -4583,7 +4583,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 28.6,
+    "ms": 15.9,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4600,12 +4600,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3587951
+    "sim_path_events_per_s": 6366329
    },
    "execution": {
     "status": "FAILED",
     "message": "transfers failed: SHIPPING-UK",
-    "ms": 367.4,
+    "ms": 242.6,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -4614,7 +4614,7 @@
      "GBP": 250000
     }
    },
-   "total_ms": 477.9,
+   "total_ms": 308.5,
    "ok": true
   },
   {
@@ -4636,7 +4636,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 26.7,
+    "ms": 16.6,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -4653,12 +4653,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3285196
+    "sim_path_events_per_s": 5517930
    },
    "execution": {
     "status": "FAILED",
     "message": "transfers failed: PAYROLL-NOV, SHIPPING-UK, SUPPLIER-EU",
-    "ms": 362.5,
+    "ms": 247.2,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -4668,7 +4668,7 @@
      "GBP": 250000
     }
    },
-   "total_ms": 467.6,
+   "total_ms": 313.7,
    "ok": true
   },
   {
@@ -4692,7 +4692,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.6,
+    "ms": 5.1,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -4709,7 +4709,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 141.6,
+    "ms": 97.2,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -4721,11 +4721,11 @@
     "original": "CANCELLED",
     "failure_type": "ACCOUNT_CLOSED",
     "replacement": null,
-    "ms": 36.2,
+    "ms": 20.7,
     "reason": "ACCOUNT_CLOSED: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 243.3,
+   "total_ms": 160.6,
    "ok": true
   },
   {
@@ -4749,7 +4749,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 10.1,
+    "ms": 11.4,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -4766,7 +4766,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 166.5,
+    "ms": 101.1,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -4778,11 +4778,11 @@
     "original": "CANCELLED",
     "failure_type": "ACCOUNT_CURRENCY_MISMATCH",
     "replacement": null,
-    "ms": 32.2,
+    "ms": 18.3,
     "reason": "ACCOUNT_CURRENCY_MISMATCH: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 288.0,
+   "total_ms": 174.9,
    "ok": true
   },
   {
@@ -4806,7 +4806,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.6,
+    "ms": 5.7,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -4823,7 +4823,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 157.9,
+    "ms": 104.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -4835,11 +4835,11 @@
     "original": "CANCELLED",
     "failure_type": "ACCOUNT_INACTIVE_OR_DORMANT",
     "replacement": null,
-    "ms": 30.2,
+    "ms": 19.5,
     "reason": "ACCOUNT_INACTIVE_OR_DORMANT: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 256.3,
+   "total_ms": 167.7,
    "ok": true
   },
   {
@@ -4863,7 +4863,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.8,
+    "ms": 4.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -4880,7 +4880,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 145.9,
+    "ms": 102.1,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -4892,11 +4892,11 @@
     "original": "CANCELLED",
     "failure_type": "ACCOUNT_UNDER_RESTRICTION",
     "replacement": null,
-    "ms": 29.6,
+    "ms": 25.6,
     "reason": "ACCOUNT_UNDER_RESTRICTION: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 238.7,
+   "total_ms": 172.8,
    "ok": true
   },
   {
@@ -4920,7 +4920,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.0,
+    "ms": 13.5,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -4937,7 +4937,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 156.1,
+    "ms": 99.9,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -4949,11 +4949,11 @@
     "original": "CANCELLED",
     "failure_type": "BENEFICIARY_BANK_RETURNED",
     "replacement": "PAID",
-    "ms": 103.4,
+    "ms": 61.7,
     "reason": "BENEFICIARY_BANK_RETURNED: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
     "expected": "REPLACE"
    },
-   "total_ms": 336.8,
+   "total_ms": 214.2,
    "ok": true
   },
   {
@@ -4977,7 +4977,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.4,
+    "ms": 4.4,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -4994,7 +4994,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 154.7,
+    "ms": 105.2,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5006,11 +5006,11 @@
     "original": "CANCELLED",
     "failure_type": "BENEFICIARY_NAME_MISMATCH",
     "replacement": null,
-    "ms": 28.7,
+    "ms": 18.0,
     "reason": "BENEFICIARY_NAME_MISMATCH: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 249.7,
+   "total_ms": 162.9,
    "ok": true
   },
   {
@@ -5034,7 +5034,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.3,
+    "ms": 4.8,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5051,7 +5051,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 145.8,
+    "ms": 105.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5063,11 +5063,11 @@
     "original": "CANCELLED",
     "failure_type": "BENEFICIARY_REQUESTED",
     "replacement": null,
-    "ms": 29.0,
+    "ms": 21.5,
     "reason": "BENEFICIARY_REQUESTED: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 238.2,
+   "total_ms": 170.1,
    "ok": true
   },
   {
@@ -5091,7 +5091,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 16.5,
+    "ms": 4.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5108,7 +5108,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 147.0,
+    "ms": 108.5,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5120,11 +5120,11 @@
     "original": "CANCELLED",
     "failure_type": "CARD_ISSUER_ERROR",
     "replacement": null,
-    "ms": 27.4,
+    "ms": 19.7,
     "reason": "CARD_ISSUER_ERROR: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 245.0,
+   "total_ms": 169.0,
    "ok": true
   },
   {
@@ -5148,7 +5148,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.2,
+    "ms": 4.5,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5165,7 +5165,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 165.9,
+    "ms": 97.5,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5177,11 +5177,11 @@
     "original": "CANCELLED",
     "failure_type": "CHANNEL_POLICY",
     "replacement": "PAID",
-    "ms": 98.3,
+    "ms": 63.3,
     "reason": "CHANNEL_POLICY: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
     "expected": "REPLACE"
    },
-   "total_ms": 333.7,
+   "total_ms": 211.1,
    "ok": true
   },
   {
@@ -5205,7 +5205,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 9.7,
+    "ms": 4.4,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5222,7 +5222,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 167.8,
+    "ms": 99.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5234,11 +5234,11 @@
     "original": "CANCELLED",
     "failure_type": "CHANNEL_TIMEOUT",
     "replacement": "PAID",
-    "ms": 98.6,
+    "ms": 59.7,
     "reason": "CHANNEL_TIMEOUT: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
     "expected": "REPLACE"
    },
-   "total_ms": 339.0,
+   "total_ms": 206.1,
    "ok": true
   },
   {
@@ -5262,7 +5262,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.6,
+    "ms": 4.5,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5279,7 +5279,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 165.2,
+    "ms": 100.2,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5291,11 +5291,11 @@
     "original": "CANCELLED",
     "failure_type": "CLIENT_REQUESTED",
     "replacement": null,
-    "ms": 31.8,
+    "ms": 19.0,
     "reason": "CLIENT_REQUESTED: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 265.2,
+   "total_ms": 162.0,
    "ok": true
   },
   {
@@ -5319,7 +5319,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.8,
+    "ms": 4.2,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5336,7 +5336,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 158.7,
+    "ms": 103.6,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5348,11 +5348,11 @@
     "original": "CANCELLED",
     "failure_type": "DUPLICATION_RETURN",
     "replacement": null,
-    "ms": 34.9,
+    "ms": 21.2,
     "reason": "DUPLICATION_RETURN: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 267.1,
+   "total_ms": 168.1,
    "ok": true
   },
   {
@@ -5376,7 +5376,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.5,
+    "ms": 4.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5393,7 +5393,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 178.6,
+    "ms": 99.5,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5405,11 +5405,11 @@
     "original": "CANCELLED",
     "failure_type": "EXCEEDED_TRANSACTION_AMOUNT_OR_LIMIT",
     "replacement": null,
-    "ms": 26.4,
+    "ms": 19.1,
     "reason": "EXCEEDED_TRANSACTION_AMOUNT_OR_LIMIT: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 283.0,
+   "total_ms": 167.7,
    "ok": true
   },
   {
@@ -5433,7 +5433,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 9.1,
+    "ms": 4.4,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5450,7 +5450,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 145.7,
+    "ms": 106.0,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5462,11 +5462,11 @@
     "original": "CANCELLED",
     "failure_type": "INBOUND_2B_CARD_NOT_SUPPORTED",
     "replacement": null,
-    "ms": 27.3,
+    "ms": 20.0,
     "reason": "INBOUND_2B_CARD_NOT_SUPPORTED: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 241.3,
+   "total_ms": 168.3,
    "ok": true
   },
   {
@@ -5490,7 +5490,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.3,
+    "ms": 4.7,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5507,7 +5507,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 152.9,
+    "ms": 113.2,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5519,11 +5519,11 @@
     "original": "CANCELLED",
     "failure_type": "INBOUND_BENFICIARY_VALIDATION_ERROR",
     "replacement": null,
-    "ms": 32.3,
+    "ms": 19.7,
     "reason": "INBOUND_BENFICIARY_VALIDATION_ERROR: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 264.5,
+   "total_ms": 173.6,
    "ok": true
   },
   {
@@ -5547,7 +5547,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.4,
+    "ms": 5.0,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5564,7 +5564,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 146.7,
+    "ms": 103.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5576,11 +5576,11 @@
     "original": "CANCELLED",
     "failure_type": "INBOUND_COMPANY_REGISTRATION_NUMBER_ERROR",
     "replacement": null,
-    "ms": 26.6,
+    "ms": 20.5,
     "reason": "INBOUND_COMPANY_REGISTRATION_NUMBER_ERROR: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 238.7,
+   "total_ms": 172.5,
    "ok": true
   },
   {
@@ -5604,7 +5604,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.7,
+    "ms": 4.8,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5621,7 +5621,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 147.2,
+    "ms": 100.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5633,11 +5633,11 @@
     "original": "CANCELLED",
     "failure_type": "INBOUND_ORDER_ERROR",
     "replacement": null,
-    "ms": 31.6,
+    "ms": 19.7,
     "reason": "INBOUND_ORDER_ERROR: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 244.1,
+   "total_ms": 162.9,
    "ok": true
   },
   {
@@ -5661,7 +5661,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.8,
+    "ms": 4.5,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5678,7 +5678,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 152.1,
+    "ms": 97.3,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5690,11 +5690,11 @@
     "original": "CANCELLED",
     "failure_type": "INSUFFICIENT_FUNDS",
     "replacement": "PAID",
-    "ms": 96.2,
+    "ms": 72.8,
     "reason": "INSUFFICIENT_FUNDS: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
     "expected": "REPLACE"
    },
-   "total_ms": 322.4,
+   "total_ms": 210.8,
    "ok": true
   },
   {
@@ -5718,7 +5718,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.8,
+    "ms": 4.3,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5735,7 +5735,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 178.0,
+    "ms": 100.6,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5747,11 +5747,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_ACCOUNT_NAME_OR_NUMBER",
     "replacement": null,
-    "ms": 30.8,
+    "ms": 19.4,
     "reason": "INVALID_ACCOUNT_NAME_OR_NUMBER: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 276.9,
+   "total_ms": 162.5,
    "ok": true
   },
   {
@@ -5775,7 +5775,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.5,
+    "ms": 4.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5792,7 +5792,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 162.6,
+    "ms": 97.0,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5804,11 +5804,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_BANK_INFORMATION",
     "replacement": null,
-    "ms": 38.5,
+    "ms": 18.9,
     "reason": "INVALID_BANK_INFORMATION: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 269.3,
+   "total_ms": 161.2,
    "ok": true
   },
   {
@@ -5832,7 +5832,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.4,
+    "ms": 4.7,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5849,7 +5849,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 153.9,
+    "ms": 103.6,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5861,11 +5861,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_BANK_OR_BRANCH_CODE",
     "replacement": null,
-    "ms": 32.2,
+    "ms": 19.5,
     "reason": "INVALID_BANK_OR_BRANCH_CODE: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 252.0,
+   "total_ms": 164.2,
    "ok": true
   },
   {
@@ -5889,7 +5889,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.4,
+    "ms": 3.7,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5906,7 +5906,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 153.8,
+    "ms": 79.1,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5918,11 +5918,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_BENEFICIARY_DETAILS",
     "replacement": null,
-    "ms": 30.5,
+    "ms": 16.3,
     "reason": "INVALID_BENEFICIARY_DETAILS: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 259.3,
+   "total_ms": 135.4,
    "ok": true
   },
   {
@@ -5946,7 +5946,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 9.6,
+    "ms": 4.5,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -5963,7 +5963,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 182.1,
+    "ms": 85.1,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -5975,11 +5975,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_CORRESPONDENT_BANK_INFORMATION",
     "replacement": null,
-    "ms": 28.0,
+    "ms": 15.3,
     "reason": "INVALID_CORRESPONDENT_BANK_INFORMATION: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 293.5,
+   "total_ms": 141.8,
    "ok": true
   },
   {
@@ -6003,7 +6003,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.2,
+    "ms": 4.4,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6020,7 +6020,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 157.0,
+    "ms": 87.1,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6032,11 +6032,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_PAYMENT_PURPOSE",
     "replacement": null,
-    "ms": 33.4,
+    "ms": 16.4,
     "reason": "INVALID_PAYMENT_PURPOSE: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 253.2,
+   "total_ms": 138.9,
    "ok": true
   },
   {
@@ -6060,7 +6060,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.2,
+    "ms": 4.0,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6077,7 +6077,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 144.5,
+    "ms": 93.2,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6089,11 +6089,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_SPECIAL_CHARACTER",
     "replacement": null,
-    "ms": 26.8,
+    "ms": 18.1,
     "reason": "INVALID_SPECIAL_CHARACTER: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 249.4,
+   "total_ms": 147.4,
    "ok": true
   },
   {
@@ -6117,7 +6117,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.0,
+    "ms": 3.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6134,7 +6134,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 144.6,
+    "ms": 84.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6146,11 +6146,11 @@
     "original": "CANCELLED",
     "failure_type": "INVALID_SWIFT_BIC_CODE",
     "replacement": null,
-    "ms": 26.1,
+    "ms": 15.4,
     "reason": "INVALID_SWIFT_BIC_CODE: the payee's bank details are wrong; paying them again pays the wrong account again",
     "expected": "ESCALATE"
    },
-   "total_ms": 228.9,
+   "total_ms": 141.2,
    "ok": true
   },
   {
@@ -6174,7 +6174,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.8,
+    "ms": 3.7,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6191,7 +6191,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 138.5,
+    "ms": 84.5,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6203,11 +6203,11 @@
     "original": "CANCELLED",
     "failure_type": "OTHER",
     "replacement": null,
-    "ms": 26.4,
+    "ms": 15.0,
     "reason": "OTHER: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 227.6,
+   "total_ms": 134.4,
    "ok": true
   },
   {
@@ -6231,7 +6231,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.1,
+    "ms": 4.1,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6248,7 +6248,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 143.0,
+    "ms": 80.9,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6260,11 +6260,11 @@
     "original": "CANCELLED",
     "failure_type": "RECALL_REQUESTED",
     "replacement": null,
-    "ms": 25.5,
+    "ms": 15.0,
     "reason": "RECALL_REQUESTED: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 236.6,
+   "total_ms": 131.4,
    "ok": true
   },
   {
@@ -6288,7 +6288,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.3,
+    "ms": 4.7,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6305,7 +6305,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 154.4,
+    "ms": 82.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6317,11 +6317,11 @@
     "original": "CANCELLED",
     "failure_type": "SYSTEM_ERROR",
     "replacement": "PAID",
-    "ms": 90.6,
+    "ms": 51.0,
     "reason": "SYSTEM_ERROR: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
     "expected": "REPLACE"
    },
-   "total_ms": 306.7,
+   "total_ms": 173.7,
    "ok": true
   },
   {
@@ -6345,7 +6345,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.9,
+    "ms": 4.4,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6362,7 +6362,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 152.4,
+    "ms": 85.5,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6374,11 +6374,11 @@
     "original": "CANCELLED",
     "failure_type": "TM_SUSPENDED",
     "replacement": null,
-    "ms": 36.8,
+    "ms": 15.9,
     "reason": "TM_SUSPENDED: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 252.0,
+   "total_ms": 134.5,
    "ok": true
   },
   {
@@ -6402,7 +6402,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.7,
+    "ms": 4.0,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6419,7 +6419,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 137.9,
+    "ms": 83.8,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6431,11 +6431,11 @@
     "original": "CANCELLED",
     "failure_type": "TRANSACTION_AMOUNT_NOT_COVERING_FEE",
     "replacement": null,
-    "ms": 26.5,
+    "ms": 15.7,
     "reason": "TRANSACTION_AMOUNT_NOT_COVERING_FEE: a person or a control stopped this payment; only a person may restart it",
     "expected": "ESCALATE"
    },
-   "total_ms": 237.9,
+   "total_ms": 135.1,
    "ok": true
   },
   {
@@ -6459,7 +6459,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.6,
+    "ms": 3.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6476,7 +6476,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 142.3,
+    "ms": 88.1,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6488,11 +6488,11 @@
     "original": "CANCELLED",
     "failure_type": "UNABLE_TO_APPLY",
     "replacement": "PAID",
-    "ms": 85.9,
+    "ms": 52.8,
     "reason": "UNABLE_TO_APPLY: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
     "expected": "REPLACE"
    },
-   "total_ms": 292.3,
+   "total_ms": 180.4,
    "ok": true
   },
   {
@@ -6516,7 +6516,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 6.7,
+    "ms": 4.6,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6533,7 +6533,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 140.6,
+    "ms": 87.9,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6545,11 +6545,11 @@
     "original": "PROCESSING",
     "failure_type": null,
     "replacement": null,
-    "ms": 28.6,
+    "ms": 16.2,
     "reason": "PROCESSING is not final; 0h in flight is within the 48h wait window; a transfer that may still clear is never replaced",
     "expected": "WAIT"
    },
-   "total_ms": 230.4,
+   "total_ms": 138.1,
    "ok": true
   },
   {
@@ -6573,7 +6573,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.6,
+    "ms": 4.5,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6590,7 +6590,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 140.9,
+    "ms": 84.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6602,11 +6602,11 @@
     "original": "PROCESSING",
     "failure_type": null,
     "replacement": null,
-    "ms": 27.2,
+    "ms": 14.9,
     "reason": "PROCESSING is not final; 47h in flight is within the 48h wait window; a transfer that may still clear is never replaced",
     "expected": "WAIT"
    },
-   "total_ms": 233.6,
+   "total_ms": 135.8,
    "ok": true
   },
   {
@@ -6630,7 +6630,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 9.0,
+    "ms": 8.1,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6647,7 +6647,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 137.1,
+    "ms": 84.7,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6659,11 +6659,11 @@
     "original": "PROCESSING",
     "failure_type": null,
     "replacement": null,
-    "ms": 25.8,
+    "ms": 14.1,
     "reason": "PROCESSING is not final; 48h in flight is within the 48h wait window; a transfer that may still clear is never replaced",
     "expected": "WAIT"
    },
-   "total_ms": 229.8,
+   "total_ms": 137.1,
    "ok": true
   },
   {
@@ -6687,7 +6687,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.6,
+    "ms": 3.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6704,7 +6704,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 149.2,
+    "ms": 83.9,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6716,11 +6716,11 @@
     "original": "PROCESSING",
     "failure_type": null,
     "replacement": null,
-    "ms": 25.6,
+    "ms": 14.6,
     "reason": "PROCESSING for 49h, beyond the 48h window, and still not final: a person must chase the rail; replacing now could pay twice",
     "expected": "ESCALATE"
    },
-   "total_ms": 240.1,
+   "total_ms": 132.1,
    "ok": true
   },
   {
@@ -6744,7 +6744,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 7.2,
+    "ms": 4.0,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6761,7 +6761,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 133.3,
+    "ms": 86.1,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6773,11 +6773,11 @@
     "original": "PROCESSING",
     "failure_type": null,
     "replacement": null,
-    "ms": 24.5,
+    "ms": 21.3,
     "reason": "PROCESSING for 720h, beyond the 48h window, and still not final: a person must chase the rail; replacing now could pay twice",
     "expected": "ESCALATE"
    },
-   "total_ms": 219.6,
+   "total_ms": 142.7,
    "ok": true
   },
   {
@@ -6801,7 +6801,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 8.1,
+    "ms": 3.9,
     "actions": {
      "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
     },
@@ -6818,7 +6818,7 @@
    "execution": {
     "status": "IN_FLIGHT",
     "message": "transfers still in flight: SUPPLIER-EU-NOV",
-    "ms": 141.8,
+    "ms": 82.4,
     "transfers": 1,
     "conversions": 1,
     "discrepancies": {},
@@ -6832,11 +6832,11 @@
     "original": "CANCELLED",
     "failure_type": "BENEFICIARY_BANK_RETURNED",
     "replacement": null,
-    "ms": 31.6,
+    "ms": 16.5,
     "reason": "BENEFICIARY_BANK_RETURNED: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
     "expected": "REPLACE"
    },
-   "total_ms": 246.5,
+   "total_ms": 133.7,
    "ok": true
   },
   {
@@ -6857,7 +6857,7 @@
    "errors": [],
    "plan": {
     "decision": "REQUIRES_APPROVAL",
-    "ms": 25.4,
+    "ms": 22.2,
     "actions": {
      "OB-09": "CONVERT_AND_PAY",
      "OB-08": "CONVERT_AND_PAY",
@@ -6882,9 +6882,9 @@
      "conversion_above_autonomous_limit"
     ],
     "fails": [],
-    "sim_path_events_per_s": 3723847
+    "sim_path_events_per_s": 5933884
    },
-   "total_ms": 95.5,
+   "total_ms": 69.3,
    "ok": true
   },
   {
@@ -6905,7 +6905,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 92.5,
+    "ms": 94.8,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -6922,9 +6922,9 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 55173457
+    "sim_path_events_per_s": 39712890
    },
-   "total_ms": 248.9,
+   "total_ms": 203.4,
    "ok": true
   },
   {
@@ -6940,14 +6940,14 @@
    "errors": [],
    "load": {
     "n": 100,
-    "p50_ms": 24.75,
-    "p99_ms": 40.46,
-    "mean_first_fifth_ms": 26.34,
-    "mean_last_fifth_ms": 32.93,
-    "drift_ratio": 1.25,
+    "p50_ms": 13.1,
+    "p99_ms": 15.43,
+    "mean_first_fifth_ms": 13.48,
+    "mean_last_fifth_ms": 13.17,
+    "drift_ratio": 0.98,
     "stable": true
    },
-   "total_ms": 2740.5,
+   "total_ms": 1357.6,
    "ok": true
   },
   {
@@ -6963,12 +6963,12 @@
    "errors": [],
    "load": {
     "n": 20,
-    "wall_ms": 619.4,
-    "plans_per_s": 32.3,
+    "wall_ms": 252.1,
+    "plans_per_s": 79.3,
     "all_same_hash": true,
     "stable": true
    },
-   "total_ms": 672.3,
+   "total_ms": 280.2,
    "ok": true
   },
   {
@@ -7000,7 +7000,7 @@
     "max_paid_per_invoice": 1,
     "stable": true
    },
-   "total_ms": 3754.4,
+   "total_ms": 2125.9,
    "ok": true
   },
   {
@@ -7030,7 +7030,7 @@
     ],
     "stable": true
    },
-   "total_ms": 265.3,
+   "total_ms": 138.1,
    "ok": true
   },
   {
@@ -7051,7 +7051,7 @@
    "errors": [],
    "plan": {
     "decision": "BLOCKED",
-    "ms": 29.2,
+    "ms": 13.2,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -7070,9 +7070,9 @@
     "fails": [
      "Policy: role viewer may not plan payments"
     ],
-    "sim_path_events_per_s": 3999034
+    "sim_path_events_per_s": 7016207
    },
-   "total_ms": 107.5,
+   "total_ms": 58.5,
    "ok": true
   },
   {
@@ -7094,7 +7094,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 27.9,
+    "ms": 15.0,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -7111,12 +7111,12 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 4185425
+    "sim_path_events_per_s": 7123035
    },
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 337.1,
+    "ms": 195.6,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -7124,7 +7124,7 @@
      "USD": 1
     }
    },
-   "total_ms": 437.6,
+   "total_ms": 252.2,
    "ok": true
   },
   {
@@ -7146,7 +7146,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 33.0,
+    "ms": 12.9,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -7163,7 +7163,7 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3386654
+    "sim_path_events_per_s": 7669222
    },
    "replan": {
     "decision": "BLOCKED",
@@ -7185,7 +7185,7 @@
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 334.6,
+    "ms": 203.1,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -7193,7 +7193,7 @@
      "USD": 1
     }
    },
-   "total_ms": 467.4,
+   "total_ms": 269.4,
    "ok": true
   },
   {
@@ -7215,7 +7215,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 30.5,
+    "ms": 14.4,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -7232,7 +7232,7 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3490793
+    "sim_path_events_per_s": 7283113
    },
    "replan": {
     "decision": "APPROVED",
@@ -7260,7 +7260,7 @@
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 334.1,
+    "ms": 196.7,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -7268,7 +7268,7 @@
      "USD": 1
     }
    },
-   "total_ms": 480.0,
+   "total_ms": 268.6,
    "ok": true
   },
   {
@@ -7290,7 +7290,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 28.7,
+    "ms": 14.1,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -7307,7 +7307,7 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 2274010
+    "sim_path_events_per_s": 7344897
    },
    "replan": {
     "decision": "APPROVED",
@@ -7333,7 +7333,7 @@
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 331.4,
+    "ms": 211.3,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -7341,7 +7341,7 @@
      "USD": 1
     }
    },
-   "total_ms": 451.5,
+   "total_ms": 278.2,
    "ok": true
   },
   {
@@ -7363,7 +7363,7 @@
    "errors": [],
    "plan": {
     "decision": "APPROVED",
-    "ms": 25.7,
+    "ms": 13.3,
     "actions": {
      "PAYROLL-NOV": "PAY",
      "SHIPPING-UK": "CONVERT_AND_PAY",
@@ -7380,7 +7380,7 @@
     "floor": 600000,
     "requires_approval": [],
     "fails": [],
-    "sim_path_events_per_s": 3887808
+    "sim_path_events_per_s": 7354208
    },
    "replan": {
     "decision": "APPROVED",
@@ -7396,7 +7396,7 @@
    "execution": {
     "status": "COMPLETED",
     "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
-    "ms": 349.5,
+    "ms": 217.0,
     "transfers": 3,
     "conversions": 2,
     "discrepancies": {},
@@ -7404,7 +7404,7 @@
      "USD": 1
     }
    },
-   "total_ms": 470.3,
+   "total_ms": 284.4,
    "ok": true
   }
  ]

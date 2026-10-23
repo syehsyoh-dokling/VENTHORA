@@ -13,6 +13,8 @@ from uuid import uuid4
 
 import httpx
 
+from ..gateways.airwallex import FAILURE_CODES
+
 SWIFT_FEE = {"EUR": Decimal("12.85")}
 # Required by the real sandbox schema for the US/GB LOCAL and DE SWIFT corridors (23 Oct 2026).
 REQUIRED_BENEFICIARY_FIELDS = ("beneficiary.address", "beneficiary.address.city", "beneficiary.address.country_code",
@@ -210,8 +212,13 @@ class FakeAirwallex:
         if nxt == "PAID" and t["status"] != "SENT":
             return self._error(400, "invalid_argument", "simulate SENT before PAID")
         if nxt in ("FAILED", "CANCELLED") or (nxt == "PAID" and any(r in t["reference"] for r in self.fail_on_paid)):
-            t.update(status="CANCELLED", failure_type=b.get("failure_type", "BENEFICIARY_BANK_RETURNED"),
-                     failure_reason="simulation")
+            # Real sandbox shape (23 Oct 2026): status CANCELLED, failure = {code, details.type}; no top-level
+            # failure_type on the stored transfer. The transition response carries the detail type only.
+            ft = b.get("failure_type", "BENEFICIARY_BANK_RETURNED")
+            code = next((c for c, name in FAILURE_CODES.items() if name == ft), None)
+            t.pop("failure_type", None)
+            detail = "INCORRECT_ROUTING" if ft == "BENEFICIARY_BANK_RETURNED" else ft
+            t.update(status="CANCELLED", failure=({"code": code} if code else {}) | {"details": {"type": detail}})
             # The amount is returned; the fee is not (guide: "budget for two SWIFT fees").
             self.balances[t["source_currency"]] += money(t["transfer_amount"])
         else:

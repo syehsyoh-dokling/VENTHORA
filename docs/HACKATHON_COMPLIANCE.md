@@ -118,7 +118,9 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 ## (5) Starter Kit 03: Payment Ops Incident Commander (second track)
 
 Built on the Kit 01 executor; `venthora-sandbox --scenario kit03_incident --incident <OBLIGATION>:<FAILURE_TYPE>`.
-Verified on the fake sandbox and by tests (🧪); the real-sandbox run is listed in SANDBOX_RESULTS.md when done.
+Verified on the fake sandbox and by tests (🧪) and **on the real sandbox on 23 Oct 2026** (SANDBOX_RESULTS.md, cycle 5:
+original `9297602a-…` CANCELLED / BENEFICIARY_BANK_RETURNED, replacement `60f3e3cd-…` PAID under the duplicate lock,
+incident RESOLVED; a second payment of the same invoice was refused before any money moved).
 
 | Requirement (guide) | Status | Where |
 |---|---|---|

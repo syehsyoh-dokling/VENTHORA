@@ -52,6 +52,21 @@ def test_decision_table(status, failure, hours, action):
     assert decide(transfer(status, failure), hours, POLICY, 0).action == action
 
 
+def test_real_sandbox_failure_shape_maps_code_to_typed_failure():
+    """Observed on the real sandbox (23 Oct 2026): a transfer failed with BENEFICIARY_BANK_RETURNED comes back
+    CANCELLED with failure={code: 90802, details.type: INCORRECT_ROUTING} and no top-level failure_type.
+    The code, not the detail, decides; an unknown shape still fails closed (UNKNOWN -> ESCALATE)."""
+    from venthora.gateways.airwallex import _transfer, failure_type_of
+    real = {"id": "t1", "status": "CANCELLED", "source_currency": "EUR", "transfer_currency": "EUR", "transfer_amount": 1500.0,
+            "fee_amount": 13.38, "failure": {"code": "90802", "details": {"type": "INCORRECT_ROUTING"}}}
+    assert failure_type_of(real) == "BENEFICIARY_BANK_RETURNED"
+    assert _transfer(real).failure_reason == "90802: INCORRECT_ROUTING"
+    assert failure_type_of({"failure_reason": "90301: Beneficiary name mismatch"}) == "BENEFICIARY_NAME_MISMATCH"
+    assert failure_type_of({"failure_type": "CHANNEL_TIMEOUT"}) == "CHANNEL_TIMEOUT"
+    assert failure_type_of({"failure": {"code": "12345", "details": {"type": "SOMETHING_NEW"}}}) == "SOMETHING_NEW"
+    assert failure_type_of({"status": "CANCELLED"}) is None
+
+
 def test_only_one_replacement_then_a_person():
     assert decide(transfer("CANCELLED", "BENEFICIARY_BANK_RETURNED"), 0, POLICY, 1).action == "ESCALATE"
 

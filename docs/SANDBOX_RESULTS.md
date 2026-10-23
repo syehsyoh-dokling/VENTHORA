@@ -62,10 +62,29 @@ with the local Qwen2.5-0.5B reading the inbox. Approver: the project's finance m
 
 Cycle 1's overrun (EUR 0.52, GBP 2.24, USD 6.00 of unplanned fees) did not recur.
 
+## Cycle 5: Kit 03 incident on the real sandbox (`--scenario kit03_incident --incident SUPPLIER-EU-NOV:BENEFICIARY_BANK_RETURNED`)
+
+Approved by the owner as finance manager; 23 Oct 2026, 11:19–11:23 WIB. Two runs, because the first one found a real
+difference between the fake and the sandbox (see the findings table below).
+
+| Step | What happened on the sandbox |
+|---|---|
+| Plan: **APPROVED** autonomously | EUR 1,500 SWIFT to Rheinwerk Komponenten GmbH, budget USD 8,000, floor USD 2,000 + stress 16.93; learned fees applied (SWIFT EUR 13.38); P(breach) 0.0% over 2,000 paths |
+| Quote → conversion → transfer | quote `55a8d111-…`, conversion `eb61d5da-…`, transfer `9297602a-…` (`SCHEDULED`), reconciled: no discrepancy, floor held; transfer deliberately **left in flight** |
+| Stage the failure | `SENT`, then `FAILED` with `failure_type=BENEFICIARY_BANK_RETURNED` via `/simulation/transfers/{id}/transition` |
+| Run 1: re-read the original | status `FAILED`, **no `failure_type` field** → decision table saw `UNKNOWN` → **ESCALATE** (fail-closed; incident `ESCALATED`, nothing replaced) |
+| Fix | the sandbox reports the failure as `failure.code` **90802** (+ `failure.details.type` `INCORRECT_ROUTING`) and moves the transfer to `CANCELLED`; the gateway now maps the code through Airwallex's failure-type table (`FAILURE_CODES`); the fake sandbox emits the real shape |
+| Run 2, step 7 | the plan tried to pay the same invoice again: **`claim:SUPPLIER-EU-NOV REFUSED` — duplicate payment blocked before any money moved**, across two separate runs, on the real sandbox |
+| Run 2, step 8 | original `9297602a-…` re-read: `CANCELLED` / `BENEFICIARY_BANK_RETURNED`, EUR 1,500 refunded (fee EUR 13.38 lost) → **REPLACE**: budget check (EUR 1,513.38 incl. the second fee), duplicate lock re-claimed with a **new request_id** `acd2bf5e-…`, replacement `60f3e3cd-…` → `PAID`; reconciliation EUR 10,001,499.47 → 9,999,986.09 = expected, discrepancy 0, refund observed |
+| Incident | `3a5a4ca6-…` **RESOLVED** only after the original's CANCELLED status, failure type and refund were recorded |
+
+Run reports: `data/runs/20261023-111947-kit03_incident.json` (run 1), `data/runs/20261023-112317-kit03_incident.json` (run 2).
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| A failed transfer carries `failure_type` | status **`CANCELLED`**, failure in `failure.code` (**90802**) and `failure.details.type` (`INCORRECT_ROUTING`); the transition response carries the detail type, not the enum sent | `failure_type_of()` maps the code through the documented table first, then `failure_reason` ("90802: …"), then the typed fields; unknown shapes still fail closed to ESCALATE |
 | Flat EUR 12.85 per SWIFT payout | **EUR 13.37** | fees observed per `METHOD:CCY` are stored and used by later plans |
 | LOCAL payouts are free | **USD 3.00**, **GBP 2.24** per LOCAL payout | same; plan-vs-actual variance reported in the reconciliation |
 | Deposit balance appears immediately | the deposit settled **after** the first check | the receipt counts only when the deposit record says `SETTLED` (`/api/v1/deposits`), with polling and reuse of a settled, uncounted deposit |

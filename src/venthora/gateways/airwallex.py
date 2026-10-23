@@ -104,15 +104,48 @@ def _conversion(body: dict) -> ConversionResult:
         quote_id=body.get("quote_id"), raw=body)
 
 
+# Airwallex failure codes -> typed failure (docs: "Simulate transfer status transition", failure_type table).
+# Observed on the real sandbox (23 Oct 2026): a transfer failed with BENEFICIARY_BANK_RETURNED is returned as
+# status CANCELLED with failure = {"code": "90802", "details": {"type": "INCORRECT_ROUTING"}} and no top-level
+# failure_type; the transition response itself carries failure_type = the *detail* type. The code is the
+# authoritative field, the detail type only a fallback.
+FAILURE_CODES = {
+    "90101": "INVALID_ACCOUNT_NAME_OR_NUMBER", "90201": "INVALID_BANK_OR_BRANCH_CODE", "90202": "INVALID_SWIFT_BIC_CODE",
+    "90203": "INVALID_CORRESPONDENT_BANK_INFORMATION", "90204": "INVALID_BANK_INFORMATION",
+    "90301": "BENEFICIARY_NAME_MISMATCH", "90302": "ACCOUNT_CURRENCY_MISMATCH", "90401": "INVALID_BENEFICIARY_DETAILS",
+    "90402": "INVALID_SPECIAL_CHARACTER", "90501": "CHANNEL_POLICY", "90502": "TM_SUSPENDED", "90701": "ACCOUNT_CLOSED",
+    "90702": "ACCOUNT_INACTIVE_OR_DORMANT", "90703": "ACCOUNT_UNDER_RESTRICTION", "90801": "BENEFICIARY_REQUESTED",
+    "90802": "BENEFICIARY_BANK_RETURNED", "90901": "INBOUND_BENFICIARY_VALIDATION_ERROR", "90902": "INBOUND_ORDER_ERROR",
+    "90903": "INBOUND_2B_CARD_NOT_SUPPORTED", "90904": "INBOUND_COMPANY_REGISTRATION_NUMBER_ERROR",
+    "91001": "RECALL_REQUESTED", "91002": "CLIENT_REQUESTED", "91101": "INVALID_PAYMENT_PURPOSE", "91201": "CARD_ISSUER_ERROR",
+    "91401": "SYSTEM_ERROR", "91402": "CHANNEL_TIMEOUT", "99902": "OTHER",
+}
+
+
+def failure_type_of(body: dict) -> str | None:
+    """The typed failure of a transfer body: failure.code mapped through the table, else the typed fields."""
+    failure = body.get("failure") or {}
+    code = str(failure.get("code") or "").strip()
+    if code in FAILURE_CODES:
+        return FAILURE_CODES[code]
+    reason = str(body.get("failure_reason") or "")  # the guide: "90802: Beneficiary bank returned"
+    if reason[:5] in FAILURE_CODES:
+        return FAILURE_CODES[reason[:5]]
+    return body.get("failure_type") or (failure.get("details") or {}).get("type") or None
+
+
 def _transfer(body: dict) -> TransferResult:
     amount = to_minor(body.get("transfer_amount", 0))
+    failure = body.get("failure") or {}
     return TransferResult(
         transfer_id=body["id"], status=body["status"], source_currency=body.get("source_currency", ""),
         transfer_currency=body.get("transfer_currency", ""), transfer_amount_minor=amount,
         amount_payer_pays_minor=to_minor(body.get("amount_payer_pays", body.get("source_amount", 0))),
         fee_minor=to_minor(body.get("fee_amount", 0) or 0),
-        failure_reason=body.get("failure_reason") or body.get("failure_type"), raw=body,
-        failure_type=body.get("failure_type"))
+        failure_reason=body.get("failure_reason") or failure.get("message")
+        or (f"{failure['code']}: {(failure.get('details') or {}).get('type', '')}".strip(": ") if failure.get("code") else None)
+        or body.get("failure_type"),
+        raw=body, failure_type=failure_type_of(body))
 
 
 class Airwallex:
