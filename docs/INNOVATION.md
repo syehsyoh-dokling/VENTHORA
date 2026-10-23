@@ -174,6 +174,15 @@ wallet holds, so one book can never quietly spend another's money. Reconciliatio
 the cash lines of every book since the run began, which makes a resume, or two books running on the same wallet, exact
 to the cent instead of a false mismatch. Proven on the real sandbox with three books on one wallet.
 
+### G. How much, to whom, how often
+
+The last way an agent goes wrong with money is not one bad payment but many acceptable ones: the same payee again and
+again, a new payee paid in full on day one, a quiet week's worth of outflow in an afternoon. Five limits from the books'
+own history — one payout, one payee per period, a first payment to a new payee, rolling daily and weekly outflow — are
+computed as numbers and judged in Python and in Rego; above any of them the plan stops for a named person, with the
+payouts, payees and totals behind the reason. The three tiers of what the agent may do alone, with approval, or not at
+all are written down in `docs/AUTONOMY_MAP.md`.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

@@ -64,6 +64,17 @@ def main() -> int:
         grid.append(base | {"paying_over_claims": over,
                             "budget": {"attached": True, "unbudgeted_paying": 0, "unbudgeted_requires_approval": False, "lines": [],
                                        "period_closed": closed, "paying_in_period": paying}})
+    # Limits and velocity: every limit null or set, payouts above/at/below, new or known payee, rolling outflows.
+    for single, per_payee, daily, weekly, first, cost, new, hist, out24, out7 in itertools.product(
+            [None, 500_000], [None, 600_000], [None, 1_000_000], [None, 2_000_000], [None, 100_000],
+            [100_000, 500_000, 500_001], [False, True], [0, 200_000], [0, 900_000], [0, 1_900_000]):
+        grid.append(base | {"limits": {"max_single_payment_minor": single, "max_per_payee_period_minor": per_payee,
+                                       "max_outflow_daily_minor": daily, "max_outflow_weekly_minor": weekly,
+                                       "max_first_payment_minor": first,
+                                       "payouts": [{"obligation_id": "O1", "beneficiary_id": "b", "cost_minor": cost, "new_payee": new}],
+                                       "payees": [{"beneficiary_id": "b", "paid_this_period_minor": hist, "paying_now_minor": cost,
+                                                   "total_minor": hist + cost, "new_payee": new}],
+                                       "paying_now_total_minor": cost, "outflow_24h_minor": out24, "outflow_7d_minor": out7}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

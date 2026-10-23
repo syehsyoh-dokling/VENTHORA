@@ -1,0 +1,13 @@
+{"_note": "UI bench, limits suite: every case submitted through the dashboard form (Submit a case, suite = limits, POST /v1/plans) in the Claude in-app browser against the running service on 23 Oct 2026; ui_ms = round trip measured by the browser, server_ms = the plan's own duration_ms (includes the live Airwallex balance check). 18/18 matched the hand-derived expectation.",
+ "n": 18, "matched": 18, "p50_ms": 135.6, "max_ms": 571.9, "server_p50_ms": 118.1,
+ "rows": [
+  {"id": "V01", "kind": "plan", "match": true, "server_ms": 560.4, "ui_ms": 571.9}, {"id": "V02", "kind": "plan", "match": true, "server_ms": 115.2, "ui_ms": 201.5},
+  {"id": "V03", "kind": "plan", "match": true, "server_ms": 120.2, "ui_ms": 214.5}, {"id": "V04", "kind": "plan", "match": true, "server_ms": 110.6, "ui_ms": 124.8},
+  {"id": "V05", "kind": "plan", "match": true, "server_ms": 109.9, "ui_ms": 126.4}, {"id": "V06", "kind": "plan", "match": true, "server_ms": 118.1, "ui_ms": 135.4},
+  {"id": "V07", "kind": "plan", "match": true, "server_ms": 109.8, "ui_ms": 128.9}, {"id": "V08", "kind": "plan", "match": true, "server_ms": 115.5, "ui_ms": 129.4},
+  {"id": "V09", "kind": "plan", "match": true, "server_ms": 175.5, "ui_ms": 189.3}, {"id": "V10", "kind": "plan", "match": true, "server_ms": 112.4, "ui_ms": 128.8},
+  {"id": "V11", "kind": "plan", "match": true, "server_ms": 137.9, "ui_ms": 152.1}, {"id": "V12", "kind": "plan", "match": true, "server_ms": 114.3, "ui_ms": 125.6},
+  {"id": "V13", "kind": "plan", "match": true, "server_ms": 119.5, "ui_ms": 137.6}, {"id": "V14", "kind": "plan", "match": true, "server_ms": 189.2, "ui_ms": 205.6},
+  {"id": "V15", "kind": "plan", "match": true, "server_ms": 119.4, "ui_ms": 135.6}, {"id": "V16", "kind": "plan", "match": true, "server_ms": 114.3, "ui_ms": 125.6},
+  {"id": "V17", "kind": "plan", "match": true, "server_ms": 116.1, "ui_ms": 130.5}, {"id": "V18", "kind": "plan", "match": true, "server_ms": 178.1, "ui_ms": 187.4}
+ ]}

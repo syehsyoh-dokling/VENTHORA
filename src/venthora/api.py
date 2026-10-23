@@ -525,7 +525,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger"):
+    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

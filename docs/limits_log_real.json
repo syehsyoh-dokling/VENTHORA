@@ -1,0 +1,97 @@
+{
+ "generated_at": "2026-10-23T14:07:13.714548+00:00",
+ "book": "limits-real-210713",
+ "runs": [
+  {
+   "run": "run 1: USD 1,200 to a known payee",
+   "decision": "APPROVED",
+   "requires_approval": [],
+   "payee_history": [
+    {
+     "beneficiary_id": "ben-saas-vendor",
+     "paid_this_period_minor": 511200,
+     "paying_now_minor": 120300,
+     "total_minor": 631500,
+     "new_payee": false
+    }
+   ],
+   "history_payees": 4,
+   "outflow_24h_minor": 3696120,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,797.00 >= USD 5,000.00"
+   }
+  },
+  {
+   "run": "run 2: USD 1,500 more to the same payee this period",
+   "decision": "REQUIRES_APPROVAL",
+   "requires_approval": [
+    "payee_period_limit_exceeded"
+   ],
+   "payee_history": [
+    {
+     "beneficiary_id": "ben-saas-vendor",
+     "paid_this_period_minor": 631500,
+     "paying_now_minor": 150300,
+     "total_minor": 781800,
+     "new_payee": false
+    }
+   ],
+   "history_payees": 4,
+   "outflow_24h_minor": 3816420,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 17,294.00 >= USD 5,000.00"
+   }
+  },
+  {
+   "run": "run 3a: USD 2,600 single payout, nobody approves",
+   "decision": "REQUIRES_APPROVAL",
+   "requires_approval": [
+    "payee_period_limit_exceeded",
+    "single_payment_above_limit"
+   ],
+   "payee_history": [
+    {
+     "beneficiary_id": "ben-saas-vendor",
+     "paid_this_period_minor": 781800,
+     "paying_now_minor": 260300,
+     "total_minor": 1042100,
+     "new_payee": false
+    }
+   ],
+   "history_payees": 4,
+   "outflow_24h_minor": 3966720,
+   "execution": {
+    "status": "REFUSED",
+    "message": "plan requires a person's approval: payee_period_limit_exceeded, single_payment_above_limit"
+   }
+  },
+  {
+   "run": "run 3b: the same, a finance manager approves",
+   "decision": "REQUIRES_APPROVAL",
+   "requires_approval": [
+    "payee_period_limit_exceeded",
+    "single_payment_above_limit"
+   ],
+   "payee_history": [
+    {
+     "beneficiary_id": "ben-saas-vendor",
+     "paid_this_period_minor": 781800,
+     "paying_now_minor": 260300,
+     "total_minor": 1042100,
+     "new_payee": false
+    }
+   ],
+   "history_payees": 4,
+   "outflow_24h_minor": 3966720,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 14,691.00 >= USD 5,000.00"
+   }
+  }
+ ],
+ "payee_paid_this_period_before_minor": 511200,
+ "max_per_payee_period_minor": 641200,
+ "ok": true
+}

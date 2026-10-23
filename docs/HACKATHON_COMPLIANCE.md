@@ -75,7 +75,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | 49 | After a deposit, recalculate only the decisions it affects | ✅🧪 | incremental recalculation with locked decisions and a diff |
 | 50 | Execution limit tied to forecast confidence; strong data allows a larger autonomous conversion | ✅🧪 | limit = full at ≥90%, linear to 0 at ≤50% |
 | 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions; a contradicted forecast is capped below the full band whatever the payer record (audit mutation M6) |
-| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 7,646 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
+| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 9,182 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
 | 53 | Read balances and obligations | ✅ | `GET /balances/current`; scenario obligations |
 | 54 | Plan in code | ✅ | Theorem (CP-SAT + exact second candidate) |
 | 55 | Lower forecast confidence for one receipt | ✅ | RCV-ACME 90% → 70% (calibrated from payer history) |
@@ -240,6 +240,24 @@ rates are recorded with that source — a finding, not a guess (SANDBOX_RESULTS.
 
 Ground truth suite 6: 15 hand-derived cases, 15/15 in-process, through `POST /v1/ledger/eval` and through the form; real
 sandbox cycle 12: two books reconciled on one wallet with nothing unexplained, a third refused before money moved.
+
+## (13) Limits and velocity: how much, to whom, how often
+
+| Rule (base-currency cost; null = no limit) | Reason code |
+|---|---|
+| one payout above `max_single_payment` | `single_payment_above_limit` |
+| paid to a payee this report period + paying now above `max_per_payee_period` (two payouts in one plan count together) | `payee_period_limit_exceeded` |
+| a payee never PAID before getting more than `max_first_payment` (no history = everyone is new) | `first_payment_to_new_payee_above_limit` |
+| rolling 24 h / 7 d outflow + paying now above `max_outflow_daily` / `max_outflow_weekly` | `daily_outflow_limit_exceeded` / `weekly_outflow_limit_exceeded` |
+
+History comes from the spend ledger (`store.payment_history`, filled by `facts.py` as `state.history`); the stage
+`Policy · limits` names the payouts, payees and totals behind every reason; `proofcore/limits.py` mirrored in
+`policy/treasury.rego` (OPA grid: 9,182 inputs, 0 disagreements). Ground truth suite 7: 18 cases, 18/18 on three paths;
+real sandbox cycle 13: a known payee paid inside the limit, the same payee over its period limit stopped for a person
+and then paid, a single payout above the limit refused without approval and executed with it.
+
+See [AUTONOMY_MAP.md](AUTONOMY_MAP.md) for the three tiers: what the agent does alone, what a person must approve,
+what only a person can do.
 
 ## Not applicable to this build
 

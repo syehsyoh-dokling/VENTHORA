@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Durable execution state (SQLite). Survives restarts; enforces once-only effects.
 
 * operations   - every money-moving call with its request_id, written *before*
@@ -88,6 +89,24 @@ class ExecutionStore:
         self._lock = threading.RLock()
         with self._connect() as c:
             c.executescript(SCHEMA)
+            # migrations for stores created before a column existed
+            cols = {r[1] for r in c.execute("PRAGMA table_info(spend_ledger)").fetchall()}
+            if "beneficiary_id" not in cols:
+                c.execute("ALTER TABLE spend_ledger ADD COLUMN beneficiary_id TEXT")
+            # rows booked before the column existed: recover the payee from the execution's stored plan
+            missing = c.execute("SELECT transfer_id, obligation_id FROM spend_ledger WHERE beneficiary_id IS NULL").fetchall()
+            if missing:
+                by_obligation: dict[str, str] = {}
+                for r in c.execute("SELECT request_json FROM executions").fetchall():
+                    try:
+                        for o in json.loads(r["request_json"])["request"]["state"]["obligations"]:
+                            by_obligation[o["obligation_id"]] = o["beneficiary_id"]
+                    except (KeyError, TypeError, ValueError):
+                        continue
+                for m in missing:
+                    if m["obligation_id"] in by_obligation:
+                        c.execute("UPDATE spend_ledger SET beneficiary_id = ? WHERE transfer_id = ?",
+                                  (by_obligation[m["obligation_id"]], m["transfer_id"]))
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15, isolation_level="IMMEDIATE")
@@ -387,10 +406,45 @@ class ExecutionStore:
 
     def book_payment(self, row: dict) -> None:
         with self._lock, self._connect() as c:
-            c.execute("INSERT OR IGNORE INTO spend_ledger VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            c.execute("INSERT OR IGNORE INTO spend_ledger (transfer_id, book_id, obligation_id, invoice_fingerprint, installment,"
+                      " contract_total_minor, line, currency, amount_minor, base_cost_minor, paid_at, reporting_period, recorded_at,"
+                      " beneficiary_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       (row["transfer_id"], row["book_id"], row["obligation_id"], row.get("invoice_fingerprint"),
                        row.get("installment"), row.get("contract_total_minor"), row.get("line"), row["currency"],
-                       row["amount_minor"], row["base_cost_minor"], row["paid_at"], row["reporting_period"], _now()))
+                       row["amount_minor"], row["base_cost_minor"], row["paid_at"], row["reporting_period"], _now(),
+                       row.get("beneficiary_id")))
+
+    def payment_history(self, as_of: str, period: str) -> dict:
+        """What limits and velocity reason from: paid per payee this report period, rolling 24 h / 7 d outflow (base
+        cost), and every payee ever PAID. `as_of` is an ISO instant; the ledger's paid_at values are compared as instants."""
+        import datetime as dt
+
+        now = dt.datetime.fromisoformat(as_of)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=dt.UTC)
+        rows = self.ledger()
+        per_payee: dict[str, int] = {}
+        out_24h = out_7d = 0
+        payees: set[str] = set()
+        for r in rows:
+            b = r.get("beneficiary_id")
+            if b:
+                payees.add(b)
+            if r["reporting_period"] == period and b:
+                per_payee[b] = per_payee.get(b, 0) + r["base_cost_minor"]
+            try:
+                paid = dt.datetime.fromisoformat(str(r["paid_at"]).replace("+0000", "+00:00"))
+                if paid.tzinfo is None:
+                    paid = paid.replace(tzinfo=dt.UTC)
+            except ValueError:
+                continue
+            age = now - paid
+            if dt.timedelta(0) <= age <= dt.timedelta(hours=24):
+                out_24h += r["base_cost_minor"]
+            if dt.timedelta(0) <= age <= dt.timedelta(days=7):
+                out_7d += r["base_cost_minor"]
+        return {"as_of": as_of, "paid_per_payee_period_minor": per_payee, "outflow_24h_minor": out_24h,
+                "outflow_7d_minor": out_7d, "payees_paid_before": sorted(payees)}
 
     def ledger(self, period: str | None = None) -> list[dict]:
         with self._lock, self._connect() as c:

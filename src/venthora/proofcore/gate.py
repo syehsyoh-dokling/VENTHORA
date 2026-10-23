@@ -20,6 +20,8 @@ from ..gateways.opa import OPA
 from ..gateways.tigerbeetle import TigerBeetleLedger
 from . import budget
 from . import policy as local_policy
+from .limits import describe as describe_limits
+from .limits import limit_facts, limit_reasons
 from .match import three_way_match
 
 
@@ -119,8 +121,16 @@ class ProofCore:
                        + (f", {len(twm['under_claims'])} under-claim(s)" if twm["under_claims"] else ""))
             stages.append(StageResult(engine="Verity · three-way match", status="WARN" if twm["over_claims"] else "PASS",
                                       summary=summary, details=twm, duration_ms=(perf_counter() - match_started) * 1000))
+        # Limits and velocity: how much, to whom, how often — from the books' history and this plan's payouts.
+        lim_started = perf_counter()
+        lim = limit_facts(state, decisions)
+        lim_reasons = limit_reasons(lim)
+        if any(v is not None for k, v in lim.items() if k.startswith("max_")):
+            stages.append(StageResult(engine="Policy · limits", status="WARN" if lim_reasons else "PASS",
+                                      summary=describe_limits(lim, lim_reasons), details=lim | {"reasons": lim_reasons},
+                                      duration_ms=(perf_counter() - lim_started) * 1000))
         inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts,
-                                        paying_over_claims=twm["paying_over_claims"])
+                                        paying_over_claims=twm["paying_over_claims"], limits=lim)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         stages.append(await self._balance_stage(state, proj.conversions))

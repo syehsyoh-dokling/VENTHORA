@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Typed contracts shared by every engine.
 
 Money is always an integer in minor units. The planning base currency is USD;
@@ -162,12 +163,29 @@ class TreasuryPolicy(StrictModel):
     max_replacements: int = Field(default=1, ge=0, le=3, description="Kit 03: replacement transfers per obligation")
     amount_tolerance_bp: int = Field(default=50, ge=0, le=10_000, description="three-way match tolerance, share of expected")
     amount_tolerance_minor: int = Field(default=500, ge=0, le=MAX_MINOR, description="three-way match tolerance, absolute floor")
+    # Limits and velocity (base-currency cost). None = no limit. Above a limit the agent may not act alone.
+    max_single_payment_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR, description="one payout at most")
+    max_per_payee_period_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR,
+                                                   description="paid + paying now to one payee in the report period")
+    max_outflow_daily_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR, description="rolling 24 h, all payees")
+    max_outflow_weekly_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR, description="rolling 7 d, all payees")
+    max_first_payment_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR,
+                                                description="a payee never paid before gets at most this much first")
 
     @model_validator(mode="after")
     def confidence_band(self):
         if self.zero_limit_below_bp >= self.full_confidence_bp:
             raise ValueError("zero_limit_below_bp must be below full_confidence_bp")
         return self
+
+
+class PaymentHistory(StrictModel):
+    """What the books remember, supplied to the plan (facts.py fills it from the spend ledger)."""
+    as_of: str | None = None
+    paid_per_payee_period_minor: dict[str, int] = Field(default_factory=dict, description="beneficiary_id -> base cost this period")
+    outflow_24h_minor: int = Field(default=0, ge=0)
+    outflow_7d_minor: int = Field(default=0, ge=0)
+    payees_paid_before: list[str] = Field(default_factory=list, description="beneficiary ids with at least one PAID payout")
 
 
 class TreasuryState(StrictModel):
@@ -187,6 +205,7 @@ class TreasuryState(StrictModel):
     actor_role: Literal["treasury_agent", "finance_manager", "viewer"] = "treasury_agent"
     budget: Budget | None = Field(default=None, description="the period's plan: the agent's mandate per line")
     as_of: str | None = Field(default=None, description="ISO date the book is planned on (period cut-off, due dates)")
+    history: PaymentHistory | None = Field(default=None, description="payments already made (limits and velocity)")
     use_ecb_stress: bool = False
     fx_stress_model: Literal["horizon_m0", "ecb_empirical"] = Field(
         default="horizon_m0", description="horizon_m0 = original Horizon scenario engine; ecb_empirical = 5-day p95")

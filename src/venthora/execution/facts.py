@@ -57,6 +57,19 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
         if o["record_kind"] == "payable" and payout_key(o) in paid:
             o["record_kind"] = "settled"
             notes.append(f"{o['obligation_id']} already paid (transfer {paid[payout_key(o)]['transfer_id']})")
+    # Limits and velocity: what the spend ledger remembers, as of now, for this report period.
+    if data.get("history") is None:
+        from datetime import UTC, datetime
+
+        from ..reporting import load_config, reporting_period
+
+        now = datetime.now(UTC)
+        cfg = load_config()
+        hist = store.payment_history(now.isoformat(), reporting_period(now, cfg))
+        data["history"] = hist
+        if hist["payees_paid_before"] or hist["outflow_7d_minor"]:
+            notes.append(f"history: {len(hist['payees_paid_before'])} payee(s) paid before; outflow 24h "
+                         f"{fmt(hist['outflow_24h_minor'], data['base_currency'])}, 7d {fmt(hist['outflow_7d_minor'], data['base_currency'])}")
     result = TreasuryState.model_validate(data)
     # Budget · mandate: the period's plan with what the store knows: realized spend per line, mandate granted by a person.
     from ..proofcore.budget import attach_budget, load_budget

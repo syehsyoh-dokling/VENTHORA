@@ -68,7 +68,7 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
 
  <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option><option value="limits">limits</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
     <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option><option value="ledger">ledger postings (JSON) → /v1/ledger/eval</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>

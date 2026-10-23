@@ -123,6 +123,11 @@ def main() -> None:
         "Balanced entries per currency (open, deposit, grant, convert, commit, settle, refund, adjust); a commit or conversion the book "
         "cannot fund is refused before money moves; the wallet must move by exactly the sum of every book's cash lines, which is what "
         "reconciliation now checks on a shared wallet."])
+    lines += [""] + section("limits", "Suite 7 — limits and velocity: how much, to whom, how often", [
+        "A payout above the single-payment limit; a payee whose paid-this-period plus paying-now exceeds its period limit (history from "
+        "the spend ledger, two payouts in one plan count together); a payee never PAID before getting more than the first-payment limit "
+        "(no history = everyone is new); rolling 24 h / 7 d outflow plus paying now above the daily / weekly limit; several reasons at "
+        "once, each named; no limits = nothing changes; an escalated payout does not count as paying now."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

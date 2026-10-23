@@ -231,10 +231,29 @@ that overlaps another book's, now explains the wallet's movement by the cash lin
 read, and only what no book knows about is a discrepancy. (The interleaved case is covered by `tests/test_ledger.py`;
 on the sandbox A and B ran back to back.) Log: `docs/ledger_log_real.json`.
 
+## Cycle 13: limits and velocity on the real sandbox (`python scripts/limits_real.py`)
+
+Approved by the owner as finance manager; 23 Oct 2026, ~21:50 WIB. The books' own history decides what the agent may
+do alone. The per-payee period limit is set relative to what the spend ledger already held for `ben-saas-vendor` today
+(USD 5,112.00 across earlier cycles): limit = that + USD 1,300; single-payout limit USD 2,500.
+
+| Run | Plan | Execution |
+|---|---|---|
+| 1 · USD 1,200 to the known payee | **APPROVED**, no reason: paid this period 5,112 + now 1,203 = 6,315 ≤ limit | COMPLETED, autonomous |
+| 2 · USD 1,500 more to the same payee | **REQUIRES_APPROVAL** `payee_period_limit_exceeded` (6,315 + 1,503 = 7,818 > limit) | a finance manager approved → COMPLETED |
+| 3a · USD 2,600 single payout, nobody approves | **REQUIRES_APPROVAL** `payee_period_limit_exceeded`, `single_payment_above_limit` | **REFUSED**: "plan requires a person's approval" — nothing moved |
+| 3b · the same, approved | same reasons, approval bound to the terms | COMPLETED |
+
+**Finding.** The first attempt saw every payee as *new* (`first_payment_to_new_payee_above_limit` on a payee paid
+many times today): the spend-ledger rows booked before the `beneficiary_id` column existed had no payee. The store now
+backfills that column from each execution's stored plan on start-up (8 rows recovered), and every new row carries it.
+Log: `docs/limits_log_real.json`.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| History rows always name their payee | rows booked before the column existed had none, so a well-known payee looked new | `beneficiary_id` backfilled from stored plans at start-up; carried on every new row |
 | Airwallex quotes any reporting currency | the sandbox answers `unsupported_currency` for IDR | closing-rate snapshot falls back per currency to the admin's figures, source recorded per rate |
 | A resumed execution reconciles against its original "before" balances | other runs moved money in the shared wallet between the run and its resume → mismatch reported although every payout is PAID and recorded | stated as a limit (cycle 9); the book-level ledger (TigerBeetle, optional) is the proper fix |
 | The original's refund is in the wallet before the replacement is made | on the real rail the refund can land **between** the balance read before the replacement and the read after it (cycle 9, step 2: discrepancy of exactly EUR 1,500) | the replacement's reconciliation accepts both timings of the same money and records which one it saw (`refund_timing`); the CLI treats `REPLACED_AWAITING_ORIGINAL` as a correct open state and follows up until the original is on file |

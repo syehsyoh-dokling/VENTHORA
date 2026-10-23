@@ -16,10 +16,11 @@ def forecast_confidence(state) -> int | None:
 
 def policy_input(state, conversion_base_minor: int, escalations: list[str],
                  breach_probability_bp: int | None = None, budget: dict | None = None,
-                 paying_over_claims: list[str] | None = None) -> dict:
+                 paying_over_claims: list[str] | None = None, limits: dict | None = None) -> dict:
     p = state.policy
     return {
         "paying_over_claims": sorted(paying_over_claims or []),
+        "limits": limits or {},
         "budget": budget or {"attached": False, "lines": [], "unbudgeted_paying": 0, "unbudgeted_requires_approval": False},
         "actor_role": state.actor_role,
         "approver_roles": p.approver_roles,
@@ -52,6 +53,9 @@ def evaluate(inp: dict) -> dict:
     if breach is not None and breach > inp["max_breach_probability_bp"]:
         reasons.append("reserve_breach_risk_above_tolerance")
     reasons += budget_reasons(inp.get("budget") or {})
+    from .limits import limit_reasons
+
+    reasons += limit_reasons(inp.get("limits") or {})
     # Three-way match: an invoice that claims more than the contract still allows is paid only by a person.
     if inp.get("paying_over_claims"):
         reasons.append("amount_mismatch")

@@ -85,6 +85,36 @@ approval_reasons contains "period_closed" if {
 	input.budget.paying_in_period > 0
 }
 
+# Limits and velocity (proofcore/limits.py). A null limit means no limit.
+approval_reasons contains "single_payment_above_limit" if {
+	input.limits.max_single_payment_minor != null
+	some r in input.limits.payouts
+	r.cost_minor > input.limits.max_single_payment_minor
+}
+
+approval_reasons contains "first_payment_to_new_payee_above_limit" if {
+	input.limits.max_first_payment_minor != null
+	some r in input.limits.payouts
+	r.new_payee
+	r.cost_minor > input.limits.max_first_payment_minor
+}
+
+approval_reasons contains "payee_period_limit_exceeded" if {
+	input.limits.max_per_payee_period_minor != null
+	some p in input.limits.payees
+	p.total_minor > input.limits.max_per_payee_period_minor
+}
+
+approval_reasons contains "daily_outflow_limit_exceeded" if {
+	input.limits.max_outflow_daily_minor != null
+	input.limits.outflow_24h_minor + input.limits.paying_now_total_minor > input.limits.max_outflow_daily_minor
+}
+
+approval_reasons contains "weekly_outflow_limit_exceeded" if {
+	input.limits.max_outflow_weekly_minor != null
+	input.limits.outflow_7d_minor + input.limits.paying_now_total_minor > input.limits.max_outflow_weekly_minor
+}
+
 decision := {
 	"allow": input.actor_role != "viewer",
 	"requires_approval": sort([r | some r in approval_reasons]),

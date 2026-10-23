@@ -1,0 +1,1315 @@
+{
+ "_note": "Limits & velocity ground truth, hand-derived; see scripts/make_limits_groundtruth.py.",
+ "cases": [
+  {
+   "id": "V01",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "single payout inside the limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 400000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 500000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": []
+   },
+   "derivation": "4,000 <= 5,000 -> autonomous"
+  },
+  {
+   "id": "V02",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "single payout exactly at the limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 500000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 500000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "5,000 is not above 5,000 -> autonomous"
+  },
+  {
+   "id": "V03",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "single payout one cent above the limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 500001,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 500000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": [
+     "single_payment_above_limit"
+    ]
+   },
+   "derivation": "5,000.01 > 5,000 -> a person"
+  },
+  {
+   "id": "V04",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "two payouts each inside the single limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 400000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 400000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-uk-logistics",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 500000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor",
+      "ben-uk-logistics"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "the single limit is per payout, not per plan"
+  },
+  {
+   "id": "V05",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "payee period limit: history + now exceeds it",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_per_payee_period_minor": 600000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {
+      "ben-saas-vendor": 400000
+     },
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "payee_period_limit_exceeded"
+    ]
+   },
+   "derivation": "paid 4,000 + now 3,000 = 7,000 > 6,000 -> a person"
+  },
+  {
+   "id": "V06",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "payee period limit: history + now exactly at it",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_per_payee_period_minor": 600000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {
+      "ben-saas-vendor": 400000
+     },
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "4,000 + 2,000 = 6,000, not above -> autonomous"
+  },
+  {
+   "id": "V07",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "payee period limit: two payouts to the same payee in one plan",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 350000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 350000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_per_payee_period_minor": 600000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "payee_period_limit_exceeded"
+    ]
+   },
+   "derivation": "3,500 + 3,500 = 7,000 to one payee > 6,000 even with no history"
+  },
+  {
+   "id": "V08",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "a different payee is not affected by another's history",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-uk-logistics",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_per_payee_period_minor": 600000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {
+      "ben-saas-vendor": 599999
+     },
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor",
+      "ben-uk-logistics"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "limits are per payee"
+  },
+  {
+   "id": "V09",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "first payment to a new payee above the first-payment limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-uk-logistics",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_first_payment_minor": 100000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "first_payment_to_new_payee_above_limit"
+    ]
+   },
+   "derivation": "ben-uk-logistics never PAID before; 3,000 > 1,000 -> a person"
+  },
+  {
+   "id": "V10",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "first payment to a new payee inside the first-payment limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-uk-logistics",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_first_payment_minor": 100000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "1,000 is not above 1,000 -> autonomous"
+  },
+  {
+   "id": "V11",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "a known payee is not subject to the first-payment limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_first_payment_minor": 100000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "ben-saas-vendor was PAID before -> no first-payment cap"
+  },
+  {
+   "id": "V12",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "no history at all: every payee is new",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_first_payment_minor": 100000
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "first_payment_to_new_payee_above_limit"
+    ]
+   },
+   "derivation": "without history the books remember nobody -> first payment rule applies"
+  },
+  {
+   "id": "V13",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "daily outflow: rolling 24 h + now above the limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_outflow_daily_minor": 1000000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 800000,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "daily_outflow_limit_exceeded"
+    ]
+   },
+   "derivation": "8,000 + 3,000 = 11,000 > 10,000"
+  },
+  {
+   "id": "V14",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "daily outflow exactly at the limit",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_outflow_daily_minor": 1000000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 800000,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "8,000 + 2,000 = 10,000, not above"
+  },
+  {
+   "id": "V15",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "weekly outflow above the limit while daily is fine",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_outflow_daily_minor": 1000000,
+     "max_outflow_weekly_minor": 2000000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 100000,
+     "outflow_7d_minor": 1900000,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "weekly_outflow_limit_exceeded"
+    ]
+   },
+   "derivation": "24h 1,000 + 3,000 = 4,000 <= 10,000; 7d 19,000 + 3,000 = 22,000 > 20,000"
+  },
+  {
+   "id": "V16",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "several limits at once, every reason named",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 600000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-uk-logistics",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 500000,
+     "max_first_payment_minor": 100000,
+     "max_outflow_daily_minor": 1000000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 900000,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "daily_outflow_limit_exceeded",
+     "first_payment_to_new_payee_above_limit",
+     "single_payment_above_limit"
+    ]
+   },
+   "derivation": "6,000 > 5,000 single; new payee 6,000 > 1,000; 9,000 + 6,000 > 10,000 daily -> three reasons"
+  },
+  {
+   "id": "V17",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "no limits set: nothing changes",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 5000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "every limit null -> no reason"
+  },
+  {
+   "id": "V18",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much, to whom, how often",
+   "title": "an escalated payout does not count as paying now",
+   "input": {
+    "case_id": "limits",
+    "book_id": "limits",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 600000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "policy_flags": [
+       "payee_bank_details_changed"
+      ]
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 500000
+    },
+    "actor_role": "treasury_agent",
+    "history": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "paid_per_payee_period_minor": {},
+     "outflow_24h_minor": 0,
+     "outflow_7d_minor": 0,
+     "payees_paid_before": [
+      "ben-saas-vendor"
+     ]
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "requires": []
+   },
+   "derivation": "the bank-change flag escalates it; nothing is paid now, so no limit reason"
+  }
+ ]
+}

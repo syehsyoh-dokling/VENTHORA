@@ -492,7 +492,7 @@ class Executor:
                                      "invoice_fingerprint": o.invoice_fingerprint, "installment": o.installment,
                                      "contract_total_minor": o.contract_total_minor, "line": o.budget_line,
                                      "currency": o.currency, "amount_minor": o.amount_minor, "base_cost_minor": cost.get(oid, 0),
-                                     "paid_at": paid_at, "reporting_period": period})
+                                     "paid_at": paid_at, "reporting_period": period, "beneficiary_id": o.beneficiary_id})
         # What this run itself did on the rail (for the record and the plan-vs-actual variance).
         expected = dict(before)
         for c in conversions:

@@ -1,0 +1,1016 @@
+[
+ {
+  "id": "V01",
+  "kind": "plan",
+  "title": "single payout inside the limit",
+  "ms": 123.81,
+  "ms_all": [
+   126.12,
+   123.81,
+   118.42
+  ],
+  "server_ms": 110.64,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 110.64189998432994
+  }
+ },
+ {
+  "id": "V02",
+  "kind": "plan",
+  "title": "single payout exactly at the limit",
+  "ms": 123.24,
+  "ms_all": [
+   123.24,
+   126.21,
+   120.34
+  ],
+  "server_ms": 112.42,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 112.41729999892414
+  }
+ },
+ {
+  "id": "V03",
+  "kind": "plan",
+  "title": "single payout one cent above the limit",
+  "ms": 126.3,
+  "ms_all": [
+   126.3,
+   127.55,
+   124.2
+  ],
+  "server_ms": 115.24,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "single_payment_above_limit"
+    ],
+    "actual": [
+     "single_payment_above_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 115.2378999395296
+  }
+ },
+ {
+  "id": "V04",
+  "kind": "plan",
+  "title": "two payouts each inside the single limit",
+  "ms": 126.02,
+  "ms_all": [
+   126.53,
+   126.02,
+   122.97
+  ],
+  "server_ms": 114.6,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1",
+    "O2"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 114.60369999986142
+  }
+ },
+ {
+  "id": "V05",
+  "kind": "plan",
+  "title": "payee period limit: history + now exceeds it",
+  "ms": 129.96,
+  "ms_all": [
+   139.23,
+   125.48,
+   129.96
+  ],
+  "server_ms": 119.45,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "payee_period_limit_exceeded"
+    ],
+    "actual": [
+     "payee_period_limit_exceeded"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_period_limit_exceeded"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 119.4522000150755
+  }
+ },
+ {
+  "id": "V06",
+  "kind": "plan",
+  "title": "payee period limit: history + now exactly at it",
+  "ms": 125.03,
+  "ms_all": [
+   123.97,
+   125.03,
+   132.21
+  ],
+  "server_ms": 118.13,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 118.12549992464483
+  }
+ },
+ {
+  "id": "V07",
+  "kind": "plan",
+  "title": "payee period limit: two payouts to the same payee in one plan",
+  "ms": 129.52,
+  "ms_all": [
+   123.63,
+   132.88,
+   129.52
+  ],
+  "server_ms": 116.0,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "payee_period_limit_exceeded"
+    ],
+    "actual": [
+     "payee_period_limit_exceeded"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY",
+    "O2": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1",
+    "O2"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_period_limit_exceeded"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 116.00490007549524
+  }
+ },
+ {
+  "id": "V08",
+  "kind": "plan",
+  "title": "a different payee is not affected by another's history",
+  "ms": 130.93,
+  "ms_all": [
+   126.47,
+   132.58,
+   130.93
+  ],
+  "server_ms": 115.36,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 115.36369996611029
+  }
+ },
+ {
+  "id": "V09",
+  "kind": "plan",
+  "title": "first payment to a new payee above the first-payment limit",
+  "ms": 131.84,
+  "ms_all": [
+   134.37,
+   123.15,
+   131.84
+  ],
+  "server_ms": 118.97,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "first_payment_to_new_payee_above_limit"
+    ],
+    "actual": [
+     "first_payment_to_new_payee_above_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "first_payment_to_new_payee_above_limit"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 118.96700004581362
+  }
+ },
+ {
+  "id": "V10",
+  "kind": "plan",
+  "title": "first payment to a new payee inside the first-payment limit",
+  "ms": 126.96,
+  "ms_all": [
+   126.96,
+   121.92,
+   132.03
+  ],
+  "server_ms": 118.5,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 118.50400001276284
+  }
+ },
+ {
+  "id": "V11",
+  "kind": "plan",
+  "title": "a known payee is not subject to the first-payment limit",
+  "ms": 128.62,
+  "ms_all": [
+   128.62,
+   131.3,
+   118.89
+  ],
+  "server_ms": 108.46,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 108.46060002222657
+  }
+ },
+ {
+  "id": "V12",
+  "kind": "plan",
+  "title": "no history at all: every payee is new",
+  "ms": 121.43,
+  "ms_all": [
+   123.82,
+   121.43,
+   117.38
+  ],
+  "server_ms": 108.64,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "first_payment_to_new_payee_above_limit"
+    ],
+    "actual": [
+     "first_payment_to_new_payee_above_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "first_payment_to_new_payee_above_limit"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 108.6358999600634
+  }
+ },
+ {
+  "id": "V13",
+  "kind": "plan",
+  "title": "daily outflow: rolling 24 h + now above the limit",
+  "ms": 124.67,
+  "ms_all": [
+   124.58,
+   126.59,
+   124.67
+  ],
+  "server_ms": 112.3,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "daily_outflow_limit_exceeded"
+    ],
+    "actual": [
+     "daily_outflow_limit_exceeded"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "daily_outflow_limit_exceeded"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 112.30119992978871
+  }
+ },
+ {
+  "id": "V14",
+  "kind": "plan",
+  "title": "daily outflow exactly at the limit",
+  "ms": 132.78,
+  "ms_all": [
+   132.72,
+   132.78,
+   178.3
+  ],
+  "server_ms": 166.95,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 166.95109999272972
+  }
+ },
+ {
+  "id": "V15",
+  "kind": "plan",
+  "title": "weekly outflow above the limit while daily is fine",
+  "ms": 123.17,
+  "ms_all": [
+   136.64,
+   122.58,
+   123.17
+  ],
+  "server_ms": 109.05,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "weekly_outflow_limit_exceeded"
+    ],
+    "actual": [
+     "weekly_outflow_limit_exceeded"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "weekly_outflow_limit_exceeded"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 109.05470000579953
+  }
+ },
+ {
+  "id": "V16",
+  "kind": "plan",
+  "title": "several limits at once, every reason named",
+  "ms": 127.73,
+  "ms_all": [
+   127.73,
+   132.2,
+   124.87
+  ],
+  "server_ms": 112.41,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "daily_outflow_limit_exceeded",
+     "first_payment_to_new_payee_above_limit",
+     "single_payment_above_limit"
+    ],
+    "actual": [
+     "daily_outflow_limit_exceeded",
+     "first_payment_to_new_payee_above_limit",
+     "single_payment_above_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "daily_outflow_limit_exceeded",
+    "first_payment_to_new_payee_above_limit",
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 112.40879993420094
+  }
+ },
+ {
+  "id": "V17",
+  "kind": "plan",
+  "title": "no limits set: nothing changes",
+  "ms": 127.87,
+  "ms_all": [
+   127.87,
+   238.3,
+   127.02
+  ],
+  "server_ms": 116.4,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 116.40099994838238
+  }
+ },
+ {
+  "id": "V18",
+  "kind": "plan",
+  "title": "an escalated payout does not count as paying now",
+  "ms": 127.5,
+  "ms_all": [
+   127.5,
+   121.54,
+   127.76
+  ],
+  "server_ms": 115.07,
+  "match": true,
+  "fields": {
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 115.06520002149045
+  }
+ }
+]
