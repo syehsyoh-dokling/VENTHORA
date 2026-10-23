@@ -23,6 +23,9 @@ from ..payees import payee_facts, payee_reasons
 from . import budget
 from . import policy as local_policy
 from .approvals import describe as describe_approval
+from .fx_exposure import active as fx_active
+from .fx_exposure import describe as describe_fx
+from .fx_exposure import fx_facts, fx_reasons
 from .limits import describe as describe_limits
 from .limits import limit_facts, limit_reasons
 from .match import three_way_match
@@ -141,8 +144,16 @@ class ProofCore:
             stages.append(StageResult(engine="Payee · lifecycle", status="WARN" if pf_reasons else "PASS",
                                       summary=describe_payees(pf, pf_reasons), details=pf | {"reasons": pf_reasons},
                                       duration_ms=(perf_counter() - pay_started) * 1000))
+        # FX exposure: what the plan leaves open per currency, sells today, and leaves unhedged inside the horizon.
+        fx_started = perf_counter()
+        fx = fx_facts(state, decisions, proj)
+        fx_rs = fx_reasons(fx)
+        if fx_active(fx):
+            stages.append(StageResult(engine="Policy · FX exposure", status="WARN" if fx_rs else "PASS",
+                                      summary=describe_fx(fx, fx_rs), details=fx | {"reasons": fx_rs},
+                                      duration_ms=(perf_counter() - fx_started) * 1000))
         inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts,
-                                        paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf)
+                                        paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf, fx=fx)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         # Approval matrix: who, and how many different people, must approve what the policy stopped.

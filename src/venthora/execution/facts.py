@@ -40,6 +40,11 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
         for ccy in data["balances"]:
             cash = book.get(ccy, {}).get("cash", 0)
             data["balances"][ccy] = max(0, min(cash, data["balances"][ccy]))
+            if cash < 0:
+                # A post-fact surprise (a rail fee above the one assumed) left the book short; the plan starts from 0 but the
+                # ledger pre-flight will refuse a payout in this currency until a person adjusts the book (POST /v1/ledger/{book}/adjust).
+                notes.append(f"book {state.book_id} is overdrawn by {fmt(-cash, ccy)} in {ccy}; a person must adjust the book "
+                             f"before it can pay in {ccy}")
         notes.append("book ledger " + state.book_id + ": cash " + ", ".join(fmt(v, c) for c, v in sorted(data["balances"].items()))
                      + "; in flight " + ", ".join(fmt(a.get("committed", 0), c) for c, a in sorted(book.items()) if a.get("committed")))
     elif last:

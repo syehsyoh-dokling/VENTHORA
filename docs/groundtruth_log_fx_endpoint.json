@@ -1,0 +1,1234 @@
+[
+ {
+  "id": "X01",
+  "kind": "plan",
+  "title": "an exact conversion leaves no open position",
+  "ms": 93.89,
+  "ms_all": [
+   93.89
+  ],
+  "server_ms": 82.04,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "conversions": {
+    "expected": {
+     "EUR": 401285
+    },
+    "actual": {
+     "EUR": 401285
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 82.04310000292026
+  }
+ },
+ {
+  "id": "X02",
+  "kind": "plan",
+  "title": "the wallet already holds more EUR than the cap: a person decides",
+  "ms": 95.74,
+  "ms_all": [
+   95.74
+  ],
+  "server_ms": 85.02,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "open_position_above_cap"
+    ],
+    "actual": [
+     "open_position_above_cap"
+    ],
+    "ok": true
+   },
+   "n_conversions": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [
+    "open_position_above_cap"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 85.01700000124401
+  }
+ },
+ {
+  "id": "X03",
+  "kind": "plan",
+  "title": "open position exactly at the cap",
+  "ms": 108.88,
+  "ms_all": [
+   108.88
+  ],
+  "server_ms": 96.28,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 96.28230000089388
+  }
+ },
+ {
+  "id": "X04",
+  "kind": "plan",
+  "title": "one cent above the cap",
+  "ms": 99.75,
+  "ms_all": [
+   99.75
+  ],
+  "server_ms": 88.08,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "open_position_above_cap"
+    ],
+    "actual": [
+     "open_position_above_cap"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [
+    "open_position_above_cap"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 88.07890000025509
+  }
+ },
+ {
+  "id": "X05",
+  "kind": "plan",
+  "title": "the cap is per currency: GBP over, EUR fine",
+  "ms": 92.75,
+  "ms_all": [
+   92.75
+  ],
+  "server_ms": 81.52,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "open_position_above_cap"
+    ],
+    "actual": [
+     "open_position_above_cap"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [
+    "open_position_above_cap"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 81.51740000175778
+  }
+ },
+ {
+  "id": "X06",
+  "kind": "plan",
+  "title": "no cap for a currency: nothing applies",
+  "ms": 93.12,
+  "ms_all": [
+   93.12
+  ],
+  "server_ms": 82.54,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 82.53870000044117
+  }
+ },
+ {
+  "id": "X07",
+  "kind": "plan",
+  "title": "daily conversion cap: 24 h sales + now above it",
+  "ms": 102.32,
+  "ms_all": [
+   102.32
+  ],
+  "server_ms": 89.34,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "daily_conversion_cap_exceeded"
+    ],
+    "actual": [
+     "daily_conversion_cap_exceeded"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [
+    "daily_conversion_cap_exceeded"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 89.34470000167494
+  }
+ },
+ {
+  "id": "X08",
+  "kind": "plan",
+  "title": "daily conversion cap exactly reached",
+  "ms": 95.83,
+  "ms_all": [
+   95.83
+  ],
+  "server_ms": 84.43,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 84.43070000066655
+  }
+ },
+ {
+  "id": "X09",
+  "kind": "plan",
+  "title": "no history: only this plan's conversions count",
+  "ms": 93.15,
+  "ms_all": [
+   93.15
+  ],
+  "server_ms": 80.49,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "daily_conversion_cap_exceeded"
+    ],
+    "actual": [
+     "daily_conversion_cap_exceeded"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [
+    "daily_conversion_cap_exceeded"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 80.48559999951976
+  }
+ },
+ {
+  "id": "X10",
+  "kind": "plan",
+  "title": "a plan without conversions does not touch the daily cap",
+  "ms": 97.32,
+  "ms_all": [
+   97.32
+  ],
+  "server_ms": 83.94,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 83.93860000069253
+  }
+ },
+ {
+  "id": "X11",
+  "kind": "plan",
+  "title": "hedge ratio: a paid foreign obligation is fully covered",
+  "ms": 101.49,
+  "ms_all": [
+   101.49
+  ],
+  "server_ms": 87.21,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 87.20879999964382
+  }
+ },
+ {
+  "id": "X12",
+  "kind": "plan",
+  "title": "hedge ratio: the second EUR obligation cannot be funded and stays unhedged",
+  "ms": 97.81,
+  "ms_all": [
+   97.81
+  ],
+  "server_ms": 83.5,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "ESCALATE"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "ESCALATE"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "hedge_ratio_below_minimum"
+    ],
+    "actual": [
+     "hedge_ratio_below_minimum"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [
+    "hedge_ratio_below_minimum"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 83.50179999979446
+  }
+ },
+ {
+  "id": "X13",
+  "kind": "plan",
+  "title": "hedge ratio exactly at the minimum",
+  "ms": 93.89,
+  "ms_all": [
+   93.89
+  ],
+  "server_ms": 79.32,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 79.32029999938095
+  }
+ },
+ {
+  "id": "X14",
+  "kind": "plan",
+  "title": "hedge ratio one bp below the minimum",
+  "ms": 107.45,
+  "ms_all": [
+   107.45
+  ],
+  "server_ms": 93.27,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "hedge_ratio_below_minimum"
+    ],
+    "actual": [
+     "hedge_ratio_below_minimum"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [
+    "hedge_ratio_below_minimum"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 93.27489999850513
+  }
+ },
+ {
+  "id": "X15",
+  "kind": "plan",
+  "title": "foreign cash already held counts as hedge",
+  "ms": 100.72,
+  "ms_all": [
+   100.72
+  ],
+  "server_ms": 80.4,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "CONVERT_AND_PAY"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "CONVERT_AND_PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1",
+    "O2"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 402570
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 80.39869999993243
+  }
+ },
+ {
+  "id": "X16",
+  "kind": "plan",
+  "title": "an obligation beyond the horizon is not an exposure yet",
+  "ms": 98.11,
+  "ms_all": [
+   98.11
+  ],
+  "server_ms": 85.97,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 85.973199998989
+  }
+ },
+ {
+  "id": "X17",
+  "kind": "plan",
+  "title": "nothing due in a currency: nothing to hedge",
+  "ms": 110.09,
+  "ms_all": [
+   110.09
+  ],
+  "server_ms": 96.49,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 96.4899000027799
+  }
+ },
+ {
+  "id": "X18",
+  "kind": "plan",
+  "title": "three reasons at once, each named",
+  "ms": 99.37,
+  "ms_all": [
+   99.37
+  ],
+  "server_ms": 86.02,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "daily_conversion_cap_exceeded",
+     "hedge_ratio_below_minimum",
+     "open_position_above_cap"
+    ],
+    "actual": [
+     "daily_conversion_cap_exceeded",
+     "hedge_ratio_below_minimum",
+     "open_position_above_cap"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [
+    "daily_conversion_cap_exceeded",
+    "hedge_ratio_below_minimum",
+    "open_position_above_cap"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 86.01529999941704
+  }
+ },
+ {
+  "id": "X19",
+  "kind": "plan",
+  "title": "no FX limits: nothing changes",
+  "ms": 95.35,
+  "ms_all": [
+   95.35
+  ],
+  "server_ms": 82.88,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "ESCALATE"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "ESCALATE"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 82.87950000158162
+  }
+ },
+ {
+  "id": "X20",
+  "kind": "plan",
+  "title": "a viewer: blocked before any FX rule",
+  "ms": 102.51,
+  "ms_all": [
+   102.51
+  ],
+  "server_ms": 90.3,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [
+    "daily_conversion_cap_exceeded"
+   ],
+   "failed_stages": [
+    "Policy"
+   ],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "breach_bp": 0,
+   "not_blocked": false,
+   "duration_ms": 90.30340000026627
+  }
+ }
+]

@@ -140,6 +140,12 @@ def main() -> None:
         "USD 1,000 needs one finance manager; at USD 25,000, or for a payee-change reason, two different people); no tier = one "
         "approver; no reason = no approval. The check the executor runs before money moves: an allowed role, the plan's own "
         "terms digest, two approvals from one person count once, and the requester may never approve their own plan."])
+    lines += [""] + section("fx", "Suite 10 — FX exposure: open position per currency, daily conversion cap, minimum hedge ratio", [
+        "The cash a plan leaves in a foreign currency (held + bought − paid) against a per-currency cap, exactly at and one cent "
+        "over; the base sold in conversions over the last 24 h (from the journal, every book) plus this plan's conversions against "
+        "a daily cap; foreign cash held plus bought against the foreign obligations due inside the planning horizon (a paid obligation "
+        "is covered by construction, a deferred or escalated one is the exposure, beyond the horizon it is not one yet, nothing due "
+        "means nothing to hedge); three reasons at once, each named; no limits = nothing changes."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

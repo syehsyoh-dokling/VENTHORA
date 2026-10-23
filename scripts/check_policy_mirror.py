@@ -91,6 +91,13 @@ def main() -> int:
         grid.append(base | {"approval_matrix": matrix, "paying_total_minor": total, "conversion_base_minor": conversion,
                             "payees": {"attached": True, "as_of": None,
                                        "rows": [{"obligation_id": "O1", "beneficiary_id": "a", "status": "VERIFIED", "in_cooling": cooling, "cooling_until": None, "paid_count": 0}]}})
+    # FX exposure: open-position cap, hedge ratio and the daily conversion cap around every threshold.
+    for cap, position, ratio, coverage, daily, conv24, now in itertools.product(
+            [None, 400_000], [399_999, 400_000, 400_001], [None, 8000], [None, 7999, 8000, 10000], [None, 1_000_000], [0, 999_999], [0, 1, 435_394]):
+        grid.append(base | {"fx": {"rows": [{"currency": "EUR", "held_before_minor": 0, "bought_now_minor": 0, "position_after_minor": position,
+                                              "due_in_horizon_minor": 1, "coverage_bp": coverage, "cap_minor": cap}],
+                                   "min_hedge_ratio_bp": ratio, "max_conversion_daily_minor": daily, "converted_24h_minor": conv24,
+                                   "converting_now_minor": now, "horizon_hours": 72, "base_currency": "USD"}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

@@ -1,0 +1,195 @@
+{
+ "generated_at": "2026-10-23T22:02:20.839418+00:00",
+ "book": "fx-real-050220",
+ "runs": [
+  {
+   "run": "run 1: EUR 1,000 inside the daily cap",
+   "decision": "APPROVED",
+   "actions": {
+    "FX-1-050220": "CONVERT_AND_PAY"
+   },
+   "requires_approval": [],
+   "converted_24h_minor": 1815714,
+   "converting_now_minor": 114982,
+   "rows": [
+    {
+     "currency": "EUR",
+     "held_before_minor": 0,
+     "bought_now_minor": 101343,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 100000,
+     "coverage_bp": 10000,
+     "cap_minor": null
+    },
+    {
+     "currency": "GBP",
+     "held_before_minor": 0,
+     "bought_now_minor": 0,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 0,
+     "coverage_bp": null,
+     "cap_minor": null
+    }
+   ],
+   "eur_held_minor": 0,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,849.28 >= USD 5,000.00; variance vs plan -USD 0.90 (actual Airwallex amounts: fees and rounding; fees are learned for the next",
+    "transfers": 1,
+    "conversions": 1
+   }
+  },
+  {
+   "run": "run 2a: EUR 1,000 over the daily cap, nobody approves",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "FX-2-050220": "CONVERT_AND_PAY"
+   },
+   "requires_approval": [
+    "daily_conversion_cap_exceeded"
+   ],
+   "converted_24h_minor": 1930786,
+   "converting_now_minor": 114982,
+   "rows": [
+    {
+     "currency": "EUR",
+     "held_before_minor": 0,
+     "bought_now_minor": 101343,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 100000,
+     "coverage_bp": 10000,
+     "cap_minor": null
+    },
+    {
+     "currency": "GBP",
+     "held_before_minor": 0,
+     "bought_now_minor": 0,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 0,
+     "coverage_bp": null,
+     "cap_minor": null
+    }
+   ],
+   "eur_held_minor": 0,
+   "execution": {
+    "status": "REFUSED",
+    "message": "plan requires a person's approval: daily_conversion_cap_exceeded",
+    "transfers": 0,
+    "conversions": 0
+   }
+  },
+  {
+   "run": "run 2b: the same, approved",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "FX-2-050220": "CONVERT_AND_PAY"
+   },
+   "requires_approval": [
+    "daily_conversion_cap_exceeded"
+   ],
+   "converted_24h_minor": 1930786,
+   "converting_now_minor": 114982,
+   "rows": [
+    {
+     "currency": "EUR",
+     "held_before_minor": 0,
+     "bought_now_minor": 101343,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 100000,
+     "coverage_bp": 10000,
+     "cap_minor": null
+    },
+    {
+     "currency": "GBP",
+     "held_before_minor": 0,
+     "bought_now_minor": 0,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 0,
+     "coverage_bp": null,
+     "cap_minor": null
+    }
+   ],
+   "eur_held_minor": 0,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,849.28 >= USD 5,000.00; variance vs plan -USD 0.90 (actual Airwallex amounts: fees and rounding; fees are learned for the next",
+    "transfers": 1,
+    "conversions": 1
+   }
+  },
+  {
+   "run": "run 3: two EUR invoices, only one fundable, min hedge 80 %",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "FX-3-050220": "CONVERT_AND_PAY",
+    "FX-4-050220": "ESCALATE"
+   },
+   "requires_approval": [
+    "hedge_ratio_below_minimum"
+   ],
+   "converted_24h_minor": 2045858,
+   "converting_now_minor": 114982,
+   "rows": [
+    {
+     "currency": "EUR",
+     "held_before_minor": 0,
+     "bought_now_minor": 101343,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 200000,
+     "coverage_bp": 5067,
+     "cap_minor": null
+    },
+    {
+     "currency": "GBP",
+     "held_before_minor": 0,
+     "bought_now_minor": 0,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 0,
+     "coverage_bp": null,
+     "cap_minor": null
+    }
+   ],
+   "eur_held_minor": 0,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 5,349.28 >= USD 5,000.00; variance vs plan -USD 0.90 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "transfers": 1,
+    "conversions": 1
+   }
+  },
+  {
+   "run": "run 4: open-position cap EUR 1.00 on a book allocated EUR 300",
+   "decision": "APPROVED",
+   "actions": {
+    "FX-5-050220": "CONVERT_AND_PAY"
+   },
+   "requires_approval": [],
+   "converted_24h_minor": 2160930,
+   "converting_now_minor": 80944,
+   "rows": [
+    {
+     "currency": "EUR",
+     "held_before_minor": 30000,
+     "bought_now_minor": 71343,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 100000,
+     "coverage_bp": 10000,
+     "cap_minor": 100
+    },
+    {
+     "currency": "GBP",
+     "held_before_minor": 0,
+     "bought_now_minor": 0,
+     "position_after_minor": 0,
+     "due_in_horizon_minor": 0,
+     "coverage_bp": null,
+     "cap_minor": null
+    }
+   ],
+   "eur_held_minor": 30000
+  }
+ ],
+ "sold_24h_before_minor": 1815714,
+ "ok": true,
+ "sold_24h_after_minor": 2160930
+}

@@ -201,6 +201,13 @@ approval, an approval signed on another plan's terms is none, and the person who
 of its approvers. The plan itself says what it will take, so the dashboard shows "2 approvals from different people"
 before anyone is asked.
 
+### J. How much currency risk the agent may carry
+
+Exact conversions keep the agent from speculating, but three exposures remain: foreign cash left in the wallet, the
+volume sold in a day, and foreign obligations the plan could not fund. Each is a number read from the projection the
+gate already proves and from the journal every book writes, judged by both engines, and above its limit the plan stops
+for the person whose decision it is: sell down, accept the day's sales, or pre-buy the hedge.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

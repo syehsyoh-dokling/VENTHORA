@@ -284,10 +284,30 @@ USD 1,500 of paying total, two different people (finance manager or CFO) from US
 | 2c · USD 2,000 | `two` | finance manager + CFO, but the finance manager had requested the plan | **REFUSED**: "requested this plan and may not approve it (four-eyes)" |
 | 2d · USD 2,000 | `two` | finance manager + CFO | COMPLETED; the authorization step names both |
 
+## Cycle 16: FX exposure limits on the real sandbox (`python scripts/fx_real.py`)
+
+Approved by the owner as finance manager; 24 Oct 2026, ~05:02 WIB; EUR 1,000 SWIFT invoices to `ben-eu-components`,
+USD sold at the live sandbox quote (EUR 1,013.43 for USD 1,149.82); one book per run. Log: `docs/fx_log_real.json`.
+
+| Run | Plan | Execution |
+|---|---|---|
+| 1 · daily cap above today's sales + this conversion | **APPROVED**; 24 h sales USD 18,157.14 + now 1,149.82 inside the cap | COMPLETED, one conversion, autonomous |
+| 2a · daily cap = today's sales + USD 500 | **REQUIRES_APPROVAL** `daily_conversion_cap_exceeded` (19,307.86 + 1,149.82 > cap) | **REFUSED** without a person |
+| 2b · the same, approved | same reason | COMPLETED |
+| 3 · two EUR invoices, USD 6,500 funds one conversion above the floor, min hedge 80 % | first `CONVERT_AND_PAY`, second `ESCALATE`; coverage 50.7 % → `hedge_ratio_below_minimum` | approved → COMPLETED, one transfer; the second invoice is a person's problem |
+| 4 · open-position cap EUR 1.00, book allocated EUR 300 | ring-fenced to the EUR the wallet held (3.00): position after the plan 0 → **no reason**, as the rule says | plan only |
+
+**Finding.** In the first attempt runs 1 and 2 shared a book. Run 1's real SWIFT fee was EUR 13.43 against the
+assumed 13.37, so the exact conversion left the book EUR 0.02 short; the fee was learned at once, but run 2 on the same
+book was refused by the ledger pre-flight ("the book's own cash is short, whatever the shared wallet holds"). That is
+the rule working: a book never spends another book's money, and a person adjusts it (`POST /v1/ledger/{book}/adjust`).
+The plan's notes now say so (`facts.py`).
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| A fee surprise of a few cents is harmless | it leaves the book short in that currency; the next payout in it is refused (cycle 16) | by design; the plan's notes name the overdraft and the adjustment a person must make |
 | The sandbox settlement simulation always answers | HTTP 500 on two transfers (cycle 14); they stayed in flight | nothing to fix: an in-flight payout proves nothing, the payee stayed VERIFIED; `resume` settles later |
 | History rows always name their payee | rows booked before the column existed had none, so a well-known payee looked new | `beneficiary_id` backfilled from stored plans at start-up; carried on every new row |
 | Airwallex quotes any reporting currency | the sandbox answers `unsupported_currency` for IDR | closing-rate snapshot falls back per currency to the admin's figures, source recorded per rate |

@@ -501,8 +501,21 @@ class ExecutionStore:
                 out_24h += r["base_cost_minor"]
             if dt.timedelta(0) <= age <= dt.timedelta(days=7):
                 out_7d += r["base_cost_minor"]
+        # FX exposure: base currency sold in conversions over the last 24 h, every book (the journal's convert entries).
+        converted = 0
+        for e in self.journal(since=(now - dt.timedelta(hours=24)).isoformat()):
+            if e["kind"] != "convert":
+                continue
+            try:
+                at = dt.datetime.fromisoformat(str(e["at"]))
+                if at.tzinfo is None:
+                    at = at.replace(tzinfo=dt.UTC)
+            except ValueError:
+                continue
+            if at <= now:
+                converted += sum(-ln["amount"] for ln in e["lines"] if ln["account"] == "cash" and ln["currency"] == "USD" and ln["amount"] < 0)
         return {"as_of": as_of, "paid_per_payee_period_minor": per_payee, "outflow_24h_minor": out_24h,
-                "outflow_7d_minor": out_7d, "payees_paid_before": sorted(payees)}
+                "outflow_7d_minor": out_7d, "payees_paid_before": sorted(payees), "converted_24h_minor": converted}
 
     def ledger(self, period: str | None = None) -> list[dict]:
         with self._lock, self._connect() as c:

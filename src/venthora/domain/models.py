@@ -228,6 +228,15 @@ class TreasuryPolicy(StrictModel):
                                                 description="a payee never paid before gets at most this much first")
     # Payee lifecycle: after a bank-details change, payments need a person for this long even once verified.
     payee_cooling_hours: int = Field(default=72, ge=0, le=2_160)
+    # FX exposure (proofcore/fx_exposure.py). None / empty = no limit; above a limit the agent may not act alone.
+    max_open_position_minor: dict[str, int] = Field(default_factory=dict,
+                                                    description="per foreign currency: the most of it a plan may leave in the "
+                                                                "wallet (that currency's minor units)")
+    max_conversion_daily_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR,
+                                                   description="base sold in conversions, rolling 24 h incl. this plan")
+    min_hedge_ratio_bp: int | None = Field(default=None, ge=0, le=10_000,
+                                           description="foreign cash held + bought must cover at least this share of the "
+                                                       "foreign obligations due inside the planning horizon")
 
     @model_validator(mode="after")
     def confidence_band(self):
@@ -243,6 +252,7 @@ class PaymentHistory(StrictModel):
     outflow_24h_minor: int = Field(default=0, ge=0)
     outflow_7d_minor: int = Field(default=0, ge=0)
     payees_paid_before: list[str] = Field(default_factory=list, description="beneficiary ids with at least one PAID payout")
+    converted_24h_minor: int = Field(default=0, ge=0, description="base currency sold in conversions, rolling 24 h (all books)")
 
 
 class TreasuryState(StrictModel):

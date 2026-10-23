@@ -131,6 +131,25 @@ approval_reasons contains "payee_not_yet_active" if {
 	not r.in_cooling
 }
 
+# FX exposure (proofcore/fx_exposure.py). A null cap / ratio does not apply; a currency with nothing due has nothing to hedge.
+approval_reasons contains "open_position_above_cap" if {
+	some r in input.fx.rows
+	r.cap_minor != null
+	r.position_after_minor > r.cap_minor
+}
+
+approval_reasons contains "hedge_ratio_below_minimum" if {
+	input.fx.min_hedge_ratio_bp != null
+	some r in input.fx.rows
+	r.coverage_bp != null
+	r.coverage_bp < input.fx.min_hedge_ratio_bp
+}
+
+approval_reasons contains "daily_conversion_cap_exceeded" if {
+	input.fx.max_conversion_daily_minor != null
+	input.fx.converted_24h_minor + input.fx.converting_now_minor > input.fx.max_conversion_daily_minor
+}
+
 # Approval matrix (proofcore/approvals.py): the last applicable tier decides; a tier applies when the paying total reaches
 # its min_total_minor or when one of its reason codes was raised; no tier: one approver from approver_roles; no reason: null.
 tier_applies(t) if {
