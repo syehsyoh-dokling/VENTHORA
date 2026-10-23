@@ -10,6 +10,8 @@ re-derives the outcome independently and has the final word.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from time import perf_counter
 
 from .domain.models import PlanResult, StageResult, TreasuryState
@@ -22,6 +24,13 @@ from .proofcore.gate import ProofCore
 
 ACTION_LABELS = {"PAY": "Pay", "CONVERT_AND_PAY": "Convert & pay", "DEFER": "Defer",
                  "ESCALATE": "Escalate", "REJECT": "Reject"}
+
+
+def plan_hash(state: TreasuryState, decision: str, decisions, conversions) -> str:
+    canonical = {"state": state.model_dump(mode="json"), "decision": decision,
+                 "obligations": [d.model_dump(mode="json") for d in decisions],
+                 "conversions": [c.model_dump(mode="json") for c in conversions]}
+    return hashlib.sha256(json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def _remote_stage(name: str, status: str, summary: str) -> StageResult:
@@ -58,7 +67,8 @@ class Orchestrator:
         floor = state.policy.reserve_floor_minor + h.stress_minor
         base_after = gate.projection.balances_after.get(base, state.balance(base))
         return PlanResult(
-            case_id=state.case_id, decision=decision, obligations=t.decisions,
+            case_id=state.case_id, plan_hash=plan_hash(state, decision, t.decisions, gate.projection.conversions),
+            decision=decision, obligations=t.decisions,
             conversions=gate.projection.conversions, total_base_cost_minor=gate.projection.base_cost_minor,
             projected_base_balance_minor=base_after, required_base_floor_minor=floor, solver=t.solver,
             stages=stages, explanation=_explain(state, t, gate, stages, decision, base_after, floor),

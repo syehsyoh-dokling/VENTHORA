@@ -21,6 +21,16 @@ def test_api_plans_scenario_and_audits_it():
         assert client.get("/api/airwallex/balances").status_code == 503
 
 
+def test_execution_api_refuses_without_sandbox_credentials():
+    with TestClient(app) as client:
+        state = client.get("/api/scenarios/kit01_baseline").json()["state"]
+        plan = client.post("/v1/plans", json=state).json()
+        res = client.post("/v1/executions", json={"state": state, "plan_hash": plan["plan_hash"]})
+        assert res.status_code == 200 and res.json()["status"] == "REFUSED"
+        assert client.post("/api/sandbox/deposits", json={"amount_minor": 100}).status_code == 400
+        assert client.get("/v1/executions/unknown").status_code == 404
+
+
 def test_audit_chain_detects_tampering(tmp_path):
     store = AuditStore(str(tmp_path / "chain.db"))
     store.append("plan", {"amount_minor": 1})

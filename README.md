@@ -84,6 +84,24 @@ cp .env.example .env    # then fill AIRWALLEX_CLIENT_ID and AIRWALLEX_API_KEY (s
 
 With credentials set, ProofCore cross-checks every plan against live sandbox balances (`GET /api/v1/balances/current`). `GET /api/airwallex/balances` shows them.
 
+### Execute on the sandbox (Kit 01 end to end)
+
+1. `POST /api/sandbox/deposits` `{"amount_minor": 1000000}`: simulate the customer receipt landing (needs `AIRWALLEX_GLOBAL_ACCOUNT_ID`; list accounts with `GET /api/airwallex/global-accounts`).
+2. `POST /api/scenarios/kit01_baseline/live-state`: obligations grounded in live balances and indicative rates.
+3. `POST /v1/plans` with that state: review the plan and copy its `plan_hash`.
+4. `POST /v1/executions` `{"state": ..., "plan_hash": ..., "approval": {"approver": "...", "role": "finance_manager"}}`. The `approval` is only needed for `REQUIRES_APPROVAL` plans.
+
+The executor then runs these steps:
+
+- **Preflight.** Re-plan, and refuse if the `plan_hash` differs from what was reviewed, the plan is `BLOCKED`, or the approver's role isn't allowed. Claim every payout before any money moves.
+- **Quote.** Get a fresh single-use quote per conversion. Abort before booking if the quote exceeds the slippage limit or would breach the reserve floor at live balances.
+- **Convert.** Book each quote once. The `request_id` is persisted *before* the call, and the quote is recorded as used.
+- **Transfer.** Create the beneficiary from the approved payee registry ([`data/beneficiaries.json`](data/beneficiaries.json)), then the transfer (LOCAL or SWIFT).
+- **Settle.** In the sandbox, move each transfer `SENT` → `PAID`. `SENT` is never treated as final.
+- **Reconcile.** Re-read every transfer and the live balances. Expected = before + conversions − `amount_payer_pays`. The result is `COMPLETED` only when they match and the reserve holds.
+
+If a response is lost, the operation is recovered by its `request_id` and never paid twice. A crashed run continues with `POST /v1/executions/{id}/resume`, which reuses the same `request_id`s. The same invoice cannot be paid by a second execution, even after Airwallex's 7-day `request_id` window has passed.
+
 ### Optional authorities
 
 | Variable | Effect |
@@ -105,6 +123,12 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 | `GET` | `/api/audit` | Hash-chained decision log + integrity check |
 | `GET` | `/api/status` | Solver and connected authorities |
 | `GET` | `/api/airwallex/balances` | Live sandbox balances |
+| `GET` | `/api/airwallex/global-accounts` | Sandbox Global Accounts (deposit targets) |
+| `POST` | `/api/sandbox/deposits` | Simulate a customer deposit |
+| `POST` | `/api/scenarios/{id}/live-state` | Scenario grounded in live balances and rates |
+| `POST` | `/v1/executions` | Execute an approved plan on Airwallex and reconcile |
+| `POST` | `/v1/executions/{id}/resume` | Resume an interrupted execution |
+| `GET` | `/v1/executions/{id}` | Execution result and every operation with its `request_id` |
 
 ## Tests
 
@@ -113,7 +137,19 @@ pytest -q
 ruff check src tests scripts
 ```
 
-The 56 tests cover the full Kit 01 flow, duplicate-payment defense, remote engines that try to approve rejected invoices, fail-closed behavior, 40 randomized states that must never breach the reserve, CP-SAT vs exact-solver agreement, the Airwallex auth/balance client, and audit-chain tamper detection.
+The 70 tests cover:
+
+- planning: the full Kit 01 flow, 40 randomized states that must never breach the reserve, CP-SAT vs exact-solver agreement
+- safety: duplicate-payment defense, remote engines that try to approve rejected invoices, fail-closed behavior, audit-chain tamper detection
+- execution against a stateful fake Airwallex sandbox ([`tests/fake_airwallex.py`](tests/fake_airwallex.py)), which models single-use quotes, `duplicate_request_id`, the EUR 12.85 SWIFT fee, the transfer lifecycle and refunds:
+  - end-to-end conversion and payout with reconciliation
+  - approval rules and plan-hash binding
+  - slippage abort before booking
+  - no double payment across executions
+  - lost-response recovery
+  - failed payouts
+  - crash and resume
+  - sandbox-only enforcement
 
 ## Project structure
 
@@ -122,19 +158,22 @@ src/venthora/
   domain/        typed state, integer money, post-action projection
   engines/       verity, horizon, theorem, remote adapters
   proofcore/     independent gate + policy (mirrored in policy/treasury.rego)
-  gateways/      Airwallex, OPA, TigerBeetle, native C++ gate
+  gateways/      Airwallex (typed tools), OPA, TigerBeetle, native C++ gate
+  execution/     executor, durable store (request_ids, payout claims, used quotes), live state
   orchestrator.py  the agent loop
   api.py         FastAPI app
 data/scenarios/  Kit 01 demo scenarios
+data/beneficiaries.json  approved payee registry (sandbox)
 docs/            architecture, hackathon compliance, demo script
 ```
 
 ## Roadmap to submission (13 Nov 2026)
 
-- [ ] Airwallex execution tools: FX quote → conversion → transfer, single-use quotes, persisted `request_id`
-- [ ] Sandbox simulation: deposit + transfer transition; post-execution reconciliation
+- [x] Airwallex execution tools: FX quote → conversion → transfer, single-use quotes, persisted `request_id`
+- [x] Sandbox simulation: deposit + transfer transition; post-execution reconciliation
+- [x] Human approval for `REQUIRES_APPROVAL` plans, bound to `plan_hash`
+- [ ] Run end to end against the real Airwallex sandbox (validated so far against a stateful fake)
 - [ ] LLM evidence reader: turns the customer's delay email into a typed receivable update
-- [ ] Human approval endpoint for `REQUIRES_APPROVAL` plans
 - [ ] Treasury dashboard for the demo video
 
 Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md).

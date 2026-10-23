@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 SCENARIOS = Path(__file__).resolve().parents[1] / "data" / "scenarios"
-ISOLATED_ENV = ["AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "OPA_URL", "TB_ADDRESS", "TB_ACCOUNT_ID",
+ISOLATED_ENV = ["AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "AIRWALLEX_BASE_URL", "AIRWALLEX_GLOBAL_ACCOUNT_ID",
+                "OPA_URL", "TB_ADDRESS", "TB_ACCOUNT_ID",
                 "VENTHORA_VERITY_URL", "VENTHORA_HORIZON_URL", "VENTHORA_THEOREM_URL", "VENTHORA_NATIVE_LIB"]
 
 
@@ -15,6 +16,7 @@ def isolated(monkeypatch, tmp_path):
     for name in ISOLATED_ENV:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("VENTHORA_AUDIT_DB", str(tmp_path / "audit.db"))
+    monkeypatch.setenv("VENTHORA_EXECUTION_DB", str(tmp_path / "execution.db"))
     monkeypatch.setenv("VENTHORA_ECB_CSV", str(tmp_path / "missing-ecb.csv"))
 
 

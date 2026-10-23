@@ -152,6 +152,7 @@ class ObligationDecision(StrictModel):
 
 class PlanResult(StrictModel):
     case_id: str
+    plan_hash: str = Field(description="sha256 of state + decisions; an approval binds to exactly this plan")
     decision: Literal["APPROVED", "REQUIRES_APPROVAL", "BLOCKED"]
     obligations: list[ObligationDecision]
     conversions: list[Conversion]
