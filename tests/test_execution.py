@@ -18,6 +18,7 @@ from venthora.proofcore.gate import ProofCore
 from venthora.testing.fake_airwallex import FakeAirwallex
 
 FINANCE_MANAGER = Approval(approver="Dana (Head of Finance)", role="finance_manager")
+WALLET = {"USD": "22500", "EUR": "0", "GBP": "0"}  # exactly the scenario's cash
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +36,7 @@ def harness(fake: FakeAirwallex, tmp_path, base_url: str = SANDBOX_URL):
     return agent, executor
 
 
-def run_plan_and_execute(fake, tmp_path, name="kit01_baseline", approval=None, mutate=None, **req_kw):
+def run_plan_and_execute(fake, tmp_path, name="kit01_initial", approval=None, mutate=None, **req_kw):
     async def go():
         agent, executor = harness(fake, tmp_path)
         try:
@@ -52,35 +53,37 @@ def run_plan_and_execute(fake, tmp_path, name="kit01_baseline", approval=None, m
     return asyncio.run(go())
 
 
-def transfers_by_reference(fake):
+def paid(fake):
     return sorted(t["reference"].split()[0] for t in fake.transfers.values())
 
 
-def test_baseline_executes_converts_pays_and_reconciles(tmp_path):
-    fake = FakeAirwallex()
+def test_initial_plan_executes_converts_pays_and_reconciles(tmp_path):
+    fake = FakeAirwallex(balances=WALLET)
     plan, result, executor = run_plan_and_execute(fake, tmp_path)
     assert plan.decision == "APPROVED"
     assert result.status == "COMPLETED", result.message
-    # One FX conversion: EUR 4,012.85 (EUR 4,000 + EUR 12.85 SWIFT fee), booked with a single-use quote.
-    [conv] = fake.conversions.values()
-    assert conv["buy_currency"] == "EUR" and conv["buy_amount"] == "4012.85"
-    assert sum(q["used"] for q in fake.quotes.values()) == 1
-    # Transfers for every PAY / CONVERT_AND_PAY decision, all driven to PAID.
-    assert transfers_by_reference(fake) == ["PAYROLL-USD", "SAAS-USD", "SUPPLIER-EU"]
+    # Minimum conversions, each booked once with a single-use quote.
+    bought = sorted((c["buy_currency"], c["buy_amount"]) for c in fake.conversions.values())
+    assert bought == [("EUR", "4012.85"), ("GBP", "2500.00")]
+    assert sum(q["used"] for q in fake.quotes.values()) == 2
+    # Shipping (operations halt), payroll and the time-sensitive supplier are paid; the escalated
+    # policy exception and the deferred cheapest bill are not.
+    assert paid(fake) == ["PAYROLL-NOV", "SHIPPING-UK", "SUPPLIER-EU"]
     assert {t["status"] for t in fake.transfers.values()} == {"PAID"}
     swift = next(t for t in fake.transfers.values() if t["transfer_method"] == "SWIFT")
     assert swift["fee_amount"] == 12.85
-    # Reconciliation: live balances equal the expected ones, and the reserve still holds.
     recon = result.reconciliation
     assert recon.discrepancies_minor == {}
-    assert recon.live_after_minor == {"USD": 2_000_000 - 435_394 - 800_000 - 120_000, "EUR": 0, "GBP": 0}
-    assert recon.base_floor_ok and recon.live_after_minor["USD"] >= recon.base_floor_minor
-    assert "confirmed at USD 6,446.06" in result.message
+    assert recon.live_after_minor == {"USD": 2_250_000 - 435_394 - 317_500 - 800_000, "EUR": 0, "GBP": 0}
+    assert recon.base_floor_ok and "confirmed at USD 6,971.06" in result.message
     assert executor.audit.verify()["verified"]
+    # Guide: schema and validate are called before each beneficiary is created.
+    calls = [path for _m, path in fake.calls]
+    assert calls.count("/api/v1/beneficiaries/schema") == 3 and calls.count("/api/v1/beneficiaries/validate") == 3
 
 
 def test_requires_approval_is_refused_without_a_person(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
     plan, result, _ = run_plan_and_execute(fake, tmp_path, "kit01_receipt_delayed")
     assert plan.decision == "REQUIRES_APPROVAL"
     assert result.status == "REFUSED" and "requires a person's approval" in result.message
@@ -88,27 +91,27 @@ def test_requires_approval_is_refused_without_a_person(tmp_path):
 
 
 def test_wrong_role_cannot_approve(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
     _, result, _ = run_plan_and_execute(fake, tmp_path, "kit01_receipt_delayed",
                                         approval=Approval(approver="Sam", role="treasury_agent"))
     assert result.status == "REFUSED" and fake.transfers == {}
 
 
-def test_finance_manager_approval_executes_and_escalated_item_is_not_paid(tmp_path):
-    fake = FakeAirwallex()
+def test_finance_manager_approval_executes_and_escalated_items_are_not_paid(tmp_path):
+    fake = FakeAirwallex(balances=WALLET)
     _, result, _ = run_plan_and_execute(fake, tmp_path, "kit01_receipt_delayed", approval=FINANCE_MANAGER)
     assert result.status == "COMPLETED", result.message
-    assert "VENDOR-UK" not in transfers_by_reference(fake)  # escalated, not paid
+    assert "CONTRACTOR-US" not in paid(fake) and "SAAS-USD" not in paid(fake)
     assert result.steps[0].detail["approved_by"] == FINANCE_MANAGER.approver
 
 
 def test_plan_hash_must_match_what_was_approved(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
 
     async def go():
         agent, executor = harness(fake, tmp_path)
         try:
-            state = TreasuryState.model_validate(scenario("kit01_baseline"))
+            state = TreasuryState.model_validate(scenario("kit01_initial"))
             return await executor.execute(ExecutionRequest(state=state, plan_hash="0" * 64))
         finally:
             await agent.close()
@@ -119,45 +122,45 @@ def test_plan_hash_must_match_what_was_approved(tmp_path):
 
 
 def test_quote_slippage_aborts_before_anything_is_booked(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
     fake.quote_markup = Decimal("0.05")  # quote 5% worse than the planning rate
     _, result, executor = run_plan_and_execute(fake, tmp_path)
     assert result.status == "FAILED" and "slippage limit" in result.message
     assert fake.conversions == {} and fake.transfers == {}
-    assert executor.store.payout("obligation:PAYROLL-USD")["status"] == "RELEASED"
+    assert executor.store.payout("invoice:northwind:PR-2026-11")["status"] == "RELEASED"
 
 
 def test_same_invoice_cannot_be_paid_twice_across_executions(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
     run_plan_and_execute(fake, tmp_path)
-    paid = len(fake.transfers)
-    fake.balances["USD"] += Decimal("13553.94")  # top up so the second plan is feasible
+    before = len(fake.transfers)
+    fake.balances["USD"] += Decimal("15528.94")  # top up so the second plan is feasible again
     _, second, _ = run_plan_and_execute(fake, tmp_path)
     assert second.status == "FAILED" and "duplicate payment blocked" in second.message
-    assert len(fake.transfers) == paid and len(fake.conversions) == 1  # nothing moved the second time
+    assert len(fake.transfers) == before and len(fake.conversions) == 2  # nothing moved the second time
 
 
 def test_lost_response_is_recovered_by_request_id_not_paid_twice(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
     fake.lose_response_once = {"/api/v1/transfers/create", "/api/v1/fx/conversions/create"}
     _, result, _ = run_plan_and_execute(fake, tmp_path)
     assert result.status == "COMPLETED", result.message
-    assert transfers_by_reference(fake) == ["PAYROLL-USD", "SAAS-USD", "SUPPLIER-EU"]
-    assert len(fake.conversions) == 1
+    assert paid(fake) == ["PAYROLL-NOV", "SHIPPING-UK", "SUPPLIER-EU"]
+    assert len(fake.conversions) == 2
 
 
 def test_failed_payout_is_reported_refunded_and_retryable(tmp_path):
-    fake = FakeAirwallex()
-    fake.fail_on_paid = {"SAAS-USD"}
+    fake = FakeAirwallex(balances=WALLET)
+    fake.fail_on_paid = {"SHIPPING-UK"}
     _, result, executor = run_plan_and_execute(fake, tmp_path)
-    assert result.status == "FAILED" and "SAAS-USD" in result.message
-    assert result.reconciliation.discrepancies_minor == {}  # refund is reflected in expected balances
-    assert executor.store.payout("obligation:SAAS-USD")["status"] == "FAILED"
-    assert executor.store.payout("obligation:PAYROLL-USD")["status"] == "PAID"
+    assert result.status == "FAILED" and "SHIPPING-UK" in result.message
+    assert result.reconciliation.discrepancies_minor == {}  # the refund is reflected in expected balances
+    assert executor.store.payout("invoice:thames-freight:TF-311")["status"] == "FAILED"
+    assert executor.store.payout("invoice:northwind:PR-2026-11")["status"] == "PAID"
 
 
 def test_resume_after_crash_reuses_request_ids(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
 
     async def go():
         agent, executor = harness(fake, tmp_path)
@@ -173,7 +176,7 @@ def test_resume_after_crash_reuses_request_ids(tmp_path):
 
         executor.bank.create_transfer = crash_on_second
         try:
-            state = TreasuryState.model_validate(scenario("kit01_baseline"))
+            state = TreasuryState.model_validate(scenario("kit01_initial"))
             plan = await agent.decide(state)
             with pytest.raises(RuntimeError):
                 await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash))
@@ -185,8 +188,8 @@ def test_resume_after_crash_reuses_request_ids(tmp_path):
 
     result = asyncio.run(go())
     assert result.status == "COMPLETED", result.message
-    assert transfers_by_reference(fake) == ["PAYROLL-USD", "SAAS-USD", "SUPPLIER-EU"]  # no duplicates
-    assert len(fake.conversions) == 1
+    assert paid(fake) == ["PAYROLL-NOV", "SHIPPING-UK", "SUPPLIER-EU"]  # no duplicates
+    assert len(fake.conversions) == 2
 
 
 def test_stale_state_is_blocked_by_live_balance_check(tmp_path):
@@ -204,6 +207,7 @@ def test_live_state_and_deposit_simulation(tmp_path):
         bank = agent.proof.airwallex
         try:
             await bank.simulate_deposit(global_account_id="ga-usd-1", amount_minor=1_000_000, payer_name="Acme Retail Ltd")
+            assert (await bank.list_deposits())[-1]["status"] == "SETTLED"
             return await with_live_balances_and_rates(TreasuryState.model_validate(scenario("kit01_baseline")), bank)
         finally:
             await agent.close()
@@ -213,15 +217,35 @@ def test_live_state_and_deposit_simulation(tmp_path):
     assert Decimal(state.fx_to_base["EUR"]) == Decimal("1.1") and Decimal(state.fx_to_base["GBP"]) == Decimal("1.25")
 
 
+def test_beneficiary_failing_the_corridor_schema_is_never_created(tmp_path):
+    fake = FakeAirwallex(balances=WALLET)
+
+    async def go():
+        agent, executor = harness(fake, tmp_path)
+        import copy
+        executor.beneficiaries = copy.deepcopy(executor.beneficiaries)
+        del executor.beneficiaries["payroll-group-us"]["payload"]["beneficiary"]["bank_details"]["bank_name"]
+        try:
+            state = TreasuryState.model_validate(scenario("kit01_initial"))
+            plan = await agent.decide(state)
+            return await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash))
+        finally:
+            await agent.close()
+
+    result = asyncio.run(go())
+    assert result.status == "FAILED" and "corridor schema" in result.message
+    assert "PAYROLL-NOV" not in paid(fake)
+
+
 def test_simulation_and_execution_are_sandbox_only(tmp_path):
-    fake = FakeAirwallex()
+    fake = FakeAirwallex(balances=WALLET)
 
     async def go():
         agent, executor = harness(fake, tmp_path, base_url=PRODUCTION_URL)
         try:
             with pytest.raises(AirwallexError):
                 await agent.proof.airwallex.simulate_deposit(global_account_id="x", amount_minor=1, payer_name="x")
-            state = TreasuryState.model_validate(scenario("kit01_baseline"))
+            state = TreasuryState.model_validate(scenario("kit01_initial"))
             plan = await agent.decide(state)
             return await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash))
         finally:

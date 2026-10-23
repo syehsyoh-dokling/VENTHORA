@@ -14,7 +14,25 @@ from uuid import uuid4
 import httpx
 
 SWIFT_FEE = {"EUR": Decimal("12.85")}
-REAL_SANDBOX_FEES = {("SWIFT", "EUR"): Decimal("13.37"), ("LOCAL", "USD"): Decimal("3.00")}
+# Required by the real sandbox schema for the US/GB LOCAL and DE SWIFT corridors (23 Oct 2026).
+REQUIRED_BENEFICIARY_FIELDS = ("beneficiary.address", "beneficiary.address.city", "beneficiary.address.country_code",
+                               "beneficiary.bank_details", "beneficiary.bank_details.account_currency",
+                               "beneficiary.bank_details.bank_country_code", "beneficiary.bank_details.bank_name",
+                               "beneficiary.entity_type")
+
+
+def _missing(payload: dict, fields) -> list[str]:
+    out = []
+    for f in fields:
+        node = payload
+        for part in f.split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+        if node in (None, "", {}, []):
+            out.append(f)
+    return out
+
+
+REAL_SANDBOX_FEES = {("SWIFT", "EUR"): Decimal("13.37"), ("LOCAL", "USD"): Decimal("3.00"), ("LOCAL", "GBP"): Decimal("2.24")}
 
 
 def money(x) -> Decimal:
@@ -81,6 +99,13 @@ class FakeAirwallex:
         if path == "/api/v1/fx/conversions" and method == "GET":
             c = self.conversions.get(params.get("request_id"))
             return httpx.Response(200, json={"items": [c] if c else [], "has_more": False})
+        if path == "/api/v1/beneficiaries/schema":
+            return httpx.Response(200, json={"errors": {}, "schema": {
+                f"create_beneficiary_request.{k}": {"required": True, "relevant": True, "rules_known": True}
+                for k in REQUIRED_BENEFICIARY_FIELDS}})
+        if path == "/api/v1/beneficiaries/validate":
+            missing = _missing(body, REQUIRED_BENEFICIARY_FIELDS)
+            return self._error(400, "validation_failed", f"missing {missing}") if missing else httpx.Response(200, json="OK")
         if path == "/api/v1/beneficiaries/create":
             return self._beneficiary(body)
         if path == "/api/v1/transfers/create":
@@ -98,7 +123,9 @@ class FakeAirwallex:
         if path == "/api/v1/deposits":
             return httpx.Response(200, json={"items": self.deposits, "has_more": False})
         if path == "/api/v1/global_accounts":
-            return httpx.Response(200, json={"items": [{"id": "ga-usd-1", "currency": "USD"}], "has_more": False})
+            return httpx.Response(200, json={"items": [{"id": "ga-usd-1", "status": "ACTIVE", "country_code": "US",
+                                                       "required_features": [{"currency": "USD", "transfer_method": "LOCAL"}]}],
+                                            "has_more": False})
         return self._error(404, "invalid_endpoint", path)
 
     # -- endpoints -------------------------------------------------------------

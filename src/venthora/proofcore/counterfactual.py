@@ -61,11 +61,22 @@ def counterfactuals(state: TreasuryState, selected: list[str], decisions: list[O
     for d in decisions:
         o = by_id[d.obligation_id]
         if d.action in ("DEFER", "ESCALATE"):
+            exception = sorted(set(o.policy_flags) & set(state.policy.escalate_flags))
+
+            def text(feasible, headroom, exception=exception):
+                cash = reserve_text(feasible, headroom)
+                if exception:  # the policy, not the cash, is what stops this payment
+                    return ("policy exception (" + ", ".join(f.replace("_", " ") for f in exception)
+                            + f"): never auto-paid, even with cash; cash check: {cash}")
+                return cash
+
             add(f"also_pay_{o.obligation_id}", f"What if we also pay {o.obligation_id} now?",
-                [*selected, o.obligation_id], reserve_text)
+                [*selected, o.obligation_id], text)
+            if exception:
+                out[-1] = out[-1].model_copy(update={"feasible": False})
         if d.action == "DEFER":
             _, _, headroom = _eval(state, list(selected), floor)
-            sources = [r.receivable_id for r in reliable_receipts if r.expected_in_hours <= o.due_in_hours]
+            sources = [r.receivable_id for r in reliable_receipts if r.latest_arrival_hours <= o.due_in_hours]
             cost = d.base_cost_minor
             out.append(Counterfactual(
                 name=f"receipt_fails_{o.obligation_id}",

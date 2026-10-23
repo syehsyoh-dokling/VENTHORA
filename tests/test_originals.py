@@ -14,7 +14,7 @@ from venthora.domain.models import Conversion, TreasuryState
 from venthora.engines.horizon_m0 import fx_stress_ppm
 from venthora.engines.theorem_fx import check_conversion_legs
 from venthora.evidence.llm import ChatModel
-from venthora.evidence.reader import UNVERIFIED_SIGNAL_BP, InboxMessage, read_inbox
+from venthora.evidence.reader import BANK_CHANGE_FLAG, InboxMessage, calibrate_delay, read_inbox
 
 ROOT = Path(__file__).resolve().parents[1]
 ORIGINALS = ROOT / "src" / "venthora" / "originals"
@@ -101,24 +101,42 @@ def test_model_claim_verified_by_verity_updates_forecast():
     [u] = r.updates
     assert u.verified and u.reader == "llm" and u.delay_days == 5
     rcv = r.state.receivables[0]
-    assert (rcv.expected_in_hours, rcv.confidence_bp) == (144, 4000)
+    # Acme kept 6 of 8 promises counting this delay: Laplace posterior 7/10; window widens with thin history.
+    assert (rcv.expected_in_hours, rcv.confidence_bp, rcv.arrival_window_hours) == (144, 7000, [144, 290])
     assert rcv.evidence_ref == "inbox:msg-acme-delay-1023"
 
 
-def test_model_inventing_a_figure_is_not_believed_but_reduces_reliance():
+def test_model_inventing_a_figure_is_rejected_and_the_email_is_re_read():
     reply = json.dumps({"delayed": True, "delay_days": 2, "doc_id": "msg-acme-delay-1023", "quote": QUOTE})
     r = read(StubModel(reply))
     [u] = r.updates
-    assert not u.verified and "does not state a 2-day delay" in u.problems[0]
-    rcv = r.state.receivables[0]
-    assert rcv.expected_in_hours == 24 and rcv.confidence_bp == UNVERIFIED_SIGNAL_BP  # never earlier, never surer
+    assert u.verified and u.reader == "lexicon" and u.delay_days == 5  # what the email actually says
+    [claim] = [c for c in r.stage.details["rejected_claims"] if c["subject"] == "RCV-ACME"]
+    assert claim["reader"] == "llm" and "does not state a 2-day delay" in claim["problems"][0]
 
 
-def test_model_quoting_text_not_in_the_email_is_rejected():
+def test_model_quoting_text_not_in_the_email_has_no_effect():
     reply = json.dumps({"delayed": True, "delay_days": 5, "doc_id": "msg-acme-delay-1023",
                         "quote": "Acme will pay in five days and also double the amount."})
-    [u] = read(StubModel(reply)).updates
-    assert not u.verified and "does not occur" in u.problems[0]
+    r = read(StubModel(reply))
+    [u] = r.updates
+    assert u.reader == "lexicon" and u.quote.startswith("Hi team, because of an internal approval hold")
+    assert any("does not occur" in c["problems"][0] for c in r.stage.details["rejected_claims"])
+
+
+def test_hallucinated_delay_before_any_delay_email_changes_nothing():
+    reply = json.dumps({"delayed": True, "delay_days": 3, "doc_id": "", "quote": ""})
+    day1 = [m for m in INBOX["messages"] if m["date"] <= "2026-10-22"]
+    r = read(StubModel(reply), day1)
+    assert r.updates == [] and r.state.receivables[0].confidence_bp == 9000
+
+
+def test_hallucinated_bank_change_for_an_unaffected_payee_is_not_flagged():
+    reply = json.dumps({"changed": True, "doc_id": "msg-rheinwerk-notice-1022",
+                        "quote": "The email mentions that the payment is due on October 25th."})
+    r = read(StubModel(reply))
+    flagged = {o.obligation_id for o in r.state.obligations if BANK_CHANGE_FLAG in o.policy_flags}
+    assert flagged == {"CONTRACTOR-US"}  # found by re-reading Lumen's real email, not the model's claim
 
 
 def test_embargoed_future_email_is_never_read():
@@ -126,7 +144,8 @@ def test_embargoed_future_email_is_never_read():
                         "quote": "the transfer should arrive within one business day."})
     r = read(StubModel(reply))
     assert "msg-acme-released-1030" in r.stage.details["embargoed"]
-    assert not r.updates[0].verified
+    [u] = r.updates
+    assert u.doc_id == "msg-acme-delay-1023" and u.delay_days == 5  # never the future message
 
 
 def test_unreachable_model_falls_back_to_lexicon_reader():
@@ -140,7 +159,32 @@ def test_delayed_receipt_read_from_inbox_drives_escalation():
     r = read(ChatModel(endpoint="", model=""))  # no model configured: lexicon reader
     plan = decide(r.state.model_dump())
     assert plan.decision == "REQUIRES_APPROVAL"
-    assert {d.obligation_id: d.action for d in plan.obligations}["VENDOR-UK"] == "ESCALATE"
+    acts = {d.obligation_id: d.action for d in plan.obligations}
+    assert acts["SAAS-USD"] == "ESCALATE" and acts["CONTRACTOR-US"] == "ESCALATE"
+
+
+def test_bank_detail_change_flags_only_the_named_payee():
+    r = read(ChatModel(endpoint="", model=""))
+    assert [(f.obligation_id, f.verified) for f in r.flags] == [("CONTRACTOR-US", True)]
+    flagged = {o.obligation_id for o in r.state.obligations if BANK_CHANGE_FLAG in o.policy_flags}
+    assert flagged == {"CONTRACTOR-US"}
+
+
+def test_ungrounded_bank_claim_is_replaced_by_what_the_email_says():
+    reply = json.dumps({"changed": True, "doc_id": "msg-lumen-bank-1022", "quote": "Lumen moved to Bank X yesterday."})
+    r = read(StubModel(reply))
+    flag = next(f for f in r.flags if f.obligation_id == "CONTRACTOR-US")
+    assert flag.verified and flag.reader == "lexicon" and "changed banks" in flag.quote
+
+
+def test_calibration_widens_with_thin_history_and_never_trusts_unverified_news():
+    rich = calibrate_delay(24, 9000, None, 5, True)
+    from venthora.domain.models import PayerHistory
+    deep = calibrate_delay(24, 9000, PayerHistory(kept=40, missed=2), 5, True)
+    assert rich[2][1] - rich[2][0] > deep[2][1] - deep[2][0]  # no history -> wider 90% window
+    assert deep[1] > rich[1]                                   # a reliable payer keeps more confidence
+    hours, conf, _, _ = calibrate_delay(24, 9000, PayerHistory(kept=40, missed=2), None, False)
+    assert hours == 24 and conf < 9000
 
 
 def test_cli_fake_run_completes(tmp_path, monkeypatch, capsys):
@@ -156,6 +200,7 @@ def test_cli_fake_run_completes(tmp_path, monkeypatch, capsys):
     code = asyncio.run(cli.run(args))
     out = capsys.readouterr().out
     assert code == 0 and "COMPLETED" in out and "VERIFIED (lexicon)" in out
+    assert "POLICY EXCEPTION" in out and "re-read balances" in out and "incremental" in out
 
 
 async def _no_network(self, url, **kw):

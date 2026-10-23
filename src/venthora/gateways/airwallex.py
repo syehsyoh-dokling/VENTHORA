@@ -248,6 +248,16 @@ class Airwallex:
             "request_id": request_id, "quote_id": quote.quote_id, "sell_currency": quote.sell_currency,
             "buy_currency": quote.buy_currency, "buy_amount": to_major(quote.buy_amount_minor)}))
 
+    async def beneficiary_schema(self, payload: dict) -> dict:
+        """POST /beneficiaries/schema for this corridor (guide: check the schema before building a payload)."""
+        return await self._request("POST", "/api/v1/beneficiaries/schema", json={
+            "beneficiary": payload["beneficiary"], "transfer_methods": payload["transfer_methods"]})
+
+    async def validate_beneficiary(self, payload: dict) -> None:
+        """POST /beneficiaries/validate (guide: validate over REST, not a dry-run flag on create)."""
+        await self._request("POST", "/api/v1/beneficiaries/validate", json={
+            "beneficiary": payload["beneficiary"], "transfer_methods": payload["transfer_methods"]})
+
     async def create_beneficiary(self, payload: dict) -> str:
         """`payload` = {"beneficiary": {...}, "transfer_methods": [...], "nickname": ...}. Returns id."""
         body = await self._request("POST", "/api/v1/beneficiaries/create", json=payload)

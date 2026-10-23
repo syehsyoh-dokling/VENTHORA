@@ -31,7 +31,7 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
         data["policy"]["payout_fees_minor"] = merged
         notes.append("observed Airwallex fees: " + ", ".join(
             f"{k} {fmt(v, k.split(':')[1])}" for k, v in sorted(fees.items())))
-    last = store.last_managed_budget()
+    last = store.last_managed_budget(state.book_id)
     if last:
         execution_id, managed = last
         for ccy in data["balances"]:

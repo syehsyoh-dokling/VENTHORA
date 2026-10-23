@@ -216,7 +216,7 @@ async def global_accounts():
 
 class DepositRequest(BaseModel):
     amount_minor: int = Field(gt=0, le=10**11)
-    payer_name: str = Field(default="Acme Retail Ltd", min_length=1, max_length=120)
+    payer_name: str = Field(default="Sandbox payer", min_length=1, max_length=120)
     global_account_id: str | None = None
 
 

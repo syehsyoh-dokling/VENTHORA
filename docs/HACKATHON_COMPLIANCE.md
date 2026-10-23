@@ -1,51 +1,122 @@
-# Hackathon compliance checklist
+# Compliance matrix: every requirement, line by line
 
-Sources: [airwallex.hackerearth.com](https://airwallex.hackerearth.com/), [Airwallex developer guide](https://airwallexdev.com/guide), [Airwallex API reference](https://www.airwallex.com/docs/api/introduction), checked 23 Oct 2026. The organizers do not publish judging weights.
+Sources: [airwallexdev.com/guide](https://airwallexdev.com/guide) and [airwallex.hackerearth.com](https://airwallex.hackerearth.com/),
+re-read 23 Oct 2026. The guide was split into 114 numbered items. Every item that applies to a
+Kit 01 build is listed below. Items for other kits (4, 9–12), MCP-only workflows and customer
+(`x-on-behalf-of`) accounts are listed at the end as not applicable, with the reason.
 
-Legend: ✅ done and verified on the real Airwallex sandbox (see [SANDBOX_RESULTS.md](SANDBOX_RESULTS.md)) · ⬜ not started
+Legend:
+- ✅ met and verified on the **real** sandbox ([SANDBOX_RESULTS.md](SANDBOX_RESULTS.md))
+- 🧪 met and covered by automated tests
+- 📝 stated in the docs
+- ↔ deliberate deviation, with the reason given
 
-## Submission deliverables (due 13 Nov 2026)
+No oracle: no production code branches on scenario ids or demo values. The "receipt delayed"
+scenario is not hand-written; `scripts/make_scenarios.py` generates it by reading the inbox.
 
-| Required | Status |
-|---|---|
-| Working demo | ✅ Plan → approve → quote → convert → pay → settle → reconcile, three cycles on the real sandbox |
-| Video walkthrough under 5 minutes | ⬜ Script ready: [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
-| Repository link with setup instructions | ✅ https://github.com/syehsyoh-dokling/VENTHORA |
-| Built on Airwallex APIs | ✅ Auth, balances, rates, quotes, conversions, beneficiaries, transfers, simulation |
+## Submission (hackerearth)
 
-## Starter Kit 01: Adaptive Treasury Controller
-
-| Kit requirement | Where | Status |
+| Requirement | Status | Evidence |
 |---|---|---|
-| Five obligations across three currencies over 72 hours | `data/scenarios/kit01_*.json` | ✅ |
-| Partial payment while keeping a reserve floor | Theorem budget + ProofCore floor invariant | ✅ |
-| Read balances and obligations | `Airwallex.balances_minor`, `/live-state` | ✅ |
-| Plan in code | `engines/theorem.py` (CP-SAT / exact) | ✅ |
-| Lower forecast confidence for one receipt, then recalculate | `kit01_receipt_delayed` scenario | ✅ |
-| Simulate the deposit (`POST /simulation/deposit/create`) | `POST /api/sandbox/deposits` | ✅ |
-| Execute one FX conversion (`/fx/quotes/create`, `/fx/conversions/create`) | `execution/executor.py` | ✅ |
-| Execute one supplier transfer (`/beneficiaries/create`, `/transfers/create`) | `execution/executor.py`, `data/beneficiaries.json` | ✅ |
-| Confirm the remaining reserve after execution | Reconciliation re-reads live balances | ✅ |
-| Include flat EUR 12.85 fee per SWIFT payout | `TreasuryPolicy.swift_fee_minor`, in the conversion amount | ✅ |
-| Every FX quote single-use, booked once with one request ID | `used_quotes` + persisted `request_id` | ✅ |
-| Autonomous conversion limit in code, tied to forecast confidence | `proofcore/policy.py` + `policy/treasury.rego` | ✅ |
+| Working demo | ✅ | `venthora-sandbox` on the real sandbox; three executed cycles |
+| Video walkthrough under 5 minutes | ⬜ | script: [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
+| Repository link with setup instructions | ✅ | https://github.com/syehsyoh-dokling/VENTHORA, README quick start |
+| Built on Airwallex APIs | ✅ | balances, rates, quotes, conversions, beneficiaries (schema/validate/create), transfers, deposits, simulation |
 
-## Build guidance ("Build around a financial decision")
+## (1) General conventions
 
-| Guidance | Status |
-|---|---|
-| Show goal, initial plan, new information, revised decision, resulting balance/payment/status | ✅ plan + revision; ✅ resulting payment and balance |
-| Finish with a financial action or an escalation to a person | ✅ escalation; ✅ executed action after approval |
-| Amounts, limits, reserves, validation, duplicate protection, state transitions in code | ✅ |
-| Model reads unstructured text, compares evidence, proposes, explains | ✅ inbox reader (local Qwen2.5-0.5B on GPU, verified 3/3 runs) + original Verity citation check |
-| Typed tools, not unrestricted credentials | ✅ |
-| State which actions require a person's approval | ✅ policy reason codes; approval bound to `plan_hash` |
+| # | Requirement | Status | Where |
+|---|---|---|---|
+| 1 | Sandbox only, no real money | ✅🧪 | executor refuses non-sandbox URLs; simulation calls are sandbox-only (`test_simulation_and_execution_are_sandbox_only`) |
+| 2 | Base `https://api.sandbox.airwallex.com`, paths under `/api/v1` | ✅ | `gateways/airwallex.py` `SANDBOX_URL` |
+| 3–4 | Login with `x-client-id`/`x-api-key`, then a Bearer token | ✅🧪 | `_auth_headers`; token cached and refreshed 60 s before expiry; retried once on 401 |
+| 5 | Amounts in major units | ✅🧪 | `to_major`/`to_minor` at the boundary; integer minor units inside |
+| 6–8 | Fresh UUID `request_id` per operation; reuse only on retry; `duplicate_request_id` | ✅🧪 | persisted before each call (`execution/store.py`); a lost response is recovered by `request_id`, never resent with a new id |
+| 9 | Credentials in env, never committed | ✅ | `.env` (git-ignored, `AWX_*` names as in the guide); pushes were scanned (0 matches) |
+| 10 | No `x-api-version` on FX calls | ✅ | never sent |
+| 11 | Exact payload fields from the API reference | ✅ | fields checked against the reference and the real sandbox |
+| 12 | Synthetic data | ✅ | `data/scenarios`, `data/inbox`, `data/beneficiaries.json` |
+| 13 / 19 | Verify setup by listing Global Accounts; fund one if none | ✅ | `scripts/sandbox_check.py`; CLI finds or creates a USD account |
+| 15 | Business name "Sandbox Business" | ✅ | account approved |
+| 20 | Stop when setup fails | ✅ | CLI exits with the reason (missing credentials, non-sandbox) |
+| 21–22 | Rate limits; back off on 429; no parallel bursts | ✅🧪 | retries with backoff on 429/5xx; execution is sequential |
+| 24 | Each REST call behind one function | ✅ | one typed method per endpoint |
+| 27 | REST for conversions and beneficiary validation | ✅ | `create_conversion`, `validate_beneficiary` |
+| 30 | Validate over `POST /beneficiaries/validate`, not a dry-run flag | ✅🧪 | `validate_beneficiary` before every create |
 
-## Verified on the real sandbox, 23 Oct 2026
+## (2) Build around a financial decision
 
-Beneficiaries for the US and GB LOCAL corridors and the DE SWIFT corridor were accepted; the `transfer_reason` values in `data/beneficiaries.json` were accepted; `GET /api/v1/deposits` is the authoritative receipt record. Real fees differ from the guide: EUR 13.37 SWIFT, USD 3.00 and GBP 2.24 LOCAL (see SANDBOX_RESULTS.md).
+| # | Requirement | Status | Where |
+|---|---|---|---|
+| 31 | A repeated finance task with a decision inside | ✅ | which obligations to pay, convert for, defer or escalate |
+| 32 | Choose differently when balance, deadline, evidence or risk change | ✅🧪 | delay email → revised plan; deposit → recalculation; FX stress; bank-change evidence |
+| 33 | Agent moves money; state which actions need a person | ✅📝 | approval table in the README; `REQUIRES_APPROVAL` reasons and escalations |
+| 34 | Demo shows goal, initial plan, new information, revised decision, resulting balance/payment/status | ✅ | CLI steps 1–7 (`docs/DEMO_SCRIPT.md`) |
+| 35 | Amounts, limits, reserves, validation, duplicate protection, state transitions in code | ✅🧪 | ProofCore, `proofcore/policy.py` + Rego, executor state machine |
+| 36 | Model reads text, compares evidence, proposes a plan, explains exceptions | ✅🧪 | `evidence/reader.py` (read + compare), `engines/llm_planner.py` (propose), `evidence/explain.py` (explain) |
+| 37 | Typed tools, not credentials | ✅ | the model only returns text; credentials stay in the gateway |
+| 38 | Approval bound to amount, currency, counterparty, terms, evidence | ✅🧪 | `PlanResult.approval_terms` + `plan_hash`; any change refuses execution |
+| 39 | Simulation calls behind one replaceable interface | ✅ | `simulate_deposit`, `simulate_transfer_transition` on the gateway |
+| 40 | End with a financial action or an escalation to a person | ✅ | both: conversions/transfers executed and policy exceptions escalated |
+| 41 | A rule that always gives the same answer belongs in code | ✅ | limits, deferral, escalation rules in code; the model never decides |
 
-## Still open
+## (3) Starter Kit 01: Adaptive Treasury Controller
 
-- `GET /transfers?request_id=` and `GET /fx/conversions?request_id=` (lost-response recovery) are exercised only against the fake sandbox; no response was lost on the real one.
-- LLM evidence reader on a larger model; the local 0.5B model is enough for the demo inbox.
+| # | Requirement | Status | Where |
+|---|---|---|---|
+| 42 | Treasury lead who cannot fund everything at once | ✅ | USD 22,500 allocation; the obligations exceed it above the reserve |
+| 43 | Five obligations, three currencies, within 72 h | ✅ | PAYROLL-NOV, SHIPPING-UK, SUPPLIER-EU, CONTRACTOR-US, SAAS-USD; USD/EUR/GBP; due 24–72 h (a re-sent copy of the supplier invoice is a duplicate record, not a sixth obligation) |
+| 44 | Cash covers only part after the reserve floor | ✅🧪 | counterfactual "pay everything" breaches the reserve |
+| 45 | Fund the shipping invoice whose non-payment halts operations | ✅🧪 | SHIPPING-UK (priority 10) is paid |
+| 46 | Convert only the minimum for a time-sensitive supplier | ✅🧪 | buy = shortfall incl. fee; frame checker `minimum_conversions` |
+| 47 | Defer the cheapest obligation | ✅🧪 | SAAS-USD deferred on the reliable receipt |
+| 48 | Escalate a policy exception | ✅🧪 | CONTRACTOR-US: payee bank details changed (cited email) → escalated, never auto-paid |
+| 49 | After a deposit, recalculate only the decisions it affects | ✅🧪 | incremental recalculation with locked decisions and a diff |
+| 50 | Execution limit tied to forecast confidence; strong data allows a larger autonomous conversion | ✅🧪 | limit = full at ≥90%, linear to 0 at ≤50% |
+| 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions |
+| 52 | Thresholds in policy code, not prompts | ✅ | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego` |
+| 53 | Read balances and obligations | ✅ | `GET /balances/current`; scenario obligations |
+| 54 | Plan in code | ✅ | Theorem (CP-SAT + exact second candidate) |
+| 55 | Lower forecast confidence for one receipt | ✅ | RCV-ACME 90% → 70% (calibrated from payer history) |
+| 56 | Simulate the deposit | ✅ | `POST /simulation/deposit/create`; counted only when `/deposits` says SETTLED |
+| 57 | Recalculate | ✅ | incremental re-plan |
+| 58 | Execute one FX conversion and one supplier transfer | ✅ | conversions EUR + GBP; supplier, shipping, payroll and SaaS transfers |
+| 59 | Confirm the reserve that remains | ✅ | reconciliation confirms the managed reserve |
+| 60–68 | Endpoints: balances, rates, quotes, conversions, beneficiaries/schema, beneficiaries/create, transfers, simulation deposit, simulation transition | ✅ | all used; `beneficiaries/schema` checked before every create |
+| 69 | Fund a wallet first | ✅ | sandbox pre-funded; a USD Global Account was created |
+| 70 | Add EUR 12.85 per SWIFT payout to the conversion amount; LOCAL has no fee | ↔✅ | applied by default; the **real** sandbox charged EUR 13.37 SWIFT and USD 3.00 / GBP 2.24 LOCAL, so observed fees override the guide and plan-vs-actual variance is reported |
+| 71 | No `x-api-version` on FX | ✅ | |
+| 72 | Book each quote once with one request ID; fresh quote to convert again | ✅🧪 | used-quote registry, persisted `request_id` (the sandbox returns `MULTI_USE`; we still use each quote once) |
+| 73 | Book the conversion over REST | ✅ | |
+
+## (4) Beneficiaries, transfers, FX, deposits
+
+| # | Requirement | Status | Where |
+|---|---|---|---|
+| 74 | Call `/beneficiaries/schema` before building a payload | ✅🧪 | required fields compared; a missing one fails before create |
+| 75–76 | `{"beneficiary": …, "transfer_methods": […]}`; not `payment_methods` | ✅ | |
+| 77–79 | US/USD/LOCAL: `aba`, exact `Checking`, full address | ✅ | `data/beneficiaries.json` |
+| 80 | GB/GBP/LOCAL: `bank_name`, lowercase `sort_code` | ✅ | |
+| 81 | DE/EUR/SWIFT: IBAN + `swift_code`, no routing fields | ✅ | |
+| 82–83 | Synthetic names; real routing codes, valid IBAN checksum | ✅ | accepted by the real sandbox |
+| 85 | Bank details validated at creation | ✅ | validate + create; errors halt before any transfer |
+| 87–88 | `transfer_method` LOCAL/SWIFT; `transfer_currency` + `transfer_amount` | ✅ | |
+| 89 | `request_id` 10–50 chars | ✅ | UUID (36) |
+| 92 | Failed transfer ends CANCELLED; read `failure_type`/`failure_reason` | ✅🧪 | treated as failed, refund reconciled, payout released for retry |
+| 93 | Poll to a terminal state; SENT is not final | ✅🧪 | `_poll`; only PAID/CANCELLED/FAILED are terminal |
+| 95 | `rate` from a rate check vs `client_rate` from a quote | ✅ | indicative rate for planning, `client_rate` for booking |
+| 96–98 | Conversion fields; `quote_id` locks the rate; settles immediately | ✅ | non-SETTLED conversion holds transfers |
+| 99 | Insufficient-funds codes differ by endpoint | ✅ | any error halts that step and is reported with its code |
+| 100 | List Global Accounts first; reuse one with local USD | ✅ | primary-currency USD only |
+| 102 | Deposit lands in the account's currency | ✅ | learned on the real sandbox (HKD); fixed |
+| 104 | For a missing currency, fund USD and convert | ✅ | EUR/GBP come from conversions |
+| 105 | Deposit says PENDING, balance appears immediately | ↔✅ | the real sandbox settled after a delay; we wait for SETTLED on `/deposits` |
+| 106 | Re-read balances after a deposit before recalculating | ✅ | CLI step 5 re-reads balances, then recalculates |
+| 112–114 | Every demo: goal → plan → new info → revised decision → result; ends in an action or an escalation; credentials out of model context | ✅ | |
+
+## Not applicable to this build
+
+- **#14, #16–18, #23, #25–26, #28–29** (MCP setup and MCP-only tools): VENTHORA uses REST behind typed methods, which the guide allows (#17, #24).
+- **#84, #86** apply only if other corridors are used. Only US/GB LOCAL and DE SWIFT are used.
+- **#94, #107** (customer `x-on-behalf-of` accounts).
+- **#108–111** (kits 9, 10 and 12).

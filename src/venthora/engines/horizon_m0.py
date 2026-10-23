@@ -8,6 +8,7 @@ by the time it is booked.
 """
 from __future__ import annotations
 
+import datetime as dt
 import functools
 import math
 import tempfile
@@ -65,8 +66,16 @@ def _compute_stress(currency: str, base: str, horizon_days: int, quantile: float
     last = float(series.iloc[-1])
     moves = samples[:, 0] / last - 1.0
     adverse = max(0.0, float(np.quantile(moves, quantile)))
-    return {"available": True, "stress_ppm": math.ceil(adverse * 1_000_000), "engine": "horizon-m0",
+    # Horizon's self-check before anything is used: finite draws, monotone quantiles, no data after
+    # today (embargo). A failed check makes the stress unavailable, which fails the plan closed.
+    q05, q50, q95 = (float(np.quantile(samples[:, 0], q)) for q in (0.05, 0.5, 0.95))
+    check = {"finite": bool(np.isfinite(samples).all()), "monotone_quantiles": q05 <= q50 <= q95,
+             "no_future_data": asof.date() <= dt.date.today()}
+    if not all(check.values()):
+        return {"available": False, "stress_ppm": 0, "engine": "horizon-m0", "self_check": check,
+                "reason": "Horizon self-check failed: " + ", ".join(k for k, v in check.items() if not v)}
+    return {"available": True, "stress_ppm": math.ceil(adverse * 1_000_000), "engine": "horizon-m0", "self_check": check,
             "pair": f"{currency}/{base}", "as_of": str(asof.date()), "horizon_business_days": horizon_days,
             "observations": int(info["window_rows"][asset]), "n_draws": N_DRAWS, "seed": info["seed"],
-            "spot": last, "p05_p50_p95": [float(np.quantile(samples[:, 0], q)) for q in (0.05, 0.5, 0.95)],
+            "spot": last, "p05_p50_p95": [q05, q50, q95],
             "method": f"Horizon M0 joint paths, p{int(quantile * 100)} adverse move at {horizon_days} business days"}

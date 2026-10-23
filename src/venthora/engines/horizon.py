@@ -27,6 +27,7 @@ class ReceivableView:
     expected_in_hours: int
     confidence_bp: int
     reliable: bool
+    latest_arrival_hours: int  # upper bound of the 90% arrival window; reliance is planned on this
 
 
 @dataclass
@@ -68,10 +69,11 @@ async def horizon(state: TreasuryState, eligible: dict[str, Obligation] | None =
 
     views = []
     for r in sorted(state.receivables, key=lambda x: x.expected_in_hours):
+        # Conservative: a receipt is relied on only if its LATEST plausible arrival is in the horizon.
         reliable = (r.confidence_bp >= policy.min_receivable_confidence_bp
-                    and r.expected_in_hours <= policy.planning_horizon_hours)
+                    and r.latest_arrival_hours <= policy.planning_horizon_hours)
         views.append(ReceivableView(r.receivable_id, r.payer, value_in_base(r.amount_minor, state.ppm_down(r.currency)),
-                                    r.expected_in_hours, r.confidence_bp, reliable))
+                                    r.expected_in_hours, r.confidence_bp, reliable, r.latest_arrival_hours))
     low_confidence = any(not v.reliable for v in views)
     if low_confidence and status != "FAIL":
         status = "WARN"

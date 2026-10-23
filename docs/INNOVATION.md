@@ -27,24 +27,27 @@ the rails around the agent. In one sentence:
 ### 1. Mandate: the agent spends its allocation, not the wallet
 
 The live sandbox wallet holds USD/EUR/GBP 10,000,000 each. VENTHORA plans on its ring-fenced
-treasury allocation of USD 20,000. Reconciliation and the reserve check run on that managed budget,
+treasury allocation of USD 22,500. Reconciliation and the reserve check run on that managed budget,
 which moves exactly as the live wallet moves. An agent with a budget is a different, safer object
 than an agent with an account.
 *Code:* `execution/live.py` (`ring_fence`), `Reconciliation.managed_after_minor`.
 
 ### 2. Evidence: what the model says is believed only if it can be cited
 
-A language model reads the inbox. In the measured runs this was Qwen2.5-0.5B, local on the GPU,
-taking about 2.8 s per read and verified in 3 of 3 runs. The model only *proposes*, for example
-"the Acme receipt is delayed five days". The claim is accepted only if:
+A language model reads the inbox; in the measured runs this was Qwen2.5-0.5B, local on the GPU.
+The model only *proposes*, for example "the Acme receipt is delayed five days" or "Lumen changed
+its bank details". A claim is accepted only if:
 
 - the quoted sentence is found verbatim in the email
 - the original Verity validator accepts the citation, so the document exists and predates the
   embargo (a message dated after the as-of date is never read)
-- the figure "five days" is written in the cited span
+- the fact is written in the cited span (the figure "five days"; bank and change terms)
 
-The trust is asymmetric. Unverified bad news still lowers reliance on the receipt. Model output can
-never make a receipt earlier or more certain.
+If the model's claim fails, the deterministic reader re-reads the same passages. A claim that no
+reader can ground in the email **has no effect**. On the real run, the 0.5B model invented a delay
+before any delay email existed and a bank change for a supplier, three ungrounded claims a day,
+and all were rejected. Confidence is then calibrated from the payer's track record, with a 90%
+arrival window, and model output can never make a receipt earlier or more certain.
 *Code:* `evidence/reader.py`, `originals/verity_core/`.
 
 ### 3. Proof before execution
@@ -87,13 +90,15 @@ handles this in three parts:
 - If keeping the earlier payments no longer fits, for example because cash dropped, Theorem falls
   back to a full recalculation and says why.
 
-Measured on the Kit 01 story: the Acme deposit lands. PAYROLL-USD, SUPPLIER-EU and SAAS-USD are
-kept, and only VENDOR-UK is re-optimised:
+Measured on the Kit 01 story (real sandbox, live rates):
 
 ```text
-recalculation: incremental; triggered by USD budget +USD 10,000.00, RCV-ACME received/settled
-  kept (unaffected): PAYROLL-USD, SAAS-USD, SUPPLIER-EU   re-optimised: VENDOR-UK
-  CHANGED VENDOR-UK: ESCALATE -> CONVERT_AND_PAY
+day 2  recalculation: incremental; triggered by RCV-ACME forecast 24h/90% -> 144h/70%
+         kept (unaffected): PAYROLL-NOV, SHIPPING-UK, SUPPLIER-EU   re-optimised: SAAS-USD
+         CHANGED SAAS-USD: DEFER -> ESCALATE
+deposit  recalculation: incremental; triggered by USD budget +USD 10,000.00, RCV-ACME received/settled
+         kept (unaffected): PAYROLL-NOV, SHIPPING-UK, SUPPLIER-EU   re-optimised: SAAS-USD
+         CHANGED SAAS-USD: ESCALATE -> PAY
 ```
 
 *Code:* `domain/diff.py`, `Orchestrator.decide(previous=...)`, `POST /v1/plans/replan`.
@@ -104,12 +109,17 @@ Every plan carries proven answers to the questions a CFO asks before approving. 
 from the same independent projection and the same floor as the plan. Live sandbox rates, 23 Oct 2026:
 
 ```text
-✓ Is the chosen plan safe?                       reserve kept with USD 116.72 headroom
-✓ What if we pay nothing?                        misses PAYROLL-USD (priority 10, due 24h), SUPPLIER-EU (priority 9, due 48h)
-✗ What if we pay every verified obligation now?  breaches the reserve floor by USD 3,945.23
-✗ What if we also pay SUPPLIER-EU-RESENT?        pays invoice eu-components:INV-2026-0417 twice
-✗ What if we also pay VENDOR-UK now?             breaches the reserve floor by USD 3,945.23
+✓ Is the chosen plan safe?                       reserve kept with USD 438.42 headroom
+✓ What if we pay nothing?                        misses PAYROLL-NOV, SHIPPING-UK (priority 10, due 24h), SUPPLIER-EU (priority 9)
+✗ What if we pay every verified obligation now?  breaches the reserve floor by USD 764.58
+✗ What if we also pay SUPPLIER-EU-RESENT?        pays invoice eu-components:INV-2026-0512 twice
+✗ What if we also pay CONTRACTOR-US now?         policy exception (payee bank details changed): never auto-paid, even with cash
+✗ What if we also pay SAAS-USD now?              breaches the reserve floor by USD 764.58
+✗ What if RCV-ACME never arrives?                SAAS-USD would be unfunded at its due date; VENTHORA re-plans and escalates then
 ```
+
+When even the critical obligations cannot be funded, the plan says so outright: **"not payable as
+posed"**, with the minimum extra cash needed (SeismoForge's "not buildable as posed").
 
 The agent chooses the action that satisfies the rules and the objective, and it shows why each
 alternative is worse.
@@ -124,24 +134,50 @@ sandbox:
 
 | Recommender | Proposal | Verdict |
 |---|---|---|
-| Local LLM (Qwen2.5-0.5B) | pay PAYROLL-USD, SAAS-USD | **APPROVED**: safe, but it misses SUPPLIER-EU, which VENTHORA pays |
-| Naive assistant ("pay everything that is due") | pay all 5 | **BLOCKED**: unverified obligation, duplicate invoice fingerprint, USD wallet goes negative, reserve breached |
+| Local LLM (Qwen2.5-0.5B) | pay PAYROLL-NOV, SUPPLIER-EU, SAAS-USD | **APPROVED**: safe, but it misses SHIPPING-UK, which halts operations if unpaid |
+| Local LLM, next cycle | pay PAYROLL and SaaS **again** (already paid) | **BLOCKED**: settled, not payable; wallet negative; reserve breached |
+| Naive assistant ("pay everything that is due") | pay all, including the duplicate and the changed-bank payee | **BLOCKED**: unverified obligation, policy exception, duplicate fingerprint, wallet negative, reserve breached |
 
 The gate refuses what is unsafe, not what comes from an AI. Even when every model recommends
 paying, VENTHORA keeps the authority to refuse.
 *Code:* `engines/llm_planner.py`, `POST /v1/plans/challenge`.
 
+## What each original system contributes (beyond speed)
+
+The strengths below are the ones the portfolio describes for each system. Each one is now active
+in VENTHORA and covered by tests:
+
+| System | Strength in the portfolio | How it works in VENTHORA |
+|---|---|---|
+| **SeismoForge** | Intake rejects any value it cannot quote from the source text | Every model claim must be found verbatim in the email; a claim no reader can ground has no effect. On the real local model, 3 hallucinated claims a day were rejected |
+| | An evidence gate re-simulates each design and refuses a verdict the physics contradicts | ProofCore re-derives every plan independently and refuses any plan or AI recommendation the arithmetic, policy or live bank state contradicts |
+| | Declares a brief "not buildable as posed" | The frame states **"not payable as posed"** and the minimum extra cash needed when the critical obligations cannot all be funded |
+| | A deterministic forge owns all numbers; the search policy is a tool surface | All amounts are integer code; the model gets only typed reading tasks |
+| **Theorem** | Worked-problem frame (Given / Asked / Formula / Answer) and a checker that rejects incomplete frames | Every plan carries the frame; the stage `Theorem · decision frame` rejects missing sections, non-minimal conversions and identities that do not recompute |
+| | Independent second candidate with a self-consistency tie-break | CP-SAT is cross-checked by exact enumeration at run time; disagreement blocks the plan; an exact tie goes to the cheaper selection |
+| | Finance invariants checked before output is accepted | ProofCore invariants, plus the original `fx.net_currency_exposure` netting every FX leg |
+| **Verity** | Every claim points to a real passage, with an entailment check | Original corpus, BM25 retriever and citation validator; a literal check of the fact (delay figure, bank-change terms) stands in where the original only measures overlap |
+| | Date embargo | Messages dated after the as-of date are never read, as on the delay-day timeline |
+| | 90% interval calibrated to evidence strength, widened when evidence is thin | Receipt confidence = Laplace posterior of the payer keeping promises; a 90% arrival window that widens with little history; reliance planned on its latest bound |
+| **Horizon** | Deterministic seeded scenario engine | The original M0 engine draws joint FX paths; its p95 adverse move sizes the reserve buffer |
+| | Text reshapes uncertainty, not just numbers, within bounds | The delay email moves the receipt *and* widens its arrival window, within bounded rules |
+| | Self-check (schema, monotone quantiles, embargo) before writing | `horizon_m0` refuses non-finite draws, non-monotone quantiles or data after today, so the plan fails closed |
+| | Deterministic lexicon fallback when the model is unavailable | The same fallback re-reads the email when the model is down **or** its claim does not verify |
+| **Litmus** | A decision layer that never fails, over a measurement layer that may, degrading safely | Remote engines can only narrow; any failure fails closed; the model is optional |
+
 ## Mapping to the organizers' guidance
+
+The complete, line-by-line matrix is in [HACKATHON_COMPLIANCE.md](HACKATHON_COMPLIANCE.md).
 
 | Guidance | Where VENTHORA shows it |
 |---|---|
-| Decision changes with balance, deadline, evidence or risk | delay email → revised plan → deposit → incremental recalculation |
+| Decision changes with balance, deadline, evidence or risk | day-1 plan → delay email → revised plan → deposit → incremental recalculation |
 | Controls in code, not prompts | policy code mirrored in Rego; the model never sets an amount |
 | Typed tools, no credentials to the model | `gateways/airwallex.py`; the model only returns text |
-| Approval bound to terms | `plan_hash` covers state, decisions and conversions |
+| Approval bound to terms | `approval_terms` (amount, currency, counterparty, evidence) under `plan_hash` |
 | Duplicate protection, idempotency | payout claims, persisted `request_id`, used-quote registry, lost-response recovery |
-| Ends in an action or an escalation | `REQUIRES_APPROVAL` escalation, then sandbox execution and reconciliation |
-| Kit 01: limit tied to forecast confidence | 5,000 → 2,500 when the email contradicts the forecast |
+| Ends in an action or an escalation | executed conversions and transfers, plus a policy exception escalated with a model-written note |
+| Kit 01: limit tied to forecast confidence | full at ≥90%, linear to zero at ≤50%; 90% → 70% halves it to 5,000 and the same conversion needs a person |
 | Kit 01: recalculate only affected decisions | differentiator A |
 
 ## What is *not* claimed
@@ -174,13 +210,17 @@ and counterfactuals). A re-plan against the live sandbox takes **85 ms**, about 
 network. The remaining end-to-end time is spent waiting on Airwallex and on the language model,
 not on deciding. Measured with `scripts/benchmark.py` and the run reports.
 
-## The five demo moments
+## The demo moments (Kit 01 flow, guide order)
 
-1. **Evidence:** the delay email is read and cited, and the future-dated email is embargoed.
-2. **Revised decision:** VENDOR-UK is escalated and the conversion limit tightens, so a person
-   must approve.
-3. **Refusal:** the "pay everything" recommendation is blocked with four reasons; the counterfactuals
-   show the USD breach.
-4. **Recalculation:** the deposit lands and only VENDOR-UK changes; three decisions are kept.
-5. **Proof after money moves:** quotes, conversions, transfers SENT → PAID, then reconciliation to
-   the cent with the reserve confirmed.
+1. **Goal and initial plan (day 1):** shipping and payroll are paid, the minimum is converted for the
+   supplier, the cheapest bill is deferred, and the changed-bank payee is escalated with a cited email
+   and a model-written note. The plan is `APPROVED` autonomously at 90% confidence.
+2. **Refusal:** the "pay everything" recommendation is blocked with its reasons; the counterfactuals
+   show the breach.
+3. **New information (day 2):** the delay email is cited; confidence drops from 90% to 70% and the
+   window widens; the limit halves, and **the same conversion** now needs a finance manager. Only
+   SaaS changes.
+4. **The deposit settles:** it is confirmed on `/deposits` and balances are re-read. Only SaaS is
+   recalculated (→ PAY), and the plan is `APPROVED`.
+5. **Proof after the money moves:** schema → validate → create beneficiaries; quotes, conversions,
+   transfers SENT → PAID; reconciliation to the cent; reserve confirmed; real fees learned.

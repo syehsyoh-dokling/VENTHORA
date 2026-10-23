@@ -24,13 +24,23 @@ class Obligation(StrictModel):
     obligation_id: str = Field(min_length=1, max_length=80)
     amount_minor: int = Field(gt=0, le=MAX_MINOR)
     currency: Currency
-    priority: int = Field(ge=1, le=10, description="10 = critical (payroll, tax)")
+    priority: int = Field(ge=1, le=10, description="cost of not paying on time: 10 = operations halt (payroll, "
+                                                    "shipping), 1 = cheapest to defer")
     due_in_hours: int = Field(ge=0, le=720)
     beneficiary_id: str = Field(min_length=1)
+    payee_name: str | None = Field(default=None, max_length=200, description="used to match inbox evidence")
     payout_method: Literal["LOCAL", "SWIFT"] = "LOCAL"
     evidence_ref: str = Field(min_length=1)
     invoice_fingerprint: str | None = None
     record_kind: Literal["payable", "settled"] = "payable"
+    policy_flags: list[str] = Field(default_factory=list,
+                                    description="policy exceptions raised by evidence, e.g. payee_bank_details_changed")
+
+
+class PayerHistory(StrictModel):
+    """How often this payer has kept its payment promises (calibrates receipt confidence)."""
+    kept: int = Field(default=0, ge=0, le=10_000)
+    missed: int = Field(default=0, ge=0, le=10_000)
 
 
 class Receivable(StrictModel):
@@ -41,6 +51,14 @@ class Receivable(StrictModel):
     expected_in_hours: int = Field(ge=0, le=2160)
     confidence_bp: int = Field(ge=0, le=10_000, description="forecast confidence, basis points")
     evidence_ref: str | None = None
+    arrival_window_hours: list[int] | None = Field(
+        default=None, min_length=2, max_length=2,
+        description="90% arrival interval [earliest, latest]; reliance uses the latest bound")
+    payer_history: PayerHistory | None = None
+
+    @property
+    def latest_arrival_hours(self) -> int:
+        return max(self.arrival_window_hours) if self.arrival_window_hours else self.expected_in_hours
 
 
 class Evidence(StrictModel):
@@ -61,8 +79,14 @@ class TreasuryPolicy(StrictModel):
 
     reserve_floor_minor: int = Field(ge=0, le=MAX_MINOR)
     min_receivable_confidence_bp: int = Field(default=8_000, ge=0, le=10_000)
-    autonomous_conversion_limit_minor: int = Field(ge=0, le=MAX_MINOR)
-    low_confidence_conversion_limit_minor: int = Field(ge=0, le=MAX_MINOR)
+    autonomous_conversion_limit_minor: int = Field(
+        ge=0, le=MAX_MINOR, description="autonomous FX conversion limit when the receipt forecast is fully supported")
+    full_confidence_bp: int = Field(default=9_000, ge=1, le=10_000,
+                                    description="forecast confidence at/above which the full limit applies")
+    zero_limit_below_bp: int = Field(default=5_000, ge=0, le=10_000,
+                                     description="at/below this confidence every conversion needs a person")
+    escalate_flags: list[str] = Field(default_factory=lambda: ["payee_bank_details_changed"],
+                                      description="policy exceptions that always go to a person, whatever the cash")
     swift_fee_currency: Currency = "EUR"
     swift_fee_minor: int = Field(default=1_285, ge=0, description="Kit 01 flat SWIFT fee (guide)")
     payout_fees_minor: dict[str, int] = Field(
@@ -73,14 +97,16 @@ class TreasuryPolicy(StrictModel):
     approver_roles: list[str] = Field(default_factory=lambda: ["finance_manager"])
 
     @model_validator(mode="after")
-    def low_confidence_is_tighter(self):
-        if self.low_confidence_conversion_limit_minor > self.autonomous_conversion_limit_minor:
-            raise ValueError("low-confidence conversion limit must not exceed the normal limit")
+    def confidence_band(self):
+        if self.zero_limit_below_bp >= self.full_confidence_bp:
+            raise ValueError("zero_limit_below_bp must be below full_confidence_bp")
         return self
 
 
 class TreasuryState(StrictModel):
     case_id: str = Field(min_length=1, max_length=120)
+    book_id: str = Field(default="default", min_length=1, max_length=120,
+                         description="treasury book whose managed budget carries across cycles")
     base_currency: Literal["USD"] = "USD"
     balances: dict[Currency, int]
     fx_to_base: dict[Currency, str] = Field(
@@ -198,4 +224,9 @@ class PlanResult(StrictModel):
     explanation: list[str]
     counterfactuals: list[Counterfactual] = Field(default_factory=list)
     recalculation: Recalculation | None = None
+    forecast_confidence_bp: int | None = None
+    conversion_limit_minor: int = 0
+    approval_terms: list[dict] = Field(default_factory=list,
+                                       description="what an approver signs: amount, currency, counterparty, evidence")
+    frame: dict = Field(default_factory=dict, description="worked-problem frame: given / asked / formula / answer")
     duration_ms: float

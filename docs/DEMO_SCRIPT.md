@@ -1,13 +1,26 @@
 # Demo video script (target 4:30, limit 5:00)
 
-The organizers ask the demo to show: goal → initial plan → new information → revised decision → resulting balance/payment/status, ending in a financial action or an escalation to a person.
+The organizers ask that the demo show the goal, the initial plan, the new information, the revised
+decision and the resulting balance, payment or status, and end with a financial action or an
+escalation to a person. The whole video is a single run:
 
-| Time | Show | Say |
+```bash
+python scripts/local_llm_server.py --port 8001            # local LLM (separate terminal)
+venthora-sandbox --receipt --approve "<your name>"        # real Airwallex sandbox
+```
+
+| Time | Screen (CLI step) | Say |
 |---|---|---|
-| 0:00–0:35 | Problem slide: USD 20k, reserve 5k, five obligations in USD/EUR/GBP within 72h | "Cash is limited, obligations are cross-currency, and a receipt we count on might slip." |
-| 0:35–1:30 | Run `kit01_baseline`; walk through stages | "Verity rejects the re-sent duplicate invoice. Theorem pays payroll and the EUR supplier, which costs USD 4,353.95 including the EUR 12.85 SWIFT fee. It defers the UK vendor because the Acme receipt lands first." |
-| 1:30–2:30 | Customer email: payment slips five days → run `kit01_receipt_delayed` | "Confidence drops to 40%. The conversion limit tightens. The vendor can't be safely deferred, so the agent escalates to a person instead of guessing." |
-| 2:30–3:30 | ProofCore refusing a bad plan (remote engine tries to pay the duplicate) → `BLOCKED` | "Even if every AI recommends paying, ProofCore can refuse." |
-| 3:30–4:30 | Airwallex sandbox: approve → quote → conversion → transfer → simulate → re-read balances; audit chain verified | "We confirm the result in Airwallex, not just from the first API response." |
+| 0:00–0:30 | Problem slide | "USD 22,500, a USD 5,000 reserve, five obligations in three currencies due within 72 hours. Cash can't cover them all." |
+| 0:30–1:20 | Steps 1–3: live balances (ring-fenced), inbox day 1, initial plan | "Shipping would halt operations, so it's paid. The EU supplier is time-sensitive, so it converts only the minimum. The cheapest bill is deferred. The contractor changed bank details by email: that's a policy exception, escalated with the cited sentence. Approved autonomously at 90% confidence." |
+| 1:20–1:50 | Step 3b: AI challenger | "A naive assistant says pay everything. ProofCore blocks it: duplicate invoice, changed-bank payee, negative wallet, reserve breach." |
+| 1:50–2:40 | Step 4: delay email, revised plan | "Acme says five days late. Their track record puts confidence at 70%, so the limit halves and the same conversion now needs me. Only the SaaS decision changes." |
+| 2:40–3:10 | Step 5: deposit | "The deposit is confirmed SETTLED by Airwallex, and balances are re-read. Only the SaaS bill is recalculated: now paid." |
+| 3:10–4:20 | Step 7: execution | "Schema, validate, create the beneficiaries. Fresh quotes, conversions, transfers SENT then PAID. Reconciled to the cent; the reserve is confirmed, and the real fees are learned for next time." |
+| 4:20–4:30 | Close | "AI proposes. Independent engines verify. Airwallex executes. The ledger reconciles." |
 
-Rehearsal checklist: no real credentials on screen; sandbox only; record from a clean `data/` folder so the audit chain starts at GENESIS.
+Rehearsal checklist:
+
+- No credentials on screen; sandbox only.
+- Use a fresh book or invoice set so nothing is already settled. The execution DB remembers paid invoices and will (correctly) refuse to pay them again.
+- The local model runs on the GPU (`MODEL_ENDPOINT=http://127.0.0.1:8001`).

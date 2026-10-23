@@ -22,12 +22,41 @@ from .engines import adapters
 from .engines.horizon import HorizonResult, horizon
 from .engines.theorem import TheoremResult, _cost, classify, theorem
 from .engines.verity import VerityResult, verity
+from .proofcore import frame
 from .proofcore.counterfactual import counterfactuals
 from .proofcore.gate import ProofCore
+from .proofcore.policy import forecast_confidence
 
 
 def theorem_cost(state: TreasuryState, o) -> int:
     return _cost(state, [o], (1,))
+
+
+def _policy_limit(stages) -> int:
+    policy = next((s for s in stages if s.engine == "Policy"), None)
+    return int((policy.details.get("local") or {}).get("conversion_limit_minor", 0)) if policy else 0
+
+
+def approval_terms(state: TreasuryState, decisions, conversions) -> list[dict]:
+    """Exactly what an approver signs (guide: amount, currency, counterparty, terms, evidence)."""
+    evidence = {e.ref: e for e in state.evidence}
+    by_id = {o.obligation_id: o for o in state.obligations}
+    terms = []
+    for d in decisions:
+        if d.action not in ("PAY", "CONVERT_AND_PAY"):
+            continue
+        o = by_id[d.obligation_id]
+        ev = evidence.get(o.evidence_ref)
+        terms.append({"kind": "payout", "obligation_id": o.obligation_id, "amount": fmt(o.amount_minor, o.currency),
+                      "counterparty": o.payee_name or o.beneficiary_id, "beneficiary_id": o.beneficiary_id,
+                      "method": o.payout_method, "due_in_hours": o.due_in_hours,
+                      "evidence": {"ref": o.evidence_ref, "source": ev.source if ev else None,
+                                   "summary": ev.summary if ev else None}})
+    for c in conversions:
+        terms.append({"kind": "conversion", "sell": c.sell_currency, "buy": fmt(c.buy_amount_minor, c.buy_currency),
+                      "estimated_cost": fmt(c.estimated_sell_minor, c.sell_currency),
+                      "terms": "fresh single-use quote; aborted if above slippage limit or reserve at quoted rate"})
+    return terms
 
 ACTION_LABELS = {"PAY": "Pay", "CONVERT_AND_PAY": "Convert & pay", "DEFER": "Defer",
                  "ESCALATE": "Escalate", "REJECT": "Reject"}
@@ -62,10 +91,10 @@ class Orchestrator:
         async with self._inflight:
             v, h = await asyncio.gather(verity(state), horizon(state))
             remote_stages = await self._apply_remote_evidence_and_risk(state, v, h)
-            t = await theorem(state, v.eligible, v.rejected, h, locked=locked)
+            t = await theorem(state, v.eligible, v.rejected, h, locked=locked, exceptions=v.exceptions)
             remote_stages += await self._apply_remote_theorem(state, v, h, t)
             gate = await self.proof.verify(state, t.selected, set(v.eligible), t.decisions,
-                                           h.stress_minor, h.low_confidence)
+                                           h.stress_minor)
         plan = self._assemble(state, v, h, t, gate, remote_stages, started)
         if previous:
             recalc = t.stage.details["recalculation"]
@@ -102,11 +131,21 @@ class Orchestrator:
                                 duration_ms=0.0)
             t = TheoremResult(chosen, decisions, source, 0, stage)
             gate = await self.proof.verify(state, list(proposal), set(v.eligible), decisions,
-                                           h.stress_minor, h.low_confidence)
+                                           h.stress_minor)
         return self._assemble(state, v, h, t, gate, [], started)
 
     def _assemble(self, state, v, h, t, gate, remote_stages, started) -> PlanResult:
-        stages = [v.stage, h.stage, *remote_stages, t.stage, *gate.stages]
+        frame_started = perf_counter()
+        worked = frame.build(state, t.decisions, gate.projection.conversions, h.stress_minor, set(v.eligible))
+        frame_problems = frame.check(state, worked, t.decisions)
+        frame_stage = StageResult(
+            engine="Theorem · decision frame", status="FAIL" if frame_problems else "PASS",
+            summary=("given/asked/formula/answer complete; identities recompute"
+                     + ("; " + worked["answer"]["not_payable_as_posed"]["statement"]
+                        if "not_payable_as_posed" in worked["answer"] else ""))
+            if not frame_problems else "; ".join(frame_problems),
+            details={"problems": frame_problems}, duration_ms=(perf_counter() - frame_started) * 1000)
+        stages = [v.stage, h.stage, *remote_stages, t.stage, *gate.stages, frame_stage]
         if any(s.status == "FAIL" for s in stages):
             decision = "BLOCKED"
         elif gate.requires_approval:
@@ -125,7 +164,10 @@ class Orchestrator:
             stages=stages, explanation=_explain(state, t, gate, stages, decision, base_after, floor),
             counterfactuals=counterfactuals(state, t.selected, t.decisions, set(v.eligible), h.stress_minor,
                                             [r for r in h.receivables if r.reliable]),
-            duration_ms=(perf_counter() - started) * 1000)
+            forecast_confidence_bp=forecast_confidence(state),
+            conversion_limit_minor=_policy_limit(gate.stages), approval_terms=approval_terms(state, t.decisions,
+                                                                                            gate.projection.conversions),
+            frame=worked, duration_ms=(perf_counter() - started) * 1000)
 
     async def _apply_remote_evidence_and_risk(self, state, v: VerityResult, h: HorizonResult) -> list[StageResult]:
         stages = []
@@ -157,12 +199,12 @@ class Orchestrator:
             body = await adapters.call(url, {"contract": "venthora.theorem.v1", "state": state.model_dump(),
                                              "eligible_ids": sorted(v.eligible), "budget_minor": t.budget_minor})
             t.selected = adapters.checked_selection(set(v.eligible), body)
-            t.decisions = classify(state, t.selected, v.eligible, v.rejected, h)
+            t.decisions = classify(state, t.selected, v.eligible, v.rejected, h, v.exceptions)
             t.solver = "remote-theorem"
             return [_remote_stage("Theorem", "PASS", "remote selection accepted for verification")]
         except Exception as exc:
             t.selected = []
-            t.decisions = classify(state, [], v.eligible, v.rejected, h)
+            t.decisions = classify(state, [], v.eligible, v.rejected, h, v.exceptions)
             return [_remote_stage("Theorem", "FAIL", f"remote engine error: {type(exc).__name__}")]
 
 
@@ -175,6 +217,15 @@ def _explain(state, t: TheoremResult, gate, stages, decision: str, base_after: i
     for d in t.decisions:
         lines.append(f"{ACTION_LABELS[d.action]} {d.obligation_id} {fmt(d.amount_minor, d.currency)}: {d.reason}.")
     lines.append(f"{base} balance after plan {fmt(base_after, base)} vs required floor {fmt(floor, base)}.")
+    conf = forecast_confidence(state)
+    limit = _policy_limit(gate.stages)
+    conversion = sum(c.estimated_sell_minor for c in gate.projection.conversions)
+    lines.append(f"Autonomous FX limit {fmt(limit, base)} at forecast confidence "
+                 f"{'n/a (no open receipt)' if conf is None else f'{conf / 100:.0f}%'}; planned conversions "
+                 f"{fmt(conversion, base)}.")
+    escalated = [d.obligation_id for d in t.decisions if d.action == "ESCALATE"]
+    if escalated:
+        lines.append("Escalated to a person (not paid, the rest of the plan can proceed): " + ", ".join(escalated) + ".")
     if decision == "REQUIRES_APPROVAL":
         lines.append("A finance manager must approve: " + ", ".join(gate.requires_approval) + ".")
     elif decision == "BLOCKED":

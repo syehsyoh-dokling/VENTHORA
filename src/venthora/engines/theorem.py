@@ -30,6 +30,9 @@ class TheoremResult:
     stage: StageResult
 
 
+SECOND_CANDIDATE_MAX_ITEMS = 10  # exact enumeration of 2^10 selections stays within a few milliseconds
+
+
 def _scores(items: list[Obligation]) -> list[int]:
     # One obligation of priority p outweighs every lower-priority combination.
     base = len(items) + 1
@@ -97,7 +100,8 @@ def _solve_cp_sat(state: TreasuryState, items: list[Obligation], budget: int,
 
 
 async def theorem(state: TreasuryState, eligible: dict[str, Obligation], rejected: dict[str, str],
-                  risk: HorizonResult, locked: set[str] | None = None) -> TheoremResult:
+                  risk: HorizonResult, locked: set[str] | None = None,
+                  exceptions: dict[str, str] | None = None) -> TheoremResult:
     """Plan. With `locked`, keep those payment decisions and re-optimise only the open ones."""
     started = perf_counter()
     budget = max(0, state.balance(state.base_currency) - state.policy.reserve_floor_minor - risk.stress_minor)
@@ -120,18 +124,42 @@ async def theorem(state: TreasuryState, eligible: dict[str, Obligation], rejecte
         result = await asyncio.to_thread(solve, state, items, budget)
     selected, solver = result
 
-    decisions = classify(state, selected, eligible, rejected, risk)
+    # Theorem's "independent second candidate with a self-consistency tie-break": a different
+    # algorithm must reach the same optimum. Disagreement blocks the plan; an exact tie is broken
+    # deterministically towards the cheaper selection.
+    consistency = None
+    if solve is _solve_cp_sat and len(items) <= SECOND_CANDIDATE_MAX_ITEMS:
+        second = await asyncio.to_thread(_solve_exact, state, items, budget, frozenset(recalc["locked"]))
+        score = dict(zip((o.obligation_id for o in items), _scores(items), strict=True))
+        s1 = sum(score[i] for i in selected)
+        s2 = sum(score[i] for i in second[0]) if second else -1
+        consistency = {"second_candidate": "exact-enumeration", "agree": s1 == s2,
+                       "second_selected": sorted(second[0]) if second else None, "tie_broken": False}
+        if s1 == s2 and second and set(second[0]) != set(selected):
+            by_id = {o.obligation_id: o for o in items}
+
+            def cost(ids):
+                return _cost(state, [by_id[i] for i in ids], (1,) * len(ids))
+
+            if (cost(second[0]), sorted(second[0])) < (cost(selected), sorted(selected)):
+                selected = list(second[0])
+            consistency["tie_broken"] = True
+
+    decisions = classify(state, selected, eligible, rejected, risk, exceptions)
     summary = f"pay {len(selected)} of {len(eligible)} verified obligations within {budget} minor budget"
     if recalc["mode"] == "incremental":
         summary += f"; {len(keep)} earlier decisions kept, {len(eligible) - len(keep)} re-optimised"
+    if consistency:
+        summary += "; second candidate agrees" if consistency["agree"] else "; SECOND CANDIDATE DISAGREES"
     return TheoremResult(selected, decisions, solver, budget, StageResult(
-        engine="Theorem · optimizer", status="INFO", summary=summary,
+        engine="Theorem · optimizer", status="FAIL" if consistency and not consistency["agree"] else "INFO",
+        summary=summary,
         details={"selected": selected, "budget_minor": budget, "solver": solver, "recalculation": recalc,
-                 "actions": {d.obligation_id: d.action for d in decisions}},
+                 "self_consistency": consistency, "actions": {d.obligation_id: d.action for d in decisions}},
         duration_ms=(perf_counter() - started) * 1000))
 
 
-def classify(state, selected, eligible, rejected, risk) -> list[ObligationDecision]:
+def classify(state, selected, eligible, rejected, risk, exceptions=None) -> list[ObligationDecision]:
     chosen = set(selected)
     decisions = []
     reliable = [r for r in risk.receivables if r.reliable]
@@ -144,6 +172,11 @@ def classify(state, selected, eligible, rejected, risk) -> list[ObligationDecisi
                              amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=base_cost,
                              reason=rejected[o.obligation_id]))
             continue
+        if exceptions and o.obligation_id in exceptions:
+            decisions.append(ObligationDecision(obligation_id=o.obligation_id, action="ESCALATE",
+                             amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=base_cost,
+                             reason=f"{exceptions[o.obligation_id]}; a person must verify before any payment"))
+            continue
         if o.obligation_id in chosen:
             foreign = any(c != state.base_currency for c in obligation_needs(o, state))
             decisions.append(ObligationDecision(obligation_id=o.obligation_id,
@@ -151,10 +184,10 @@ def classify(state, selected, eligible, rejected, risk) -> list[ObligationDecisi
                              amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=base_cost,
                              reason=f"priority {o.priority}, due in {o.due_in_hours}h; fits above reserve floor"))
             continue
-        inflow = sum(r.base_value_minor for r in reliable if r.expected_in_hours <= o.due_in_hours)
+        inflow = sum(r.base_value_minor for r in reliable if r.latest_arrival_hours <= o.due_in_hours)
         if inflow - committed >= base_cost:
             committed += base_cost
-            source = ", ".join(r.receivable_id for r in reliable if r.expected_in_hours <= o.due_in_hours)
+            source = ", ".join(r.receivable_id for r in reliable if r.latest_arrival_hours <= o.due_in_hours)
             decisions.append(ObligationDecision(obligation_id=o.obligation_id, action="DEFER",
                              amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=base_cost,
                              reason=f"no room above reserve now; reliable receipt {source} lands before due"))

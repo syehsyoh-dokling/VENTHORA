@@ -1,18 +1,44 @@
 {
-  "_note": "Synthetic demo inbox for the Kit 01 story. As of 2026-10-23 the newest admissible message reports the Acme delay; the 2026-10-30 message is after the embargo and must be ignored.",
-  "as_of": "2026-10-23",
+  "_note": "Synthetic demo inbox. timeline[0] = day of the initial plan (Lumen announces new bank details: policy exception); timeline[1] = new information (Acme delay contradicts the receipt forecast). The 2026-10-30 message is after both and must be ignored.",
+  "timeline": [
+    "2026-10-22",
+    "2026-10-23"
+  ],
   "messages": [
-    {"doc_id": "msg-acme-remittance-1020", "date": "2026-10-20", "sender": "ar@acme-retail.example",
-     "subject": "Remittance advice AR-5531",
-     "text": "Good morning. Acme Retail Ltd will transfer USD 10,000 for invoice AR-5531 to your Airwallex account tomorrow morning by ACH. Please treat this email as our remittance advice for the October statement."},
-    {"doc_id": "msg-rheinwerk-notice-1022", "date": "2026-10-22", "sender": "news@rheinwerk.example",
-     "subject": "Warehouse maintenance",
-     "text": "Rheinwerk Komponenten reminds all customers that the Frankfurt warehouse will be closed for maintenance next Friday afternoon. Orders placed before noon will still ship on schedule."},
-    {"doc_id": "msg-acme-delay-1023", "date": "2026-10-23", "sender": "ar@acme-retail.example",
-     "subject": "RE: Remittance advice AR-5531",
-     "text": "Hi team, because of an internal approval hold, the Acme Retail Ltd payment of USD 10,000 for invoice AR-5531 will be delayed by five days. We apologise for the inconvenience and will confirm by email as soon as the transfer is released."},
-    {"doc_id": "msg-acme-released-1030", "date": "2026-10-30", "sender": "ar@acme-retail.example",
-     "subject": "Payment released AR-5531",
-     "text": "Good news: Acme Retail Ltd has released the payment for invoice AR-5531 today and the transfer should arrive within one business day."}
+    {
+      "doc_id": "msg-acme-remittance-1020",
+      "date": "2026-10-20",
+      "sender": "ar@acme-retail.example",
+      "subject": "Remittance advice AR-5531",
+      "text": "Good morning. Acme Retail Ltd will transfer USD 10,000 for invoice AR-5531 to your Airwallex account tomorrow morning by ACH. Please treat this email as our remittance advice for the October statement."
+    },
+    {
+      "doc_id": "msg-rheinwerk-notice-1022",
+      "date": "2026-10-22",
+      "sender": "news@rheinwerk.example",
+      "subject": "Warehouse maintenance",
+      "text": "Rheinwerk Komponenten reminds all customers that the Frankfurt warehouse will be closed for maintenance next Friday afternoon. Orders placed before noon will still ship on schedule."
+    },
+    {
+      "doc_id": "msg-lumen-bank-1022",
+      "date": "2026-10-22",
+      "sender": "billing@lumen-design.example",
+      "subject": "Updated payment details",
+      "text": "Hello accounts team, please note that Lumen Design Studio has changed banks and our account details are updated. Kindly send the payment for invoice LD-77 to our new bank account from today, and disregard the account on the invoice."
+    },
+    {
+      "doc_id": "msg-acme-delay-1023",
+      "date": "2026-10-23",
+      "sender": "ar@acme-retail.example",
+      "subject": "RE: Remittance advice AR-5531",
+      "text": "Hi team, because of an internal approval hold, the Acme Retail Ltd payment of USD 10,000 for invoice AR-5531 will be delayed by five days. We apologise for the inconvenience and will confirm by email as soon as the transfer is released."
+    },
+    {
+      "doc_id": "msg-acme-released-1030",
+      "date": "2026-10-30",
+      "sender": "ar@acme-retail.example",
+      "subject": "Payment released AR-5531",
+      "text": "Good news: Acme Retail Ltd has released the payment for invoice AR-5531 today and the transfer should arrive within one business day."
+    }
   ]
 }

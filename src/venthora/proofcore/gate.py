@@ -47,7 +47,7 @@ class ProofCore:
         await asyncio.gather(self.airwallex.close(), self.ledger.close())
 
     async def verify(self, state: TreasuryState, selected: list[str], eligible: set[str],
-                     decisions: list[ObligationDecision], stress_minor: int, low_confidence: bool) -> GateResult:
+                     decisions: list[ObligationDecision], stress_minor: int) -> GateResult:
         started = perf_counter()
         by_id = {o.obligation_id: o for o in state.obligations}
         base = state.base_currency
@@ -90,7 +90,7 @@ class ProofCore:
 
         conversion_cost = sum(c.estimated_sell_minor for c in proj.conversions)
         escalations = [d.obligation_id for d in decisions if d.action == "ESCALATE"]
-        inp = local_policy.policy_input(state, conversion_cost, escalations, low_confidence)
+        inp = local_policy.policy_input(state, conversion_cost, escalations)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         stages.append(await self._balance_stage(state, proj.conversions))

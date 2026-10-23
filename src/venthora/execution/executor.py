@@ -153,7 +153,7 @@ class Executor:
                            f"{fmt(recon.managed_after_minor.get(base, 0), base)} >= {fmt(recon.base_floor_minor, base)}")
                 if recon.plan_variance_minor:
                     message += ("; variance vs plan " + ", ".join(fmt(v, c) for c, v in sorted(recon.plan_variance_minor.items()))
-                                + " (actual Airwallex fees; learned for the next plan)")
+                                + " (actual Airwallex amounts: fees and rounding; fees are learned for the next plan)")
                 over = {c: v for c, v in recon.managed_after_minor.items() if v < 0}
                 if over:
                     message += "; budget exceeded by " + ", ".join(fmt(-v, c) for c, v in sorted(over.items()))
@@ -327,6 +327,14 @@ class Executor:
             steps.append(Step(kind="beneficiary", key=internal_id, status="FAILED", detail={"reason": "not registered"}))
             raise Halt("FAILED", f"beneficiary {internal_id} is not in the approved payee registry")
         try:
+            # Guide: check the corridor schema before building a payload, validate over REST, then create.
+            schema = await self.bank.beneficiary_schema(entry["payload"])
+            missing = missing_required(schema, entry["payload"])
+            if schema.get("errors") or missing:
+                steps.append(Step(kind="beneficiary", key=internal_id, status="FAILED",
+                                  detail={"schema_errors": schema.get("errors"), "missing_required": missing}))
+                raise Halt("FAILED", f"beneficiary {internal_id} does not satisfy the corridor schema: {missing}")
+            await self.bank.validate_beneficiary(entry["payload"])
             airwallex_id = await self.bank.create_beneficiary(entry["payload"])
         except AirwallexError as exc:
             steps.append(Step(kind="beneficiary", key=internal_id, status="FAILED",
@@ -414,6 +422,23 @@ class Executor:
             except AirwallexError:
                 return None
         return None
+
+
+def missing_required(schema: dict, payload: dict) -> list[str]:
+    """Dotted fields the corridor schema marks required+relevant that the payload does not carry."""
+    prefix = "create_beneficiary_request."
+    missing = []
+    for key, rule in (schema.get("schema") or {}).items():
+        if not (rule.get("required") and rule.get("relevant")) or not key.startswith(prefix):
+            continue
+        node = payload
+        for part in key[len(prefix):].split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+            if node is None:
+                break
+        if node in (None, "", [], {}):
+            missing.append(key[len(prefix):])
+    return sorted(missing)
 
 
 def _payout_key(o) -> str:

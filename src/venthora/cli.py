@@ -31,6 +31,7 @@ from .data.ecb import ecb_path
 from .domain.models import TreasuryState
 from .domain.money import fmt
 from .engines.llm_planner import llm_proposal, naive_proposal
+from .evidence.explain import explain_exceptions
 from .evidence.llm import ChatModel
 from .evidence.reader import InboxMessage, read_inbox
 from .execution.executor import Executor
@@ -95,6 +96,31 @@ def print_plan(plan, *, counterfactuals: bool = True) -> None:
             print(f"    {'✓' if c.feasible else '✗'} {c.question:<48} {c.consequence}")
 
 
+async def print_exception_notes(state, plan, model) -> list[dict]:
+    notes = await explain_exceptions(state, plan, model)
+    if notes:
+        print("\n  notes for the person who decides each escalation:")
+    for n in notes:
+        print(f"    {n['obligation_id']} [{n['author']}]: {n['note']}")
+    return notes
+
+
+def print_reading(reading) -> None:
+    print(f"  {reading.stage.summary}; embargoed: {reading.stage.details['embargoed']}")
+    for u in reading.updates:
+        print(f"  {'VERIFIED' if u.verified else 'UNVERIFIED'} ({u.reader}) {u.receivable_id}: "
+              f"{u.previous_expected_in_hours}h/{u.previous_confidence_bp / 100:.0f}% -> "
+              f"{u.new_expected_in_hours}h/{u.new_confidence_bp / 100:.0f}%, 90% window {u.arrival_window_hours}h")
+        print(f"     cites {u.doc_id}[{u.span_start}:{u.span_end}]: \"{u.quote}\"")
+        print(f"     calibration: {u.calibration}")
+        for p in u.problems:
+            print(f"     problem: {p}")
+    for f in reading.flags:
+        print(f"  POLICY EXCEPTION ({'verified' if f.verified else 'UNVERIFIED, still escalated'}, {f.reader}) "
+              f"{f.obligation_id} / {f.payee}: {f.flag}")
+        print(f"     cites {f.doc_id}[{f.span_start}:{f.span_end}]: \"{f.quote}\"")
+
+
 async def challenge(agent: Orchestrator, state: TreasuryState, plan, model: ChatModel) -> list[dict]:
     """Run outside recommendations through the same gate and compare them with the plan."""
     out = []
@@ -135,12 +161,11 @@ def remember_env(name: str, value: str) -> None:
 
 async def usd_global_account(bank: Airwallex, *, fake: bool) -> str:
     """A Global Account that receives USD: configured, found, or created (guide: list first)."""
-    if fake:
-        return "ga-usd-1"
     # A simulated deposit lands in the account's PRIMARY currency (required_features), even if the
     # account also accepts other currencies by SWIFT (observed: a USD deposit to an HK account
     # arrived as HKD). So only an account whose required feature is USD qualifies.
-    configured = env("AIRWALLEX_GLOBAL_ACCOUNT_ID")
+    configured = "" if fake else env("AIRWALLEX_GLOBAL_ACCOUNT_ID")
+    save = (lambda *_: None) if fake else remember_env  # a fake run never writes the real .env
     accounts = await bank.list_global_accounts()
 
     def primary_usd(a: dict) -> bool:
@@ -149,17 +174,17 @@ async def usd_global_account(bank: Airwallex, *, fake: bool) -> str:
 
     for account in accounts:
         if primary_usd(account) and (not configured or account["id"] == configured):
-            remember_env("AWX_GLOBAL_ACCOUNT_ID", account["id"])
+            save("AWX_GLOBAL_ACCOUNT_ID", account["id"])
             return account["id"]
     if configured:
         print(f"  configured Global Account {configured} is not a USD account; looking for or creating one")
     for account in accounts:
         if primary_usd(account):
-            remember_env("AWX_GLOBAL_ACCOUNT_ID", account["id"])
+            save("AWX_GLOBAL_ACCOUNT_ID", account["id"])
             return account["id"]
     created = await bank.create_global_account(request_id=str(uuid.uuid4()), country_code="US", currency="USD")
     print(f"  created USD Global Account {created['id']} (status {created.get('status')})")
-    remember_env("AWX_GLOBAL_ACCOUNT_ID", created["id"])
+    save("AWX_GLOBAL_ACCOUNT_ID", created["id"])
     return created["id"]
 
 
@@ -212,6 +237,8 @@ async def simulate_receipt(bank: Airwallex, state: TreasuryState, store: Executi
     data["evidence"].append({"ref": f"airwallex:deposit:{deposit['id']}", "subject_id": r.receivable_id,
                              "source": "airwallex:deposits", "status": "verified",
                              "summary": f"deposit {deposit['id']} SETTLED at {deposit.get('settled_at')}"})
+    live = await bank.balances_minor()  # guide: re-read balances after a deposit before recalculating
+    print(f"  re-read balances: live {r.currency} wallet {fmt(live.get(r.currency, 0), r.currency)}")
     print(f"  receipt confirmed by Airwallex (SETTLED {deposit.get('settled_at', '')}): managed {r.currency} budget "
           f"+{fmt(r.amount_minor, r.currency)}, {r.receivable_id} settled")
     return TreasuryState.model_validate(data), deposit | {"landed": True, "receivable_id": r.receivable_id,
@@ -233,7 +260,8 @@ async def run(args) -> int:
 
     if args.fake:
         from .testing.fake_airwallex import FakeAirwallex
-        fake = FakeAirwallex()
+        # Like the real sandbox: a large pre-funded wallet, guide fees; the agent plans on its ring-fenced budget.
+        fake = FakeAirwallex(balances={"USD": "10000000", "EUR": "10000000", "GBP": "10000000"})
         client = httpx.AsyncClient(base_url=SANDBOX_URL, transport=httpx.MockTransport(fake.handler))
         import os
         os.environ.setdefault("AIRWALLEX_CLIENT_ID", "fake-sandbox")
@@ -266,36 +294,48 @@ async def run(args) -> int:
         for note in facts:
             print(f"  learned from earlier executions: {note}")
 
-        if args.inbox:
-            line("2 · read the inbox (LLM proposes, Verity verifies)")
-            box = json.loads(Path(args.inbox).read_text(encoding="utf-8"))
-            as_of = dt.date.fromisoformat(box.get("as_of") or str(dt.date.today()))
-            reading = await read_inbox(state, [InboxMessage(**m) for m in box["messages"]], as_of=as_of, model=model)
-            state = reading.state
-            print(f"  {reading.stage.summary}; embargoed: {reading.stage.details['embargoed']}")
-            for u in reading.updates:
-                print(f"  {'VERIFIED' if u.verified else 'UNVERIFIED'} ({u.reader}) {u.receivable_id}: "
-                      f"{u.previous_expected_in_hours}h/{u.previous_confidence_bp / 100:.0f}% -> "
-                      f"{u.new_expected_in_hours}h/{u.new_confidence_bp / 100:.0f}%")
-                print(f"     cites {u.doc_id}[{u.span_start}:{u.span_end}]: \"{u.quote}\"")
-                for p in u.problems:
-                    print(f"     problem: {p}")
-            report["evidence"] = [u.model_dump() for u in reading.updates]
-
         if ecb.is_file() and not args.no_fx_stress:
             state = state.model_copy(update={"use_ecb_stress": True, "fx_stress_model": "horizon_m0"})
 
-        line("3 · plan and prove (Verity · Horizon · Theorem · ProofCore)")
+        box = json.loads(Path(args.inbox).read_text(encoding="utf-8")) if args.inbox else None
+        timeline = (box.get("timeline") or [box.get("as_of") or str(dt.date.today())]) if box else []
+        report["plans"], report["evidence"] = [], []
+        plan = None
+
+        async def read(as_of_text: str, title: str):
+            line(title)
+            reading = await read_inbox(state, [InboxMessage(**m) for m in box["messages"]],
+                                       as_of=dt.date.fromisoformat(as_of_text), model=model)
+            print_reading(reading)
+            report["evidence"].append({"as_of": as_of_text, "updates": [u.model_dump() for u in reading.updates],
+                                       "flags": [f.model_dump() for f in reading.flags]})
+            return reading.state
+
+        # Initial plan: what the inbox says on day 1.
+        if timeline:
+            state = await read(timeline[0], f"2 · read the inbox as of {timeline[0]} (LLM proposes, Verity verifies)")
+        line("3 · initial plan and proof (Verity · Horizon · Theorem · ProofCore)")
         plan = await agent.decide(state)
         print_plan(plan)
-        report["plans"] = [plan.model_dump(mode="json")]
+        report["exception_notes"] = await print_exception_notes(state, plan, model)
+        report["plans"].append(plan.model_dump(mode="json"))
 
         if not args.no_challenge:
             line("3b · AI challenger: other recommendations through the same gate")
             report["challenges"] = await challenge(agent, state, plan, model)
 
+        # New information: later messages change the forecast; recalculate only what they affect.
+        for day in timeline[1:]:
+            previous_state = state
+            state = await read(day, f"4 · new information as of {day}")
+            line("4b · revised decision (only affected decisions recalculated)")
+            plan = await agent.decide(state, previous=(previous_state, plan))
+            print_plan(plan, counterfactuals=True)
+            report["exception_notes"] = await print_exception_notes(state, plan, model)
+            report["plans"].append(plan.model_dump(mode="json"))
+
         if args.receipt:
-            line("4 · simulate the delayed receipt landing, then recalculate only what it affects")
+            line("5 · simulate the delayed receipt landing, then recalculate only what it affects")
             previous_state = state
             state, deposit = await simulate_receipt(bank, state, executor.store, fake=args.fake,
                                                     poll_s=0 if args.fake else 1.0)
@@ -312,7 +352,7 @@ async def run(args) -> int:
             print("\n  nothing to execute: the plan moves no money (escalations go to a person)")
             return 0
 
-        line("5 · approval (a person decides; the plan_hash binds the approval)")
+        line("6 · approval (a person decides; the plan_hash binds the approval)")
         approval = None
         if plan.decision == "REQUIRES_APPROVAL":
             name = args.approve or (input("  Approver name (finance_manager), blank to stop: ").strip()
@@ -327,7 +367,7 @@ async def run(args) -> int:
                 print("  not executed")
                 return 0
 
-        line("6 · execute on Airwallex and reconcile")
+        line("7 · execute on Airwallex and reconcile")
         result = await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash, approval=approval))
         for s in result.steps:
             ident = s.airwallex_id or s.request_id or ""

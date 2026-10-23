@@ -18,13 +18,13 @@ from venthora.testing.fake_airwallex import REAL_SANDBOX_FEES, FakeAirwallex
 
 
 def test_observed_fee_overrides_the_kit_flat_fee():
-    s = scenario("kit01_baseline")
+    s = scenario("kit01_initial")
     s["policy"]["payout_fees_minor"] = {"SWIFT:EUR": 1337, "LOCAL:USD": 300}
     state = TreasuryState.model_validate(s)
     by_id = {o.obligation_id: o for o in state.obligations}
     assert obligation_needs(by_id["SUPPLIER-EU"], state) == {"EUR": 401_337}
-    assert obligation_needs(by_id["PAYROLL-USD"], state) == {"USD": 800_300}
-    assert obligation_needs(by_id["VENDOR-UK"], state) == {"GBP": 300_000}  # unknown LOCAL GBP fee: none assumed
+    assert obligation_needs(by_id["PAYROLL-NOV"], state) == {"USD": 800_300}
+    assert obligation_needs(by_id["SHIPPING-UK"], state) == {"GBP": 250_000}  # LOCAL GBP fee not yet observed
 
 
 def run_cycle(fake, store, audit, state):
@@ -48,19 +48,21 @@ def test_real_fees_show_as_variance_then_are_learned(tmp_path, monkeypatch):
     fake = FakeAirwallex(balances={"USD": "10000000", "EUR": "10000000", "GBP": "10000000"})  # like the real sandbox
     fake.fees = dict(REAL_SANDBOX_FEES)
     store, audit = ExecutionStore(str(tmp_path / "x.db")), AuditStore(str(tmp_path / "a.db"))
-    state = TreasuryState.model_validate(scenario("kit01_baseline"))
+    state = TreasuryState.model_validate(scenario("kit01_initial"))
 
     _, _, first = run_cycle(fake, store, audit, state)
     assert first.status == "COMPLETED" and first.reconciliation.discrepancies_minor == {}
-    # Plan assumed EUR 12.85 SWIFT and free LOCAL; Airwallex charged EUR 13.37 and USD 3.00 x2.
-    # USD: -600 of fees, +1 because the booked conversion cost a cent less than the rounded-up estimate.
-    assert first.reconciliation.plan_variance_minor == {"EUR": -52, "USD": -599}
-    assert "budget exceeded by EUR 0.52" in first.message
-    assert store.observed_fees() == {"SWIFT:EUR": 1337, "LOCAL:USD": 300}
+    # Plan assumed the guide's fees (EUR 12.85 SWIFT, LOCAL free); Airwallex charged EUR 13.37, USD 3.00, GBP 2.24.
+    # USD: -300 of fee, +1 because the booked EUR conversion cost a cent less than the rounded-up estimate.
+    assert first.reconciliation.plan_variance_minor == {"EUR": -52, "GBP": -224, "USD": -299}
+    assert "budget exceeded by EUR 0.52, GBP 2.24" in first.message
+    assert store.observed_fees() == {"SWIFT:EUR": 1337, "LOCAL:USD": 300, "LOCAL:GBP": 224}
 
     # Next cycle: paid invoices are settled (not re-proposed) and the learned fees are planned for.
     planned, plan, _ = run_cycle(fake, store, audit, state)
     kinds = {o.obligation_id: o.record_kind for o in planned.obligations}
-    assert kinds["PAYROLL-USD"] == kinds["SUPPLIER-EU"] == kinds["SAAS-USD"] == "settled"
-    assert planned.policy.payout_fees_minor["SWIFT:EUR"] == 1337
-    assert not any(d.obligation_id == "PAYROLL-USD" and d.action == "PAY" for d in plan.obligations)
+    assert kinds["PAYROLL-NOV"] == kinds["SHIPPING-UK"] == kinds["SUPPLIER-EU"] == "settled"
+    assert planned.policy.payout_fees_minor == {"SWIFT:EUR": 1337, "LOCAL:USD": 300, "LOCAL:GBP": 224}
+    assert not any(d.obligation_id == "PAYROLL-NOV" and d.action == "PAY" for d in plan.obligations)
+    # The book's budget continues from the reconciliation, never from the original allocation.
+    assert planned.balances["USD"] == first.reconciliation.managed_after_minor["USD"]

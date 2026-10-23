@@ -179,12 +179,16 @@ class ExecutionStore:
         with self._lock, self._connect() as c:
             return {r["fee_key"]: r["fee_minor"] for r in c.execute("SELECT fee_key, fee_minor FROM observed_fees")}
 
-    def last_managed_budget(self) -> tuple[str, dict[str, int]] | None:
-        """(execution_id, managed budget after) of the most recent reconciled execution."""
+    def last_managed_budget(self, book_id: str = "default") -> tuple[str, dict[str, int]] | None:
+        """(execution_id, managed budget after) of the most recent reconciled execution of this book."""
         with self._lock, self._connect() as c:
-            rows = c.execute("SELECT execution_id, result_json FROM executions WHERE result_json IS NOT NULL"
+            rows = c.execute("SELECT execution_id, request_json, result_json FROM executions WHERE result_json IS NOT NULL"
                              " ORDER BY updated_at DESC").fetchall()
         for r in rows:
+            request = json.loads(r["request_json"]) or {}
+            state = ((request.get("request") or {}).get("state") or {})
+            if state.get("book_id", "default") != book_id:
+                continue
             recon = (json.loads(r["result_json"]) or {}).get("reconciliation") or {}
             if recon.get("managed_after_minor"):
                 return r["execution_id"], recon["managed_after_minor"]
