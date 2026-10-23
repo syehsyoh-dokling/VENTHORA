@@ -1,12 +1,14 @@
 # ruff: noqa: E501
 """Prove policy/treasury.rego and proofcore/policy.py agree, using a real OPA (Docker).
 
-Run: python scripts/check_policy_mirror.py
-Evaluates both on a grid of inputs (confidence None/0..10000, limits, roles, escalations) and
-exits non-zero on the first disagreement.
+Run: python scripts/check_policy_mirror.py            (Docker image openpolicyagent/opa)
+     OPA_BIN=/path/to/opa python scripts/check_policy_mirror.py   (official OPA binary, no Docker)
+Evaluates both on a grid of inputs (confidence None/0..10000, limits, roles, escalations, breach
+probabilities, and every budget-line threshold) and exits non-zero on the first disagreement.
 """
 import itertools
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -19,13 +21,21 @@ IMAGE = "openpolicyagent/opa:0.70.0"
 
 
 def opa_eval(inputs: list[dict]) -> list[dict]:
+    """Evaluate with a real OPA: the official binary when OPA_BIN points at it, else the Docker image."""
     (ROOT / "data" / "runs").mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=ROOT / "data" / "runs") as tmp:  # a plain path Docker can mount
         tmp_path = Path(tmp)
         (tmp_path / "inputs.json").write_text(json.dumps(inputs), encoding="utf-8")
         query = "[d | i := input[_]; d := data.venthora.treasury.decision with input as i]"
-        cmd = ["docker", "run", "--rm", "-v", f"{ROOT / 'policy'}:/policy:ro", "-v", f"{tmp_path}:/in:ro", IMAGE,
-               "eval", "-d", "/policy/treasury.rego", "-i", "/in/inputs.json", "--format", "json", query]
+        opa_bin = os.environ.get("OPA_BIN")
+        if opa_bin:
+            cmd = [opa_bin, "eval", "-d", str(ROOT / "policy" / "treasury.rego"), "-i", str(tmp_path / "inputs.json"),
+                   "--format", "json", query]
+            print(f"OPA: {opa_bin} ({subprocess.run([opa_bin, 'version'], capture_output=True, text=True).stdout.splitlines()[0]})")
+        else:
+            cmd = ["docker", "run", "--rm", "-v", f"{ROOT / 'policy'}:/policy:ro", "-v", f"{tmp_path}:/in:ro", IMAGE,
+                   "eval", "-d", "/policy/treasury.rego", "-i", "/in/inputs.json", "--format", "json", query]
+            print(f"OPA: docker image {IMAGE}")
         out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
         return json.loads(out)["result"][0]["expressions"][0]["value"]
 

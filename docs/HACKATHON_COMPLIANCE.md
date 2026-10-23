@@ -75,7 +75,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | 49 | After a deposit, recalculate only the decisions it affects | ✅🧪 | incremental recalculation with locked decisions and a diff |
 | 50 | Execution limit tied to forecast confidence; strong data allows a larger autonomous conversion | ✅🧪 | limit = full at ≥90%, linear to 0 at ≤50% |
 | 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions; a contradicted forecast is capped below the full band whatever the payer record (audit mutation M6) |
-| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 990 inputs under a real OPA (`scripts/check_policy_mirror.py`) |
+| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 7,638 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
 | 53 | Read balances and obligations | ✅ | `GET /balances/current`; scenario obligations |
 | 54 | Plan in code | ✅ | Theorem (CP-SAT + exact second candidate) |
 | 55 | Lower forecast confidence for one receipt | ✅ | RCV-ACME 90% → 70% (calibrated from payer history) |
@@ -192,7 +192,7 @@ counts only when a person signed it. Obligations name their line (intake-created
 | Rule | Where |
 |---|---|
 | Theorem never proposes more than mandate − realized on a line; what no longer fits is ESCALATED with a **budget request** stating the exact shortfall and the obligations behind it | `engines/theorem.py` line caps, `proofcore/budget.py` |
-| Above the auto share, above the mandate, an alert that demands a person, an unsigned bypass, an unbudgeted obligation → `REQUIRES_APPROVAL` with the reason code | `proofcore/policy.py::budget_reasons` mirrored in `policy/treasury.rego` (OPA grid extended) |
+| Above the auto share, above the mandate, an alert that demands a person, an unsigned bypass, an unbudgeted obligation → `REQUIRES_APPROVAL` with the reason code | `proofcore/policy.py::budget_reasons` mirrored in `policy/treasury.rego`; proven on a real OPA 0.70.0: 2,688 budget inputs around every threshold (auto share, alert, mandate, signed/unsigned bypass, unbudgeted) inside the 7,638-input grid, 0 disagreements |
 | An alert is raised at the threshold even when the plan stays autonomous (a notification, in the plan, the CLI and the dashboard) | stage `Budget · mandate`, `PlanResult.budget.alerts` |
 | Realized spend per line comes from money that actually left (recorded at reconciliation), granted mandate from a role-checked, audited grant; both feed the next plan | `execution/store.py` (`budget_spend`, `budget_grants`), `execution/facts.py`, `POST /v1/budgets/{period}/{line}/grant` |
 | Pipeline per line: plan · granted · realized · paying now · still owed · available · minus · utilisation · status | dashboard section `Budget · mandate`, `GET /api/budget` |
