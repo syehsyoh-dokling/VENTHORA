@@ -56,6 +56,10 @@ async def run(args) -> int:
 
     line("2 · the queue becomes part of the book (verified = payable; everything else visible, unpayable)")
     state = intake.to_state(base, as_of=as_of)
+    if args.fresh:
+        from ..execution.fresh import fresh_book, fresh_tag
+        state = fresh_book(state, fresh_tag())
+        print(f"  fresh book {state.book_id}: new obligation ids and invoice fingerprints, same amounts and evidence")
     added = [o for o in state.obligations if o.obligation_id.startswith("REQ-")]
     for o in added:
         ev = next(e for e in state.evidence if e.ref == o.evidence_ref)
@@ -148,6 +152,7 @@ def main() -> None:
     ap.add_argument("--fake", action="store_true", help="in-process fake sandbox")
     ap.add_argument("--execute", action="store_true")
     ap.add_argument("--receipt", action="store_true", help="simulate the verified remittance landing, then re-plan")
+    ap.add_argument("--fresh", action="store_true", help="run as a fresh book (new ids and fingerprints) to repeat the cycle")
     ap.add_argument("--approve", metavar="NAME")
     sys.stdout.reconfigure(encoding="utf-8")
     raise SystemExit(asyncio.run(run(ap.parse_args())))

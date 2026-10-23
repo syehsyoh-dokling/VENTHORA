@@ -36,6 +36,7 @@ from .evidence.llm import ChatModel
 from .evidence.reader import InboxMessage, read_inbox
 from .execution.executor import Executor, terms_digest
 from .execution.facts import apply_operational_facts
+from .execution.fresh import fresh_book, fresh_id, fresh_tag
 from .execution.incidents import IncidentCommander, IncidentRequest
 from .execution.live import with_live_balances_and_rates
 from .execution.models import Approval, ExecutionRequest
@@ -303,6 +304,13 @@ async def run(args) -> int:
     load_env()
     scenario = json.loads((ROOT / "data" / "scenarios" / f"{args.scenario}.json").read_text(encoding="utf-8"))
     state = attach_budget(TreasuryState.model_validate(scenario["state"]))  # the period's plan = the agent's mandate
+    if args.fresh:  # the same scenario under new ids, so the cycle can be repeated on the real sandbox
+        tag = fresh_tag()
+        state = fresh_book(state, tag)
+        if args.incident:
+            parts = args.incident.split(":")
+            args.incident = ":".join([fresh_id(parts[0], state), *parts[1:]])
+        print(f"  fresh book {state.book_id}: new obligation ids and invoice fingerprints, same amounts and evidence")
     model = ChatModel()
 
     line("VENTHORA · engines")
@@ -471,6 +479,8 @@ def main() -> None:
     ap.add_argument("--plan-only", action="store_true")
     ap.add_argument("--no-fx-stress", action="store_true", help="skip Horizon FX stress")
     ap.add_argument("--no-challenge", action="store_true", help="skip the AI-challenger demo")
+    ap.add_argument("--fresh", action="store_true",
+                    help="run the scenario as a fresh book (new obligation ids and invoice fingerprints), e.g. to repeat a cycle")
     ap.add_argument("--incident", metavar="OBLIGATION[:FAILURE_TYPE[:HOURS]]",
                     help="Kit 03: after execution, fail that transfer on the sandbox and let the agent decide")
     sys.stdout.reconfigure(encoding="utf-8")
