@@ -1,0 +1,54 @@
+{
+  "title": "Kit 01 - Baseline: five obligations, three currencies, 72 hours",
+  "story": "USD 20,000 in the wallet, a USD 5,000 reserve floor, payroll, a SWIFT supplier in EUR, a UK vendor in GBP, a SaaS bill, and a resubmitted duplicate invoice. A USD 10,000 customer receipt is expected in 24 hours with high confidence.",
+  "state": {
+    "case_id": "kit01-baseline",
+    "base_currency": "USD",
+    "balances": {"USD": 2000000, "EUR": 0, "GBP": 0},
+    "fx_to_base": {"EUR": "1.0850", "GBP": "1.2700"},
+    "obligations": [
+      {"obligation_id": "PAYROLL-USD", "amount_minor": 800000, "currency": "USD", "priority": 10, "due_in_hours": 24,
+       "beneficiary_id": "payroll-group-us", "evidence_ref": "doc-payroll-oct"},
+      {"obligation_id": "SUPPLIER-EU", "amount_minor": 400000, "currency": "EUR", "priority": 9, "due_in_hours": 48,
+       "beneficiary_id": "ben-eu-components", "payout_method": "SWIFT", "evidence_ref": "doc-inv-eu-0417",
+       "invoice_fingerprint": "eu-components:INV-2026-0417"},
+      {"obligation_id": "SUPPLIER-EU-RESENT", "amount_minor": 400000, "currency": "EUR", "priority": 9, "due_in_hours": 48,
+       "beneficiary_id": "ben-eu-components", "payout_method": "SWIFT", "evidence_ref": "doc-inv-eu-0417-resent",
+       "invoice_fingerprint": "eu-components:INV-2026-0417"},
+      {"obligation_id": "VENDOR-UK", "amount_minor": 300000, "currency": "GBP", "priority": 5, "due_in_hours": 72,
+       "beneficiary_id": "ben-uk-logistics", "evidence_ref": "doc-inv-uk-88"},
+      {"obligation_id": "SAAS-USD", "amount_minor": 120000, "currency": "USD", "priority": 3, "due_in_hours": 72,
+       "beneficiary_id": "ben-saas-vendor", "evidence_ref": "doc-inv-saas-q4"}
+    ],
+    "receivables": [
+      {"receivable_id": "RCV-ACME", "payer": "Acme Retail Ltd", "amount_minor": 1000000, "currency": "USD",
+       "expected_in_hours": 24, "confidence_bp": 9000, "evidence_ref": "doc-acme-remittance"}
+    ],
+    "evidence": [
+      {"ref": "doc-payroll-oct", "subject_id": "PAYROLL-USD", "source": "hris:payroll-run-2026-10", "status": "verified",
+       "summary": "Approved October payroll run"},
+      {"ref": "doc-inv-eu-0417", "subject_id": "SUPPLIER-EU", "source": "ap:invoice", "status": "verified",
+       "summary": "Invoice INV-2026-0417, PO matched"},
+      {"ref": "doc-inv-eu-0417-resent", "subject_id": "SUPPLIER-EU-RESENT", "source": "email:ap-inbox", "status": "verified",
+       "summary": "Same invoice re-sent by email"},
+      {"ref": "doc-inv-uk-88", "subject_id": "VENDOR-UK", "source": "ap:invoice", "status": "verified",
+       "summary": "Logistics invoice 88"},
+      {"ref": "doc-inv-saas-q4", "subject_id": "SAAS-USD", "source": "ap:invoice", "status": "verified",
+       "summary": "Q4 subscription"},
+      {"ref": "doc-acme-remittance", "subject_id": "RCV-ACME", "source": "email:customer", "status": "verified",
+       "summary": "Remittance advice: paying tomorrow"}
+    ],
+    "scenarios": [{"name": "unplanned_card_spend", "unexpected_outflow_minor": 100000}],
+    "policy": {
+      "reserve_floor_minor": 500000,
+      "min_receivable_confidence_bp": 8000,
+      "autonomous_conversion_limit_minor": 500000,
+      "low_confidence_conversion_limit_minor": 250000,
+      "swift_fee_currency": "EUR",
+      "swift_fee_minor": 1285,
+      "planning_horizon_hours": 72,
+      "approver_roles": ["finance_manager"]
+    },
+    "actor_role": "treasury_agent"
+  }
+}

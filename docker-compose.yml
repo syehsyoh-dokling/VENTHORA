@@ -1,0 +1,20 @@
+services:
+  venthora:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OPA_URL: http://opa:8181
+    volumes:
+      - ./data:/app/data
+    depends_on: [opa]
+
+  opa:
+    image: openpolicyagent/opa:0.70.0
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "/policy/treasury.rego"]
+    volumes:
+      - ./policy:/policy:ro
+    expose: ["8181"]
