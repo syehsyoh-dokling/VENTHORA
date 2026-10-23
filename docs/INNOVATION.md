@@ -142,6 +142,19 @@ The gate refuses what is unsafe, not what comes from an AI. Even when every mode
 paying, VENTHORA keeps the authority to refuse.
 *Code:* `engines/llm_planner.py`, `POST /v1/plans/challenge`.
 
+### D. The organisation's plan is the agent's mandate (Budget · mandate)
+
+An agent with a budget is a different object from an agent with an account. The monthly or quarterly plan, line by
+line, is the mandate: Theorem never proposes more than a line can still fund (mandate − realized, as a hard constraint
+in CP-SAT and in the exact second candidate); what no longer fits is escalated **as a budget request with the exact
+shortfall, the obligations behind it and their evidence**, so the agent asks for mandate the way a controller would,
+and a person — never the agent — grants it (role-checked, hash-chained). Three thresholds per line decide when a
+person is needed, in code and in Rego: the share spendable autonomously, an alert threshold that notifies (and can be
+made a hard stop), and the mandate itself; a bypass counts only when signed. The pipeline per line — plan, granted,
+realized (money that actually left), paying now, still owed, available, minus — is derived from the book and the
+execution store, never typed in. Real-sandbox cycle 8 runs it end to end: pay inside the line, stop at it, grant,
+continue, alert at 98%.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

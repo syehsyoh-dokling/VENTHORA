@@ -182,6 +182,25 @@ through the live service with live balances read for every plan, and the 7 execu
 fake-only with the reason recorded. The real rail found one more product bug (a follow-up on a replaced incident opened a
 second incident on the replacement), fixed and tested.
 
+## (9) Budget · mandate: the organisation's plan is the agent's mandate
+
+The guide's "amounts, limits, reserves … in code" and "the agent acts within its mandate", made concrete: `data/budgets.json`
+holds the monthly / quarterly plan per line (`payroll`, `logistics`, `suppliers`, `contractors`, `saas`) with the share the
+agent may spend on its own (`auto_share`), an alert threshold (`alert_share`, optionally a hard stop), and a `bypass` that
+counts only when a person signed it. Obligations name their line (intake-created ones inherit it from the payee registry).
+
+| Rule | Where |
+|---|---|
+| Theorem never proposes more than mandate − realized on a line; what no longer fits is ESCALATED with a **budget request** stating the exact shortfall and the obligations behind it | `engines/theorem.py` line caps, `proofcore/budget.py` |
+| Above the auto share, above the mandate, an alert that demands a person, an unsigned bypass, an unbudgeted obligation → `REQUIRES_APPROVAL` with the reason code | `proofcore/policy.py::budget_reasons` mirrored in `policy/treasury.rego` (OPA grid extended) |
+| An alert is raised at the threshold even when the plan stays autonomous (a notification, in the plan, the CLI and the dashboard) | stage `Budget · mandate`, `PlanResult.budget.alerts` |
+| Realized spend per line comes from money that actually left (recorded at reconciliation), granted mandate from a role-checked, audited grant; both feed the next plan | `execution/store.py` (`budget_spend`, `budget_grants`), `execution/facts.py`, `POST /v1/budgets/{period}/{line}/grant` |
+| Pipeline per line: plan · granted · realized · paying now · still owed · available · minus · utilisation · status | dashboard section `Budget · mandate`, `GET /api/budget` |
+
+Ground truth: 20 hand-derived cases (`scripts/make_budget_groundtruth.py`), 20/20 in-process, through the endpoints and
+through the form; real sandbox cycle 8 ran the mandate end to end (pay inside the line, stop at it with a request, grant,
+continue, alert near the end).
+
 ## Not applicable to this build
 
 - **#14, #16–18, #23, #25–26, #28–29** (MCP setup and MCP-only tools): VENTHORA uses REST behind typed methods, which the guide allows (#17, #24).

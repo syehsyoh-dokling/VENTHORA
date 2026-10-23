@@ -1,0 +1,115 @@
+{
+ "generated_at": "2026-10-23T09:53:36.081283+00:00",
+ "book": "budget-real-165336",
+ "runs": [
+  {
+   "run": "run 1: plan and pay inside the line",
+   "facts": [
+    "observed Airwallex fees: LOCAL:GBP GBP 2.24, LOCAL:USD USD 3.00, SWIFT:EUR EUR 13.41",
+    "budget BUD-165336: suppliers USD 0.00 realized of USD 5,000.00"
+   ],
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "ESCALATE"
+   },
+   "line": {
+    "mandate_minor": 500000,
+    "realized_minor": 0,
+    "paying_now_minor": 300300,
+    "committed_minor": 300300,
+    "available_minor": 199700,
+    "minus_minor": 100600,
+    "utilisation_bp": 6006,
+    "status": "auto"
+   },
+   "alerts": [],
+   "requests": [
+    "line 'suppliers' cannot fund what is still owed: mandate 500000, used 300300, owed 300300; a grant of 100600 would cover it"
+   ],
+   "requires_approval": [],
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 16,997.00 >= USD 5,000.00",
+    "transfers": [
+     "56bc82bc-3726-48e6-abc3-162fee41fd37"
+    ]
+   }
+  },
+  {
+   "run": "run 2: realized spend now on the line",
+   "facts": [
+    "observed Airwallex fees: LOCAL:GBP GBP 2.24, LOCAL:USD USD 3.00, SWIFT:EUR EUR 13.41",
+    "budget carried forward from execution 731a0d10: EUR 0.00, GBP 0.00, USD 16,997.00",
+    "BUD-O1-165336 already paid (transfer 56bc82bc-3726-48e6-abc3-162fee41fd37)",
+    "budget BUD-165336: suppliers USD 3,003.00 realized of USD 5,000.00"
+   ],
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT",
+    "O2": "ESCALATE"
+   },
+   "line": {
+    "mandate_minor": 500000,
+    "realized_minor": 300300,
+    "paying_now_minor": 0,
+    "committed_minor": 300300,
+    "available_minor": 199700,
+    "minus_minor": 100600,
+    "utilisation_bp": 6006,
+    "status": "auto"
+   },
+   "alerts": [],
+   "requests": [
+    "line 'suppliers' cannot fund what is still owed: mandate 500000, used 300300, owed 300300; a grant of 100600 would cover it"
+   ],
+   "requires_approval": []
+  },
+  {
+   "run": "run 3: after the grant",
+   "facts": [
+    "observed Airwallex fees: LOCAL:GBP GBP 2.24, LOCAL:USD USD 3.00, SWIFT:EUR EUR 13.41",
+    "budget carried forward from execution 731a0d10: EUR 0.00, GBP 0.00, USD 16,997.00",
+    "BUD-O1-165336 already paid (transfer 56bc82bc-3726-48e6-abc3-162fee41fd37)",
+    "budget BUD-165336: suppliers USD 3,003.00 realized of USD 6,100.00 (+USD 1,100.00 granted)"
+   ],
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "REJECT",
+    "O2": "PAY"
+   },
+   "line": {
+    "mandate_minor": 610000,
+    "realized_minor": 300300,
+    "paying_now_minor": 300300,
+    "committed_minor": 0,
+    "available_minor": 9400,
+    "minus_minor": 0,
+    "utilisation_bp": 9845,
+    "status": "alert"
+   },
+   "alerts": [
+    "budget line 'suppliers' at 98% of its mandate after this plan"
+   ],
+   "requests": [],
+   "requires_approval": [],
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 13,994.00 >= USD 5,000.00",
+    "transfers": [
+     "76eaf883-ed21-4ac4-8650-fb7ec30ba08b"
+    ]
+   }
+  }
+ ],
+ "grant": {
+  "grant_id": "246cdb28-9718-4b53-a4a5-434f8d3983d8",
+  "period": "BUD-165336",
+  "line": "suppliers",
+  "extra_minor": 110000,
+  "approver": "finance manager (owner)",
+  "role": "finance_manager",
+  "note": "budget request: O2 still owed"
+ },
+ "ok": true
+}

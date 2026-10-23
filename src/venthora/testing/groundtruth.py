@@ -34,7 +34,14 @@ def plan_view(plan: dict) -> dict:
     actions = {d["obligation_id"]: d["action"] for d in plan["obligations"]}
     fails = [s["engine"] for s in plan["stages"] if s["status"] == "FAIL"]
     live = next((s["status"] for s in plan["stages"] if s["engine"] == "Airwallex · live balances"), None)
+    budget = plan.get("budget") or {}
     return {"decision": plan["decision"], "actions": actions, "live_balances": live,
+            "budget_attached": bool(budget.get("attached")),
+            "budget_status": {r["line"]: r["status"] for r in budget.get("lines", [])},
+            "budget_available": {r["line"]: r["available_minor"] for r in budget.get("lines", [])},
+            "budget_minus": {r["line"]: r["minus_minor"] for r in budget.get("lines", [])},
+            "budget_alerts": len(budget.get("alerts", [])),
+            "budget_requests": {q["line"]: 1 for q in budget.get("requests", [])},
             "paid": sorted(o for o, a in actions.items() if a in ("PAY", "CONVERT_AND_PAY")),
             "n_conversions": len(plan["conversions"]),
             "conversions": {c["buy_currency"]: c["buy_amount_minor"] for c in plan["conversions"]},

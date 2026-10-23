@@ -15,9 +15,10 @@ def forecast_confidence(state) -> int | None:
 
 
 def policy_input(state, conversion_base_minor: int, escalations: list[str],
-                 breach_probability_bp: int | None = None) -> dict:
+                 breach_probability_bp: int | None = None, budget: dict | None = None) -> dict:
     p = state.policy
     return {
+        "budget": budget or {"attached": False, "lines": [], "unbudgeted_paying": 0, "unbudgeted_requires_approval": False},
         "actor_role": state.actor_role,
         "approver_roles": p.approver_roles,
         "conversion_base_minor": conversion_base_minor,
@@ -48,5 +49,29 @@ def evaluate(inp: dict) -> dict:
     breach = inp.get("breach_probability_bp")
     if breach is not None and breach > inp["max_breach_probability_bp"]:
         reasons.append("reserve_breach_risk_above_tolerance")
-    return {"allow": inp["actor_role"] != "viewer", "requires_approval": sorted(reasons),
+    reasons += budget_reasons(inp.get("budget") or {})
+    return {"allow": inp["actor_role"] != "viewer", "requires_approval": sorted(set(reasons)),
             "conversion_limit_minor": limit, "escalations": inp["escalations"]}
+
+
+def budget_reasons(b: dict) -> list[str]:
+    """Budget · mandate, from the numbers (mirrored in Rego): a line paid beyond its autonomous share, beyond its
+    mandate, past an alert threshold that demands a person, a bypass nobody signed, an obligation outside every line."""
+    if not b.get("attached"):
+        return []
+    reasons = []
+    for ln in b["lines"]:
+        if ln["bypass_signed"]:
+            continue
+        mandate, used = ln["mandate_minor"], ln["used_minor"]
+        if used > mandate:
+            reasons.append("budget_line_exceeded")
+        if used * 10_000 > mandate * ln["auto_share_bp"]:
+            reasons.append("budget_line_above_auto_share")
+        if ln["require_approval_on_alert"] and used > 0 and used * 10_000 >= mandate * ln["alert_share_bp"]:
+            reasons.append("budget_line_alert_requires_approval")
+        if ln["bypass"] and ln["paying_now_minor"] > 0:
+            reasons.append("budget_bypass_unsigned")
+    if b.get("unbudgeted_paying", 0) > 0 and b.get("unbudgeted_requires_approval"):
+        reasons.append("unbudgeted_obligation")
+    return sorted(set(reasons))

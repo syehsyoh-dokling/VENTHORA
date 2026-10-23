@@ -47,4 +47,18 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
         if o["record_kind"] == "payable" and payout_key(o) in paid:
             o["record_kind"] = "settled"
             notes.append(f"{o['obligation_id']} already paid (transfer {paid[payout_key(o)]['transfer_id']})")
-    return TreasuryState.model_validate(data), notes
+    result = TreasuryState.model_validate(data)
+    # Budget · mandate: the period's plan with what the store knows: realized spend per line, mandate granted by a person.
+    from ..proofcore.budget import attach_budget, load_budget
+
+    period = result.budget.period if result.budget else (load_budget().period if load_budget() else None)
+    if period and (result.budget or any(o.budget_line for o in result.obligations)):
+        realized, grants = store.realized(period), store.grants(period)
+        result = attach_budget(result, period, realized=realized, grants=grants)
+        if result.budget:
+            notes.append(f"budget {period}: " + ", ".join(
+                f"{ln.line} {fmt(ln.realized_minor, result.base_currency)} realized of "
+                f"{fmt(ln.mandate_minor, result.base_currency)}"
+                + (f" (+{fmt(ln.granted_extra_minor, result.base_currency)} granted)" if ln.granted_extra_minor else "")
+                for ln in result.budget.lines))
+    return result, notes

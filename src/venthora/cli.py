@@ -42,6 +42,7 @@ from .execution.models import Approval, ExecutionRequest
 from .execution.store import ExecutionStore
 from .gateways.airwallex import SANDBOX_URL, Airwallex, to_minor
 from .orchestrator import Orchestrator
+from .proofcore.budget import attach_budget
 from .proofcore.gate import ProofCore
 
 ORIGINALS = ROOT / "src" / "venthora" / "originals"
@@ -301,7 +302,7 @@ async def simulate_receipt(bank: Airwallex, state: TreasuryState, store: Executi
 async def run(args) -> int:
     load_env()
     scenario = json.loads((ROOT / "data" / "scenarios" / f"{args.scenario}.json").read_text(encoding="utf-8"))
-    state = TreasuryState.model_validate(scenario["state"])
+    state = attach_budget(TreasuryState.model_validate(scenario["state"]))  # the period's plan = the agent's mandate
     model = ChatModel()
 
     line("VENTHORA · engines")

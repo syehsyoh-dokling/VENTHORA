@@ -1,0 +1,27 @@
+{
+  "_note": "The organisation's plan per period = the agent's mandate per line (base currency minor units). auto_share_bp: the part the agent may spend on its own; alert_share_bp: utilisation at which an alert is raised (require_approval_on_alert makes it a hard stop); bypass: unlimited line, honoured only when signed. Realized spend and granted extra come from the execution store at run time.",
+  "budgets": [
+    {
+      "period": "2026-11",
+      "unbudgeted_requires_approval": true,
+      "lines": [
+        {"line": "payroll",     "amount_minor": 900000, "auto_share_bp": 10000, "alert_share_bp": 9000},
+        {"line": "logistics",   "amount_minor": 400000, "auto_share_bp": 10000, "alert_share_bp": 8000},
+        {"line": "suppliers",   "amount_minor": 700000, "auto_share_bp": 8000,  "alert_share_bp": 7000},
+        {"line": "contractors", "amount_minor": 600000, "auto_share_bp": 7000,  "alert_share_bp": 6000, "require_approval_on_alert": true},
+        {"line": "saas",        "amount_minor": 150000, "auto_share_bp": 10000, "alert_share_bp": 8000}
+      ]
+    },
+    {
+      "period": "2026-Q4",
+      "unbudgeted_requires_approval": true,
+      "lines": [
+        {"line": "payroll",     "amount_minor": 2700000, "auto_share_bp": 10000, "alert_share_bp": 9000},
+        {"line": "logistics",   "amount_minor": 1200000, "auto_share_bp": 10000, "alert_share_bp": 8000},
+        {"line": "suppliers",   "amount_minor": 2100000, "auto_share_bp": 8000,  "alert_share_bp": 7000},
+        {"line": "contractors", "amount_minor": 1800000, "auto_share_bp": 7000,  "alert_share_bp": 6000, "require_approval_on_alert": true},
+        {"line": "saas",        "amount_minor": 450000,  "auto_share_bp": 10000, "alert_share_bp": 8000}
+      ]
+    }
+  ]
+}

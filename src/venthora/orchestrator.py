@@ -181,7 +181,8 @@ class Orchestrator:
             counterfactuals=cfs, forecast_confidence_bp=forecast_confidence(state),
             conversion_limit_minor=_policy_limit(gate.stages), approval_terms=approval_terms(state, t.decisions,
                                                                                             gate.projection.conversions),
-            frame=worked, simulation=sim.as_dict(), duration_ms=(perf_counter() - started) * 1000)
+            frame=worked, simulation=sim.as_dict(), duration_ms=(perf_counter() - started) * 1000,
+            budget=next((s.details for s in gate.stages if s.engine == "Budget · mandate"), {"attached": False}))
 
 
     async def _apply_remote_evidence_and_risk(self, state, v: VerityResult, h: HorizonResult) -> list[StageResult]:
@@ -232,6 +233,19 @@ def _explain(state, t: TheoremResult, gate, stages, decision: str, base_after: i
     for d in t.decisions:
         lines.append(f"{ACTION_LABELS[d.action]} {d.obligation_id} {fmt(d.amount_minor, d.currency)}: {d.reason}.")
     lines.append(f"{base} balance after plan {fmt(base_after, base)} vs required floor {fmt(floor, base)}.")
+    pipe = next((s.details for s in gate.stages if s.engine == "Budget · mandate"), None)
+    if pipe:
+        for r in pipe["lines"]:
+            lines.append(f"Budget line '{r['line']}' ({pipe['period']}): mandate {fmt(r['mandate_minor'], base)}, realized "
+                         f"{fmt(r['realized_minor'], base)}, paying now {fmt(r['paying_now_minor'], base)}, still owed "
+                         f"{fmt(r['committed_minor'], base)}, available {fmt(r['available_minor'], base)}"
+                         + (f", MINUS {fmt(r['minus_minor'], base)}" if r["minus_minor"] else "") + f" [{r['status']}].")
+        for a in pipe["alerts"]:
+            lines.append(f"ALERT: {a['message']}.")
+        for q in pipe["requests"]:
+            lines.append(f"BUDGET REQUEST: {q['message']} (obligations {', '.join(q['obligations'])}).")
+        for u in pipe["unbudgeted"]:
+            lines.append(f"Unbudgeted: {u['obligation_id']} draws on no line of {pipe['period']}; a person must place it.")
     conf = forecast_confidence(state)
     limit = _policy_limit(gate.stages)
     conversion = sum(c.estimated_sell_minor for c in gate.projection.conversions)

@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS incidents (
     replacement_transfer_id TEXT, record_json TEXT, opened_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS beneficiaries (
     internal_id TEXT PRIMARY KEY, airwallex_id TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS budget_spend (
+    transfer_id TEXT PRIMARY KEY, period TEXT NOT NULL, line TEXT NOT NULL, obligation_id TEXT NOT NULL,
+    base_cost_minor INTEGER NOT NULL, recorded_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS budget_grants (
+    grant_id TEXT PRIMARY KEY, period TEXT NOT NULL, line TEXT NOT NULL, extra_minor INTEGER NOT NULL,
+    approver TEXT NOT NULL, role TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
 """
 
 LIVE_PAYOUT_STATUSES = ("IN_FLIGHT", "PAID")
@@ -250,6 +256,38 @@ class ExecutionStore:
             if recon.get("managed_after_minor"):
                 return r["execution_id"], recon["managed_after_minor"]
         return None
+
+    # -- budget: realized spend per line and mandate granted by a person ---------------------------
+
+    def record_spend(self, transfer_id: str, period: str, line: str, obligation_id: str, base_cost_minor: int) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("INSERT OR IGNORE INTO budget_spend VALUES (?, ?, ?, ?, ?, ?)",
+                      (transfer_id, period, line, obligation_id, base_cost_minor, _now()))
+
+    def realized(self, period: str) -> dict[str, int]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT line, SUM(base_cost_minor) AS total FROM budget_spend WHERE period = ? GROUP BY line",
+                             (period,)).fetchall()
+        return {r["line"]: int(r["total"]) for r in rows}
+
+    def grant(self, period: str, line: str, extra_minor: int, approver: str, role: str, note: str = "") -> dict:
+        grant_id = str(uuid4())
+        with self._lock, self._connect() as c:
+            c.execute("INSERT INTO budget_grants VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                      (grant_id, period, line, extra_minor, approver, role, note, _now()))
+        return {"grant_id": grant_id, "period": period, "line": line, "extra_minor": extra_minor, "approver": approver,
+                "role": role, "note": note}
+
+    def grants(self, period: str) -> dict[str, int]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT line, SUM(extra_minor) AS total FROM budget_grants WHERE period = ? GROUP BY line",
+                             (period,)).fetchall()
+        return {r["line"]: int(r["total"]) for r in rows}
+
+    def list_grants(self, period: str) -> list[dict]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT * FROM budget_grants WHERE period = ? ORDER BY created_at DESC", (period,)).fetchall()
+        return [dict(r) for r in rows]
 
     def paid_payouts(self) -> dict[str, dict]:
         with self._lock, self._connect() as c:

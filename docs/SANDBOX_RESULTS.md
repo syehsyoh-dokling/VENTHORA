@@ -137,6 +137,23 @@ the original and closes only when its terminal status, typed failure and refund 
 same incident (`test_asking_again_returns_the_same_incident_not_a_new_one_on_the_replacement`). With the fix both
 real incidents (`1027e8f3-…`, `ded29b6e-…`) were closed as RESOLVED / REPLACE; the one record the bug created was removed.
 
+## Cycle 8: Budget · mandate on the real sandbox (`python scripts/budget_real.py`)
+
+Approved by the owner as finance manager; 23 Oct 2026, 16:53 WIB. A fresh book (`budget-real-165336`) with its own
+period and one line, so realized spend starts at zero: line `suppliers`, mandate USD 5,000; O1 USD 3,000 (priority 10)
+and O2 USD 3,000 (priority 5); learned LOCAL fee USD 3.00.
+
+| Run | What the agent did | On the sandbox |
+|---|---|---|
+| 1 | O1 **PAY**, O2 **ESCALATE** — "budget line 'suppliers' cannot fund it; a budget request is raised": mandate 5,000, paying now 3,003, still owed 3,003, available 1,997, **minus 1,006** → BUDGET REQUEST for USD 1,006 | transfer `56bc82bc-…` PAID; reconciled; **realized spend 3,003 recorded on the line** |
+| 2 | the book re-planned from the store: O1 already paid (REJECT, settled), O2 still ESCALATE; the line shows realized 3,003 / available 1,997; the request stands | nothing moved |
+| grant | a finance manager grants USD 1,100 on `suppliers` (`246cdb28-…`, role-checked, audited) | — |
+| 3 | mandate 6,100 − realized 3,003 = 3,097 ≥ 3,003 → O2 **PAY**; utilisation 98% ≥ alert 80% → **ALERT** "budget line 'suppliers' at 98% of its mandate after this plan" (the line does not require approval on alert, so APPROVED) | transfer `76eaf883-…` PAID; reconciled |
+
+What this shows: the agent never proposed beyond the line (Theorem's per-line cap), said exactly how much mandate was
+missing and for which obligation, a person — not the agent — raised the mandate, and the alert fired on the way to the
+line's end. Log: `docs/budget_log_real.json`.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |

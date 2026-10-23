@@ -389,6 +389,14 @@ class Executor:
         return out
 
     async def _reconcile(self, state, plan, before, conversions, transfers, steps) -> Reconciliation:
+        # Budget · mandate: money that actually left on a line is realized spend for the period (facts.py reads it back).
+        if state.budget is not None:
+            by_id = {o.obligation_id: o for o in state.obligations}
+            cost = {d.obligation_id: d.base_cost_minor for d in plan.obligations}
+            for oid, (_key, t) in transfers.items():
+                o = by_id.get(oid)
+                if t.status == "PAID" and o is not None and o.budget_line and state.budget.line(o.budget_line):
+                    self.store.record_spend(t.transfer_id, state.budget.period, o.budget_line, oid, cost.get(oid, 0))
         expected = dict(before)
         for c in conversions:
             expected[c.sell_currency] = expected.get(c.sell_currency, 0) - c.sell_amount_minor

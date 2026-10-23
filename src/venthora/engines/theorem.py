@@ -51,16 +51,39 @@ def _cost(state: TreasuryState, items: list[Obligation], bits) -> int:
     return total
 
 
+def _line_caps(state: TreasuryState, items: list[Obligation]) -> dict[str, tuple[int, list[int]]]:
+    """Budget · mandate as a hard constraint: per budget line, the cap (mandate − realized) and the item indexes
+    drawing on it. Lines with a signed bypass have no cap; obligations outside every line are capped by nothing
+    here (the policy flags them instead)."""
+    if state.budget is None:
+        return {}
+    from ..proofcore.budget import line_caps
+
+    caps = line_caps(state)
+    out: dict[str, tuple[int, list[int]]] = {}
+    for i, o in enumerate(items):
+        cap = caps.get(o.budget_line) if o.budget_line in caps else None
+        if cap is None:
+            continue
+        out.setdefault(o.budget_line, (cap, []))[1].append(i)
+    return out
+
+
+def _within_caps(state: TreasuryState, items: list[Obligation], bits, caps: dict[str, tuple[int, list[int]]]) -> bool:
+    return all(sum(_cost(state, [items[i]], (1,)) for i in idx if bits[i]) <= cap for cap, idx in caps.values())
+
+
 def _solve_exact(state: TreasuryState, items: list[Obligation], budget: int,
                  locked: frozenset[str] = frozenset()) -> tuple[list[str], str] | None:
     """Best selection that keeps every `locked` obligation paid; None if that is infeasible."""
     scores = _scores(items)
+    caps = _line_caps(state, items)
     best, best_bits = -1, None
     for bits in product((0, 1), repeat=len(items)):
         if any(o.obligation_id in locked and not b for o, b in zip(items, bits, strict=True)):
             continue
         score = sum(s for s, b in zip(scores, bits, strict=True) if b)
-        if score > best and _cost(state, items, bits) <= budget:
+        if score > best and _cost(state, items, bits) <= budget and _within_caps(state, items, bits, caps):
             best, best_bits = score, bits
     if best_bits is None:
         return None
@@ -87,6 +110,8 @@ def _solve_cp_sat(state: TreasuryState, items: list[Obligation], budget: int,
         model.add(cost * PPM >= shortfall * state.ppm_up(ccy))  # integer ceiling
         base_terms.append(cost)
     model.add(sum(base_terms) <= budget)
+    for cap, idx in _line_caps(state, items).values():  # Budget · mandate: never propose beyond a line's mandate
+        model.add(sum(_cost(state, [items[i]], (1,)) * x[i] for i in idx) <= cap)
     model.maximize(sum(s * xi for s, xi in zip(_scores(items), x, strict=True)))
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = 2.0
@@ -164,6 +189,16 @@ def classify(state, selected, eligible, rejected, risk, exceptions=None) -> list
     decisions = []
     reliable = [r for r in risk.receivables if r.reliable]
     committed = 0
+    # Budget · mandate: what each line can still fund after the chosen payments, so an unpaid obligation that no
+    # longer fits its line is escalated as a budget request rather than deferred against a receipt.
+    line_room: dict[str, int] = {}
+    if state.budget is not None:
+        from ..proofcore.budget import line_caps
+
+        for line, cap in line_caps(state).items():
+            if cap is not None:
+                line_room[line] = cap - sum(_cost(state, [o], (1,)) for o in state.obligations
+                                            if o.obligation_id in chosen and o.budget_line == line)
 
     for o in sorted(state.obligations, key=lambda x: (-x.priority, x.due_in_hours, x.obligation_id)):
         base_cost = _cost(state, [o], (1,))
@@ -183,6 +218,12 @@ def classify(state, selected, eligible, rejected, risk, exceptions=None) -> list
                              action="CONVERT_AND_PAY" if foreign else "PAY",
                              amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=base_cost,
                              reason=f"priority {o.priority}, due in {o.due_in_hours}h; fits above reserve floor"))
+            continue
+        if o.budget_line in line_room and base_cost > line_room[o.budget_line]:
+            decisions.append(ObligationDecision(obligation_id=o.obligation_id, action="ESCALATE",
+                             amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=base_cost,
+                             reason=f"budget line '{o.budget_line}' cannot fund it (room {max(0, line_room[o.budget_line])} "
+                                    "minor); a budget request is raised for a person"))
             continue
         inflow = sum(r.base_value_minor for r in reliable if r.latest_arrival_hours <= o.due_in_hours)
         if inflow - committed >= base_cost:

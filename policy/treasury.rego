@@ -35,6 +35,44 @@ approval_reasons contains "reserve_breach_risk_above_tolerance" if {
 	input.breach_probability_bp > input.max_breach_probability_bp
 }
 
+# Budget · mandate (src/venthora/proofcore/budget.py + policy.budget_reasons). Signed bypass lines are exempt.
+approval_reasons contains "budget_line_exceeded" if {
+	input.budget.attached
+	some ln in input.budget.lines
+	not ln.bypass_signed
+	ln.used_minor > ln.mandate_minor
+}
+
+approval_reasons contains "budget_line_above_auto_share" if {
+	input.budget.attached
+	some ln in input.budget.lines
+	not ln.bypass_signed
+	ln.used_minor * 10000 > ln.mandate_minor * ln.auto_share_bp
+}
+
+approval_reasons contains "budget_line_alert_requires_approval" if {
+	input.budget.attached
+	some ln in input.budget.lines
+	not ln.bypass_signed
+	ln.require_approval_on_alert
+	ln.used_minor > 0
+	ln.used_minor * 10000 >= ln.mandate_minor * ln.alert_share_bp
+}
+
+approval_reasons contains "budget_bypass_unsigned" if {
+	input.budget.attached
+	some ln in input.budget.lines
+	not ln.bypass_signed
+	ln.bypass
+	ln.paying_now_minor > 0
+}
+
+approval_reasons contains "unbudgeted_obligation" if {
+	input.budget.attached
+	input.budget.unbudgeted_paying > 0
+	input.budget.unbudgeted_requires_approval
+}
+
 decision := {
 	"allow": input.actor_role != "viewer",
 	"requires_approval": sort([r | some r in approval_reasons]),

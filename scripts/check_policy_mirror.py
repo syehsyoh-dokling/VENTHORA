@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Prove policy/treasury.rego and proofcore/policy.py agree, using a real OPA (Docker).
 
 Run: python scripts/check_policy_mirror.py
@@ -39,6 +40,15 @@ def main() -> int:
                          "forecast_confidence_bp": conf, "autonomous_conversion_limit_minor": limit,
                          "full_confidence_bp": 9000, "zero_limit_below_bp": 5000, "escalations": esc,
                          "breach_probability_bp": breach, "max_breach_probability_bp": 500})
+    # Budget · mandate: lines around every threshold (auto share, alert, mandate), bypass signed or not, unbudgeted.
+    base = grid[0] | {"actor_role": "treasury_agent", "conversion_base_minor": 0, "escalations": [], "breach_probability_bp": None}
+    for mandate, used, auto, alert, on_alert, bypass, signed, unb, unb_req in itertools.product(
+            [0, 100_000], [0, 69_999, 70_000, 79_999, 80_000, 100_000, 100_001], [7000, 8000, 10000], [7000, 8000],
+            [False, True], [False, True], [False, True], [0, 1], [False, True]):
+        grid.append(base | {"budget": {"attached": True, "unbudgeted_paying": unb, "unbudgeted_requires_approval": unb_req,
+                                       "lines": [{"line": "l", "mandate_minor": mandate, "used_minor": used, "paying_now_minor": used,
+                                                  "auto_share_bp": auto, "alert_share_bp": alert, "require_approval_on_alert": on_alert,
+                                                  "bypass": bypass, "bypass_signed": bypass and signed}]}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

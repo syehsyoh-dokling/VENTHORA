@@ -1,0 +1,1665 @@
+{
+ "_note": "Budget \u00b7 mandate ground truth, hand-derived; see scripts/make_budget_groundtruth.py.",
+ "cases": [
+  {
+   "id": "B01",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "inside the line, inside the auto share",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "requires": []
+   },
+   "derivation": "3,000 of 10,000 = 30% < alert 80%, < auto 100% -> PAY autonomously"
+  },
+  {
+   "id": "B02",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "exactly the mandate",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "PAY"
+    },
+    "budget_available": {
+     "suppliers": 0
+    },
+    "requires": []
+   },
+   "derivation": "10,000 = mandate -> cap allows it (<=); utilisation 100% >= alert 80% -> ALERT, but the line does not require approval on alert -> APPROVED with an alert"
+  },
+  {
+   "id": "B03",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "one cent over the mandate: the agent stops at the line",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000001,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "paid": [],
+    "budget_requests": {
+     "suppliers": 1
+    }
+   },
+   "derivation": "cap = 10,000; 10,000.01 does not fit -> ESCALATE with a budget request for the shortfall 0.01"
+  },
+  {
+   "id": "B04",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "above the auto share needs a person",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 850000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000,
+       "auto_share_bp": 8000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": [
+     "budget_line_above_auto_share"
+    ]
+   },
+   "derivation": "8,500 > 10,000 x 80% = 8,000 -> payable, but a person approves"
+  },
+  {
+   "id": "B05",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "exactly the auto share is still autonomous",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 800000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000,
+       "auto_share_bp": 8000,
+       "alert_share_bp": 9000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": []
+   },
+   "derivation": "8,000 = 80% of 10,000: not above -> autonomous; 80% < alert 90% -> no alert"
+  },
+  {
+   "id": "B06",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "alert threshold reached (notification, still autonomous)",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 820000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000,
+       "auto_share_bp": 10000,
+       "alert_share_bp": 8000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "budget_alerts": 1,
+    "budget_status": {
+     "suppliers": "alert"
+    }
+   },
+   "derivation": "82% >= alert 80% -> ALERT raised; auto share 100% -> no approval needed"
+  },
+  {
+   "id": "B07",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "alert threshold with require_approval_on_alert",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 820000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000,
+       "auto_share_bp": 10000,
+       "alert_share_bp": 8000,
+       "require_approval_on_alert": true
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "budget_line_alert_requires_approval"
+    ],
+    "budget_alerts": 1
+   },
+   "derivation": "82% >= 80% and the line demands a person at the alert -> REQUIRES_APPROVAL"
+  },
+  {
+   "id": "B08",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "realized spend eats the line",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000,
+       "realized_minor": 750000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "budget_requests": {
+     "suppliers": 1
+    }
+   },
+   "derivation": "cap = 10,000 - 7,500 = 2,500 < 3,000 -> ESCALATE + request for 500"
+  },
+  {
+   "id": "B09",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "a grant restores the mandate",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000,
+       "realized_minor": 750000,
+       "granted_extra_minor": 100000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "budget_available": {
+     "suppliers": 50000
+    }
+   },
+   "derivation": "mandate 11,000 - realized 7,500 = 3,500 >= 3,000 -> PAY; available after = 500"
+  },
+  {
+   "id": "B10",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "two lines, one exhausted, the other fine",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 200000,
+      "currency": "USD",
+      "priority": 3,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2",
+      "budget_line": "saas"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 250000
+      },
+      {
+       "line": "saas",
+       "amount_minor": 500000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "ESCALATE",
+     "O2": "PAY"
+    },
+    "budget_requests": {
+     "suppliers": 1
+    }
+   },
+   "derivation": "suppliers cap 2,500 < 3,000 -> ESCALATE + request 500; saas 2,000 of 5,000 -> PAY"
+  },
+  {
+   "id": "B11",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "priority within a line: the line pays the urgent one",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 600000,
+      "currency": "USD",
+      "priority": 10,
+      "due_in_hours": 12,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 600000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 48,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "budget_requests": {
+     "suppliers": 1
+    }
+   },
+   "derivation": "both fit the cash, only one fits the line (6,000 + 6,000 > 10,000): priority 10 paid, the other raises a request for 2,000"
+  },
+  {
+   "id": "B12",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "unbudgeted obligation needs a person",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "marketing"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": [
+     "unbudgeted_obligation"
+    ]
+   },
+   "derivation": "'marketing' is no line of 2026-11 -> payable by cash, but a person must place it"
+  },
+  {
+   "id": "B13",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "unbudgeted allowed by the budget's setting",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "marketing"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": false
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": []
+   },
+   "derivation": "the budget says unbudgeted obligations do not need a person"
+  },
+  {
+   "id": "B14",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "bypass nobody signed keeps the cap",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 200000,
+       "bypass": true
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "budget_requests": {
+     "suppliers": 1
+    }
+   },
+   "derivation": "unsigned bypass -> cap 2,000 applies -> ESCALATE + request"
+  },
+  {
+   "id": "B15",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "signed bypass lifts the cap",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 200000,
+       "bypass": true,
+       "bypass_approved_by": "Dana (CFO)"
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "budget_status": {
+     "suppliers": "bypass"
+    },
+    "requires": []
+   },
+   "derivation": "signed bypass -> no cap, no approval reason; the line shows as bypass"
+  },
+  {
+   "id": "B16",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "bypass signed but spending inside it is still recorded",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 200000,
+       "bypass": true,
+       "bypass_approved_by": "Dana (CFO)",
+       "realized_minor": 900000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    }
+   },
+   "derivation": "realized 9,000 on a 2,000 line with a signed bypass: still payable; the pipeline shows it, nobody stops it"
+  },
+  {
+   "id": "B17",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "the whole November book against the November plan",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 800000,
+      "currency": "USD",
+      "priority": 10,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "payroll"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 10,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2",
+      "budget_line": "logistics"
+     },
+     {
+      "obligation_id": "O3",
+      "amount_minor": 400000,
+      "currency": "USD",
+      "priority": 9,
+      "due_in_hours": 48,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 3",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O3",
+      "invoice_fingerprint": "fp-O3",
+      "budget_line": "suppliers"
+     },
+     {
+      "obligation_id": "O4",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 6,
+      "due_in_hours": 72,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 4",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O4",
+      "invoice_fingerprint": "fp-O4",
+      "budget_line": "contractors"
+     },
+     {
+      "obligation_id": "O5",
+      "amount_minor": 120000,
+      "currency": "USD",
+      "priority": 2,
+      "due_in_hours": 72,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 5",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O5",
+      "invoice_fingerprint": "fp-O5",
+      "budget_line": "saas"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     },
+     {
+      "ref": "ev-O3",
+      "subject_id": "O3",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 3"
+     },
+     {
+      "ref": "ev-O4",
+      "subject_id": "O4",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 4"
+     },
+     {
+      "ref": "ev-O5",
+      "subject_id": "O5",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 5"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "payroll",
+       "amount_minor": 900000,
+       "alert_share_bp": 9000
+      },
+      {
+       "line": "logistics",
+       "amount_minor": 400000
+      },
+      {
+       "line": "suppliers",
+       "amount_minor": 700000,
+       "auto_share_bp": 8000,
+       "alert_share_bp": 7000
+      },
+      {
+       "line": "contractors",
+       "amount_minor": 600000,
+       "auto_share_bp": 7000,
+       "alert_share_bp": 6000,
+       "require_approval_on_alert": true
+      },
+      {
+       "line": "saas",
+       "amount_minor": 150000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "paid": [
+     "O1",
+     "O2",
+     "O3",
+     "O4",
+     "O5"
+    ],
+    "budget_alerts": 1,
+    "requires": []
+   },
+   "derivation": "every line fits: payroll 89% (< alert 90%), logistics 75%, suppliers 57%, contractors 50% (< 60% alert), saas 80% = alert -> one alert, no approval"
+  },
+  {
+   "id": "B18",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "minus from what is still owed",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 700000,
+      "currency": "USD",
+      "priority": 10,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 500000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "budget_minus": {
+     "suppliers": 200000
+    },
+    "budget_requests": {
+     "suppliers": 1
+    }
+   },
+   "derivation": "7,000 paid; 5,000 still owed; 12,000 - 10,000 = minus 2,000 -> request for 2,000"
+  },
+  {
+   "id": "B19",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "viewer with a budget is still blocked",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "viewer",
+    "budget": {
+     "period": "2026-11",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 1000000
+      }
+     ],
+     "unbudgeted_requires_approval": true
+    }
+   },
+   "expect": {
+    "decision": "BLOCKED"
+   },
+   "derivation": "actor_role viewer -> BLOCKED regardless of budget"
+  },
+  {
+   "id": "B20",
+   "kind": "plan",
+   "level": 4,
+   "pain": "the agent acts within its mandate",
+   "title": "no budget attached: nothing changes",
+   "input": {
+    "case_id": "budget",
+    "book_id": "budget",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "budget_attached": false
+   },
+   "derivation": "without a budget the plan is the old plan"
+  }
+ ]
+}

@@ -435,7 +435,7 @@ class Intake:
                 "priority": rec.get("default_priority", 5), "due_in_hours": due_hours,
                 "beneficiary_id": next(cid for cid, p in self.registry.payees.items() if p is rec),
                 "payee_name": rec["name"], "payout_method": rec.get("payout_method", "LOCAL"), "evidence_ref": ref,
-                "invoice_fingerprint": r.invoice_fingerprint,
+                "invoice_fingerprint": r.invoice_fingerprint, "budget_line": rec.get("budget_line"),
                 "policy_flags": [f for f in r.flags if f == "payee_bank_details_changed"]})
             data["evidence"].append({"ref": ref, "subject_id": oid, "source": f"intake:email:{r.sender}",
                                      "status": "verified" if r.status == "VERIFIED" else "pending", "summary": summary})

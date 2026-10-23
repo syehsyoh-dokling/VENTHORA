@@ -31,6 +31,7 @@ from .gateways.airwallex import AirwallexError  # noqa: E402
 from .intake.models import IntakeRequest, ReviewRequest  # noqa: E402
 from .intake.pipeline import Intake  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
+from .proofcore.budget import attach_budget, load_budget  # noqa: E402
 from .testing.groundtruth import book_fingerprints, compare, load_cases, run_case, view_of  # noqa: E402
 
 SCENARIOS = ROOT / "data" / "scenarios"
@@ -117,10 +118,56 @@ async def get_scenario(scenario_id: str):
     return json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
 
 
+def _with_budget(state: TreasuryState, period: str | None = None) -> TreasuryState:
+    """The period's plan from data/budgets.json plus what the execution store knows (realized spend, grants)."""
+    budget = state.budget or load_budget(period)
+    if budget is None or not (state.budget or any(o.budget_line for o in state.obligations)):
+        return state
+    store = app.state.executor.store
+    return attach_budget(state, budget.period, realized=store.realized(budget.period), grants=store.grants(budget.period))
+
+
 @app.post("/api/scenarios/{scenario_id}/plan", response_model=PlanResult)
-async def plan_scenario(scenario_id: str):
+async def plan_scenario(scenario_id: str, period: str | None = None):
     data = json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
-    return await plan(TreasuryState.model_validate(data["state"]))
+    return await plan(_with_budget(TreasuryState.model_validate(data["state"]), period))
+
+
+# -- Budget · mandate -------------------------------------------------------------------------
+
+@app.get("/api/budget")
+async def budget_pipeline(scenario_id: str = "kit01_initial", period: str | None = None):
+    """The pipeline for a book: plan / granted / realized / paying now / committed / available / minus per line,
+    alerts and budget requests, computed from the current plan of that book."""
+    data = json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
+    state = _with_budget(TreasuryState.model_validate(data["state"]), period)
+    if state.budget is None:
+        raise HTTPException(404, "no budget for this book/period")
+    result = await app.state.agent.decide(state)
+    return {"scenario_id": scenario_id, "decision": result.decision, "plan_hash": result.plan_hash, **result.budget,
+            "grants": app.state.executor.store.list_grants(state.budget.period),
+            "requires_approval": next((s.details.get("local", {}).get("requires_approval", [])
+                                       for s in result.stages if s.engine == "Policy"), [])}
+
+
+class GrantRequest(BaseModel):
+    extra_minor: int = Field(gt=0, le=10**11)
+    approver: str = Field(min_length=1, max_length=120)
+    role: str = Field(min_length=1, max_length=60)
+    note: str = Field(default="", max_length=500)
+
+
+@app.post("/v1/budgets/{period}/{line}/grant")
+async def grant_budget(period: str, line: str, req: GrantRequest):
+    """A person answers a budget request by raising a line's mandate. Role-checked, audited; the agent never grants."""
+    budget = load_budget(period)
+    if budget is None or budget.line(line) is None:
+        raise HTTPException(404, "unknown period or line")
+    if req.role not in ("finance_manager",):
+        raise HTTPException(403, f"role {req.role} may not grant budget")
+    grant = app.state.executor.store.grant(period, line, req.extra_minor, req.approver, req.role, req.note)
+    await asyncio.to_thread(app.state.audit.append, "budget_grant", grant)
+    return grant
 
 
 @app.post("/v1/plans", response_model=PlanResult)
@@ -293,7 +340,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies"):
+    for suite in ("cases", "anomalies", "budget"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:
@@ -350,7 +397,7 @@ async def plan_with_intake(req: IntakePlanRequest):
         state = app.state.intake.to_state(base, as_of=datetime.fromisoformat(req.as_of).date())
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    return await plan(state)
+    return await plan(_with_budget(state))
 
 
 @app.get("/v1/intake/state/{scenario_id}", response_model=TreasuryState)

@@ -101,6 +101,13 @@ def main() -> None:
         "**Why the hackathon exists.** Airwallex's framing: software agents are starting to *track balances, initiate payments and manage risk without a human in the loop*; "
         "the rails underneath them are the builders' to design. The developer guide names what goes wrong when money is moved on a model's narrative, and those pains are the six levels below. "
         "Every case here is an anomaly; the expected answer is what the published rules say must happen.", ""] + [f"- **L{k}** — {v}" for k, v in LEVELS.items()])
+    lines += [""] + section("budget", "Suite 3 — Budget · mandate: the period's plan is the agent's mandate", [
+        "20 cases around every threshold of a budget line: inside the auto share, exactly the mandate, one cent over (the agent stops "
+        "and raises a BUDGET REQUEST with the exact shortfall), above the auto share (a person), the alert threshold with and without "
+        "require_approval_on_alert, realized spend eating the line, a grant restoring it, two lines, priority inside a line, unbudgeted "
+        "obligations, bypass signed or not, the whole November book against the November plan, minus from what is still owed, a viewer, "
+        "and no budget at all. Real-sandbox cycle 8 (SANDBOX_RESULTS.md) runs the same mandate end to end: pay inside the line, stop at "
+        "it, grant, continue."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

@@ -33,6 +33,7 @@ button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}bu
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.muted{color:var(--muted)}.small{font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
 details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid var(--seqlt);padding:2px 8px;margin:2px 0;color:var(--ink2);font-size:12px}
 .err{color:var(--critical)}.empty{color:var(--muted);padding:12px 0}
+#budget,#intake,#planOut{overflow-x:auto}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-top:12px}.two>div{min-width:0;overflow-x:auto}
 .bar i{flex:0 0 auto;max-width:100px}.bar span{white-space:nowrap}
 </style>
@@ -51,8 +52,13 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
  <section class="span4"><h2>Platform</h2><div id="platform" class="tiles"></div></section>
 
  <section class="span12">
+  <h2><span>Budget · mandate</span><span class="row"><select id="budgetBook"></select><span class="small muted" id="budgetMeta"></span></span></h2>
+  <div id="budget" class="empty">loading…</div>
+ </section>
+
+ <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
     <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
@@ -139,6 +145,28 @@ async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$
  <details style="margin-top:6px"><summary class="small">Findings (${m.findings.length})</summary><ul class="small">${m.findings.map(f=>`<li>${esc(f.replace(/\*\*/g,""))}</li>`).join("")}</ul></details>`}
  catch(e){$("#matrix").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
+// ---- Budget · mandate: plan / realized / paying now / committed / available / minus per line ----
+const btone={auto:"good",alert:"warn",needs_approval:"warn",exceeded:"critical",bypass:"serious"};
+async function budget(){try{if(!$("#budgetBook").options.length){const s=await api("/api/scenarios");$("#budgetBook").innerHTML=s.map(x=>`<option value="${x.id}" ${x.id==="kit01_initial"?"selected":""}>${esc(x.id)}</option>`).join("");$("#budgetBook").onchange=budget}
+ const b=await api("/api/budget?scenario_id="+$("#budgetBook").value);
+ $("#budgetMeta").textContent=`${b.period} · plan ${b.decision}${b.requires_approval.length?" ("+b.requires_approval.join(", ")+")":""}`;
+ const mx=Math.max(1,...b.lines.map(r=>r.mandate_minor));
+ $("#budget").innerHTML=table([{h:"Line",f:r=>`<b>${esc(r.line)}</b>${r.bypass?` <span class="small muted">bypass${r.bypass_signed?" (signed)":" (unsigned)"}</span>`:""}`},
+  {h:"Plan",num:1,f:r=>fmt(r.plan_minor,"USD")},{h:"Granted",num:1,f:r=>r.granted_minor?fmt(r.granted_minor,"USD"):"-"},{h:"Realized",num:1,f:r=>fmt(r.realized_minor,"USD")},
+  {h:"Paying now",num:1,f:r=>`${fmt(r.paying_now_minor,"USD")}${r.paying_ids.length?` <span class="small muted">${esc(r.paying_ids.join(", "))}</span>`:""}`},
+  {h:"Still owed",num:1,f:r=>`${fmt(r.committed_minor,"USD")}${r.committed_ids.length?` <span class="small muted">${esc(r.committed_ids.join(", "))}</span>`:""}`},
+  {h:"Available",num:1,f:r=>fmt(r.available_minor,"USD")},{h:"Minus",num:1,f:r=>r.minus_minor?`<span class="err">${fmt(r.minus_minor,"USD")}</span>`:"-"},
+  {h:"Used",f:r=>`<div class="bar"><i style="width:${Math.round(100*Math.min(r.utilisation_bp,10000)/10000)}px;background:${r.utilisation_bp>=10000?"var(--critical)":r.utilisation_bp*1>=r.auto_share_bp?"var(--warn)":"var(--seq)"}"></i><span>${(r.utilisation_bp/100).toFixed(0)}% · auto ≤${r.auto_share_bp/100}% · alert ≥${r.alert_share_bp/100}%</span></div>`},
+  {h:"Status",f:r=>`<span class="pill ${btone[r.status]||""}">${esc(r.status)}</span>`},
+  {h:"",f:r=>r.minus_minor||r.status!=="auto"?`<button data-line="${r.line}" data-period="${b.period}" data-minus="${r.minus_minor}">Grant</button>`:""}],b.lines)
+  +(b.alerts.length?`<div style="margin-top:8px">${b.alerts.map(a=>`<div class="small"><span class="pill ${a.requires_approval?"serious":"warn"}">ALERT</span> ${esc(a.message)}</div>`).join("")}</div>`:"")
+  +(b.requests.length?`<div style="margin-top:8px">${b.requests.map(q=>`<div class="small"><span class="pill critical">BUDGET REQUEST</span> ${esc(q.message)} · obligations ${esc(q.obligations.join(", "))}</div>`).join("")}</div>`:"")
+  +(b.unbudgeted.length?`<div class="small" style="margin-top:8px"><span class="pill warn">UNBUDGETED</span> ${b.unbudgeted.map(u=>esc(u.obligation_id)).join(", ")}: no line in ${esc(b.period)}; a person must place them</div>`:"")
+  +(b.grants.length?`<details class="small" style="margin-top:8px"><summary>${b.grants.length} grant(s) this period</summary>${table([{h:"Line",f:g=>esc(g.line)},{h:"Extra",num:1,f:g=>fmt(g.extra_minor,"USD")},{h:"By",f:g=>`${esc(g.approver)} (${esc(g.role)})`},{h:"Note",f:g=>esc(g.note||"")},{h:"When",f:g=>esc(g.created_at.slice(0,19).replace("T"," "))}],b.grants)}</details>`:"");
+ $("#budget").querySelectorAll("button[data-line]").forEach(x=>x.onclick=async()=>{const amt=prompt(`Grant extra mandate on '${x.dataset.line}' (${x.dataset.period}) as finance manager — amount in USD${x.dataset.minus>0?` (request asks ${(x.dataset.minus/100).toFixed(2)})`:""}:`,x.dataset.minus>0?(x.dataset.minus/100).toFixed(2):"");if(amt===null)return;
+  const note=prompt("note (why):")||"";try{await api(`/v1/budgets/${x.dataset.period}/${x.dataset.line}/grant`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({extra_minor:Math.round(parseFloat(amt)*100),approver:"finance manager",role:"finance_manager",note})});budget()}catch(e){alert(e.message)}})}
+ catch(e){$("#budget").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
+
 // ---- submit a case (manual input via the UI, or a ground-truth case) ----
 let GT=[];const submissions=[];
 async function gtCases(){try{GT=await api("/api/groundtruth?suite="+$("#gtSuite").value);const usable=GT.filter(c=>c.kind!=="execution");
@@ -170,7 +198,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
 $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<span class="err">${esc(e.message)}</span>`});
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
-platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();
+platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();
 setInterval(()=>{intake();executions();incidents()},15000);
 </script>
 </body>

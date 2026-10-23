@@ -9,7 +9,7 @@
     "fx_to_base": {"EUR": "1.0850", "GBP": "1.2700"},
     "obligations": [
       {"obligation_id": "SUPPLIER-EU-NOV", "amount_minor": 150000, "currency": "EUR", "priority": 9, "due_in_hours": 24,
-       "beneficiary_id": "ben-eu-components", "payee_name": "Rheinwerk Komponenten GmbH", "payout_method": "SWIFT",
+       "beneficiary_id": "ben-eu-components", "budget_line": "suppliers", "payee_name": "Rheinwerk Komponenten GmbH", "payout_method": "SWIFT",
        "evidence_ref": "doc-inv-eu-0601", "invoice_fingerprint": "eu-components:INV-2026-0601"}
     ],
     "receivables": [],

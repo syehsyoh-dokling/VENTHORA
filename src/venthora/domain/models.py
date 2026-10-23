@@ -35,6 +35,48 @@ class Obligation(StrictModel):
     record_kind: Literal["payable", "settled"] = "payable"
     policy_flags: list[str] = Field(default_factory=list,
                                     description="policy exceptions raised by evidence, e.g. payee_bank_details_changed")
+    budget_line: str | None = Field(default=None, max_length=60, description="budget line this obligation draws on")
+
+
+class BudgetLine(StrictModel):
+    """One line of the organisation's plan for the period: the agent's mandate on that line.
+
+    amount + granted_extra is the mandate; auto_share is the part the agent may spend on its own;
+    alert_share is where a warning is raised (and, if require_approval_on_alert, a person is required);
+    a bypass (unlimited line) is honoured only when a person signed it."""
+    line: str = Field(min_length=1, max_length=60)
+    amount_minor: int = Field(ge=0, le=MAX_MINOR)
+    auto_share_bp: int = Field(default=10_000, ge=0, le=10_000, description="share of the mandate spendable autonomously")
+    alert_share_bp: int = Field(default=8_000, ge=0, le=10_000, description="utilisation at which an alert is raised")
+    require_approval_on_alert: bool = Field(default=False, description="an alert also requires a person")
+    bypass: bool = Field(default=False, description="unlimited line (no cap); must be signed to count")
+    bypass_approved_by: str | None = Field(default=None, max_length=120)
+    realized_minor: int = Field(default=0, ge=0, le=MAX_MINOR, description="already paid this period")
+    granted_extra_minor: int = Field(default=0, ge=0, le=MAX_MINOR, description="mandate added on a budget request")
+
+    @property
+    def mandate_minor(self) -> int:
+        return self.amount_minor + self.granted_extra_minor
+
+    @property
+    def bypass_signed(self) -> bool:
+        return self.bypass and bool(self.bypass_approved_by)
+
+
+class Budget(StrictModel):
+    period: str = Field(min_length=1, max_length=40, description="e.g. 2026-11, 2026-Q4, 2026")
+    lines: list[BudgetLine] = Field(min_length=1, max_length=50)
+    unbudgeted_requires_approval: bool = Field(default=True, description="an obligation outside every line needs a person")
+
+    @model_validator(mode="after")
+    def unique_lines(self):
+        names = [ln.line for ln in self.lines]
+        if len(names) != len(set(names)):
+            raise ValueError("duplicate budget line")
+        return self
+
+    def line(self, name: str | None) -> BudgetLine | None:
+        return next((ln for ln in self.lines if ln.line == name), None) if name else None
 
 
 class PayerHistory(StrictModel):
@@ -130,6 +172,7 @@ class TreasuryState(StrictModel):
     scenarios: list[StressScenario] = Field(default_factory=list, max_length=20)
     policy: TreasuryPolicy
     actor_role: Literal["treasury_agent", "finance_manager", "viewer"] = "treasury_agent"
+    budget: Budget | None = Field(default=None, description="the period's plan: the agent's mandate per line")
     use_ecb_stress: bool = False
     fx_stress_model: Literal["horizon_m0", "ecb_empirical"] = Field(
         default="horizon_m0", description="horizon_m0 = original Horizon scenario engine; ecb_empirical = 5-day p95")
@@ -243,4 +286,6 @@ class PlanResult(StrictModel):
                                        description="what an approver signs: amount, currency, counterparty, evidence")
     frame: dict = Field(default_factory=dict, description="worked-problem frame: given / asked / formula / answer")
     simulation: dict = Field(default_factory=dict, description="72-hour discrete-event reserve simulation")
+    budget: dict = Field(default_factory=dict, description="budget pipeline: plan / realized / paying now / committed / "
+                                                           "available / minus per line, alerts, and budget requests")
     duration_ms: float

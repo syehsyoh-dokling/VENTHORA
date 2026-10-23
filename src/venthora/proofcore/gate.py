@@ -18,6 +18,7 @@ from ..gateways.airwallex import Airwallex
 from ..gateways.native import native_gate
 from ..gateways.opa import OPA
 from ..gateways.tigerbeetle import TigerBeetleLedger
+from . import budget
 from . import policy as local_policy
 
 
@@ -91,7 +92,21 @@ class ProofCore:
 
         conversion_cost = sum(c.estimated_sell_minor for c in proj.conversions)
         escalations = [d.obligation_id for d in decisions if d.action == "ESCALATE"]
-        inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp)
+        budget_started = perf_counter()
+        pipe = budget.pipeline(state, decisions)
+        if pipe["attached"]:
+            n_alert, n_req = len(pipe["alerts"]), len(pipe["requests"])
+            summary = (f"period {pipe['period']}: " + ", ".join(f"{r['line']} {r['utilisation_bp'] / 100:.0f}% ({r['status']})"
+                                                               for r in pipe["lines"])
+                       + (f"; {n_alert} alert(s)" if n_alert else "") + (f"; {n_req} budget request(s)" if n_req else "")
+                       + (f"; {len(pipe['unbudgeted'])} unbudgeted" if pipe["unbudgeted"] else ""))
+            attention = n_alert or n_req or pipe["unbudgeted"]
+            stages.append(StageResult(engine="Budget · mandate",
+                                      status="FAIL" if pipe["problems"] else ("WARN" if attention else "PASS"),
+                                      summary="; ".join(pipe["problems"]) if pipe["problems"] else summary, details=pipe,
+                                      duration_ms=(perf_counter() - budget_started) * 1000))
+        facts = budget.policy_facts(state, pipe)
+        inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         stages.append(await self._balance_stage(state, proj.conversions))
