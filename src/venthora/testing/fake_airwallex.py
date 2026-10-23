@@ -54,6 +54,9 @@ class FakeAirwallex:
         self.beneficiaries: dict[str, dict] = {}
         self.deposits: list[dict] = []
         self.lose_response_once: set[str] = set()  # paths whose next response is "lost" after processing
+        self.fault_queue: dict[str, list[tuple[int, str]]] = {}  # path -> [(http status, code)] returned once each
+        self.deposits_settle = True  # False: simulated deposits stay PENDING forever
+        self.conversion_status = "SETTLED"  # e.g. "SCHEDULED": conversions do not settle immediately
         self.fail_on_paid: set[str] = set()  # transfer references (substring) that fail when moved to PAID
         self.calls: list[tuple[str, str]] = []
 
@@ -76,6 +79,10 @@ class FakeAirwallex:
             return httpx.Response(201, json={"token": "tok", "expires_at": "2099-01-01T00:00:00+0000"})
         if request.headers.get("authorization") != "Bearer tok":
             return self._error(401, "credentials_invalid")
+        queued = self.fault_queue.get(path)
+        if queued:  # injected rail faults: (status, code) returned once each, in order, before processing
+            status, code = queued.pop(0)
+            return self._error(status, code)
         body = json.loads(request.content) if request.content else {}
         response = self._route(method, path, body, dict(request.url.params))
         if path in self.lose_response_once:
@@ -156,7 +163,7 @@ class FakeAirwallex:
         self.balances[q["sell_currency"]] -= sell
         self.balances[q["buy_currency"]] = self.balances.get(q["buy_currency"], Decimal(0)) + money(q["buy_amount"])
         self.conversions[rid] = c = {
-            "conversion_id": f"c-{uuid4()}", "request_id": rid, "quote_id": q["quote_id"], "status": "SETTLED",
+            "conversion_id": f"c-{uuid4()}", "request_id": rid, "quote_id": q["quote_id"], "status": self.conversion_status,
             "buy_currency": q["buy_currency"], "buy_amount": str(money(q["buy_amount"])),
             "sell_currency": q["sell_currency"], "sell_amount": float(sell), "client_rate": q["client_rate"]}
         return httpx.Response(201, json=c)
@@ -215,6 +222,7 @@ class FakeAirwallex:
         amount = money(b["amount"])
         self.balances["USD"] += amount
         d = {"id": f"d-{uuid4()}", "status": "PENDING", "amount": float(amount), "currency": "USD", **b}
-        self.deposits.append(d | {"status": "SETTLED", "payer": {"name": b.get("payer_name")},
+        self.deposits.append(d | {"status": "SETTLED" if self.deposits_settle else "PENDING",
+                                  "payer": {"name": b.get("payer_name")},
                                   "settled_at": "2026-10-23T00:00:01+0000"})  # the list shows it settled
         return httpx.Response(201, json=d)

@@ -1,0 +1,7411 @@
+{
+ "generated_at": "2026-10-23T04:06:25.650898+00:00",
+ "summary": {
+  "variants": 136,
+  "ok": 136,
+  "by_family": {
+   "normal": {
+    "total": 7,
+    "ok": 7
+   },
+   "cash": {
+    "total": 10,
+    "ok": 10
+   },
+   "obligations": {
+    "total": 13,
+    "ok": 13
+   },
+   "fx": {
+    "total": 8,
+    "ok": 8
+   },
+   "receivables": {
+    "total": 10,
+    "ok": 10
+   },
+   "policy": {
+    "total": 8,
+    "ok": 8
+   },
+   "inbox": {
+    "total": 12,
+    "ok": 12
+   },
+   "rail": {
+    "total": 18,
+    "ok": 18
+   },
+   "incident": {
+    "total": 38,
+    "ok": 38
+   },
+   "load": {
+    "total": 6,
+    "ok": 6
+   },
+   "roles": {
+    "total": 2,
+    "ok": 2
+   },
+   "recalc": {
+    "total": 4,
+    "ok": 4
+   }
+  },
+  "plan_ms": {
+   "p50": 23.4,
+   "p95": 46.6,
+   "max": 403.7
+  },
+  "exec_ms": {
+   "p50": 319.5,
+   "max": 759.8
+  },
+  "invariant_failures": {}
+ },
+ "extra": {
+  "machine": "AMD64 / CPython 3.13.6",
+  "reader": "deterministic lexicon reader (no model), plus stub models for the adversarial inbox variants",
+  "sandbox": "stateful fake Airwallex sandbox with real-sandbox fees (SWIFT EUR 13.37, LOCAL USD 3.00, GBP 2.24)"
+ },
+ "findings": [
+  "**B10 (only foreign cash) found a real inconsistency, now fixed.** With USD 0, EUR 50k and GBP 10k the plan pays the EUR and GBP invoices from their own wallets at zero base cost; ProofCore passes it (the floor binds base *spend*) and the policy escalates the 100% breach risk to a person. The executor, however, refused at the pre-flight and again at reconciliation because it compared the absolute USD level with the floor. Both checks now apply the gate's rule: a run that does not touch the base wallet cannot breach the floor; a base balance already below the floor is reported as such, not blamed on the run (`tests/test_execution.py::test_plan_funded_from_foreign_wallets_runs_when_base_is_already_below_floor`).",
+  "**A00 (cold start) is expected to fail on the rail and does so cleanly.** Before the first cycle the plan only knows the guide's fees (SWIFT EUR 12.85, LOCAL free); the real sandbox charges LOCAL GBP 2.24, so a wallet holding exactly the budget is GBP 2.24 short and Airwallex answers `balance_insufficient`. The executor closes the run (FAILED, reconciled, no money lost), the fee is learned, and every later variant plans with the real fees. This is the cycle-1 behaviour recorded in docs/SANDBOX_RESULTS.md.",
+  "**Stale planning rates (H00, H01) stop before anything is booked**: the quoted sell amount above the 1% slippage limit halts the run with nothing converted; a rail that is cheaper than planned (H01b) completes with a favourable variance.",
+  "**Every Airwallex failure_type (I01\u2013I32) lands on the decision table**: 6 types with returned funds are replaced under the duplicate lock and resolved; 26 types that mean wrong payee details or intent/control are escalated; a transfer in flight waits up to the 48 h window (I33\u2013I35) and is escalated after it (I36, I37); a replacement the wallet cannot fund (I99) is escalated instead of attempted.",
+  "**Adversarial inbox (G06\u2013G11)**: prompt injection, garbage and hallucinated model output never change a decision: claims that cannot be located verbatim in the cited document are rejected and the lexicon reader re-reads.",
+  "**Load**: 100 sequential plans p50 \u2248 13\u201314 ms, p99 \u2248 20 ms, no drift (last fifth / first fifth \u2248 1.0); 20 concurrent plans give one identical hash; 10 executions on 10 books complete with at most one PAID per invoice; a chain of 10 re-plans stays incremental."
+ ],
+ "records": [
+  {
+   "id": "A00",
+   "family": "normal",
+   "severity": "high",
+   "title": "cold start: fees not yet learned, wallet holds exactly the budget",
+   "note": "expected: the rail refuses the GBP payout for the unplanned 2.24 fee; execution FAILED, closed, reconciled",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 283.0,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1552895,
+    "after": 697105,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4063463
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "transfer SHIPPING-UK failed: balance_insufficient",
+    "ms": 186.4,
+    "transfers": 1,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": -299,
+     "EUR": 401285,
+     "GBP": 250000
+    }
+   },
+   "total_ms": 533.9,
+   "ok": true
+  },
+  {
+   "id": "A01",
+   "family": "normal",
+   "severity": "normal",
+   "title": "cash 22,500, EUR 1.0850, GBP 1.2700, stress 1,000",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 14.6,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 6784001
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 227.1,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 288.5,
+   "ok": true
+  },
+  {
+   "id": "A02",
+   "family": "normal",
+   "severity": "normal",
+   "title": "cash 19,000, EUR 1.1200, GBP 1.3300, stress 500",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 25.5,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "DEFER",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 55,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1253398,
+    "after": 646602,
+    "floor": 550000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2447679
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,466.02 >= USD 5,500.00",
+    "ms": 319.5,
+    "transfers": 3,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 419.4,
+   "ok": true
+  },
+  {
+   "id": "A03",
+   "family": "normal",
+   "severity": "normal",
+   "title": "cash 30,000, EUR 1.0500, GBP 1.2000, stress 0",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 11.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1642273,
+    "after": 1357727,
+    "floor": 500000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 27793197
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 13,577.27 >= USD 5,000.00",
+    "ms": 383.5,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 457.0,
+   "ok": true
+  },
+  {
+   "id": "A04",
+   "family": "normal",
+   "severity": "normal",
+   "title": "cash 26,000, EUR 1.1500, GBP 1.3800, stress 1,500",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 16.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 120,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1727448,
+    "after": 872552,
+    "floor": 650000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2296537
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 8,725.53 >= USD 6,500.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 388.9,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 467.6,
+   "ok": true
+  },
+  {
+   "id": "A05",
+   "family": "normal",
+   "severity": "normal",
+   "title": "cash 21,000, EUR 1.0850, GBP 1.2700, stress 2,000",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 29.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "DEFER",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 445,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1238385,
+    "after": 861615,
+    "floor": 700000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2297516
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 8,616.16 >= USD 7,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 296.0,
+    "transfers": 3,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 404.6,
+   "ok": true
+  },
+  {
+   "id": "A06",
+   "family": "normal",
+   "severity": "normal",
+   "title": "cash 40,000, EUR 1.0000, GBP 1.2500, stress 1,000",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 16.8,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1634717,
+    "after": 2365283,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4917206
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 23,652.83 >= USD 6,000.00",
+    "ms": 369.2,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 447.9,
+   "ok": true
+  },
+  {
+   "id": "B01",
+   "family": "cash",
+   "severity": "extreme",
+   "title": "zero cash",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 29.1,
+    "actions": {
+     "PAYROLL-NOV": "DEFER",
+     "SHIPPING-UK": "ESCALATE",
+     "SUPPLIER-EU": "ESCALATE",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 10000,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 0,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 5166225
+   },
+   "total_ms": 98.4,
+   "ok": true
+  },
+  {
+   "id": "B02",
+   "family": "cash",
+   "severity": "extreme",
+   "title": "cash exactly the reserve floor",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 28.4,
+    "actions": {
+     "PAYROLL-NOV": "DEFER",
+     "SHIPPING-UK": "ESCALATE",
+     "SUPPLIER-EU": "ESCALATE",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 4450,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 500000,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 3219429
+   },
+   "total_ms": 108.1,
+   "ok": true
+  },
+  {
+   "id": "B03",
+   "family": "cash",
+   "severity": "high",
+   "title": "cash = floor + 1 cent",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 34.8,
+    "actions": {
+     "PAYROLL-NOV": "DEFER",
+     "SHIPPING-UK": "ESCALATE",
+     "SUPPLIER-EU": "ESCALATE",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 4450,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 500001,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 4693177
+   },
+   "total_ms": 120.6,
+   "ok": true
+  },
+  {
+   "id": "B04",
+   "family": "cash",
+   "severity": "extreme",
+   "title": "cash below the reserve floor",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 33.7,
+    "actions": {
+     "PAYROLL-NOV": "DEFER",
+     "SHIPPING-UK": "ESCALATE",
+     "SUPPLIER-EU": "ESCALATE",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 10000,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 300000,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 4962152
+   },
+   "total_ms": 106.4,
+   "ok": true
+  },
+  {
+   "id": "B05",
+   "family": "cash",
+   "severity": "extreme",
+   "title": "USD 10 billion (max minor units)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 21.3,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1673836,
+    "after": 999998326164,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1846221
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 9,999,983,261.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for th",
+    "ms": 435.3,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 523.2,
+   "ok": true
+  },
+  {
+   "id": "B06",
+   "family": "cash",
+   "severity": "high",
+   "title": "zero reserve floor",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 21.5,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1673836,
+    "after": 576164,
+    "floor": 100000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1597864
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 5,761.65 >= USD 1,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 399.7,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 492.9,
+   "ok": true
+  },
+  {
+   "id": "B07",
+   "family": "cash",
+   "severity": "extreme",
+   "title": "reserve floor above all cash",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 28.1,
+    "actions": {
+     "PAYROLL-NOV": "DEFER",
+     "SHIPPING-UK": "ESCALATE",
+     "SUPPLIER-EU": "ESCALATE",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 10000,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 2250000,
+    "floor": 5100000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 5001602
+   },
+   "total_ms": 103.1,
+   "ok": true
+  },
+  {
+   "id": "B08",
+   "family": "cash",
+   "severity": "extreme",
+   "title": "stress larger than all cash",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 29.1,
+    "actions": {
+     "PAYROLL-NOV": "DEFER",
+     "SHIPPING-UK": "ESCALATE",
+     "SUPPLIER-EU": "ESCALATE",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 9760,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 2250000,
+    "floor": 5500000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 5897338
+   },
+   "total_ms": 110.7,
+   "ok": true
+  },
+  {
+   "id": "B09",
+   "family": "cash",
+   "severity": "high",
+   "title": "stress eats exactly the headroom",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 23.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "DEFER",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 450,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1238385,
+    "after": 1011615,
+    "floor": 697105,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3151860
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,116.16 >= USD 6,971.05; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 273.4,
+    "transfers": 3,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 374.4,
+   "ok": true
+  },
+  {
+   "id": "B10",
+   "family": "cash",
+   "severity": "high",
+   "title": "only foreign cash: USD 0, EUR 50k, GBP 10k",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 25.5,
+    "actions": {
+     "PAYROLL-NOV": "DEFER",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 10000,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 0,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 5007381
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD wallet untouched at USD 0.00, which is already below the floor USD 6,000.00 (not caused by this run)",
+    "ms": 213.0,
+    "transfers": 2,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 305.7,
+   "ok": true
+  },
+  {
+   "id": "C01",
+   "family": "obligations",
+   "severity": "normal",
+   "title": "single obligation",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 11.0,
+    "actions": {
+     "OB-01": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 100300,
+    "after": 2149700,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1853875
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 21,497.00 >= USD 6,000.00",
+    "ms": 96.7,
+    "transfers": 1,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 168.1,
+   "ok": true
+  },
+  {
+   "id": "C02",
+   "family": "obligations",
+   "severity": "high",
+   "title": "twelve obligations (model maximum), mixed currencies",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 46.6,
+    "actions": {
+     "OB-09": "PAY",
+     "OB-08": "CONVERT_AND_PAY",
+     "OB-07": "CONVERT_AND_PAY",
+     "OB-06": "PAY",
+     "OB-05": "CONVERT_AND_PAY",
+     "OB-04": "CONVERT_AND_PAY",
+     "OB-03": "PAY",
+     "OB-02": "CONVERT_AND_PAY",
+     "OB-12": "PAY",
+     "OB-01": "CONVERT_AND_PAY",
+     "OB-11": "DEFER",
+     "OB-10": "DEFER"
+    },
+    "breach_bp": 1130,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1614846,
+    "after": 635154,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 6731964
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,351.55 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 759.8,
+    "transfers": 10,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 879.0,
+   "ok": true
+  },
+  {
+   "id": "C03",
+   "family": "obligations",
+   "severity": "extreme",
+   "title": "everything critical and due now (0 h)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 22.8,
+    "actions": {
+     "OB-01": "ESCALATE",
+     "OB-02": "ESCALATE",
+     "OB-03": "PAY",
+     "OB-04": "PAY",
+     "OB-05": "PAY",
+     "OB-06": "PAY"
+    },
+    "breach_bp": 915,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1601200,
+    "after": 648800,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 2190020
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,488.00 >= USD 6,000.00",
+    "ms": 336.9,
+    "transfers": 4,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 444.2,
+   "ok": true
+  },
+  {
+   "id": "C04",
+   "family": "obligations",
+   "severity": "moderate",
+   "title": "everything due at the horizon (72 h)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 11.8,
+    "actions": {
+     "OB-01": "PAY",
+     "OB-02": "PAY",
+     "OB-03": "PAY",
+     "OB-04": "PAY",
+     "OB-05": "PAY"
+    },
+    "breach_bp": 120,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1501500,
+    "after": 748500,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1715097
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 7,485.00 >= USD 6,000.00",
+    "ms": 359.4,
+    "transfers": 5,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 432.5,
+   "ok": true
+  },
+  {
+   "id": "C05",
+   "family": "obligations",
+   "severity": "high",
+   "title": "all SWIFT in EUR (fee on every payout)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 17.4,
+    "actions": {
+     "OB-01": "CONVERT_AND_PAY",
+     "OB-02": "CONVERT_AND_PAY",
+     "OB-03": "CONVERT_AND_PAY",
+     "OB-04": "CONVERT_AND_PAY",
+     "OB-05": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1092254,
+    "after": 1157746,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1577964
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 11,577.47 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 381.1,
+    "transfers": 5,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 468.7,
+   "ok": true
+  },
+  {
+   "id": "C06",
+   "family": "obligations",
+   "severity": "extreme",
+   "title": "five copies of the same invoice",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 17.7,
+    "actions": {
+     "OB-01": "PAY",
+     "OB-02": "REJECT",
+     "OB-03": "REJECT",
+     "OB-04": "REJECT",
+     "OB-05": "REJECT"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 300300,
+    "after": 1949700,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2255518
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 19,497.00 >= USD 6,000.00",
+    "ms": 112.7,
+    "transfers": 1,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 191.0,
+   "ok": true
+  },
+  {
+   "id": "C07",
+   "family": "obligations",
+   "severity": "high",
+   "title": "all obligations already settled",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 11.4,
+    "actions": {
+     "PAYROLL-NOV": "REJECT",
+     "SHIPPING-UK": "REJECT",
+     "SUPPLIER-EU": "REJECT",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "REJECT",
+     "SAAS-USD": "REJECT"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 2250000,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2415633
+   },
+   "total_ms": 69.9,
+   "ok": true
+  },
+  {
+   "id": "C08",
+   "family": "obligations",
+   "severity": "extreme",
+   "title": "one-cent obligations",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 10.7,
+    "actions": {
+     "OB-01": "PAY",
+     "OB-02": "PAY",
+     "OB-03": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 903,
+    "after": 2249097,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2766979
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 22,490.97 >= USD 6,000.00",
+    "ms": 221.2,
+    "transfers": 3,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "total_ms": 283.7,
+   "ok": true
+  },
+  {
+   "id": "C09",
+   "family": "obligations",
+   "severity": "extreme",
+   "title": "one obligation of USD 1 billion",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 16.2,
+    "actions": {
+     "OB-01": "ESCALATE"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 2250000,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2521727
+   },
+   "total_ms": 81.4,
+   "ok": true
+  },
+  {
+   "id": "C10",
+   "family": "obligations",
+   "severity": "high",
+   "title": "each obligation alone breaks the reserve",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 20.9,
+    "actions": {
+     "OB-01": "ESCALATE",
+     "OB-02": "ESCALATE",
+     "OB-03": "ESCALATE"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 2250000,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2238515
+   },
+   "total_ms": 84.3,
+   "ok": true
+  },
+  {
+   "id": "C11",
+   "family": "obligations",
+   "severity": "extreme",
+   "title": "no eligible evidence at all (every document rejected)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 10.7,
+    "actions": {
+     "PAYROLL-NOV": "REJECT",
+     "SHIPPING-UK": "REJECT",
+     "SUPPLIER-EU": "REJECT",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "REJECT",
+     "SAAS-USD": "REJECT"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 0,
+    "after": 2250000,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2346730
+   },
+   "total_ms": 63.8,
+   "ok": true
+  },
+  {
+   "id": "C12",
+   "family": "obligations",
+   "severity": "high",
+   "title": "evidence points at the wrong obligation",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 23.3,
+    "actions": {
+     "PAYROLL-NOV": "REJECT",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 873536,
+    "after": 1376464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1495161
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 13,764.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 313.2,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 406.3,
+   "ok": true
+  },
+  {
+   "id": "C13",
+   "family": "obligations",
+   "severity": "moderate",
+   "title": "evidence pending (not yet verified) for payroll",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 16.8,
+    "actions": {
+     "PAYROLL-NOV": "REJECT",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 873536,
+    "after": 1376464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1736329
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 13,764.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 361.0,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 437.2,
+   "ok": true
+  },
+  {
+   "id": "D01",
+   "family": "fx",
+   "severity": "extreme",
+   "title": "EUR worth 0.0001 USD",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 26.3,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1238426,
+    "after": 1011574,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4006112
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,115.76 >= USD 6,000.00; variance vs plan USD 0.02 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 460.7,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 2
+    }
+   },
+   "total_ms": 559.4,
+   "ok": true
+  },
+  {
+   "id": "D02",
+   "family": "fx",
+   "severity": "extreme",
+   "title": "EUR worth 100 USD",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 21.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "ESCALATE",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1238385,
+    "after": 1011615,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1629023
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,116.16 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 306.8,
+    "transfers": 3,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 413.5,
+   "ok": true
+  },
+  {
+   "id": "D03",
+   "family": "fx",
+   "severity": "high",
+   "title": "rate with 10 decimals",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 22.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553537,
+    "after": 696463,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4458192
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.02 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 341.2,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 2
+    }
+   },
+   "total_ms": 436.2,
+   "ok": true
+  },
+  {
+   "id": "D04",
+   "family": "fx",
+   "severity": "moderate",
+   "title": "EUR wallet already covers the EUR payout (no conversion)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 19.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 0,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1238385,
+    "after": 1011615,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2668866
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 10,116.16 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 504.3,
+    "transfers": 4,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 592.6,
+   "ok": true
+  },
+  {
+   "id": "D05",
+   "family": "fx",
+   "severity": "high",
+   "title": "GBP wallet covers half the GBP payout (partial conversion)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 26.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "PAY"
+    },
+    "breach_bp": 160,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1515086,
+    "after": 734914,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1407465
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 7,349.15 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 504.1,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 604.2,
+   "ok": true
+  },
+  {
+   "id": "D06",
+   "family": "fx",
+   "severity": "high",
+   "title": "ECB stress requested but no history on disk (must fail closed)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "BLOCKED",
+    "ms": 48.9,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [
+     "Horizon \u00b7 risk: stress buffer 100000 minor; 1/1 receipts reliable"
+    ],
+    "sim_path_events_per_s": 2724113
+   },
+   "total_ms": 153.7,
+   "ok": true
+  },
+  {
+   "id": "D07",
+   "family": "fx",
+   "severity": "moderate",
+   "title": "ECB stress with the empirical model on a synthetic history",
+   "note": "ecb-fixture",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 403.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 500,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 611111,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2382340
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,111.11; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 453.2,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 976.5,
+   "ok": true
+  },
+  {
+   "id": "D08",
+   "family": "fx",
+   "severity": "moderate",
+   "title": "Horizon M0 paths on a synthetic history",
+   "note": "ecb-fixture",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 135.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 920,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 632203,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 2340339
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,322.03; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 459.0,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 705.3,
+   "ok": true
+  },
+  {
+   "id": "E01",
+   "family": "receivables",
+   "severity": "moderate",
+   "title": "no receivables at all",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 28.3,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 705,
+    "limit": 1000000,
+    "confidence_bp": null,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1025273
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 352.5,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 461.2,
+   "ok": true
+  },
+  {
+   "id": "E02",
+   "family": "receivables",
+   "severity": "high",
+   "title": "fifty small receivables",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 74.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 90,
+    "limit": 875000,
+    "confidence_bp": 8500,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 34499883
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 354.2,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 556.9,
+   "ok": true
+  },
+  {
+   "id": "E03",
+   "family": "receivables",
+   "severity": "extreme",
+   "title": "receipt confidence 0%",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 28.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 0,
+    "confidence_bp": 0,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1099203
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 361.7,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 467.8,
+   "ok": true
+  },
+  {
+   "id": "E04",
+   "family": "receivables",
+   "severity": "high",
+   "title": "receipt confidence 100%",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 25.8,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 290,
+    "limit": 1000000,
+    "confidence_bp": 10000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3452244
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 382.6,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 490.0,
+   "ok": true
+  },
+  {
+   "id": "E05",
+   "family": "receivables",
+   "severity": "high",
+   "title": "arrival window ends after the horizon",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 30.8,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 770,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 593647
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 344.0,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 467.1,
+   "ok": true
+  },
+  {
+   "id": "E06",
+   "family": "receivables",
+   "severity": "extreme",
+   "title": "a USD 1 billion receipt",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 23.5,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3936350
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 359.1,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 447.4,
+   "ok": true
+  },
+  {
+   "id": "E07",
+   "family": "receivables",
+   "severity": "moderate",
+   "title": "payer history 0 kept / 100 missed",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 28.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4271094
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 325.6,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 426.1,
+   "ok": true
+  },
+  {
+   "id": "E08",
+   "family": "receivables",
+   "severity": "moderate",
+   "title": "payer history 100 kept / 0 missed",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 23.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4006768
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 352.9,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 443.2,
+   "ok": true
+  },
+  {
+   "id": "E09",
+   "family": "receivables",
+   "severity": "moderate",
+   "title": "receipt in GBP",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 32.8,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4015644
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 413.8,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 533.2,
+   "ok": true
+  },
+  {
+   "id": "E10",
+   "family": "receivables",
+   "severity": "high",
+   "title": "receipt expected right now (0 h)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 32.8,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 60,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3594398
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 375.9,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 494.5,
+   "ok": true
+  },
+  {
+   "id": "F01",
+   "family": "policy",
+   "severity": "extreme",
+   "title": "autonomous conversion limit 0 (every conversion needs a person)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 29.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 0,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 2215898
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 339.7,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 444.6,
+   "ok": true
+  },
+  {
+   "id": "F02",
+   "family": "policy",
+   "severity": "extreme",
+   "title": "autonomous limit 10^13",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 27.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 10000000000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2820126
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 325.8,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 427.9,
+   "ok": true
+  },
+  {
+   "id": "F03",
+   "family": "policy",
+   "severity": "high",
+   "title": "confidence band one basis point wide",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 33.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3174281
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 305.6,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 410.9,
+   "ok": true
+  },
+  {
+   "id": "F04",
+   "family": "policy",
+   "severity": "moderate",
+   "title": "no escalation flags (bank changes are not exceptions)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "0 verified / 0 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 3/5 admissible messages",
+    "updates": [],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 34.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "DEFER",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4447294
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 368.3,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 494.4,
+   "ok": true
+  },
+  {
+   "id": "F05",
+   "family": "policy",
+   "severity": "high",
+   "title": "breach tolerance 0% (any simulated risk needs a person)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 35.0,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 2909081
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 354.4,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 472.2,
+   "ok": true
+  },
+  {
+   "id": "F06",
+   "family": "policy",
+   "severity": "moderate",
+   "title": "100 simulation paths (coarse)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 20.3,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 300,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 440232
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 348.1,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 440.3,
+   "ok": true
+  },
+  {
+   "id": "F07",
+   "family": "policy",
+   "severity": "high",
+   "title": "planning horizon 1 hour",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 15.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 39999974
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 303.3,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 376.4,
+   "ok": true
+  },
+  {
+   "id": "F08",
+   "family": "policy",
+   "severity": "moderate",
+   "title": "reliance threshold 100% confidence",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 23.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2067896
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 317.4,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 413.6,
+   "ok": true
+  },
+  {
+   "id": "G01",
+   "family": "inbox",
+   "severity": "normal",
+   "title": "empty inbox",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "0 verified / 0 unverified receipt updates, 0 policy exception(s), 0 ungrounded claim(s) rejected, from 0/0 admissible messages",
+    "updates": [],
+    "flags": [],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 34.0,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2324863
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 363.0,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 473.3,
+   "ok": true
+  },
+  {
+   "id": "G02",
+   "family": "inbox",
+   "severity": "moderate",
+   "title": "only embargoed (future) messages",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "0 verified / 0 unverified receipt updates, 0 policy exception(s), 0 ungrounded claim(s) rejected, from 0/5 admissible messages",
+    "updates": [],
+    "flags": [],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 33.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2440881
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 330.3,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 444.3,
+   "ok": true
+  },
+  {
+   "id": "G03",
+   "family": "inbox",
+   "severity": "high",
+   "title": "delay of 90 days",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "0 verified / 1 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      false,
+      null,
+      3500
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 26.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 825,
+    "limit": 0,
+    "confidence_bp": 3500,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 914313
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 355.5,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 454.2,
+   "ok": true
+  },
+  {
+   "id": "G04",
+   "family": "inbox",
+   "severity": "moderate",
+   "title": "delay of 'a week'",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "1 verified / 0 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      true,
+      7,
+      7000
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 30.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 500000,
+    "confidence_bp": 7000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 2480774
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 393.4,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 512.4,
+   "ok": true
+  },
+  {
+   "id": "G05",
+   "family": "inbox",
+   "severity": "high",
+   "title": "delay of 400 days (beyond the sanity limit)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "0 verified / 1 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      false,
+      null,
+      3500
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 28.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 825,
+    "limit": 0,
+    "confidence_bp": 3500,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 715112
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 436.3,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 551.9,
+   "ok": true
+  },
+  {
+   "id": "G06",
+   "family": "inbox",
+   "severity": "extreme",
+   "title": "prompt injection in the email",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "0 verified / 0 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 61.5,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 540628
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 382.9,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 569.2,
+   "ok": true
+  },
+  {
+   "id": "G07",
+   "family": "inbox",
+   "severity": "extreme",
+   "title": "20,000-character email",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "1 verified / 0 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      true,
+      5,
+      7000
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 26.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 500000,
+    "confidence_bp": 7000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 739152
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 362.8,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 467.2,
+   "ok": true
+  },
+  {
+   "id": "G08",
+   "family": "inbox",
+   "severity": "moderate",
+   "title": "unicode payer name in the email",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "1 verified / 0 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      true,
+      5,
+      7000
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 22.6,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 500000,
+    "confidence_bp": 7000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1505570
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 313.7,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 408.7,
+   "ok": true
+  },
+  {
+   "id": "G09",
+   "family": "inbox",
+   "severity": "extreme",
+   "title": "model answers garbage (not JSON)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "1 verified / 0 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      true,
+      5,
+      7000
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 20.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 500000,
+    "confidence_bp": 7000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1501163
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 329.5,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 421.9,
+   "ok": true
+  },
+  {
+   "id": "G10",
+   "family": "inbox",
+   "severity": "extreme",
+   "title": "model hallucinates a 2-day delay and a bank change for every payee",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "1 verified / 0 unverified receipt updates, 1 policy exception(s), 4 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      true,
+      5,
+      7000
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 4
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 21.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 500000,
+    "confidence_bp": 7000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1190830
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 322.2,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 413.4,
+   "ok": true
+  },
+  {
+   "id": "G11",
+   "family": "inbox",
+   "severity": "high",
+   "title": "model claims a delay citing the wrong document",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "1 verified / 0 unverified receipt updates, 1 policy exception(s), 1 ungrounded claim(s) rejected, from 4/5 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      true,
+      5,
+      7000
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 1
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 27.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 500000,
+    "confidence_bp": 7000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1418741
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 362.7,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 477.5,
+   "ok": true
+  },
+  {
+   "id": "G12",
+   "family": "inbox",
+   "severity": "moderate",
+   "title": "contradictory: delay and release on the same day",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "inbox": {
+    "summary": "1 verified / 0 unverified receipt updates, 1 policy exception(s), 0 ungrounded claim(s) rejected, from 5/6 admissible messages",
+    "updates": [
+     [
+      "RCV-ACME",
+      true,
+      5,
+      7000
+     ]
+    ],
+    "flags": [
+     [
+      "CONTRACTOR-US",
+      true
+     ]
+    ],
+    "rejected_claims": 0
+   },
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 29.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "ESCALATE"
+    },
+    "breach_bp": 835,
+    "limit": 500000,
+    "confidence_bp": 7000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit",
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 1132246
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 345.4,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 451.2,
+   "ok": true
+  },
+  {
+   "id": "H00",
+   "family": "rail",
+   "severity": "high",
+   "title": "planning rate stale: rail EUR 3% dearer than the plan assumed",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 24.1,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3592617
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "EUR quote costs USD 4,485.34, above the slippage limit USD 4,398.06; nothing booked, re-plan",
+    "ms": 99.1,
+    "transfers": 0,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1553536
+    }
+   },
+   "total_ms": 192.6,
+   "ok": true
+  },
+  {
+   "id": "H01",
+   "family": "rail",
+   "severity": "high",
+   "title": "quote 5% worse than the planning rate (slippage)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 27.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2525467
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "EUR quote costs USD 4,555.17, above the slippage limit USD 4,398.06; nothing booked, re-plan",
+    "ms": 138.6,
+    "transfers": 0,
+    "conversions": 0,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1553536
+    }
+   },
+   "total_ms": 276.2,
+   "ok": true
+  },
+  {
+   "id": "H01b",
+   "family": "rail",
+   "severity": "moderate",
+   "title": "planning rate stale: rail EUR 3% cheaper than the plan assumed",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 40.6,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2026975
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 7,095.09 >= USD 6,000.00; variance vs plan USD 130.45 (actual Airwallex amounts: fees and rounding; fees are learned for the next",
+    "ms": 370.6,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 13045
+    }
+   },
+   "total_ms": 498.5,
+   "ok": true
+  },
+  {
+   "id": "H02",
+   "family": "rail",
+   "severity": "high",
+   "title": "quote 0.9% worse (inside the 1% slippage limit)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 28.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3554098
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,906.01 >= USD 6,000.00; variance vs plan -USD 58.63 (actual Airwallex amounts: fees and rounding; fees are learned for the next",
+    "ms": 320.2,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": -5863
+    }
+   },
+   "total_ms": 436.6,
+   "ok": true
+  },
+  {
+   "id": "H03",
+   "family": "rail",
+   "severity": "high",
+   "title": "conversion response lost",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 29.3,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2791626
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 362.1,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 472.2,
+   "ok": true
+  },
+  {
+   "id": "H04",
+   "family": "rail",
+   "severity": "high",
+   "title": "transfer response lost",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 37.9,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 1677656
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 369.2,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 493.0,
+   "ok": true
+  },
+  {
+   "id": "H05",
+   "family": "rail",
+   "severity": "extreme",
+   "title": "429 storm: three rate-limit errors on transfer create",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 37.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3047864
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 381.7,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 501.7,
+   "ok": true
+  },
+  {
+   "id": "H06",
+   "family": "rail",
+   "severity": "high",
+   "title": "500 then OK on quotes",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 28.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3533316
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 376.3,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 486.9,
+   "ok": true
+  },
+  {
+   "id": "H07",
+   "family": "rail",
+   "severity": "high",
+   "title": "token expires once (401) mid-run",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 34.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2077796
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 379.9,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 505.2,
+   "ok": true
+  },
+  {
+   "id": "H08",
+   "family": "rail",
+   "severity": "extreme",
+   "title": "wallet holds less than the plan assumes (stale state)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "BLOCKED",
+    "ms": 34.4,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [
+     "Airwallex \u00b7 live balances: plan uses more cash than Airwallex shows"
+    ],
+    "sim_path_events_per_s": 2149872
+   },
+   "total_ms": 116.6,
+   "ok": true
+  },
+  {
+   "id": "H09",
+   "family": "rail",
+   "severity": "high",
+   "title": "beneficiary rejected by the corridor schema",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 31.6,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3726711
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "beneficiary payroll-group-us rejected by Airwallex: validation_failed",
+    "ms": 199.2,
+    "transfers": 0,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 800301,
+     "EUR": 401337,
+     "GBP": 250224
+    }
+   },
+   "total_ms": 308.6,
+   "ok": true
+  },
+  {
+   "id": "H10",
+   "family": "rail",
+   "severity": "high",
+   "title": "conversion stays SCHEDULED (does not settle)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 26.3,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3155632
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "conversion c-658b7be3-8d63-40f3-82b8-60b0d27dff66 is SCHEDULED; transfers held",
+    "ms": 165.5,
+    "transfers": 0,
+    "conversions": 1,
+    "discrepancies": {
+     "USD": -435451,
+     "EUR": 401337
+    },
+    "variance": {
+     "USD": 1118085,
+     "EUR": 401337
+    }
+   },
+   "total_ms": 268.7,
+   "ok": true
+  },
+  {
+   "id": "H11",
+   "family": "rail",
+   "severity": "high",
+   "title": "deposit never settles (receipt must not be counted)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 30.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2466306
+   },
+   "receipt": {
+    "landed": false,
+    "status": "PENDING"
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 344.1,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 504.5,
+   "ok": true
+  },
+  {
+   "id": "H12",
+   "family": "rail",
+   "severity": "moderate",
+   "title": "deposit settles, plan recalculated",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 33.9,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2474934
+   },
+   "receipt": {
+    "landed": true,
+    "status": "SETTLED",
+    "replan": {
+     "decision": "APPROVED",
+     "mode": "incremental",
+     "changes": [
+      [
+       "SAAS-USD",
+       "DEFER",
+       "PAY"
+      ]
+     ]
+    }
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 15,761.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next ",
+    "ms": 431.6,
+    "transfers": 4,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 581.4,
+   "ok": true
+  },
+  {
+   "id": "H13",
+   "family": "rail",
+   "severity": "extreme",
+   "title": "duplicate_request_id returned by the rail",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 34.3,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2577076
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "transfer PAYROLL-NOV failed: duplicate_request_id",
+    "ms": 228.5,
+    "transfers": 0,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 800301,
+     "EUR": 401337,
+     "GBP": 250224
+    }
+   },
+   "total_ms": 342.5,
+   "ok": true
+  },
+  {
+   "id": "H14",
+   "family": "rail",
+   "severity": "extreme",
+   "title": "insufficient funds at transfer (rail disagrees with wallet read)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 33.9,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2126622
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "transfer PAYROLL-NOV failed: balance_insufficient",
+    "ms": 225.9,
+    "transfers": 0,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 800301,
+     "EUR": 401337,
+     "GBP": 250224
+    }
+   },
+   "total_ms": 348.8,
+   "ok": true
+  },
+  {
+   "id": "H15",
+   "family": "rail",
+   "severity": "high",
+   "title": "shipping payout fails after SENT (bank return)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 28.6,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3587951
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "transfers failed: SHIPPING-UK",
+    "ms": 367.4,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1,
+     "GBP": 250000
+    }
+   },
+   "total_ms": 477.9,
+   "ok": true
+  },
+  {
+   "id": "H16",
+   "family": "rail",
+   "severity": "high",
+   "title": "every payout fails after SENT",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 26.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3285196
+   },
+   "execution": {
+    "status": "FAILED",
+    "message": "transfers failed: PAYROLL-NOV, SHIPPING-UK, SUPPLIER-EU",
+    "ms": 362.5,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 800001,
+     "EUR": 400000,
+     "GBP": 250000
+    }
+   },
+   "total_ms": 467.6,
+   "ok": true
+  },
+  {
+   "id": "I01",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure ACCOUNT_CLOSED (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.6,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 141.6,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "ACCOUNT_CLOSED",
+    "replacement": null,
+    "ms": 36.2,
+    "reason": "ACCOUNT_CLOSED: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 243.3,
+   "ok": true
+  },
+  {
+   "id": "I02",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure ACCOUNT_CURRENCY_MISMATCH (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 10.1,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 166.5,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "ACCOUNT_CURRENCY_MISMATCH",
+    "replacement": null,
+    "ms": 32.2,
+    "reason": "ACCOUNT_CURRENCY_MISMATCH: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 288.0,
+   "ok": true
+  },
+  {
+   "id": "I03",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure ACCOUNT_INACTIVE_OR_DORMANT (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.6,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 157.9,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "ACCOUNT_INACTIVE_OR_DORMANT",
+    "replacement": null,
+    "ms": 30.2,
+    "reason": "ACCOUNT_INACTIVE_OR_DORMANT: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 256.3,
+   "ok": true
+  },
+  {
+   "id": "I04",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure ACCOUNT_UNDER_RESTRICTION (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.8,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 145.9,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "ACCOUNT_UNDER_RESTRICTION",
+    "replacement": null,
+    "ms": 29.6,
+    "reason": "ACCOUNT_UNDER_RESTRICTION: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 238.7,
+   "ok": true
+  },
+  {
+   "id": "I05",
+   "family": "incident",
+   "severity": "high",
+   "title": "failure BENEFICIARY_BANK_RETURNED (replace)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.0,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 156.1,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "REPLACE",
+    "status": "RESOLVED",
+    "original": "CANCELLED",
+    "failure_type": "BENEFICIARY_BANK_RETURNED",
+    "replacement": "PAID",
+    "ms": 103.4,
+    "reason": "BENEFICIARY_BANK_RETURNED: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
+    "expected": "REPLACE"
+   },
+   "total_ms": 336.8,
+   "ok": true
+  },
+  {
+   "id": "I06",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure BENEFICIARY_NAME_MISMATCH (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.4,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 154.7,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "BENEFICIARY_NAME_MISMATCH",
+    "replacement": null,
+    "ms": 28.7,
+    "reason": "BENEFICIARY_NAME_MISMATCH: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 249.7,
+   "ok": true
+  },
+  {
+   "id": "I07",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure BENEFICIARY_REQUESTED (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.3,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 145.8,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "BENEFICIARY_REQUESTED",
+    "replacement": null,
+    "ms": 29.0,
+    "reason": "BENEFICIARY_REQUESTED: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 238.2,
+   "ok": true
+  },
+  {
+   "id": "I08",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure CARD_ISSUER_ERROR (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 16.5,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 147.0,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "CARD_ISSUER_ERROR",
+    "replacement": null,
+    "ms": 27.4,
+    "reason": "CARD_ISSUER_ERROR: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 245.0,
+   "ok": true
+  },
+  {
+   "id": "I09",
+   "family": "incident",
+   "severity": "high",
+   "title": "failure CHANNEL_POLICY (replace)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.2,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 165.9,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "REPLACE",
+    "status": "RESOLVED",
+    "original": "CANCELLED",
+    "failure_type": "CHANNEL_POLICY",
+    "replacement": "PAID",
+    "ms": 98.3,
+    "reason": "CHANNEL_POLICY: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
+    "expected": "REPLACE"
+   },
+   "total_ms": 333.7,
+   "ok": true
+  },
+  {
+   "id": "I10",
+   "family": "incident",
+   "severity": "high",
+   "title": "failure CHANNEL_TIMEOUT (replace)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 9.7,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 167.8,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "REPLACE",
+    "status": "RESOLVED",
+    "original": "CANCELLED",
+    "failure_type": "CHANNEL_TIMEOUT",
+    "replacement": "PAID",
+    "ms": 98.6,
+    "reason": "CHANNEL_TIMEOUT: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
+    "expected": "REPLACE"
+   },
+   "total_ms": 339.0,
+   "ok": true
+  },
+  {
+   "id": "I11",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure CLIENT_REQUESTED (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.6,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 165.2,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "CLIENT_REQUESTED",
+    "replacement": null,
+    "ms": 31.8,
+    "reason": "CLIENT_REQUESTED: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 265.2,
+   "ok": true
+  },
+  {
+   "id": "I12",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure DUPLICATION_RETURN (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.8,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 158.7,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "DUPLICATION_RETURN",
+    "replacement": null,
+    "ms": 34.9,
+    "reason": "DUPLICATION_RETURN: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 267.1,
+   "ok": true
+  },
+  {
+   "id": "I13",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure EXCEEDED_TRANSACTION_AMOUNT_OR_LIMIT (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.5,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 178.6,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "EXCEEDED_TRANSACTION_AMOUNT_OR_LIMIT",
+    "replacement": null,
+    "ms": 26.4,
+    "reason": "EXCEEDED_TRANSACTION_AMOUNT_OR_LIMIT: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 283.0,
+   "ok": true
+  },
+  {
+   "id": "I14",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INBOUND_2B_CARD_NOT_SUPPORTED (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 9.1,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 145.7,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INBOUND_2B_CARD_NOT_SUPPORTED",
+    "replacement": null,
+    "ms": 27.3,
+    "reason": "INBOUND_2B_CARD_NOT_SUPPORTED: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 241.3,
+   "ok": true
+  },
+  {
+   "id": "I15",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INBOUND_BENFICIARY_VALIDATION_ERROR (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.3,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 152.9,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INBOUND_BENFICIARY_VALIDATION_ERROR",
+    "replacement": null,
+    "ms": 32.3,
+    "reason": "INBOUND_BENFICIARY_VALIDATION_ERROR: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 264.5,
+   "ok": true
+  },
+  {
+   "id": "I16",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INBOUND_COMPANY_REGISTRATION_NUMBER_ERROR (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.4,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 146.7,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INBOUND_COMPANY_REGISTRATION_NUMBER_ERROR",
+    "replacement": null,
+    "ms": 26.6,
+    "reason": "INBOUND_COMPANY_REGISTRATION_NUMBER_ERROR: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 238.7,
+   "ok": true
+  },
+  {
+   "id": "I17",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INBOUND_ORDER_ERROR (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.7,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 147.2,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INBOUND_ORDER_ERROR",
+    "replacement": null,
+    "ms": 31.6,
+    "reason": "INBOUND_ORDER_ERROR: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 244.1,
+   "ok": true
+  },
+  {
+   "id": "I18",
+   "family": "incident",
+   "severity": "high",
+   "title": "failure INSUFFICIENT_FUNDS (replace)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.8,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 152.1,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "REPLACE",
+    "status": "RESOLVED",
+    "original": "CANCELLED",
+    "failure_type": "INSUFFICIENT_FUNDS",
+    "replacement": "PAID",
+    "ms": 96.2,
+    "reason": "INSUFFICIENT_FUNDS: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
+    "expected": "REPLACE"
+   },
+   "total_ms": 322.4,
+   "ok": true
+  },
+  {
+   "id": "I19",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_ACCOUNT_NAME_OR_NUMBER (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.8,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 178.0,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_ACCOUNT_NAME_OR_NUMBER",
+    "replacement": null,
+    "ms": 30.8,
+    "reason": "INVALID_ACCOUNT_NAME_OR_NUMBER: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 276.9,
+   "ok": true
+  },
+  {
+   "id": "I20",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_BANK_INFORMATION (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.5,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 162.6,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_BANK_INFORMATION",
+    "replacement": null,
+    "ms": 38.5,
+    "reason": "INVALID_BANK_INFORMATION: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 269.3,
+   "ok": true
+  },
+  {
+   "id": "I21",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_BANK_OR_BRANCH_CODE (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.4,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 153.9,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_BANK_OR_BRANCH_CODE",
+    "replacement": null,
+    "ms": 32.2,
+    "reason": "INVALID_BANK_OR_BRANCH_CODE: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 252.0,
+   "ok": true
+  },
+  {
+   "id": "I22",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_BENEFICIARY_DETAILS (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.4,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 153.8,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_BENEFICIARY_DETAILS",
+    "replacement": null,
+    "ms": 30.5,
+    "reason": "INVALID_BENEFICIARY_DETAILS: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 259.3,
+   "ok": true
+  },
+  {
+   "id": "I23",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_CORRESPONDENT_BANK_INFORMATION (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 9.6,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 182.1,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_CORRESPONDENT_BANK_INFORMATION",
+    "replacement": null,
+    "ms": 28.0,
+    "reason": "INVALID_CORRESPONDENT_BANK_INFORMATION: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 293.5,
+   "ok": true
+  },
+  {
+   "id": "I24",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_PAYMENT_PURPOSE (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.2,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 157.0,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_PAYMENT_PURPOSE",
+    "replacement": null,
+    "ms": 33.4,
+    "reason": "INVALID_PAYMENT_PURPOSE: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 253.2,
+   "ok": true
+  },
+  {
+   "id": "I25",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_SPECIAL_CHARACTER (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.2,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 144.5,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_SPECIAL_CHARACTER",
+    "replacement": null,
+    "ms": 26.8,
+    "reason": "INVALID_SPECIAL_CHARACTER: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 249.4,
+   "ok": true
+  },
+  {
+   "id": "I26",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure INVALID_SWIFT_BIC_CODE (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.0,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 144.6,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "INVALID_SWIFT_BIC_CODE",
+    "replacement": null,
+    "ms": 26.1,
+    "reason": "INVALID_SWIFT_BIC_CODE: the payee's bank details are wrong; paying them again pays the wrong account again",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 228.9,
+   "ok": true
+  },
+  {
+   "id": "I27",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure OTHER (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.8,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 138.5,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "OTHER",
+    "replacement": null,
+    "ms": 26.4,
+    "reason": "OTHER: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 227.6,
+   "ok": true
+  },
+  {
+   "id": "I28",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure RECALL_REQUESTED (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.1,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 143.0,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "RECALL_REQUESTED",
+    "replacement": null,
+    "ms": 25.5,
+    "reason": "RECALL_REQUESTED: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 236.6,
+   "ok": true
+  },
+  {
+   "id": "I29",
+   "family": "incident",
+   "severity": "high",
+   "title": "failure SYSTEM_ERROR (replace)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.3,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 154.4,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "REPLACE",
+    "status": "RESOLVED",
+    "original": "CANCELLED",
+    "failure_type": "SYSTEM_ERROR",
+    "replacement": "PAID",
+    "ms": 90.6,
+    "reason": "SYSTEM_ERROR: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
+    "expected": "REPLACE"
+   },
+   "total_ms": 306.7,
+   "ok": true
+  },
+  {
+   "id": "I30",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure TM_SUSPENDED (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.9,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 152.4,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "TM_SUSPENDED",
+    "replacement": null,
+    "ms": 36.8,
+    "reason": "TM_SUSPENDED: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 252.0,
+   "ok": true
+  },
+  {
+   "id": "I31",
+   "family": "incident",
+   "severity": "moderate",
+   "title": "failure TRANSACTION_AMOUNT_NOT_COVERING_FEE (escalate)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.7,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 137.9,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "TRANSACTION_AMOUNT_NOT_COVERING_FEE",
+    "replacement": null,
+    "ms": 26.5,
+    "reason": "TRANSACTION_AMOUNT_NOT_COVERING_FEE: a person or a control stopped this payment; only a person may restart it",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 237.9,
+   "ok": true
+  },
+  {
+   "id": "I32",
+   "family": "incident",
+   "severity": "high",
+   "title": "failure UNABLE_TO_APPLY (replace)",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.6,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 142.3,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "REPLACE",
+    "status": "RESOLVED",
+    "original": "CANCELLED",
+    "failure_type": "UNABLE_TO_APPLY",
+    "replacement": "PAID",
+    "ms": 85.9,
+    "reason": "UNABLE_TO_APPLY: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
+    "expected": "REPLACE"
+   },
+   "total_ms": 292.3,
+   "ok": true
+  },
+  {
+   "id": "I33",
+   "family": "incident",
+   "severity": "high",
+   "title": "still in flight after 0 h",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 6.7,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 140.6,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "WAIT",
+    "status": "WAITING",
+    "original": "PROCESSING",
+    "failure_type": null,
+    "replacement": null,
+    "ms": 28.6,
+    "reason": "PROCESSING is not final; 0h in flight is within the 48h wait window; a transfer that may still clear is never replaced",
+    "expected": "WAIT"
+   },
+   "total_ms": 230.4,
+   "ok": true
+  },
+  {
+   "id": "I34",
+   "family": "incident",
+   "severity": "high",
+   "title": "still in flight after 47 h",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.6,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 140.9,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "WAIT",
+    "status": "WAITING",
+    "original": "PROCESSING",
+    "failure_type": null,
+    "replacement": null,
+    "ms": 27.2,
+    "reason": "PROCESSING is not final; 47h in flight is within the 48h wait window; a transfer that may still clear is never replaced",
+    "expected": "WAIT"
+   },
+   "total_ms": 233.6,
+   "ok": true
+  },
+  {
+   "id": "I35",
+   "family": "incident",
+   "severity": "high",
+   "title": "still in flight after 48 h",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 9.0,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 137.1,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "WAIT",
+    "status": "WAITING",
+    "original": "PROCESSING",
+    "failure_type": null,
+    "replacement": null,
+    "ms": 25.8,
+    "reason": "PROCESSING is not final; 48h in flight is within the 48h wait window; a transfer that may still clear is never replaced",
+    "expected": "WAIT"
+   },
+   "total_ms": 229.8,
+   "ok": true
+  },
+  {
+   "id": "I36",
+   "family": "incident",
+   "severity": "high",
+   "title": "still in flight after 49 h",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.6,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 149.2,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "PROCESSING",
+    "failure_type": null,
+    "replacement": null,
+    "ms": 25.6,
+    "reason": "PROCESSING for 49h, beyond the 48h window, and still not final: a person must chase the rail; replacing now could pay twice",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 240.1,
+   "ok": true
+  },
+  {
+   "id": "I37",
+   "family": "incident",
+   "severity": "high",
+   "title": "still in flight after 720 h",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 7.2,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 164201,
+    "after": 635799,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 133.3,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {}
+   },
+   "incident": {
+    "decision": "ESCALATE",
+    "status": "ESCALATED",
+    "original": "PROCESSING",
+    "failure_type": null,
+    "replacement": null,
+    "ms": 24.5,
+    "reason": "PROCESSING for 720h, beyond the 48h window, and still not final: a person must chase the rail; replacing now could pay twice",
+    "expected": "ESCALATE"
+   },
+   "total_ms": 219.6,
+   "ok": true
+  },
+  {
+   "id": "I99",
+   "family": "incident",
+   "severity": "extreme",
+   "title": "replacement with no money for the second fee",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "incident_decision_matches_table": true,
+    "incident_finality": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 8.1,
+    "actions": {
+     "SUPPLIER-EU-NOV": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 0,
+    "limit": 500000,
+    "confidence_bp": null,
+    "cost": 57,
+    "after": 799943,
+    "floor": 200000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 0
+   },
+   "execution": {
+    "status": "IN_FLIGHT",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV",
+    "ms": 141.8,
+    "transfers": 1,
+    "conversions": 1,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "incident": {
+    "decision": "REPLACE",
+    "status": "ESCALATED",
+    "original": "CANCELLED",
+    "failure_type": "BENEFICIARY_BANK_RETURNED",
+    "replacement": null,
+    "ms": 31.6,
+    "reason": "BENEFICIARY_BANK_RETURNED: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id",
+    "expected": "REPLACE"
+   },
+   "total_ms": 246.5,
+   "ok": true
+  },
+  {
+   "id": "J01",
+   "family": "load",
+   "severity": "extreme",
+   "title": "12 obligations x 20,000 simulation paths",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "REQUIRES_APPROVAL",
+    "ms": 25.4,
+    "actions": {
+     "OB-09": "CONVERT_AND_PAY",
+     "OB-08": "CONVERT_AND_PAY",
+     "OB-07": "CONVERT_AND_PAY",
+     "OB-06": "PAY",
+     "OB-05": "CONVERT_AND_PAY",
+     "OB-04": "CONVERT_AND_PAY",
+     "OB-03": "PAY",
+     "OB-02": "CONVERT_AND_PAY",
+     "OB-12": "PAY",
+     "OB-01": "CONVERT_AND_PAY",
+     "OB-11": "CONVERT_AND_PAY",
+     "OB-10": "CONVERT_AND_PAY"
+    },
+    "breach_bp": 128,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1498584,
+    "after": 751416,
+    "floor": 600000,
+    "requires_approval": [
+     "conversion_above_autonomous_limit"
+    ],
+    "fails": [],
+    "sim_path_events_per_s": 3723847
+   },
+   "total_ms": 95.5,
+   "ok": true
+  },
+  {
+   "id": "J02",
+   "family": "load",
+   "severity": "high",
+   "title": "50 receivables x 10,000 paths",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 92.5,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 135,
+    "limit": 875000,
+    "confidence_bp": 8500,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 55173457
+   },
+   "total_ms": 248.9,
+   "ok": true
+  },
+  {
+   "id": "J03",
+   "family": "load",
+   "severity": "high",
+   "title": "100 sequential plans (latency p50/p99, drift)",
+   "note": "",
+   "invariants": {
+    "stable": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "load": {
+    "n": 100,
+    "p50_ms": 24.75,
+    "p99_ms": 40.46,
+    "mean_first_fifth_ms": 26.34,
+    "mean_last_fifth_ms": 32.93,
+    "drift_ratio": 1.25,
+    "stable": true
+   },
+   "total_ms": 2740.5,
+   "ok": true
+  },
+  {
+   "id": "J04",
+   "family": "load",
+   "severity": "high",
+   "title": "20 concurrent plans on one orchestrator",
+   "note": "",
+   "invariants": {
+    "stable": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "load": {
+    "n": 20,
+    "wall_ms": 619.4,
+    "plans_per_s": 32.3,
+    "all_same_hash": true,
+    "stable": true
+   },
+   "total_ms": 672.3,
+   "ok": true
+  },
+  {
+   "id": "J05",
+   "family": "load",
+   "severity": "high",
+   "title": "10 executions in a row on separate books (no double pay, all reconciled)",
+   "note": "",
+   "invariants": {
+    "stable": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "load": {
+    "n": 10,
+    "statuses": [
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED",
+     "COMPLETED"
+    ],
+    "all_completed": true,
+    "max_paid_per_invoice": 1,
+    "stable": true
+   },
+   "total_ms": 3754.4,
+   "ok": true
+  },
+  {
+   "id": "J06",
+   "family": "load",
+   "severity": "moderate",
+   "title": "chain of 10 re-plans as cash grows",
+   "note": "",
+   "invariants": {
+    "stable": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "load": {
+    "n": 10,
+    "modes": [
+     "incremental",
+     "incremental",
+     "incremental",
+     "incremental",
+     "incremental",
+     "incremental",
+     "incremental",
+     "incremental",
+     "incremental",
+     "incremental"
+    ],
+    "stable": true
+   },
+   "total_ms": 265.3,
+   "ok": true
+  },
+  {
+   "id": "K01",
+   "family": "roles",
+   "severity": "high",
+   "title": "viewer tries to plan",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "BLOCKED",
+    "ms": 29.2,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [
+     "Policy: role viewer may not plan payments"
+    ],
+    "sim_path_events_per_s": 3999034
+   },
+   "total_ms": 107.5,
+   "ok": true
+  },
+  {
+   "id": "K02",
+   "family": "roles",
+   "severity": "normal",
+   "title": "finance manager plans directly",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 27.9,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 4185425
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 337.1,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 437.6,
+   "ok": true
+  },
+  {
+   "id": "K03",
+   "family": "recalc",
+   "severity": "moderate",
+   "title": "deposit of half the receipt",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 33.0,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3386654
+   },
+   "replan": {
+    "decision": "BLOCKED",
+    "mode": "incremental",
+    "locked": [
+     "PAYROLL-NOV",
+     "SHIPPING-UK",
+     "SUPPLIER-EU"
+    ],
+    "changes": [
+     [
+      "SAAS-USD",
+      "DEFER",
+      "PAY"
+     ]
+    ],
+    "fallback": null
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 334.6,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 467.4,
+   "ok": true
+  },
+  {
+   "id": "K04",
+   "family": "recalc",
+   "severity": "high",
+   "title": "cash drops by half after the plan",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 30.5,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3490793
+   },
+   "replan": {
+    "decision": "APPROVED",
+    "mode": "full",
+    "locked": [],
+    "changes": [
+     [
+      "PAYROLL-NOV",
+      "PAY",
+      "DEFER"
+     ],
+     [
+      "SUPPLIER-EU",
+      "CONVERT_AND_PAY",
+      "ESCALATE"
+     ],
+     [
+      "SAAS-USD",
+      "DEFER",
+      "PAY"
+     ]
+    ],
+    "fallback": "keeping the earlier payments no longer fits the budget; full recalculation"
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 334.1,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 480.0,
+   "ok": true
+  },
+  {
+   "id": "K05",
+   "family": "recalc",
+   "severity": "moderate",
+   "title": "payroll amount re-issued higher",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 28.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 2274010
+   },
+   "replan": {
+    "decision": "APPROVED",
+    "mode": "incremental",
+    "locked": [
+     "SHIPPING-UK",
+     "SUPPLIER-EU"
+    ],
+    "changes": [
+     [
+      "PAYROLL-NOV",
+      "PAY",
+      "ESCALATE"
+     ],
+     [
+      "SAAS-USD",
+      "DEFER",
+      "PAY"
+     ]
+    ],
+    "fallback": null
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 331.4,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 451.5,
+   "ok": true
+  },
+  {
+   "id": "K06",
+   "family": "recalc",
+   "severity": "normal",
+   "title": "identical state re-planned",
+   "note": "",
+   "invariants": {
+    "deterministic": true,
+    "reserve_respected": true,
+    "pays_only_verified": true,
+    "latency": true,
+    "reconciled": true,
+    "one_paid_per_invoice": true,
+    "unique_request_ids": true,
+    "no_crash": true
+   },
+   "errors": [],
+   "plan": {
+    "decision": "APPROVED",
+    "ms": 25.7,
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "breach_bp": 340,
+    "limit": 1000000,
+    "confidence_bp": 9000,
+    "cost": 1553536,
+    "after": 696464,
+    "floor": 600000,
+    "requires_approval": [],
+    "fails": [],
+    "sim_path_events_per_s": 3887808
+   },
+   "replan": {
+    "decision": "APPROVED",
+    "mode": "incremental",
+    "locked": [
+     "PAYROLL-NOV",
+     "SHIPPING-UK",
+     "SUPPLIER-EU"
+    ],
+    "changes": [],
+    "fallback": null
+   },
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 6,964.65 >= USD 6,000.00; variance vs plan USD 0.01 (actual Airwallex amounts: fees and rounding; fees are learned for the next p",
+    "ms": 349.5,
+    "transfers": 3,
+    "conversions": 2,
+    "discrepancies": {},
+    "variance": {
+     "USD": 1
+    }
+   },
+   "total_ms": 470.3,
+   "ok": true
+  }
+ ]
+}

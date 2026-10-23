@@ -192,6 +192,24 @@ def test_resume_after_crash_reuses_request_ids(tmp_path):
     assert len(fake.conversions) == 2
 
 
+def test_plan_funded_from_foreign_wallets_runs_when_base_is_already_below_floor(tmp_path):
+    """Matrix B10: USD 0, EUR 50k, GBP 10k. Nothing is spent from USD, so the floor (a rule on USD spend)
+    cannot be breached; the policy flags the 100% breach risk, a person approves, and the executor must
+    apply the same rule as ProofCore instead of refusing on the absolute USD level."""
+    fake = FakeAirwallex(balances={"USD": "0", "EUR": "50000", "GBP": "10000"})
+    fake.fees = dict(__import__("venthora.testing.fake_airwallex", fromlist=["REAL_SANDBOX_FEES"]).REAL_SANDBOX_FEES)
+
+    def mutate(s):
+        s["balances"] = {"USD": 0, "EUR": 5_000_000, "GBP": 1_000_000}
+        s["policy"]["payout_fees_minor"] = {"SWIFT:EUR": 1337, "LOCAL:USD": 300, "LOCAL:GBP": 224}
+
+    plan, result, _ = run_plan_and_execute(fake, tmp_path, approval=FINANCE_MANAGER, mutate=mutate)
+    assert plan.decision == "REQUIRES_APPROVAL" and plan.total_base_cost_minor == 0
+    assert result.status == "COMPLETED", result.message
+    assert paid(fake) == ["SHIPPING-UK", "SUPPLIER-EU"] and fake.conversions == {}
+    assert fake.balances["USD"] == 0
+
+
 def test_stale_state_is_blocked_by_live_balance_check(tmp_path):
     fake = FakeAirwallex(balances={"USD": "9000", "EUR": "0", "GBP": "0"})
     plan, result, _ = run_plan_and_execute(fake, tmp_path)

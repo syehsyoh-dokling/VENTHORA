@@ -155,8 +155,12 @@ class Executor:
                 status, message = "RECONCILIATION_MISMATCH", "live balances differ from expected or reserve breached"
             else:
                 base = state.base_currency
+                after_base = recon.managed_after_minor.get(base, 0)
                 message = (f"executed and reconciled; {base} reserve (managed budget) confirmed at "
-                           f"{fmt(recon.managed_after_minor.get(base, 0), base)} >= {fmt(recon.base_floor_minor, base)}")
+                           f"{fmt(after_base, base)} >= {fmt(recon.base_floor_minor, base)}"
+                           if after_base >= recon.base_floor_minor else
+                           f"executed and reconciled; {base} wallet untouched at {fmt(after_base, base)}, which is already "
+                           f"below the floor {fmt(recon.base_floor_minor, base)} (not caused by this run)")
                 if recon.plan_variance_minor:
                     message += ("; variance vs plan " + ", ".join(fmt(v, c) for c, v in sorted(recon.plan_variance_minor.items()))
                                 + " (actual Airwallex amounts: fees and rounding; fees are learned for the next plan)")
@@ -223,10 +227,13 @@ class Executor:
                                      f"slippage limit {fmt(limit, base)}; nothing booked, re-plan")
             quotes.append(quote)
 
-        projected = before.get(base, 0) - base_payments - sum(q.sell_amount_minor for q in quotes)
-        ok = projected >= plan.required_base_floor_minor
+        base_spend = base_payments + sum(q.sell_amount_minor for q in quotes)
+        projected = before.get(base, 0) - base_spend
+        # Same rule as ProofCore: the floor binds any plan that spends base cash. A plan funded entirely
+        # from foreign wallets leaves the base wallet untouched, so it cannot breach the floor (matrix B10).
+        ok = base_spend == 0 or projected >= plan.required_base_floor_minor
         steps.append(Step(kind="preflight", key="reserve-at-quoted-rates", status="OK" if ok else "FAILED", detail={
-            "live_base_minor": before.get(base, 0), "projected_after_minor": projected,
+            "live_base_minor": before.get(base, 0), "base_spend_minor": base_spend, "projected_after_minor": projected,
             "floor_minor": plan.required_base_floor_minor}))
         if not ok:
             raise Halt("FAILED", "at quoted rates the plan would breach the reserve floor; nothing booked")
@@ -406,7 +413,10 @@ class Executor:
         planned = (gate.details.get("balances_after") if gate else None) or {}
         variance = {c: managed[c] - planned[c] for c in managed if c in planned and managed[c] != planned[c]}
         base = state.base_currency
-        floor_ok = managed.get(base, 0) >= plan.required_base_floor_minor if live else False
+        # Same rule as the gate and the pre-flight: the floor binds base spend. If the execution did not move
+        # the base wallet, a base balance that was already below the floor is reported, not a breach of this run.
+        base_untouched = live.get(base, 0) == before.get(base, 0)
+        floor_ok = (base_untouched or managed.get(base, 0) >= plan.required_base_floor_minor) if live else False
         steps.append(Step(kind="reconcile", key="balances", status="OK" if not diffs and floor_ok else "FAILED", detail={
             "expected_minor": {c: expected[c] for c in state.balances if c in expected}, "discrepancies_minor": diffs,
             "managed_after_minor": managed, "plan_variance_minor": variance, "base_floor_ok": floor_ok}))

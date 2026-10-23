@@ -134,6 +134,15 @@ Verified on the fake sandbox and by tests (🧪); the real-sandbox run is listed
 | Original and replacement get different request IDs | 🧪 | asserted in `test_replace_under_duplicate_lock_with_second_fee_and_resolution` |
 | Budget for two SWIFT fees | 🧪 | the learned fee is added to the replacement cost; if the wallet cannot cover it the replacement is refused and escalated (`test_replacement_without_funds_for_the_second_fee_is_refused`); reconciliation expects the original's fee to be lost |
 | Do not close the incident because the replacement is PAID; record the original too | 🧪 | status `REPLACED_AWAITING_ORIGINAL` until the original's CANCELLED status, failure type and refund are recorded; then `RESOLVED` |
+| Every Airwallex `failure_type` handled | 🧪 | scenario matrix I01–I32: all 32 types in the decision table, plus the wait window (0/47/48/49/720 h) and an unfundable replacement; `docs/SCENARIO_MATRIX.md` |
+
+## (6) Robustness: the scenario matrix
+
+`python scripts/scenario_matrix.py` runs 136 real-world variants (normal days, cash and reserve extremes, obligation
+structure, FX extremes, receivables, policy knobs, adversarial inbox and model output, rail faults, every Kit 03
+failure type, load and stability, roles and recalculation) through the full pipeline and ten invariants, and writes
+[`docs/SCENARIO_MATRIX.md`](SCENARIO_MATRIX.md) plus a JSON log under `data/runs/matrix/`. The same variants run in
+CI (`tests/test_scenario_matrix.py`). Result on 23 Oct 2026: 136 / 136; one product bug found and fixed (B10, see AUDIT.md §3).
 
 ## Not applicable to this build
 
