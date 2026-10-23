@@ -1,6 +1,7 @@
 # Demo narration script: word for word, about five minutes
 
-Read at a natural pace, roughly 140 words a minute. The figures are the ones the dashboard shows on a clean demo server
+Read at a brisk, clear pace, roughly 160 words a minute (about 820 spoken words); at a slower 140 the video runs
+close to six minutes, which is still inside most submission limits. The figures are the ones the dashboard shows on a clean demo server
 (`python scripts/demo_server.py --reset`), as recorded in `docs/demo_run_log.json`. Stage directions are in brackets and
 are not read aloud; the scene timings add up to about five minutes and ten seconds. The storyboard with what to click
 is `docs/DEMO_STORYBOARD.md`.
@@ -117,4 +118,4 @@ Eighteen cycles on the real sandbox. The AI proposes. The engines verify. Airwal
 
 ---
 
-Word count of the spoken text: about seven hundred and forty.
+Word count of the spoken text: about eight hundred and twenty.
