@@ -71,6 +71,19 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
             notes.append(f"history: {len(hist['payees_paid_before'])} payee(s) paid before; outflow 24h "
                          f"{fmt(hist['outflow_24h_minor'], data['base_currency'])}, 7d {fmt(hist['outflow_7d_minor'], data['base_currency'])}")
     result = TreasuryState.model_validate(data)
+    # Payee lifecycle: the store's live records for the payees this book names (unregistered payees are escalated).
+    if result.payees is None:
+        records = store.list_payees()
+        if records:
+            from ..payees import attach_registry
+
+            result = attach_registry(result, records)
+            by_status: dict[str, list[str]] = {}
+            for r in result.payees.records:
+                by_status.setdefault(r.status, []).append(r.beneficiary_id)
+            missing = sorted({o.beneficiary_id for o in result.obligations} - {r.beneficiary_id for r in result.payees.records})
+            notes.append("payees: " + ", ".join(f"{k} {', '.join(v)}" for k, v in sorted(by_status.items()))
+                         + (f"; unregistered {', '.join(missing)}" if missing else ""))
     # Budget · mandate: the period's plan with what the store knows: realized spend per line, mandate granted by a person.
     from ..proofcore.budget import attach_budget, load_budget
 

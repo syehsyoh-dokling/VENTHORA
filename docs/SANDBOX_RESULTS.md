@@ -249,10 +249,32 @@ many times today): the spend-ledger rows booked before the `beneficiary_id` colu
 backfills that column from each execution's stored plan on start-up (8 rows recovered), and every new row carries it.
 Log: `docs/limits_log_real.json`.
 
+## Cycle 14: payee lifecycle on the real sandbox (`python scripts/payees_real.py`)
+
+Approved by the owner as finance manager; 23 Oct 2026, ~21:44 WIB; payee `ben-saas-vendor` (Cloudloom, ACTIVE since
+onboarding), fresh book, USD 1,000 invoices. Log: `docs/payees_log_real.json`.
+
+| Step | Registry | Plan | Execution |
+|---|---|---|---|
+| 1 · "new IBAN" change recorded (as an intake email would) | ACTIVE → **CHANGED**, cooling until +72 h | invoice **ESCALATED**, nothing to pay | COMPLETED with 0 transfers, even with a finance manager's approval attached |
+| 2a · call-back to the number printed in the email | **REFUSED** ("must be made to the registered number") | | |
+| 2b · call-back by a viewer | **REFUSED** (role) | | |
+| 3 · call-back on the registered number, finance manager | CHANGED → **VERIFIED**, cooling kept | `REQUIRES_APPROVAL payee_in_cooling_period` | 3a nobody approves → **REFUSED**; 3b approved → COMPLETED; payee stays VERIFIED |
+| 4 · second change with cooling 0 h, call-back | CHANGED → VERIFIED, cooling over at once | `REQUIRES_APPROVAL payee_not_yet_active` | approved → COMPLETED → payee **ACTIVE** |
+| 5 · next invoice | ACTIVE | **APPROVED**, no reason | COMPLETED, autonomous |
+
+**Finding.** In the first attempt the sandbox's settlement simulation answered HTTP 500 for two transfers, which stayed
+SCHEDULED (IN_FLIGHT). The payee correctly did **not** become ACTIVE: a transfer in flight is not a PAID payout, so the
+first autonomous plan still asked for a person (`payee_not_yet_active`). The rerun settled, and the two in-flight
+executions were resumed afterwards (both PAID, COMPLETED; the payee's paid count includes them). Five much older
+IN_FLIGHT executions left over from fake-sandbox cycles were resumed in the same pass and closed as FAILED by the
+duplicate lock, no money moved.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| The sandbox settlement simulation always answers | HTTP 500 on two transfers (cycle 14); they stayed in flight | nothing to fix: an in-flight payout proves nothing, the payee stayed VERIFIED; `resume` settles later |
 | History rows always name their payee | rows booked before the column existed had none, so a well-known payee looked new | `beneficiary_id` backfilled from stored plans at start-up; carried on every new row |
 | Airwallex quotes any reporting currency | the sandbox answers `unsupported_currency` for IDR | closing-rate snapshot falls back per currency to the admin's figures, source recorded per rate |
 | A resumed execution reconciles against its original "before" balances | other runs moved money in the shared wallet between the run and its resume → mismatch reported although every payout is PAID and recorded | stated as a limit (cycle 9); the book-level ledger (TigerBeetle, optional) is the proper fix |

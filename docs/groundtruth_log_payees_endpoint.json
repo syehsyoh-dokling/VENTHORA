@@ -1,0 +1,1705 @@
+[
+ {
+  "id": "Y01",
+  "kind": "plan",
+  "title": "an ACTIVE payee is paid autonomously",
+  "ms": 93.37,
+  "ms_all": [
+   93.37
+  ],
+  "server_ms": 83.68,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 83.67500000167638
+  }
+ },
+ {
+  "id": "Y02",
+  "kind": "plan",
+  "title": "a NEW payee is never paid: escalated to a person",
+  "ms": 109.71,
+  "ms_all": [
+   109.71
+  ],
+  "server_ms": 102.08,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 102.07949997857213
+  }
+ },
+ {
+  "id": "Y03",
+  "kind": "plan",
+  "title": "a payee whose bank details changed is never paid until the call-back",
+  "ms": 89.77,
+  "ms_all": [
+   89.77
+  ],
+  "server_ms": 81.44,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 81.43869997002184
+  }
+ },
+ {
+  "id": "Y04",
+  "kind": "plan",
+  "title": "a suspended payee is never paid",
+  "ms": 89.61,
+  "ms_all": [
+   89.61
+  ],
+  "server_ms": 80.58,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 80.5779000511393
+  }
+ },
+ {
+  "id": "Y05",
+  "kind": "plan",
+  "title": "an unregistered payee (no record at all) is never paid",
+  "ms": 91.2,
+  "ms_all": [
+   91.2
+  ],
+  "server_ms": 82.05,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 82.04580005258322
+  }
+ },
+ {
+  "id": "Y06",
+  "kind": "plan",
+  "title": "VERIFIED, never paid: the first payment needs a person",
+  "ms": 100.11,
+  "ms_all": [
+   100.11
+  ],
+  "server_ms": 90.85,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "payee_not_yet_active"
+    ],
+    "actual": [
+     "payee_not_yet_active"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_not_yet_active"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 90.8456000033766
+  }
+ },
+ {
+  "id": "Y07",
+  "kind": "plan",
+  "title": "VERIFIED inside the cooling period after a bank change",
+  "ms": 93.1,
+  "ms_all": [
+   93.1
+  ],
+  "server_ms": 84.13,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "payee_in_cooling_period"
+    ],
+    "actual": [
+     "payee_in_cooling_period"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_in_cooling_period"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 84.13450000807643
+  }
+ },
+ {
+  "id": "Y08",
+  "kind": "plan",
+  "title": "the cooling period is over but the new details were never paid",
+  "ms": 90.75,
+  "ms_all": [
+   90.75
+  ],
+  "server_ms": 79.88,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "payee_not_yet_active"
+    ],
+    "actual": [
+     "payee_not_yet_active"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_not_yet_active"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 79.88159998785704
+  }
+ },
+ {
+  "id": "Y09",
+  "kind": "plan",
+  "title": "cooling ends exactly now",
+  "ms": 90.38,
+  "ms_all": [
+   90.38
+  ],
+  "server_ms": 82.75,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "payee_not_yet_active"
+    ],
+    "actual": [
+     "payee_not_yet_active"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_not_yet_active"
+   ],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 82.74969994090497
+  }
+ },
+ {
+  "id": "Y10",
+  "kind": "plan",
+  "title": "one ACTIVE payee paid, one NEW payee escalated, in one plan",
+  "ms": 89.37,
+  "ms_all": [
+   89.37
+  ],
+  "server_ms": 81.42,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [
+     "O1"
+    ],
+    "actual": [
+     "O1"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 81.42259996384382
+  }
+ },
+ {
+  "id": "Y11",
+  "kind": "plan",
+  "title": "ACTIVE payee, but the invoice itself announces new bank details",
+  "ms": 119.75,
+  "ms_all": [
+   119.75
+  ],
+  "server_ms": 112.39,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 112.38579999189824
+  }
+ },
+ {
+  "id": "Y12",
+  "kind": "plan",
+  "title": "no registry attached: the lifecycle is not enforced",
+  "ms": 84.64,
+  "ms_all": [
+   84.64
+  ],
+  "server_ms": 76.21,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 76.21389999985695
+  }
+ },
+ {
+  "id": "Y13",
+  "kind": "plan",
+  "title": "a viewer cannot plan, whatever the payee",
+  "ms": 89.58,
+  "ms_all": [
+   89.58
+  ],
+  "server_ms": 82.47,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [
+    "payee_not_yet_active"
+   ],
+   "failed_stages": [
+    "Policy"
+   ],
+   "breach_bp": 0,
+   "not_blocked": false,
+   "duration_ms": 82.47169991955161
+  }
+ },
+ {
+  "id": "Y14",
+  "kind": "plan",
+  "title": "ACTIVE payee with a cooling_until in the past left on the record",
+  "ms": 84.58,
+  "ms_all": [
+   84.58
+  ],
+  "server_ms": 78.13,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 10000000,
+   "requires": [],
+   "failed_stages": [],
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 78.12750001903623
+  }
+ },
+ {
+  "id": "Z01",
+  "kind": "payees",
+  "title": "register a payee",
+  "ms": 1.49,
+  "ms_all": [
+   1.49
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEW",
+    "actual": "NEW",
+    "ok": true
+   },
+   "bank_fingerprint": {
+    "expected": "bank:a1",
+    "actual": "bank:a1",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "payable": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-new",
+   "status": "NEW",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 0,
+   "applied": 1,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z02",
+  "kind": "payees",
+  "title": "the call-back on the registered number verifies",
+  "ms": 1.2,
+  "ms_all": [
+   1.2
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "cooling_until": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "payable": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "autonomous": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-new",
+   "status": "VERIFIED",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": "2026-10-20T10:00:00+00:00",
+   "verified_by": "D. Finance (finance_manager)",
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 0,
+   "applied": 2,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": true,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z03",
+  "kind": "payees",
+  "title": "a call-back to a number from the request is refused",
+  "ms": 0.87,
+  "ms_all": [
+   0.87
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEW",
+    "actual": "NEW",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "last_refusal_contains": {
+    "expected": "registered number",
+    "actual": "the call-back must be made to the registered number, not to a number taken from the request",
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-new",
+   "status": "NEW",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 0,
+   "applied": 1,
+   "refused": [
+    {
+     "index": 1,
+     "kind": "verify",
+     "reason": "the call-back must be made to the registered number, not to a number taken from the request"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "the call-back must be made to the registered number, not to a number taken from the request",
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z04",
+  "kind": "payees",
+  "title": "a treasury agent may not verify",
+  "ms": 1.03,
+  "ms_all": [
+   1.03
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEW",
+    "actual": "NEW",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "last_refusal_contains": {
+    "expected": "may not verify",
+    "actual": "role 'treasury_agent' may not verify a payee; allowed: ['finance_manager']",
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-new",
+   "status": "NEW",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 0,
+   "applied": 1,
+   "refused": [
+    {
+     "index": 1,
+     "kind": "verify",
+     "reason": "role 'treasury_agent' may not verify a payee; allowed: ['finance_manager']"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "role 'treasury_agent' may not verify a payee; allowed: ['finance_manager']",
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z05",
+  "kind": "payees",
+  "title": "no registered number: no call-back possible",
+  "ms": 1.87,
+  "ms_all": [
+   1.87
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEW",
+    "actual": "NEW",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "last_refusal_contains": {
+    "expected": "no registered phone",
+    "actual": "no registered phone number on file: a call-back cannot be made; register the number first",
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-new",
+   "status": "NEW",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": null,
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 0,
+   "applied": 1,
+   "refused": [
+    {
+     "index": 1,
+     "kind": "verify",
+     "reason": "no registered phone number on file: a call-back cannot be made; register the number first"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "no registered phone number on file: a call-back cannot be made; register the number first",
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z06",
+  "kind": "payees",
+  "title": "a bank change on an ACTIVE payee starts the cooling period",
+  "ms": 1.78,
+  "ms_all": [
+   1.78
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "CHANGED",
+    "actual": "CHANGED",
+    "ok": true
+   },
+   "bank_fingerprint": {
+    "expected": "bank:b2",
+    "actual": "bank:b2",
+    "ok": true
+   },
+   "cooling_until": {
+    "expected": "2026-10-26T12:00:00+00:00",
+    "actual": "2026-10-26T12:00:00+00:00",
+    "ok": true
+   },
+   "payable": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "CHANGED",
+   "bank_fingerprint": "bank:b2",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": "2026-10-23T12:00:00+00:00",
+   "cooling_until": "2026-10-26T12:00:00+00:00",
+   "paid_count": 1,
+   "applied": 1,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z07",
+  "kind": "payees",
+  "title": "the call-back after a change verifies but keeps the cooling period",
+  "ms": 1.12,
+  "ms_all": [
+   1.12
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "cooling_until": {
+    "expected": "2026-10-26T12:00:00+00:00",
+    "actual": "2026-10-26T12:00:00+00:00",
+    "ok": true
+   },
+   "payable": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "autonomous": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "VERIFIED",
+   "bank_fingerprint": "bank:b2",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": "2026-10-23T15:00:00+00:00",
+   "verified_by": "D. Finance (finance_manager)",
+   "changed_at": "2026-10-23T12:00:00+00:00",
+   "cooling_until": "2026-10-26T12:00:00+00:00",
+   "paid_count": 1,
+   "applied": 2,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": true,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z08",
+  "kind": "payees",
+  "title": "a payment inside the cooling period does not activate",
+  "ms": 1.41,
+  "ms_all": [
+   1.41
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "VERIFIED",
+    "actual": "VERIFIED",
+    "ok": true
+   },
+   "paid_count": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   },
+   "autonomous": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "VERIFIED",
+   "bank_fingerprint": "bank:b2",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": "2026-10-23T15:00:00+00:00",
+   "verified_by": "D. Finance (finance_manager)",
+   "changed_at": "2026-10-23T12:00:00+00:00",
+   "cooling_until": "2026-10-26T12:00:00+00:00",
+   "paid_count": 2,
+   "applied": 3,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": true,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z09",
+  "kind": "payees",
+  "title": "a payment after the cooling period activates",
+  "ms": 1.16,
+  "ms_all": [
+   1.16
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "ACTIVE",
+    "actual": "ACTIVE",
+    "ok": true
+   },
+   "paid_count": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   },
+   "autonomous": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "ACTIVE",
+   "bank_fingerprint": "bank:b2",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": "2026-10-23T15:00:00+00:00",
+   "verified_by": "D. Finance (finance_manager)",
+   "changed_at": "2026-10-23T12:00:00+00:00",
+   "cooling_until": "2026-10-26T12:00:00+00:00",
+   "paid_count": 2,
+   "applied": 3,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": true,
+   "autonomous": true
+  }
+ },
+ {
+  "id": "Z10",
+  "kind": "payees",
+  "title": "a new payee: verified, then the first payment activates",
+  "ms": 1.11,
+  "ms_all": [
+   1.11
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "ACTIVE",
+    "actual": "ACTIVE",
+    "ok": true
+   },
+   "paid_count": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "autonomous": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-new",
+   "status": "ACTIVE",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": "2026-10-20T10:00:00+00:00",
+   "verified_by": "D. Finance (finance_manager)",
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 1,
+   "applied": 3,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": true,
+   "autonomous": true
+  }
+ },
+ {
+  "id": "Z11",
+  "kind": "payees",
+  "title": "the same bank details are not a change",
+  "ms": 1.15,
+  "ms_all": [
+   1.15
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "ACTIVE",
+    "actual": "ACTIVE",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "last_refusal_contains": {
+    "expected": "unchanged",
+    "actual": "bank details unchanged: the fingerprint on file is the same",
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "ACTIVE",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 1,
+   "applied": 0,
+   "refused": [
+    {
+     "index": 0,
+     "kind": "bank_change",
+     "reason": "bank details unchanged: the fingerprint on file is the same"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "bank details unchanged: the fingerprint on file is the same",
+   "payable": true,
+   "autonomous": true
+  }
+ },
+ {
+  "id": "Z12",
+  "kind": "payees",
+  "title": "paying a NEW payee is refused by the machine itself",
+  "ms": 1.07,
+  "ms_all": [
+   1.07
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEW",
+    "actual": "NEW",
+    "ok": true
+   },
+   "paid_count": {
+    "expected": 0,
+    "actual": 0,
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "last_refusal_contains": {
+    "expected": "cannot be paid",
+    "actual": "a NEW payee cannot be paid",
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-new",
+   "status": "NEW",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 0,
+   "applied": 1,
+   "refused": [
+    {
+     "index": 1,
+     "kind": "paid",
+     "reason": "a NEW payee cannot be paid"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "a NEW payee cannot be paid",
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z13",
+  "kind": "payees",
+  "title": "suspend, then a payment is refused, then reinstate goes back to NEW",
+  "ms": 0.9,
+  "ms_all": [
+   0.9
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "NEW",
+    "actual": "NEW",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "verified_by": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   },
+   "payable": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "NEW",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 1,
+   "applied": 2,
+   "refused": [
+    {
+     "index": 1,
+     "kind": "paid",
+     "reason": "a SUSPENDED payee cannot be paid"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "a SUSPENDED payee cannot be paid",
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z14",
+  "kind": "payees",
+  "title": "a change with cooling_hours 0 still needs the call-back, then one approved payment",
+  "ms": 1.11,
+  "ms_all": [
+   1.11
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "ACTIVE",
+    "actual": "ACTIVE",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "cooling_until": {
+    "expected": "2026-10-23T12:00:00+00:00",
+    "actual": "2026-10-23T12:00:00+00:00",
+    "ok": true
+   },
+   "paid_count": {
+    "expected": 2,
+    "actual": 2,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "ACTIVE",
+   "bank_fingerprint": "bank:c3",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": "2026-10-23T12:00:00+00:00",
+   "verified_by": "D. Finance (finance_manager)",
+   "changed_at": "2026-10-23T12:00:00+00:00",
+   "cooling_until": "2026-10-23T12:00:00+00:00",
+   "paid_count": 2,
+   "applied": 3,
+   "refused": [
+    {
+     "index": 1,
+     "kind": "paid",
+     "reason": "a CHANGED payee cannot be paid"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "a CHANGED payee cannot be paid",
+   "payable": true,
+   "autonomous": true
+  }
+ },
+ {
+  "id": "Z15",
+  "kind": "payees",
+  "title": "a second bank change while CHANGED restarts the cooling period",
+  "ms": 1.13,
+  "ms_all": [
+   1.13
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "CHANGED",
+    "actual": "CHANGED",
+    "ok": true
+   },
+   "bank_fingerprint": {
+    "expected": "bank:c3",
+    "actual": "bank:c3",
+    "ok": true
+   },
+   "cooling_until": {
+    "expected": "2026-10-27T12:00:00+00:00",
+    "actual": "2026-10-27T12:00:00+00:00",
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "CHANGED",
+   "bank_fingerprint": "bank:c3",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": "2026-10-24T12:00:00+00:00",
+   "cooling_until": "2026-10-27T12:00:00+00:00",
+   "paid_count": 1,
+   "applied": 2,
+   "refused": [],
+   "refused_n": 0,
+   "last_refusal": null,
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z16",
+  "kind": "payees",
+  "title": "a viewer may not suspend",
+  "ms": 1.46,
+  "ms_all": [
+   1.46
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "ACTIVE",
+    "actual": "ACTIVE",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "ACTIVE",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 1,
+   "applied": 0,
+   "refused": [
+    {
+     "index": 0,
+     "kind": "suspend",
+     "reason": "role 'viewer' may not suspend a payee"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "role 'viewer' may not suspend a payee",
+   "payable": true,
+   "autonomous": true
+  }
+ },
+ {
+  "id": "Z17",
+  "kind": "payees",
+  "title": "events on an unregistered payee are refused",
+  "ms": 1.0,
+  "ms_all": [
+   1.0
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "last_refusal_contains": {
+    "expected": "unregistered",
+    "actual": "unregistered payee: register it first",
+    "ok": true
+   }
+  },
+  "view": {
+   "status": null,
+   "cooling_until": null,
+   "bank_fingerprint": null,
+   "paid_count": 0,
+   "verified_by": null,
+   "registered_phone": null,
+   "applied": 0,
+   "refused": [
+    {
+     "index": 0,
+     "kind": "verify",
+     "reason": "unregistered payee: register it first"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "unregistered payee: register it first",
+   "payable": false,
+   "autonomous": false
+  }
+ },
+ {
+  "id": "Z18",
+  "kind": "payees",
+  "title": "verifying an ACTIVE payee is refused (nothing pending)",
+  "ms": 1.19,
+  "ms_all": [
+   1.19
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "status": {
+    "expected": "ACTIVE",
+    "actual": "ACTIVE",
+    "ok": true
+   },
+   "refused_n": {
+    "expected": 1,
+    "actual": 1,
+    "ok": true
+   },
+   "last_refusal_contains": {
+    "expected": "nothing to verify",
+    "actual": "nothing to verify: payee is ACTIVE",
+    "ok": true
+   }
+  },
+  "view": {
+   "beneficiary_id": "ben-saas-vendor",
+   "status": "ACTIVE",
+   "bank_fingerprint": "bank:a1",
+   "registered_phone": "+1 650 555 0142",
+   "verified_at": null,
+   "verified_by": null,
+   "changed_at": null,
+   "cooling_until": null,
+   "paid_count": 1,
+   "applied": 0,
+   "refused": [
+    {
+     "index": 0,
+     "kind": "verify",
+     "reason": "nothing to verify: payee is ACTIVE"
+    }
+   ],
+   "refused_n": 1,
+   "last_refusal": "nothing to verify: payee is ACTIVE",
+   "payable": true,
+   "autonomous": true
+  }
+ }
+]

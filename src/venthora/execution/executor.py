@@ -35,6 +35,7 @@ from ..domain.projection import obligation_needs
 from ..gateways.airwallex import Airwallex, AirwallexError, ConversionResult, Quote, TransferResult
 from ..ledger import LedgerError
 from ..orchestrator import Orchestrator
+from ..payees import PayeeError, onboarding_records
 from .models import ExecutionRequest, ExecutionResult, Reconciliation, Step
 from .store import DuplicatePayout, ExecutionStore, QuoteReused
 
@@ -61,6 +62,9 @@ class Executor:
         self.store = store
         self.audit = audit
         self.beneficiaries = beneficiaries if beneficiaries is not None else load_beneficiaries()
+        # Payee lifecycle: the registry's onboarding records seed the store once; live records are never overwritten.
+        with contextlib.suppress(OSError, KeyError, ValueError):
+            self.store.seed_payees(onboarding_records())
         self.poll_attempts = poll_attempts
         self.poll_interval_s = poll_interval_s
         self._run_lock = asyncio.Lock()
@@ -123,6 +127,15 @@ class Executor:
         plan = await self.agent.decide(req.state)
         if plan.plan_hash != req.plan_hash:
             refuse("state or plan changed since it was reviewed; re-plan and approve again")
+        # Payee lifecycle, independent of the plan: whatever the plan says, the store's live record decides whether a
+        # payee may receive money at all (a plan built on a stale registry cannot pay a payee changed since).
+        by_id = {o.obligation_id: o for o in req.state.obligations}
+        for d in plan.obligations:
+            if d.action in PAYING_ACTIONS and d.obligation_id in by_id:
+                rec = self.store.payee(by_id[d.obligation_id].beneficiary_id)
+                if rec is not None and rec["status"] not in ("VERIFIED", "ACTIVE"):
+                    refuse(f"payee {rec['beneficiary_id']} is {rec['status']}: a person must verify it by call-back on the "
+                           "registered number before any payment")
         if plan.decision == "BLOCKED":
             refuse("ProofCore blocked this plan")
         policy = req.state.policy
@@ -493,6 +506,16 @@ class Executor:
                                      "contract_total_minor": o.contract_total_minor, "line": o.budget_line,
                                      "currency": o.currency, "amount_minor": o.amount_minor, "base_cost_minor": cost.get(oid, 0),
                                      "paid_at": paid_at, "reporting_period": period, "beneficiary_id": o.beneficiary_id})
+            # Payee lifecycle: a PAID payout after the cooling period makes a VERIFIED payee ACTIVE.
+            if self.store.payee(o.beneficiary_id) is not None:
+                try:
+                    rec = self.store.payee_event(o.beneficiary_id, {"kind": "paid", "at": paid_at, "transfer_id": t.transfer_id},
+                                                 cooling_hours=state.policy.payee_cooling_hours,
+                                                 approver_roles=tuple(state.policy.approver_roles))
+                    steps.append(Step(kind="ledger", key=f"payee:{o.beneficiary_id}", status="OK",
+                                      detail={"status": rec["status"], "paid_count": rec["paid_count"], "cooling_until": rec["cooling_until"]}))
+                except PayeeError as exc:
+                    steps.append(Step(kind="ledger", key=f"payee:{o.beneficiary_id}", status="MISMATCH", detail={"reason": str(exc)}))
         # What this run itself did on the rail (for the record and the plan-vs-actual variance).
         expected = dict(before)
         for c in conversions:

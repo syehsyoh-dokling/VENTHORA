@@ -75,7 +75,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | 49 | After a deposit, recalculate only the decisions it affects | ✅🧪 | incremental recalculation with locked decisions and a diff |
 | 50 | Execution limit tied to forecast confidence; strong data allows a larger autonomous conversion | ✅🧪 | limit = full at ≥90%, linear to 0 at ≤50% |
 | 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions; a contradicted forecast is capped below the full band whatever the payer record (audit mutation M6) |
-| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 9,182 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
+| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 9,518 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
 | 53 | Read balances and obligations | ✅ | `GET /balances/current`; scenario obligations |
 | 54 | Plan in code | ✅ | Theorem (CP-SAT + exact second candidate) |
 | 55 | Lower forecast confidence for one receipt | ✅ | RCV-ACME 90% → 70% (calibrated from payer history) |
@@ -252,12 +252,33 @@ sandbox cycle 12: two books reconciled on one wallet with nothing unexplained, a
 
 History comes from the spend ledger (`store.payment_history`, filled by `facts.py` as `state.history`); the stage
 `Policy · limits` names the payouts, payees and totals behind every reason; `proofcore/limits.py` mirrored in
-`policy/treasury.rego` (OPA grid: 9,182 inputs, 0 disagreements). Ground truth suite 7: 18 cases, 18/18 on three paths;
+`policy/treasury.rego` (OPA grid: 9,518 inputs, 0 disagreements). Ground truth suite 7: 18 cases, 18/18 on three paths;
 real sandbox cycle 13: a known payee paid inside the limit, the same payee over its period limit stopped for a person
 and then paid, a single payout above the limit refused without approval and executed with it.
 
 See [AUTONOMY_MAP.md](AUTONOMY_MAP.md) for the three tiers: what the agent does alone, what a person must approve,
 what only a person can do.
+
+## (14) Payee lifecycle: NEW → VERIFIED → ACTIVE, cooling after a bank change, the call-back is mandatory
+
+The guide's payee-fraud case (an email announces new bank details) becomes a state machine the agent cannot talk its
+way around (`src/venthora/payees.py`, persisted in the execution store, seeded from `data/payees.json` `lifecycle` and
+the fingerprint of the bank details in `data/beneficiaries.json`):
+
+| Status | How it is reached | What the plan does with a payout to it |
+|---|---|---|
+| `NEW` | registered, never confirmed | **ESCALATE**: no payment, not even with an approval |
+| `VERIFIED` | a finance manager's call-back **on the registered number** (any other number, any other role: refused) | `REQUIRES_APPROVAL payee_in_cooling_period` until `cooling_until`, then `payee_not_yet_active` until the first PAID payout |
+| `ACTIVE` | a PAID payout at or after `cooling_until` | nothing from this control |
+| `CHANGED` | bank details changed (intake email flag, portal, API): cooling starts, `policy.payee_cooling_hours` (72) | **ESCALATE** until the call-back; a second change restarts the clock |
+| `SUSPENDED` | a finance manager | **ESCALATE**; reinstating goes back to `NEW` |
+
+Verity turns NEW / CHANGED / SUSPENDED / unregistered into a policy exception (the obligation is escalated, the rest of
+the plan runs); the stage `Payee · lifecycle` and `policy/treasury.rego` carry the two approval reasons (OPA grid:
+9,518 inputs, 0 disagreements); the executor re-reads the live record before money moves and refuses a payee the plan
+saw differently; a PAID payout promotes the record. Endpoints `/v1/payees`, `/verify`, `/bank-change`, `/suspend`,
+`/reinstate`, `/eval`; dashboard section with the call-back and bank-change actions. Ground truth suite 8: 32 cases
+(14 plans, 18 state-machine), 32/32 on three paths; real sandbox cycle 14 (SANDBOX_RESULTS.md).
 
 ## Not applicable to this build
 

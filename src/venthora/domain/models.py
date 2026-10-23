@@ -91,6 +91,39 @@ class Budget(StrictModel):
         return next((ln for ln in self.lines if ln.line == name), None) if name else None
 
 
+PayeeStatus = Literal["NEW", "VERIFIED", "ACTIVE", "CHANGED", "SUSPENDED"]
+
+
+class PayeeRecord(StrictModel):
+    """Where a payee stands in its lifecycle (src/venthora/payees.py holds the transitions).
+
+    NEW        registered, bank details never confirmed by a call-back      -> no payment at all (escalated)
+    VERIFIED   a person confirmed the details on the registered number       -> payments need a person until the first PAID
+    ACTIVE     verified and paid at least once                               -> autonomous inside every other control
+    CHANGED    the bank details changed; a call-back is required again       -> no payment at all (escalated)
+    SUSPENDED  a person suspended the payee                                  -> no payment at all (escalated)
+    A bank change starts a cooling period (policy.payee_cooling_hours): even after the call-back, payments until
+    cooling_until need a person, and the payee becomes ACTIVE only when paid after it."""
+    beneficiary_id: str = Field(min_length=1, max_length=120)
+    status: PayeeStatus = "NEW"
+    bank_fingerprint: str | None = Field(default=None, max_length=200, description="fingerprint of the bank details on file")
+    registered_phone: str | None = Field(default=None, max_length=40, description="the number a call-back must use")
+    verified_at: str | None = None
+    verified_by: str | None = Field(default=None, max_length=160)
+    changed_at: str | None = Field(default=None, description="ISO instant of the last bank-details change")
+    cooling_until: str | None = Field(default=None, description="ISO instant; payments before it need a person")
+    paid_count: int = Field(default=0, ge=0)
+
+
+class PayeeRegistry(StrictModel):
+    """The payee records the plan reasons from; as_of is the instant cooling periods are judged at (None = now)."""
+    as_of: str | None = None
+    records: list[PayeeRecord] = Field(default_factory=list, max_length=500)
+
+    def get(self, beneficiary_id: str) -> PayeeRecord | None:
+        return next((r for r in self.records if r.beneficiary_id == beneficiary_id), None)
+
+
 class PayerHistory(StrictModel):
     """How often this payer has kept its payment promises (calibrates receipt confidence)."""
     kept: int = Field(default=0, ge=0, le=10_000)
@@ -171,6 +204,8 @@ class TreasuryPolicy(StrictModel):
     max_outflow_weekly_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR, description="rolling 7 d, all payees")
     max_first_payment_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR,
                                                 description="a payee never paid before gets at most this much first")
+    # Payee lifecycle: after a bank-details change, payments need a person for this long even once verified.
+    payee_cooling_hours: int = Field(default=72, ge=0, le=2_160)
 
     @model_validator(mode="after")
     def confidence_band(self):
@@ -206,6 +241,7 @@ class TreasuryState(StrictModel):
     budget: Budget | None = Field(default=None, description="the period's plan: the agent's mandate per line")
     as_of: str | None = Field(default=None, description="ISO date the book is planned on (period cut-off, due dates)")
     history: PaymentHistory | None = Field(default=None, description="payments already made (limits and velocity)")
+    payees: PayeeRegistry | None = Field(default=None, description="payee lifecycle records; None = lifecycle not enforced")
     use_ecb_stress: bool = False
     fx_stress_model: Literal["horizon_m0", "ecb_empirical"] = Field(
         default="horizon_m0", description="horizon_m0 = original Horizon scenario engine; ecb_empirical = 5-day p95")

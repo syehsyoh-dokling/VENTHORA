@@ -1,0 +1,1707 @@
+{
+ "_note": "Payee-lifecycle ground truth, hand-derived; see scripts/make_payees_groundtruth.py.",
+ "cases": [
+  {
+   "id": "Y01",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "an ACTIVE payee is paid autonomously",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "ACTIVE",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 1
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": []
+   },
+   "derivation": "ACTIVE: verified and paid before -> this control adds nothing"
+  },
+  {
+   "id": "Y02",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a NEW payee is never paid: escalated to a person",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "NEW",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "paid": []
+   },
+   "derivation": "NEW: nobody confirmed the bank details by call-back -> ESCALATE; no approval can pay it"
+  },
+  {
+   "id": "Y03",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a payee whose bank details changed is never paid until the call-back",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "CHANGED",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": "2026-10-26T12:00:00+00:00",
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "paid": []
+   },
+   "derivation": "CHANGED -> ESCALATE: paying the new account on the strength of an email is the classic fraud"
+  },
+  {
+   "id": "Y04",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a suspended payee is never paid",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "SUSPENDED",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "paid": []
+   },
+   "derivation": "SUSPENDED -> ESCALATE"
+  },
+  {
+   "id": "Y05",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "an unregistered payee (no record at all) is never paid",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-nobody",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "ACTIVE",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 1
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "paid": []
+   },
+   "derivation": "registry attached, no record for ben-nobody -> payee_unregistered -> ESCALATE"
+  },
+  {
+   "id": "Y06",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "VERIFIED, never paid: the first payment needs a person",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "VERIFIED",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": [
+     "payee_not_yet_active"
+    ]
+   },
+   "derivation": "call-back done, no PAID payout yet -> a person approves the first one"
+  },
+  {
+   "id": "Y07",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "VERIFIED inside the cooling period after a bank change",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "VERIFIED",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": "2026-10-26T12:00:00+00:00",
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "payee_in_cooling_period"
+    ]
+   },
+   "derivation": "now 23 Oct 12:00 < cooling_until 26 Oct 12:00 -> payee_in_cooling_period"
+  },
+  {
+   "id": "Y08",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "the cooling period is over but the new details were never paid",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "VERIFIED",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": "2026-10-23T11:59:59+00:00",
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "payee_not_yet_active"
+    ]
+   },
+   "derivation": "cooling ended one second ago -> not in cooling; still VERIFIED (never paid on these details) -> first payment by a person"
+  },
+  {
+   "id": "Y09",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "cooling ends exactly now",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "VERIFIED",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": "2026-10-23T12:00:00+00:00",
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "payee_not_yet_active"
+    ]
+   },
+   "derivation": "now == cooling_until is not before it -> the cooling period is over at that instant"
+  },
+  {
+   "id": "Y10",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "one ACTIVE payee paid, one NEW payee escalated, in one plan",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-uk-logistics",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "ACTIVE",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 1
+      },
+      {
+       "beneficiary_id": "ben-uk-logistics",
+       "status": "NEW",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "paid": [
+     "O1"
+    ]
+   },
+   "derivation": "the escalation does not stop the safe part of the plan"
+  },
+  {
+   "id": "Y11",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "ACTIVE payee, but the invoice itself announces new bank details",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "policy_flags": [
+       "payee_bank_details_changed"
+      ]
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "ACTIVE",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 1
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "paid": []
+   },
+   "derivation": "the evidence flag escalates even when the registry still says ACTIVE (the registry is updated by the intake)"
+  },
+  {
+   "id": "Y12",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "no registry attached: the lifecycle is not enforced",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-nobody",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": []
+   },
+   "derivation": "payees = null -> the control is off (plain plans and older suites unchanged)"
+  },
+  {
+   "id": "Y13",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a viewer cannot plan, whatever the payee",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "viewer",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "VERIFIED",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": null,
+       "paid_count": 0
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "BLOCKED"
+   },
+   "derivation": "role before everything"
+  },
+  {
+   "id": "Y14",
+   "kind": "plan",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "ACTIVE payee with a cooling_until in the past left on the record",
+   "input": {
+    "case_id": "payees",
+    "book_id": "payees",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "payees": {
+     "as_of": "2026-10-23T12:00:00+00:00",
+     "records": [
+      {
+       "beneficiary_id": "ben-saas-vendor",
+       "status": "ACTIVE",
+       "bank_fingerprint": "bank:a1",
+       "registered_phone": "+1 650 555 0142",
+       "cooling_until": "2026-10-20T00:00:00+00:00",
+       "paid_count": 1
+      }
+     ]
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "ACTIVE is ACTIVE: cooling only matters while VERIFIED"
+  },
+  {
+   "id": "Z01",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "register a payee",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "register",
+      "beneficiary_id": "ben-new",
+      "bank_fingerprint": "bank:a1",
+      "registered_phone": "+1 650 555 0142",
+      "at": "2026-10-20T09:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "NEW",
+    "bank_fingerprint": "bank:a1",
+    "refused_n": 0,
+    "payable": false
+   },
+   "derivation": "registered -> NEW; not payable"
+  },
+  {
+   "id": "Z02",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "the call-back on the registered number verifies",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "register",
+      "beneficiary_id": "ben-new",
+      "bank_fingerprint": "bank:a1",
+      "registered_phone": "+1 650 555 0142",
+      "at": "2026-10-20T09:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-20T10:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "VERIFIED",
+    "cooling_until": null,
+    "refused_n": 0,
+    "payable": true,
+    "autonomous": false
+   },
+   "derivation": "finance_manager called the registered number -> VERIFIED; payable, but not alone yet"
+  },
+  {
+   "id": "Z03",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a call-back to a number from the request is refused",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "register",
+      "beneficiary_id": "ben-new",
+      "bank_fingerprint": "bank:a1",
+      "registered_phone": "+1 650 555 0142",
+      "at": "2026-10-20T09:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0199",
+      "at": "2026-10-20T10:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "NEW",
+    "refused_n": 1,
+    "last_refusal_contains": "registered number"
+   },
+   "derivation": "the number must be the one on file; the record stays NEW"
+  },
+  {
+   "id": "Z04",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a treasury agent may not verify",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "register",
+      "beneficiary_id": "ben-new",
+      "bank_fingerprint": "bank:a1",
+      "registered_phone": "+1 650 555 0142",
+      "at": "2026-10-20T09:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "treasury_agent",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-20T10:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "NEW",
+    "refused_n": 1,
+    "last_refusal_contains": "may not verify"
+   },
+   "derivation": "only approver roles can confirm a payee"
+  },
+  {
+   "id": "Z05",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "no registered number: no call-back possible",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "register",
+      "beneficiary_id": "ben-new",
+      "bank_fingerprint": "bank:a1",
+      "registered_phone": null,
+      "at": "2026-10-20T09:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-20T10:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "NEW",
+    "refused_n": 1,
+    "last_refusal_contains": "no registered phone"
+   },
+   "derivation": "register the number first"
+  },
+  {
+   "id": "Z06",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a bank change on an ACTIVE payee starts the cooling period",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:b2",
+      "source": "email",
+      "at": "2026-10-23T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "CHANGED",
+    "bank_fingerprint": "bank:b2",
+    "cooling_until": "2026-10-26T12:00:00+00:00",
+    "payable": false
+   },
+   "derivation": "ACTIVE -> CHANGED; cooling_until = 23 Oct 12:00 + 72 h"
+  },
+  {
+   "id": "Z07",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "the call-back after a change verifies but keeps the cooling period",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:b2",
+      "source": "email",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-23T15:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "VERIFIED",
+    "cooling_until": "2026-10-26T12:00:00+00:00",
+    "payable": true,
+    "autonomous": false
+   },
+   "derivation": "VERIFIED with cooling_until unchanged"
+  },
+  {
+   "id": "Z08",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a payment inside the cooling period does not activate",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:b2",
+      "source": "email",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-23T15:00:00+00:00"
+     },
+     {
+      "kind": "paid",
+      "at": "2026-10-24T09:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "VERIFIED",
+    "paid_count": 2,
+    "autonomous": false
+   },
+   "derivation": "paid 24 Oct < cooling_until 26 Oct -> stays VERIFIED (every payment still by a person)"
+  },
+  {
+   "id": "Z09",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a payment after the cooling period activates",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:b2",
+      "source": "email",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-23T15:00:00+00:00"
+     },
+     {
+      "kind": "paid",
+      "at": "2026-10-26T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "ACTIVE",
+    "paid_count": 2,
+    "autonomous": true
+   },
+   "derivation": "paid at exactly cooling_until -> not before it -> ACTIVE"
+  },
+  {
+   "id": "Z10",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a new payee: verified, then the first payment activates",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "register",
+      "beneficiary_id": "ben-new",
+      "bank_fingerprint": "bank:a1",
+      "registered_phone": "+1 650 555 0142",
+      "at": "2026-10-20T09:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-20T10:00:00+00:00"
+     },
+     {
+      "kind": "paid",
+      "at": "2026-10-21T09:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "ACTIVE",
+    "paid_count": 1,
+    "autonomous": true
+   },
+   "derivation": "no cooling on a first verification -> ACTIVE at the first PAID payout"
+  },
+  {
+   "id": "Z11",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "the same bank details are not a change",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:a1",
+      "source": "email",
+      "at": "2026-10-23T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "ACTIVE",
+    "refused_n": 1,
+    "last_refusal_contains": "unchanged"
+   },
+   "derivation": "fingerprint on file == fingerprint announced -> refused, nothing changes"
+  },
+  {
+   "id": "Z12",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "paying a NEW payee is refused by the machine itself",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "register",
+      "beneficiary_id": "ben-new",
+      "bank_fingerprint": "bank:a1",
+      "registered_phone": "+1 650 555 0142",
+      "at": "2026-10-20T09:00:00+00:00"
+     },
+     {
+      "kind": "paid",
+      "at": "2026-10-23T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "NEW",
+    "paid_count": 0,
+    "refused_n": 1,
+    "last_refusal_contains": "cannot be paid"
+   },
+   "derivation": "the gate never asks; if anything did, the record refuses"
+  },
+  {
+   "id": "Z13",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "suspend, then a payment is refused, then reinstate goes back to NEW",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "suspend",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "reason": "dispute",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "paid",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "reinstate",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "at": "2026-10-23T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "NEW",
+    "refused_n": 1,
+    "verified_by": null,
+    "payable": false
+   },
+   "derivation": "SUSPENDED refuses the payment; reinstating requires another call-back (NEW)"
+  },
+  {
+   "id": "Z14",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a change with cooling_hours 0 still needs the call-back, then one approved payment",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:c3",
+      "source": "portal",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "paid",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "paid",
+      "at": "2026-10-23T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 0
+   },
+   "expect": {
+    "status": "ACTIVE",
+    "refused_n": 1,
+    "cooling_until": "2026-10-23T12:00:00+00:00",
+    "paid_count": 2
+   },
+   "derivation": "paid on CHANGED refused; verify -> VERIFIED (cooling ends at once); paid at cooling_until -> ACTIVE"
+  },
+  {
+   "id": "Z15",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a second bank change while CHANGED restarts the cooling period",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:b2",
+      "source": "email",
+      "at": "2026-10-23T12:00:00+00:00"
+     },
+     {
+      "kind": "bank_change",
+      "bank_fingerprint": "bank:c3",
+      "source": "email",
+      "at": "2026-10-24T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "CHANGED",
+    "bank_fingerprint": "bank:c3",
+    "cooling_until": "2026-10-27T12:00:00+00:00"
+   },
+   "derivation": "the clock restarts from the latest change"
+  },
+  {
+   "id": "Z16",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "a viewer may not suspend",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "suspend",
+      "by": "V",
+      "role": "viewer",
+      "at": "2026-10-23T12:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "ACTIVE",
+    "refused_n": 1
+   },
+   "derivation": "role check on every person action"
+  },
+  {
+   "id": "Z17",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "events on an unregistered payee are refused",
+   "input": {
+    "record": null,
+    "events": [
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-20T10:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": null,
+    "refused_n": 1,
+    "last_refusal_contains": "unregistered"
+   },
+   "derivation": "nothing to verify without a record"
+  },
+  {
+   "id": "Z18",
+   "kind": "payees",
+   "level": 4,
+   "pain": "who may be paid at all, and when alone",
+   "title": "verifying an ACTIVE payee is refused (nothing pending)",
+   "input": {
+    "record": {
+     "beneficiary_id": "ben-saas-vendor",
+     "status": "ACTIVE",
+     "bank_fingerprint": "bank:a1",
+     "registered_phone": "+1 650 555 0142",
+     "cooling_until": null,
+     "paid_count": 1
+    },
+    "events": [
+     {
+      "kind": "verify",
+      "by": "D. Finance",
+      "role": "finance_manager",
+      "called_number": "+1 650 555 0142",
+      "at": "2026-10-20T10:00:00+00:00"
+     }
+    ],
+    "cooling_hours": 72
+   },
+   "expect": {
+    "status": "ACTIVE",
+    "refused_n": 1,
+    "last_refusal_contains": "nothing to verify"
+   },
+   "derivation": "a call-back is for NEW or CHANGED"
+  }
+ ]
+}

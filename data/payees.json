@@ -16,7 +16,14 @@
       "payout_method": "LOCAL",
       "default_priority": 10,
       "invoice_prefix": "northwind",
-      "budget_line": "payroll"
+      "budget_line": "payroll",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+1 415 555 0110",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (finance manager)",
+        "paid_count": 1
+      }
     },
     "ben-saas-vendor": {
       "name": "Cloudloom Software LLC",
@@ -33,7 +40,14 @@
       "payout_method": "LOCAL",
       "default_priority": 2,
       "invoice_prefix": "cloudloom",
-      "budget_line": "saas"
+      "budget_line": "saas",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+1 650 555 0142",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (finance manager)",
+        "paid_count": 1
+      }
     },
     "ben-eu-components": {
       "name": "Rheinwerk Komponenten GmbH",
@@ -51,7 +65,14 @@
       "payout_method": "SWIFT",
       "default_priority": 9,
       "invoice_prefix": "eu-components",
-      "budget_line": "suppliers"
+      "budget_line": "suppliers",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+49 221 555 0177",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (finance manager)",
+        "paid_count": 1
+      }
     },
     "ben-uk-logistics": {
       "name": "Thames Freight Ltd",
@@ -66,7 +87,14 @@
       "payout_method": "LOCAL",
       "default_priority": 10,
       "invoice_prefix": "thames-freight",
-      "budget_line": "logistics"
+      "budget_line": "logistics",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+44 20 7946 0958",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (finance manager)",
+        "paid_count": 1
+      }
     },
     "ben-lumen-design": {
       "name": "Lumen Design Studio",
@@ -82,7 +110,14 @@
       "payout_method": "LOCAL",
       "default_priority": 6,
       "invoice_prefix": "lumen",
-      "budget_line": "contractors"
+      "budget_line": "contractors",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+1 212 555 0163",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (finance manager)",
+        "paid_count": 1
+      }
     },
     "ben-contractor-okafor": {
       "name": "Mia Okafor",
@@ -98,7 +133,14 @@
       "payout_method": "LOCAL",
       "default_priority": 7,
       "invoice_prefix": "okafor",
-      "budget_line": "contractors"
+      "budget_line": "contractors",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+1 312 555 0199",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (finance manager)",
+        "paid_count": 1
+      }
     }
   },
   "payers": {
@@ -121,5 +163,6 @@
         "missed": 1
       }
     }
-  }
+  },
+  "_lifecycle_note": "`lifecycle` is the payee's state at onboarding: status NEW | VERIFIED | ACTIVE, the registered phone a call-back must use, who verified it. The execution store holds the live record from then on (bank changes, call-backs, payments); the bank-details fingerprint comes from data/beneficiaries.json. Phone numbers are synthetic (555 / 7946 0958 ranges)."
 }

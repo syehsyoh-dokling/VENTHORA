@@ -30,6 +30,7 @@ without the person it stops and says so.
 | `amount_mismatch` — invoice claims more than contract − paid so far, beyond tolerance | three-way match row with the exact difference | finance manager |
 | `period_closed` — spend against a closed period | the cut-off statement already exists | finance manager |
 | `single_payment_above_limit`, `payee_period_limit_exceeded`, `first_payment_to_new_payee_above_limit`, `daily_outflow_limit_exceeded`, `weekly_outflow_limit_exceeded` | the payouts, payees, history and totals behind each reason | finance manager |
+| `payee_in_cooling_period`, `payee_not_yet_active` — a verified payee inside the cooling period after a bank change, or never paid on these details | the payee's record, cooling end, the payout | finance manager; the first PAID payout after cooling makes the payee ACTIVE |
 | Incident: replacement blocked by funds (`max_replacements`, second fee) | decided REPLACE, computed the budget | a person re-plans or funds |
 
 An approval is refused by code when: the role is not an approver, the terms digest differs from the plan shown, the
@@ -40,7 +41,7 @@ plan hash changed since review, or the book is locked by an open reconciliation 
 | Situation | What the agent does | What only a person can do |
 |---|---|---|
 | Obligation it cannot fund before due (`ESCALATE`) | reports it with the budget request / shortfall | fund it, grant mandate, or let it slip |
-| Payee bank details changed (`payee_bank_details_changed`) | escalates; never pays the new account | call-back on the registered number, then verify |
+| Payee NEW, CHANGED (bank details changed), SUSPENDED or unregistered | escalates; never pays the account, with or without an approval; the executor refuses even a plan that saw it differently | the call-back on the registered number (any other number, any other role is refused), suspend / reinstate |
 | Intake from an unknown mailbox, Reply-To diversion, pressure language | quarantines / holds for review | verify or reject; register the mailbox |
 | Incident with wrong payee details or a person/control stop (`ESCALATE` class), unknown failure shape, wait window exceeded | escalates with the typed reason | chase the rail, correct the payee, decide |
 | Reconciliation that does not add up | opens a case that locks the book | close the case with an explanation |

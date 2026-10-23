@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS journal (
 CREATE TABLE IF NOT EXISTS closing_rates (
     period TEXT NOT NULL, currency TEXT NOT NULL, rate TEXT NOT NULL, source TEXT NOT NULL, recorded_at TEXT NOT NULL,
     PRIMARY KEY (period, currency));
+CREATE TABLE IF NOT EXISTS payees (
+    beneficiary_id TEXT PRIMARY KEY, record_json TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS payee_events (
+    event_id TEXT PRIMARY KEY, beneficiary_id TEXT NOT NULL, kind TEXT NOT NULL, outcome TEXT NOT NULL,
+    event_json TEXT NOT NULL, status_after TEXT, at TEXT NOT NULL);
 """
 
 LIVE_PAYOUT_STATUSES = ("IN_FLIGHT", "PAID")
@@ -413,6 +418,59 @@ class ExecutionStore:
                        row.get("installment"), row.get("contract_total_minor"), row.get("line"), row["currency"],
                        row["amount_minor"], row["base_cost_minor"], row["paid_at"], row["reporting_period"], _now(),
                        row.get("beneficiary_id")))
+
+    # -- payee lifecycle (src/venthora/payees.py holds the transitions) ------------------------------------------
+
+    def seed_payees(self, records: list[dict]) -> int:
+        """Insert the onboarding records that are not in the registry yet (never overwrites a live record)."""
+        added = 0
+        with self._lock, self._connect() as c:
+            for rec in records:
+                cur = c.execute("INSERT OR IGNORE INTO payees VALUES (?, ?, ?)",
+                                (rec["beneficiary_id"], json.dumps(rec, default=str), _now()))
+                added += cur.rowcount
+        return added
+
+    def payee(self, beneficiary_id: str) -> dict | None:
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT record_json FROM payees WHERE beneficiary_id = ?", (beneficiary_id,)).fetchone()
+        return json.loads(row["record_json"]) if row else None
+
+    def list_payees(self) -> list[dict]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT record_json FROM payees ORDER BY beneficiary_id").fetchall()
+        return [json.loads(r["record_json"]) for r in rows]
+
+    def payee_event(self, beneficiary_id: str, event: dict, *, cooling_hours: int = 72,
+                    approver_roles: tuple[str, ...] | list[str] = ("finance_manager",), now: str | None = None) -> dict:
+        """Apply one lifecycle event to the stored record and log it; a refused event is logged too and raises PayeeError."""
+        from ..payees import PayeeError, PayeeRecord, _parse, transition
+
+        at = _parse(now) or datetime.now(UTC)
+        current = self.payee(beneficiary_id)
+        rec = PayeeRecord.model_validate(current) if current else None
+        ev = dict(event) | {"beneficiary_id": beneficiary_id}
+        try:
+            new = transition(rec, ev, at, cooling_hours=cooling_hours, approver_roles=approver_roles)
+        except PayeeError as exc:
+            with self._lock, self._connect() as c:
+                c.execute("INSERT INTO payee_events VALUES (?, ?, ?, 'REFUSED', ?, ?, ?)",
+                          (str(uuid4()), beneficiary_id, ev.get("kind", "?"), json.dumps(ev | {"reason": str(exc)}, default=str),
+                           rec.status if rec else None, at.isoformat()))
+            raise
+        with self._lock, self._connect() as c:
+            c.execute("INSERT OR REPLACE INTO payees VALUES (?, ?, ?)", (beneficiary_id, json.dumps(new.model_dump(), default=str), _now()))
+            c.execute("INSERT INTO payee_events VALUES (?, ?, ?, 'APPLIED', ?, ?, ?)",
+                      (str(uuid4()), beneficiary_id, ev["kind"], json.dumps(ev, default=str), new.status, at.isoformat()))
+        return new.model_dump()
+
+    def payee_events(self, beneficiary_id: str | None = None, limit: int = 100) -> list[dict]:
+        with self._lock, self._connect() as c:
+            if beneficiary_id:
+                rows = c.execute("SELECT * FROM payee_events WHERE beneficiary_id = ? ORDER BY at DESC LIMIT ?", (beneficiary_id, limit)).fetchall()
+            else:
+                rows = c.execute("SELECT * FROM payee_events ORDER BY at DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) | {"event": json.loads(r["event_json"])} for r in rows]
 
     def payment_history(self, as_of: str, period: str) -> dict:
         """What limits and velocity reason from: paid per payee this report period, rolling 24 h / 7 d outflow (base

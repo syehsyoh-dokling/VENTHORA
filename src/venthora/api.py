@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import json
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -34,6 +35,8 @@ from .intake.pipeline import Intake  # noqa: E402
 from .ledger import adjust as ledger_adjust_entry  # noqa: E402
 from .ledger import evaluate as ledger_evaluate  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
+from .payees import PayeeError  # noqa: E402
+from .payees import evaluate as payees_evaluate  # noqa: E402
 from .proofcore.budget import attach_budget, cutoff_report, load_budget  # noqa: E402
 from .reporting import ReportingConfig, period_report  # noqa: E402
 from .reporting import evaluate as reporting_evaluate  # noqa: E402
@@ -265,6 +268,94 @@ async def ledger_adjust(book_id: str, req: AdjustRequest):
     posted = store.post(book_id, entry)
     await asyncio.to_thread(app.state.audit.append, "ledger_adjust", {"book_id": book_id, **req.model_dump()})
     return posted
+
+
+# -- payee lifecycle: NEW -> VERIFIED -> ACTIVE, cooling after a bank change, call-back mandatory -----------------
+
+@app.get("/v1/payees")
+async def list_payees():
+    """Every payee's live record: status, bank-details fingerprint, cooling period, who verified it."""
+    return app.state.executor.store.list_payees()
+
+
+@app.get("/v1/payees/{beneficiary_id}")
+async def get_payee(beneficiary_id: str):
+    store = app.state.executor.store
+    rec = store.payee(beneficiary_id)
+    if rec is None:
+        raise HTTPException(404, "unregistered payee")
+    return rec | {"events": store.payee_events(beneficiary_id)}
+
+
+@app.post("/v1/payees/eval")
+async def payees_eval(inp: Annotated[dict, Body()]):
+    """Pure evaluation of lifecycle events (ground truth / the form): the record after the events, refusals named."""
+    return payees_evaluate(inp)
+
+
+class CallbackRequest(BaseModel):
+    by: str = Field(min_length=1, max_length=120, description="the person who made the call")
+    role: str = Field(min_length=1, max_length=60)
+    called_number: str = Field(min_length=3, max_length=40, description="must be the registered number, not one from the request")
+    note: str = Field(default="", max_length=500)
+
+
+class BankChangeRequest(BaseModel):
+    bank_fingerprint: str = Field(min_length=1, max_length=200, description="fingerprint of the new details")
+    source: str = Field(min_length=1, max_length=200, description="where the change came from (email intake id, portal, letter)")
+    note: str = Field(default="", max_length=500)
+
+
+class PayeeAction(BaseModel):
+    by: str = Field(min_length=1, max_length=120)
+    role: str = Field(min_length=1, max_length=60)
+    reason: str = Field(default="", max_length=500)
+
+
+def _payee_event(beneficiary_id: str, event: dict, cooling_hours: int):
+    store = app.state.executor.store
+    if store.payee(beneficiary_id) is None and event.get("kind") != "register":
+        raise HTTPException(404, "unregistered payee")
+    try:
+        return store.payee_event(beneficiary_id, event, cooling_hours=cooling_hours)
+    except PayeeError as exc:
+        raise HTTPException(409 if "role" not in str(exc) else 403, str(exc)) from exc
+
+
+@app.post("/v1/payees/{beneficiary_id}/verify")
+async def verify_payee(beneficiary_id: str, req: CallbackRequest, cooling_hours: int = Query(72, ge=0, le=2160)):
+    """The mandatory call-back: a finance manager confirms the bank details on the REGISTERED number. Refused on any other
+    number, by any other role, or when nothing is pending. From CHANGED the cooling period stays."""
+    rec = _payee_event(beneficiary_id, {"kind": "verify", "by": req.by, "role": req.role, "called_number": req.called_number,
+                                        "note": req.note}, cooling_hours)
+    await asyncio.to_thread(app.state.audit.append, "payee_verified",
+                            {"beneficiary_id": beneficiary_id, **req.model_dump(), "status": rec["status"]})
+    return rec
+
+
+@app.post("/v1/payees/{beneficiary_id}/bank-change")
+async def payee_bank_change(beneficiary_id: str, req: BankChangeRequest, cooling_hours: int = Query(72, ge=0, le=2160)):
+    """Record that the payee's bank details changed: the payee becomes CHANGED (no payment until a call-back) and the
+    cooling period starts now. The same fingerprint as on file is not a change."""
+    rec = _payee_event(beneficiary_id, {"kind": "bank_change", "bank_fingerprint": req.bank_fingerprint, "source": req.source,
+                                        "note": req.note}, cooling_hours)
+    await asyncio.to_thread(app.state.audit.append, "payee_bank_change", {"beneficiary_id": beneficiary_id, **req.model_dump()})
+    return rec
+
+
+@app.post("/v1/payees/{beneficiary_id}/suspend")
+async def suspend_payee(beneficiary_id: str, req: PayeeAction):
+    rec = _payee_event(beneficiary_id, {"kind": "suspend", **req.model_dump()}, 72)
+    await asyncio.to_thread(app.state.audit.append, "payee_suspended", {"beneficiary_id": beneficiary_id, **req.model_dump()})
+    return rec
+
+
+@app.post("/v1/payees/{beneficiary_id}/reinstate")
+async def reinstate_payee(beneficiary_id: str, req: PayeeAction):
+    """Back to NEW: another call-back is required before any payment."""
+    rec = _payee_event(beneficiary_id, {"kind": "reinstate", **req.model_dump()}, 72)
+    await asyncio.to_thread(app.state.audit.append, "payee_reinstated", {"beneficiary_id": beneficiary_id, **req.model_dump()})
+    return rec
 
 
 # -- reporting periods ---------------------------------------------------------------------------
@@ -510,6 +601,16 @@ async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822"), dry_
     req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run)
     if not dry_run:
         await asyncio.to_thread(app.state.audit.append, "intake", req.model_dump(exclude={"text"}))
+        # Payee lifecycle: a registered counterparty announcing new bank details moves to CHANGED at once (no payment
+        # until a call-back on the registered number), whatever the email says about urgency.
+        if "payee_bank_details_changed" in req.flags and req.counterparty_id:
+            quoted = " | ".join(q.quote for q in req.quotes if q.field == "bank_change") or req.subject
+            fp = "email:" + hashlib.sha256(quoted.encode("utf-8")).hexdigest()[:16]
+            store = app.state.executor.store
+            if store.payee(req.counterparty_id) is not None:
+                with contextlib.suppress(PayeeError):
+                    store.payee_event(req.counterparty_id, {"kind": "bank_change", "bank_fingerprint": fp,
+                                                            "source": f"intake:{req.intake_id}", "quote": quoted[:300]})
     return req
 
 
@@ -525,7 +626,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits"):
+    for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

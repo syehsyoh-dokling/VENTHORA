@@ -18,6 +18,8 @@ from ..gateways.airwallex import Airwallex
 from ..gateways.native import native_gate
 from ..gateways.opa import OPA
 from ..gateways.tigerbeetle import TigerBeetleLedger
+from ..payees import describe as describe_payees
+from ..payees import payee_facts, payee_reasons
 from . import budget
 from . import policy as local_policy
 from .limits import describe as describe_limits
@@ -129,8 +131,17 @@ class ProofCore:
             stages.append(StageResult(engine="Policy · limits", status="WARN" if lim_reasons else "PASS",
                                       summary=describe_limits(lim, lim_reasons), details=lim | {"reasons": lim_reasons},
                                       duration_ms=(perf_counter() - lim_started) * 1000))
+        # Payee lifecycle: a verified payee is paid by a person until its first PAID payout, and throughout the cooling
+        # period after a bank change; NEW / CHANGED / SUSPENDED payees were already escalated by Verity.
+        pay_started = perf_counter()
+        pf = payee_facts(state, decisions)
+        pf_reasons = payee_reasons(pf)
+        if pf["attached"]:
+            stages.append(StageResult(engine="Payee · lifecycle", status="WARN" if pf_reasons else "PASS",
+                                      summary=describe_payees(pf, pf_reasons), details=pf | {"reasons": pf_reasons},
+                                      duration_ms=(perf_counter() - pay_started) * 1000))
         inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts,
-                                        paying_over_claims=twm["paying_over_claims"], limits=lim)
+                                        paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         stages.append(await self._balance_stage(state, proj.conversions))

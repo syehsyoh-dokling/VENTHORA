@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from time import perf_counter
 
 from ..domain.models import Obligation, StageResult, TreasuryState
+from ..payees import blocking_reason
 
 
 @dataclass
@@ -46,6 +47,13 @@ async def verity(state: TreasuryState) -> VerityResult:
         elif set(o.policy_flags) & set(state.policy.escalate_flags):
             flags = sorted(set(o.policy_flags) & set(state.policy.escalate_flags))
             exceptions[o.obligation_id] = "policy exception: " + ", ".join(f.replace("_", " ") for f in flags)
+            if dup_key:
+                seen_fingerprints[dup_key] = o.obligation_id
+        elif state.payees is not None and (why := blocking_reason(state.payees, o.beneficiary_id)):
+            # Payee lifecycle: a payee nobody verified by call-back, whose bank details just changed, or who is
+            # suspended is never paid, not even with an approval; a person must act on the payee first.
+            exceptions[o.obligation_id] = ("policy exception: " + why.replace("_", " ")
+                                           + " (call-back on the registered number required)")
             if dup_key:
                 seen_fingerprints[dup_key] = o.obligation_id
         else:

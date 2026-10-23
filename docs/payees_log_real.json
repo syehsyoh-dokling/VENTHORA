@@ -1,0 +1,158 @@
+{
+ "generated_at": "2026-10-23T14:44:06.373634+00:00",
+ "book": "payees-real-214406",
+ "payee": "ben-saas-vendor",
+ "steps": [
+  {
+   "step": "1 \u00b7 bank change announced (new IBAN in an email)",
+   "event": "bank_change",
+   "outcome": "APPLIED",
+   "status": "CHANGED",
+   "cooling_until": "2026-10-26T14:44:06.374328+00:00"
+  },
+  {
+   "step": "1 \u00b7 plan + approved execution against a CHANGED payee",
+   "decision": "APPROVED",
+   "actions": {
+    "PAY-1-214406": "ESCALATE"
+   },
+   "requires_approval": [],
+   "lifecycle": "no payout to a registered payee",
+   "registry_status": "CHANGED",
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 20,000.00 >= USD 5,000.00",
+    "transfers": 0
+   },
+   "registry_after": "CHANGED"
+  },
+  {
+   "step": "2a \u00b7 call-back to the number printed in the email",
+   "event": "verify",
+   "outcome": "REFUSED",
+   "reason": "the call-back must be made to the registered number, not to a number taken from the request",
+   "status": "CHANGED"
+  },
+  {
+   "step": "2b \u00b7 call-back by a viewer",
+   "event": "verify",
+   "outcome": "REFUSED",
+   "reason": "role 'viewer' may not verify a payee; allowed: ['finance_manager']",
+   "status": "CHANGED"
+  },
+  {
+   "step": "3 \u00b7 call-back on the registered number by a finance manager",
+   "event": "verify",
+   "outcome": "APPLIED",
+   "status": "VERIFIED",
+   "cooling_until": "2026-10-26T14:44:06.374328+00:00"
+  },
+  {
+   "step": "3a \u00b7 plan inside the cooling period, nobody approves",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "PAY-2-214406": "PAY"
+   },
+   "requires_approval": [
+    "payee_in_cooling_period"
+   ],
+   "lifecycle": "inside the cooling period after a bank change: ben-saas-vendor (until 2026-10-26T14:44:06.374328+00:00)",
+   "registry_status": "VERIFIED",
+   "execution": {
+    "status": "REFUSED",
+    "message": "plan requires a person's approval: payee_in_cooling_period",
+    "transfers": 0
+   },
+   "registry_after": "VERIFIED"
+  },
+  {
+   "step": "3b \u00b7 the same, approved",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "PAY-2-214406": "PAY"
+   },
+   "requires_approval": [
+    "payee_in_cooling_period"
+   ],
+   "lifecycle": "inside the cooling period after a bank change: ben-saas-vendor (until 2026-10-26T14:44:06.374328+00:00)",
+   "registry_status": "VERIFIED",
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,997.00 >= USD 5,000.00",
+    "transfers": 1
+   },
+   "registry_after": "VERIFIED"
+  },
+  {
+   "step": "4 \u00b7 second change, cooling 0 h",
+   "event": "bank_change",
+   "outcome": "APPLIED",
+   "status": "CHANGED",
+   "cooling_until": "2026-10-23T14:44:10.413784+00:00"
+  },
+  {
+   "step": "4b \u00b7 call-back on the registered number",
+   "event": "verify",
+   "outcome": "APPLIED",
+   "status": "VERIFIED",
+   "cooling_until": "2026-10-23T14:44:10.413784+00:00"
+  },
+  {
+   "step": "4c \u00b7 first payment on the new details, approved",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "PAY-3-214406": "PAY"
+   },
+   "requires_approval": [
+    "payee_not_yet_active"
+   ],
+   "lifecycle": "verified but never paid on these details: ben-saas-vendor",
+   "registry_status": "VERIFIED",
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 17,994.00 >= USD 5,000.00",
+    "transfers": 1
+   },
+   "registry_after": "ACTIVE"
+  },
+  {
+   "step": "5 \u00b7 next invoice, autonomous",
+   "decision": "APPROVED",
+   "actions": {
+    "PAY-4-214406": "PAY"
+   },
+   "requires_approval": [],
+   "lifecycle": "active: ben-saas-vendor",
+   "registry_status": "ACTIVE",
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 16,991.00 >= USD 5,000.00",
+    "transfers": 1
+   },
+   "registry_after": "ACTIVE"
+  }
+ ],
+ "before": {
+  "beneficiary_id": "ben-saas-vendor",
+  "status": "VERIFIED",
+  "bank_fingerprint": "iban:DE-final-214213",
+  "registered_phone": "+1 650 555 0142",
+  "verified_at": "2026-10-23T14:42:35.074214+00:00",
+  "verified_by": "finance manager (owner) (finance_manager)",
+  "changed_at": "2026-10-23T14:42:35.070444+00:00",
+  "cooling_until": "2026-10-23T14:42:35.070444+00:00",
+  "paid_count": 1
+ },
+ "ok": true,
+ "after": {
+  "beneficiary_id": "ben-saas-vendor",
+  "status": "ACTIVE",
+  "bank_fingerprint": "iban:DE-final-214406",
+  "registered_phone": "+1 650 555 0142",
+  "verified_at": "2026-10-23T14:44:10.417469+00:00",
+  "verified_by": "finance manager (owner) (finance_manager)",
+  "changed_at": "2026-10-23T14:44:10.413784+00:00",
+  "cooling_until": "2026-10-23T14:44:10.413784+00:00",
+  "paid_count": 4
+ }
+}

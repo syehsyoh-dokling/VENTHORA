@@ -115,6 +115,22 @@ approval_reasons contains "weekly_outflow_limit_exceeded" if {
 	input.limits.outflow_7d_minor + input.limits.paying_now_total_minor > input.limits.max_outflow_weekly_minor
 }
 
+# Payee lifecycle (src/venthora/payees.py). NEW / CHANGED / SUSPENDED payees never reach a payout (Verity escalates them);
+# a VERIFIED payee is paid by a person inside the cooling period after a bank change, and until its first PAID payout.
+approval_reasons contains "payee_in_cooling_period" if {
+	input.payees.attached
+	some r in input.payees.rows
+	r.status == "VERIFIED"
+	r.in_cooling
+}
+
+approval_reasons contains "payee_not_yet_active" if {
+	input.payees.attached
+	some r in input.payees.rows
+	r.status == "VERIFIED"
+	not r.in_cooling
+}
+
 decision := {
 	"allow": input.actor_role != "viewer",
 	"requires_approval": sort([r | some r in approval_reasons]),

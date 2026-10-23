@@ -183,6 +183,15 @@ computed as numbers and judged in Python and in Rego; above any of them the plan
 payouts, payees and totals behind the reason. The three tiers of what the agent may do alone, with approval, or not at
 all are written down in `docs/AUTONOMY_MAP.md`.
 
+### H. Who may be paid at all
+
+The payee-fraud email is the case every treasury team has seen: a supplier "moved banks", please update the account,
+the invoice is due Friday. VENTHORA does not weigh the email; it moves the payee to CHANGED, which no plan and no
+approval can pay. The only way out is a person's call-back, and only on the number the payee registered at
+onboarding: a number printed in the email is refused by code. Even then the new account is paid by a person through
+a cooling period and for its first payment; the agent pays it alone only after a PAID payout has proven it. The
+executor re-reads the live record before money moves, so a plan reviewed against a stale registry cannot pay either.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

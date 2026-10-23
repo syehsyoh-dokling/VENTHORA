@@ -1,0 +1,20 @@
+{"_note": "UI bench, payees suite: every case submitted through the dashboard form (Submit a case, suite = payees; plan cases to POST /v1/plans, lifecycle cases to POST /v1/payees/eval) in the Claude in-app browser against the running service on 23 Oct 2026; ui_ms = round trip measured by the browser, server_ms = the plan's own duration_ms (plan cases only). 32/32 matched the hand-derived expectation.",
+ "n": 32, "matched": 32, "p50_ms": 4.0, "max_ms": 142.4, "plan_server_p50_ms": 83.0,
+ "rows": [
+  {"id": "Y01", "kind": "plan", "match": true, "server_ms": 132.4, "ui_ms": 142.4}, {"id": "Y02", "kind": "plan", "match": true, "server_ms": 85.5, "ui_ms": 95.6},
+  {"id": "Y03", "kind": "plan", "match": true, "server_ms": 86.9, "ui_ms": 97.2}, {"id": "Y04", "kind": "plan", "match": true, "server_ms": 80.9, "ui_ms": 90.0},
+  {"id": "Y05", "kind": "plan", "match": true, "server_ms": 73.9, "ui_ms": 83.4}, {"id": "Y06", "kind": "plan", "match": true, "server_ms": 82.9, "ui_ms": 94.3},
+  {"id": "Y07", "kind": "plan", "match": true, "server_ms": 83.7, "ui_ms": 93.6}, {"id": "Y08", "kind": "plan", "match": true, "server_ms": 84.2, "ui_ms": 93.3},
+  {"id": "Y09", "kind": "plan", "match": true, "server_ms": 83.0, "ui_ms": 93.0}, {"id": "Y10", "kind": "plan", "match": true, "server_ms": 80.3, "ui_ms": 88.4},
+  {"id": "Y11", "kind": "plan", "match": true, "server_ms": 84.4, "ui_ms": 94.3}, {"id": "Y12", "kind": "plan", "match": true, "server_ms": 78.9, "ui_ms": 87.9},
+  {"id": "Y13", "kind": "plan", "match": true, "server_ms": 87.4, "ui_ms": 97.4}, {"id": "Y14", "kind": "plan", "match": true, "server_ms": 81.4, "ui_ms": 92.0},
+  {"id": "Z01", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 5.3}, {"id": "Z02", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.1},
+  {"id": "Z03", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.1}, {"id": "Z04", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.3},
+  {"id": "Z05", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 4.0}, {"id": "Z06", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.3},
+  {"id": "Z07", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.1}, {"id": "Z08", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.6},
+  {"id": "Z09", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.6}, {"id": "Z10", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.0},
+  {"id": "Z11", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.4}, {"id": "Z12", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.6},
+  {"id": "Z13", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.1}, {"id": "Z14", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.3},
+  {"id": "Z15", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.1}, {"id": "Z16", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.5},
+  {"id": "Z17", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 2.8}, {"id": "Z18", "kind": "payees", "match": true, "server_ms": null, "ui_ms": 3.3}
+ ]}

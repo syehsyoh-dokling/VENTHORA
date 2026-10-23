@@ -75,6 +75,13 @@ def main() -> int:
                                        "payees": [{"beneficiary_id": "b", "paid_this_period_minor": hist, "paying_now_minor": cost,
                                                    "total_minor": hist + cost, "new_payee": new}],
                                        "paying_now_total_minor": cost, "outflow_24h_minor": out24, "outflow_7d_minor": out7}})
+    # Payee lifecycle: every status, inside or outside the cooling period, one or two payouts, attached or not.
+    statuses = ["NEW", "VERIFIED", "ACTIVE", "CHANGED", "SUSPENDED", None]
+    for attached, s1, c1, s2, c2 in itertools.product([False, True], statuses, [False, True], statuses + ["-"], [False, True]):
+        rows = [{"obligation_id": "O1", "beneficiary_id": "a", "status": s1, "in_cooling": c1, "cooling_until": None, "paid_count": 0}]
+        if s2 != "-":
+            rows.append({"obligation_id": "O2", "beneficiary_id": "b", "status": s2, "in_cooling": c2, "cooling_until": None, "paid_count": 0})
+        grid.append(base | {"payees": {"attached": attached, "rows": rows, "as_of": "2026-10-23T12:00:00+00:00"}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

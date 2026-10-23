@@ -60,7 +60,7 @@ def section(suite: str, title: str, intro: list[str]) -> list[str]:
     inproc = asyncio.run(in_process(cases))
     endpoint = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_endpoint.json").read_text(encoding="utf-8"))}
     ui = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_ui.json").read_text(encoding="utf-8"))["rows"]}
-    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "execution"].index)
+    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "payees", "execution"].index)
     lines = [f"## {title}", ""] + intro + ["", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
     for kind in kinds:
         ids = [c["id"] for c in cases if c["kind"] == kind]
@@ -128,6 +128,13 @@ def main() -> None:
         "the spend ledger, two payouts in one plan count together); a payee never PAID before getting more than the first-payment limit "
         "(no history = everyone is new); rolling 24 h / 7 d outflow plus paying now above the daily / weekly limit; several reasons at "
         "once, each named; no limits = nothing changes; an escalated payout does not count as paying now."])
+    lines += [""] + section("payees", "Suite 8 — payee lifecycle: NEW → VERIFIED → ACTIVE, cooling after a bank change, the call-back is mandatory", [
+        "Plans against a payee registry: NEW, CHANGED, SUSPENDED and unregistered payees are ESCALATED (no payment, not even with an "
+        "approval); a VERIFIED payee needs a person inside the cooling period (payee_in_cooling_period) and until its first PAID payout "
+        "(payee_not_yet_active); ACTIVE adds nothing; an invoice announcing new details escalates even an ACTIVE payee; no registry = the "
+        "control is off. The state machine itself: register, the call-back only by an approver role and only on the registered number "
+        "(a number from the request is refused), a bank change that starts (or restarts) the cooling period, payments that promote only "
+        "after it, suspend / reinstate (another call-back)."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

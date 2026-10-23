@@ -34,6 +34,8 @@ def send(client: httpx.Client, case: dict) -> httpx.Response:
         return client.post("/v1/reporting/eval", json=case["input"])
     if case["kind"] == "ledger":
         return client.post("/v1/ledger/eval", json=case["input"])
+    if case["kind"] == "payees":
+        return client.post("/v1/payees/eval", json=case["input"])
     params = {"dry_run": "true"} | ({"book": case["book"]} if case.get("book") else {})
     return client.post("/v1/intake/emails", content=case["input"].encode("utf-8"),
                        headers={"content-type": "message/rfc822"}, params=params)
