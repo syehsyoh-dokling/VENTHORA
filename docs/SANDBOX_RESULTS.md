@@ -36,6 +36,32 @@ person acting as finance manager.
 | Transfer | VENDOR-UK `9e401900-…` **PAID** |
 | Reconciliation | no discrepancy; reserve held: USD 12,177.51 ≥ 6,135.05 |
 
+## Cycle 4: the November invoices, Kit 01 word for word (`venthora-sandbox --receipt`)
+
+This cycle runs the Kit 01-aligned scenario, book `kit01-nov`, end to end on the real sandbox,
+with the local Qwen2.5-0.5B reading the inbox. Approver: the project's finance manager.
+
+| Step (guide order) | Result |
+|---|---|
+| Read balances and obligations | live wallet USD/EUR/GBP ~10M each; ring-fenced budget USD 22,500; rates EUR 1.132594, GBP 1.353267; learned fees applied |
+| Day-1 inbox | Lumen's bank change verified and cited → CONTRACTOR-US is a **policy exception**; 3 ungrounded model claims rejected |
+| Initial plan: **APPROVED** autonomously | shipping and payroll paid, **minimum** conversions for the supplier (EUR 4,013.37 incl. learned SWIFT fee) and shipping (GBP 2,502.24), SaaS (cheapest) **deferred**, contractor **escalated**; limit USD 10,000 at 90% confidence |
+| AI challenger | naive "pay everything" **BLOCKED**; the model's own proposal passes the gate but misses SHIPPING-UK |
+| Day-2 email (new information) | delay verified and cited; confidence 90% → **70%**, window 144–290 h; limit → USD 5,000; **the same conversion** needs a person (`REQUIRES_APPROVAL`); only SAAS-USD changes (DEFER → ESCALATE) |
+| Deposit | Acme USD 10,000 to the USD Global Account; `SETTLED` 02:26:29Z; balances re-read |
+| Recalculate | incremental: PAYROLL-NOV, SHIPPING-UK, SUPPLIER-EU kept; SAAS-USD ESCALATE → PAY; **APPROVED** |
+| Beneficiaries | all four were **reused** from earlier cycles (stored Airwallex ids), so none was created here. The schema → validate → create path is covered by tests, and both endpoints were called directly on the real sandbox (schema: required fields present; validate: `"OK"`) |
+| Conversions | EUR `06456e16-…` and GBP `5d4ab0e4-…`, both **SETTLED** |
+| Transfers | PAYROLL-NOV `788b96e2-…`, SHIPPING-UK `4ec813fc-…`, SUPPLIER-EU `154cf79d-…`, SAAS-USD `e80a5b84-…`: SCHEDULED → SENT → **PAID** |
+| Reconcile, confirm reserve | **no discrepancy**; managed USD 15,356.00 ≥ floor 6,127.46 |
+
+**Plan vs actual, after learning the fees.** LOCAL USD 3.00 and GBP 2.24 were predicted exactly. The remaining variance was:
+
+- **USD −6.28**: the quoted price versus the indicative planning rate (EUR +3.60, GBP +2.68, about 0.08%). This was inside the slippage limit, and the reserve was re-checked at the quoted price before booking.
+- **EUR −0.01**: the SWIFT fee was 13.38 this time, against 13.37 before. The higher value is stored for the next plan.
+
+Cycle 1's overrun (EUR 0.52, GBP 2.24, USD 6.00 of unplanned fees) did not recur.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |

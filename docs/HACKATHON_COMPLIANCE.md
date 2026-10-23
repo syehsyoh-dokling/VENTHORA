@@ -18,7 +18,7 @@ scenario is not hand-written; `scripts/make_scenarios.py` generates it by readin
 
 | Requirement | Status | Evidence |
 |---|---|---|
-| Working demo | ✅ | `venthora-sandbox` on the real sandbox; three executed cycles |
+| Working demo | ✅ | `venthora-sandbox` on the real sandbox; four executed cycles, cycle 4 = the Kit 01 flow word for word |
 | Video walkthrough under 5 minutes | ⬜ | script: [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
 | Repository link with setup instructions | ✅ | https://github.com/syehsyoh-dokling/VENTHORA, README quick start |
 | Built on Airwallex APIs | ✅ | balances, rates, quotes, conversions, beneficiaries (schema/validate/create), transfers, deposits, simulation |
@@ -93,7 +93,7 @@ scenario is not hand-written; `scripts/make_scenarios.py` generates it by readin
 
 | # | Requirement | Status | Where |
 |---|---|---|---|
-| 74 | Call `/beneficiaries/schema` before building a payload | ✅🧪 | required fields compared; a missing one fails before create |
+| 74 | Call `/beneficiaries/schema` before building a payload | ✅🧪 | required fields compared; a missing one fails before create (real sandbox: schema and validate called directly and accepted; the executor path is covered by tests, because the cycle-4 beneficiaries already existed) |
 | 75–76 | `{"beneficiary": …, "transfer_methods": […]}`; not `payment_methods` | ✅ | |
 | 77–79 | US/USD/LOCAL: `aba`, exact `Checking`, full address | ✅ | `data/beneficiaries.json` |
 | 80 | GB/GBP/LOCAL: `bank_name`, lowercase `sort_code` | ✅ | |
