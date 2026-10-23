@@ -30,16 +30,23 @@ def _person(name: str | None) -> str:
     return " ".join(str(name or "").split()).lower()
 
 
-def check(req: dict | None, approvals: list[dict], requested_by: str | None, terms_digest: str | None) -> dict:
-    """{'ok', 'problems', 'approved_by'}: which approvals count and why the rest do not."""
+def check(req: dict | None, approvals: list[dict], requested_by: str | None, terms_digest: str | None,
+          book_approvers: list[dict] | None = None) -> dict:
+    """{'ok', 'problems', 'approved_by'}: which approvals count and why the rest do not. book_approvers (tenant registry):
+    when given and non-empty, only those people, in those roles, may approve this book's plans."""
     if not req:
         return {"ok": True, "problems": [], "approved_by": [], "required": 0}
     problems: list[str] = []
     counted: dict[str, str] = {}  # person -> approver as written
+    allowed_people = {(_person(b.get("name")), b.get("role")) for b in (book_approvers or [])}
     for a in approvals:
         who, role = a.get("approver"), a.get("role")
         if role not in req["roles"]:
             problems.append(f"role {role!r} of {who} may not approve this tier; allowed: {req['roles']}")
+            continue
+        if allowed_people and (_person(who), role) not in allowed_people:
+            problems.append(f"{who} ({role}) is not an approver of this book; the tenant registry names "
+                            + ", ".join(f"{b.get('name')} ({b.get('role')})" for b in (book_approvers or [])))
             continue
         if terms_digest and a.get("terms_digest") and a["terms_digest"] != terms_digest:
             problems.append(f"the approval by {who} was given on different terms (amount, counterparty or evidence changed)")
@@ -63,7 +70,8 @@ def evaluate(inp: dict) -> dict:
     -> the requirement and the check. Used by ground truth and the form."""
     req = requirement({"approval_matrix": inp.get("approval_matrix") or [], "approver_roles": inp.get("approver_roles") or ["finance_manager"],
                        "paying_total_minor": inp.get("paying_total_minor", 0)}, list(inp.get("reasons") or []))
-    out = check(req, list(inp.get("approvals") or []), inp.get("requested_by"), inp.get("terms_digest"))
+    out = check(req, list(inp.get("approvals") or []), inp.get("requested_by"), inp.get("terms_digest"),
+                book_approvers=list(inp.get("book_approvers") or []))
     return {"requirement": req, "tier": req["tier"] if req else None, "approvals_required": req["approvals_required"] if req else 0,
             "ok": out["ok"], "problems": out["problems"], "problems_n": len(out["problems"]),
             "first_problem": out["problems"][0] if out["problems"] else None, "approved_by": out["approved_by"]}

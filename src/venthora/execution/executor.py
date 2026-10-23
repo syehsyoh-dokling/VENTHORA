@@ -147,7 +147,9 @@ class Executor:
             # The approval matrix: how many different people, which roles, on the plan's own terms; never the requester.
             requirement = plan.approval_requirement or {"tier": "default", "approvals_required": 1,
                                                         "roles": req.state.policy.approver_roles}
-            verdict = check_approvals(requirement, approvals, req.requested_by, terms_digest(plan))
+            book_people = ([a.model_dump() for a in req.state.tenancy.config.approvers]
+                           if req.state.tenancy and req.state.tenancy.config else None)
+            verdict = check_approvals(requirement, approvals, req.requested_by, terms_digest(plan), book_approvers=book_people)
             if not verdict["ok"]:
                 refuse("approval refused: " + "; ".join(verdict["problems"]))
             approved_by = verdict["approved_by"]

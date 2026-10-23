@@ -62,6 +62,11 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
  </section>
 
  <section class="span12">
+  <h2><span>Tenants · books</span><span class="small muted" id="tenantMeta">whose book, which payees, whose signature, which policy; a book never spends another book's money</span></h2>
+  <div id="tenants" class="empty">loading…</div>
+ </section>
+
+ <section class="span12">
   <h2><span>Payees · lifecycle</span><span class="small muted">NEW → VERIFIED → ACTIVE; a bank change starts a cooling period; the call-back goes to the registered number only</span></h2>
   <div id="payees" class="empty">loading…</div>
  </section>
@@ -73,9 +78,9 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
 
  <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option><option value="limits">limits</option><option value="payees">payees</option><option value="approvals">approvals</option><option value="fx">fx exposure</option><option value="aging">aging</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option><option value="limits">limits</option><option value="payees">payees</option><option value="approvals">approvals</option><option value="fx">fx exposure</option><option value="aging">aging</option><option value="tenancy">tenancy</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
-    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option><option value="ledger">ledger postings (JSON) → /v1/ledger/eval</option><option value="payees">payee lifecycle events (JSON) → /v1/payees/eval</option><option value="approvals">approval matrix check (JSON) → /v1/approvals/eval</option><option value="aging">invoice aging (JSON) → /v1/aging/eval</option></select>
+    <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option><option value="reporting">reporting input (JSON) → /v1/reporting/eval</option><option value="ledger">ledger postings (JSON) → /v1/ledger/eval</option><option value="payees">payee lifecycle events (JSON) → /v1/payees/eval</option><option value="approvals">approval matrix check (JSON) → /v1/approvals/eval</option><option value="aging">invoice aging (JSON) → /v1/aging/eval</option><option value="tenancy">book resolution (JSON) → /v1/tenants/eval</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
     <button id="submitCase" class="primary">Submit</button></span></h2>
   <textarea id="subInput" spellcheck="false" style="width:100%;min-height:150px;font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--surface);color:var(--ink)" placeholder='Paste a TreasuryState JSON or a raw email (RFC 822), or pick a ground-truth case.'></textarea>
@@ -198,6 +203,15 @@ async function ledgerBooks(){try{const books=await api("/v1/ledger");
   {h:"Committed (in flight)",num:1,f:r=>fmt(r.committed,r.ccy)},{h:"Expense",num:1,f:r=>fmt(r.expense,r.ccy)},{h:"Fees",num:1,f:r=>fmt(r.fees,r.ccy)},{h:"FX net",num:1,f:r=>fmt(r.fx,r.ccy)},{h:"Funding",num:1,f:r=>fmt(-r.funding,r.ccy)},{h:"Entries",num:1,f:r=>r.entries}],
   rows.slice(0,40),"no books yet: the first execution opens one")}catch(e){$("#ledger").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
+// ---- tenants: the registry and what each book has done ----
+async function tenants(){try{const t=await api("/v1/tenants");
+ $("#tenantMeta").textContent=`${t.strict?"strict: an unknown book is blocked":"unknown books go to "+t.default_tenant}`;
+ $("#tenants").innerHTML=table([{h:"Tenant",f:r=>`<b>${esc(r.tenant)}</b><br><span class="small muted">${esc(r.tenant_name||"")}</span>`},{h:"Book",f:r=>`<span class="mono">${esc(r.book)}</span>${r.pattern?' <span class="small muted">pattern</span>':''}`},
+  {h:"Allowed payees",f:r=>esc(r.allowed_payees.join(", "))},{h:"Approvers",f:r=>r.approvers.length?r.approvers.map(a=>`${esc(a.name)} <span class="small muted">${esc(a.role)}</span>`).join("<br>"):'<span class="muted">any approver role</span>'},
+  {h:"Policy overrides",f:r=>Object.keys(r.policy_overrides).length?`<span class="mono small">${esc(JSON.stringify(r.policy_overrides))}</span>`:"-"},
+  {h:"Books seen (executions · cash)",f:r=>r.books_seen.length?r.books_seen.slice(0,6).map(b=>`${esc(b.book_id)} · ${b.executions}${Object.keys(b.cash).length?" · "+Object.entries(b.cash).filter(([c,v])=>v).map(([c,v])=>fmt(v,c)).join(", "):""}`).join("<br>")+(r.books_seen.length>6?`<br><span class="muted small">+${r.books_seen.length-6} more</span>`:""):"-"}],
+  t.rows,"no tenants registered")}catch(e){$("#tenants").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
+
 // ---- payees: lifecycle records, the call-back and bank-change actions ----
 async function payees(){try{const recs=await api("/v1/payees");
  const act=async(id,path,body)=>{const r=await fetch(`/v1/payees/${encodeURIComponent(id)}/${path}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const j=await r.json();
@@ -244,8 +258,8 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const t0=performance.now();let res,body;
  if(kind==="plan"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
   res=await fetch("/v1/plans",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
- else if(kind==="incident"||kind==="reporting"||kind==="ledger"||kind==="payees"||kind==="approvals"||kind==="aging"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
-  const ep={incident:"/v1/incidents/decide",reporting:"/v1/reporting/eval",ledger:"/v1/ledger/eval",payees:"/v1/payees/eval",approvals:"/v1/approvals/eval",aging:"/v1/aging/eval"}[kind];
+ else if(kind==="incident"||kind==="reporting"||kind==="ledger"||kind==="payees"||kind==="approvals"||kind==="aging"||kind==="tenancy"){let st;try{st=JSON.parse(raw)}catch(e){$("#subOut").innerHTML=`<span class="err">not JSON: ${esc(e.message)}</span>`;return null}
+  const ep={incident:"/v1/incidents/decide",reporting:"/v1/reporting/eval",ledger:"/v1/ledger/eval",payees:"/v1/payees/eval",approvals:"/v1/approvals/eval",aging:"/v1/aging/eval",tenancy:"/v1/tenants/eval"}[kind];
   res=await fetch(ep,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(st)})}
  else{const q=new URLSearchParams({dry_run:$("#queueIt").checked?"false":"true"});if(c&&c.book)q.set("book",c.book);
   res=await fetch("/v1/intake/emails?"+q,{method:"POST",headers:{"content-type":"message/rfc822"},body:raw})}
@@ -255,7 +269,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
  const serverMs=kind==="plan"?body.duration_ms:null;
  const summary=kind==="plan"?`${pill(body.decision)} ${Object.entries(body.obligations.reduce((m,d)=>(m[d.obligation_id]=d.action,m),{})).map(([o,a])=>`${esc(o)}=${esc(a)}`).join(", ")}`
   :kind==="incident"?`${pill(body.action)} <span class="small">${esc(body.reason)}</span>`
-  :(kind==="reporting"||kind==="ledger"||kind==="payees"||kind==="approvals"||kind==="aging")?`<span class="mono small">${esc(JSON.stringify(body)).slice(0,600)}</span>`
+  :(kind==="reporting"||kind==="ledger"||kind==="payees"||kind==="approvals"||kind==="aging"||kind==="tenancy")?`<span class="mono small">${esc(JSON.stringify(body)).slice(0,600)}</span>`
   :`${pill(body.status)} ${esc(body.trust)} · ${esc(body.kind)} · ${fmt(body.amount_minor,body.currency||"")} · ${esc(body.invoice_no||"-")}`;
  const rec={id:c?c.id:"free",kind,ui_ms:+ms.toFixed(1),server_ms:serverMs!=null?+serverMs.toFixed(1):null,match:judge?judge.match:null,
   bad:judge?Object.entries(judge.fields).filter(([k,v])=>!v.ok).map(([k,v])=>`${k}: expected ${JSON.stringify(v.expected)}, got ${JSON.stringify(v.actual)}`):[]};
@@ -266,7 +280,7 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
 $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<span class="err">${esc(e.message)}</span>`});
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
-platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();reporting();ledgerBooks();payees();
+platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();reporting();ledgerBooks();payees();tenants();
 setInterval(()=>{intake();executions();incidents()},15000);
 </script>
 </body>

@@ -322,6 +322,23 @@ Log: `docs/aging_log_real.json`.
 plan rejected it ("already paid"), so the order was swapped. The duplicate lock and the settled-record rule held across
 the two books, as they should.
 
+## Cycle 18: book and tenant segregation on the real sandbox (`python scripts/tenancy_real.py`)
+
+Approved by the owner as finance manager; 24 Oct 2026, ~05:48 WIB. The registry gives the pattern `tenant-real-*` to
+Acme: payees `ben-saas-vendor` only, approver "finance manager (owner)", override `max_single_payment` USD 500 (so every
+payout here stops for a person). Fresh books. Log: `docs/tenancy_log_real.json`.
+
+| Run | Tenancy | Plan | Execution |
+|---|---|---|---|
+| 1 · the book's payee, the book's approver | acme-group (pattern), override applied | `REQUIRES_APPROVAL single_payment_above_limit` (USD 1,000 > the book's 500) | COMPLETED |
+| 2 · the same, approved by "Pat Lee", finance manager of nobody's book | | same | **REFUSED**: "not an approver of this book; the tenant registry names finance manager (owner)" |
+| 3 · another tenant's payee (`ben-eu-components`), approval attached | disallowed: the obligation | **ESCALATE**, nothing to pay | COMPLETED with 0 transfers |
+| 4 · the same book id under a strict registry without the pattern (plan only) | unknown | **BLOCKED** by Policy and Tenancy stages | |
+
+**Finding.** The first attempt's run 1 stayed IN_FLIGHT (the sandbox settlement simulation answered late again); the
+transfer existed, the control had done its work, and the execution was resumed to COMPLETED afterwards. The script now
+counts an in-flight transfer as money moved.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |

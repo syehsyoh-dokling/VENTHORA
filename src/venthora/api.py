@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """HTTP API. Run: uvicorn venthora.api:app --reload"""
 from __future__ import annotations
 
@@ -44,6 +45,9 @@ from .reporting import ReportingConfig, period_report  # noqa: E402
 from .reporting import evaluate as reporting_evaluate  # noqa: E402
 from .reporting import load_config as load_reporting_config  # noqa: E402
 from .reporting import save_config as save_reporting_config  # noqa: E402
+from .tenancy import evaluate as tenancy_evaluate  # noqa: E402
+from .tenancy import load_registry as load_tenant_registry  # noqa: E402
+from .tenancy import resolve as resolve_tenancy  # noqa: E402
 from .testing.groundtruth import book_fingerprints, compare, load_cases, run_case, view_of  # noqa: E402
 
 SCENARIOS = ROOT / "data" / "scenarios"
@@ -287,6 +291,39 @@ async def get_payee(beneficiary_id: str):
     if rec is None:
         raise HTTPException(404, "unregistered payee")
     return rec | {"events": store.payee_events(beneficiary_id)}
+
+
+@app.get("/v1/tenants")
+async def tenants():
+    """The tenant view: every tenant, its books (exact or pattern), allowed payees, approvers, policy overrides, and for each
+    book id the store has seen, its ledger cash and execution count."""
+    reg = load_tenant_registry()
+    store = app.state.executor.store
+    seen: dict[str, int] = {}
+    for e in store.list_executions(500):
+        row = store.get_execution(e["execution_id"])
+        book = (((row or {}).get("request") or {}).get("request") or {}).get("state", {}).get("book_id") if row else None
+        if book:
+            seen[book] = seen.get(book, 0) + 1
+    books = set(store.books())
+    out = []
+    for tenant, t in (reg.get("tenants") or {}).items():
+        for pattern, raw in (t.get("books") or {}).items():
+            matching = sorted(b for b in books | set(seen) if resolve_tenancy(reg, b).config is not None
+                              and resolve_tenancy(reg, b).config.tenant == tenant and resolve_tenancy(reg, b).config.book_id == pattern)
+            out.append({"tenant": tenant, "tenant_name": t.get("name"), "book": pattern, "pattern": any(ch in pattern for ch in "*?["),
+                        "allowed_payees": raw.get("allowed_payees") or ["*"], "approvers": raw.get("approvers") or [],
+                        "policy_overrides": raw.get("policy_overrides") or {},
+                        "books_seen": [{"book_id": b, "executions": seen.get(b, 0),
+                                        "cash": {c: a.get("cash", 0) for c, a in store.book_balances(b).items()} if b in books else {}}
+                                       for b in matching]})
+    return {"strict": reg.get("strict", False), "default_tenant": reg.get("default_tenant"), "rows": out}
+
+
+@app.post("/v1/tenants/eval")
+async def tenants_eval(inp: Annotated[dict, Body()]):
+    """Pure resolution of a book id against a registry (ground truth / the form)."""
+    return tenancy_evaluate(inp)
 
 
 @app.post("/v1/aging/eval")
@@ -656,7 +693,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 def _case(case_id: str) -> dict:
     for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees", "approvals", "fx",
-                  "aging"):
+                  "aging", "tenancy"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

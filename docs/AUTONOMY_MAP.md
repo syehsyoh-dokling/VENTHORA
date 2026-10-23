@@ -51,6 +51,7 @@ reason codes raised; the same person twice counts once, and the requester may ne
 | Reconciliation that does not add up | opens a case that locks the book | close the case with an explanation |
 | Grant mandate on a budget line, sign a bypass, close a period, set closing rates, change the cut-off, adjust a book | the agent asks or reports | finance manager / admin, audited |
 | Viewer role | `BLOCKED` | a treasury agent or finance manager runs it |
+| A book the tenant registry does not know (strict), or a payee outside the book's tenant | `BLOCKED` / escalated, with or without an approval; only the book's named people may sign its plans | register the book, extend the tenant's payees, name the approvers |
 | Production URL, missing credentials, state changed since review | refused | — |
 
 ## Where the line is drawn, and why

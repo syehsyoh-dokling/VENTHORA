@@ -1,0 +1,38 @@
+{
+  "_note": "Tenant registry: which books exist, whose they are, which payees each may pay, who may approve its plans, and the policy values that override the shared policy for that book. A book id may be exact or a glob pattern (fnmatch); an exact entry beats a pattern. `strict` true blocks any book the registry does not know; false sends it to `default_tenant` (the sandbox lab here, where every demo and real-sandbox script opens fresh books). Tenants and people are synthetic.",
+  "strict": false,
+  "default_tenant": "sandbox-lab",
+  "tenants": {
+    "acme-group": {
+      "name": "Acme Group (US operations)",
+      "books": {
+        "kit01_initial": {"allowed_payees": ["payroll-group-us", "ben-saas-vendor", "ben-eu-components", "ben-uk-logistics", "ben-lumen-design", "ben-contractor-okafor"],
+                          "approvers": [{"name": "Dana Finch", "role": "finance_manager"}, {"name": "finance manager (owner)", "role": "finance_manager"}, {"name": "Omar Reyes", "role": "cfo"}],
+                          "policy_overrides": {}},
+        "ops-us": {"allowed_payees": ["payroll-group-us", "ben-saas-vendor", "ben-uk-logistics"],
+                   "approvers": [{"name": "Dana Finch", "role": "finance_manager"}, {"name": "Omar Reyes", "role": "cfo"}],
+                   "policy_overrides": {"max_single_payment_minor": 2500000}},
+        "eu-procurement": {"allowed_payees": ["ben-eu-components"],
+                           "approvers": [{"name": "Lena Vogt", "role": "finance_manager"}],
+                           "policy_overrides": {"reserve_floor_minor": 800000, "max_open_position_minor": {"EUR": 500000}}},
+        "tenant-real-*": {"allowed_payees": ["ben-saas-vendor"],
+                          "approvers": [{"name": "finance manager (owner)", "role": "finance_manager"}],
+                          "policy_overrides": {"max_single_payment_minor": 50000}}
+      }
+    },
+    "lumen-holdings": {
+      "name": "Lumen Holdings (design studio)",
+      "books": {
+        "design-*": {"allowed_payees": ["ben-lumen-design", "ben-contractor-okafor"],
+                     "approvers": [{"name": "Priya Nair", "role": "finance_manager"}],
+                     "policy_overrides": {"max_per_payee_period_minor": 1000000}}
+      }
+    },
+    "sandbox-lab": {
+      "name": "Sandbox lab (demo and real-sandbox cycles)",
+      "books": {
+        "*": {"allowed_payees": ["*"], "approvers": [], "policy_overrides": {}}
+      }
+    }
+  }
+}

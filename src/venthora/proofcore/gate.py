@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Independent verification of a proposed plan.
 
 ProofCore recomputes the post-action balances from the raw state with its own
@@ -23,6 +24,8 @@ from ..gateways.opa import OPA
 from ..gateways.tigerbeetle import TigerBeetleLedger
 from ..payees import describe as describe_payees
 from ..payees import payee_facts, payee_reasons
+from ..tenancy import describe as describe_tenancy
+from ..tenancy import tenancy_facts
 from . import budget
 from . import policy as local_policy
 from .approvals import describe as describe_approval
@@ -163,8 +166,14 @@ class ProofCore:
             stages.append(StageResult(engine="Verity · aging", status="WARN" if ag_rs else "PASS",
                                       summary=describe_aging(ag, ag_rs), details=ag | {"reasons": ag_rs},
                                       duration_ms=(perf_counter() - ag_started) * 1000))
+        # Tenant segregation: whose book this is, what it may pay, who may approve it.
+        ten = tenancy_facts(state, decisions)
+        if ten["attached"]:
+            stages.append(StageResult(engine="Tenancy · book", status="FAIL" if not ten["book_known"] else ("WARN" if ten["disallowed_obligations"] else "PASS"),
+                                      summary=describe_tenancy(ten), details=ten, duration_ms=0.0))
         inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts,
-                                        paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf, fx=fx, aging=ag)
+                                        paying_over_claims=twm["paying_over_claims"], limits=lim, payees=pf, fx=fx, aging=ag,
+                                        tenancy=ten)
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         # Approval matrix: who, and how many different people, must approve what the policy stopped.
@@ -180,7 +189,9 @@ class ProofCore:
     async def _opa_stage(self, inp: dict, local: dict) -> StageResult:
         started = perf_counter()
         if not local["allow"]:
-            return _stage("Policy", False, f"role {inp['actor_role']} may not plan payments", {"local": local}, started)
+            why = (f"role {inp['actor_role']} may not plan payments" if inp["actor_role"] == "viewer"
+                   else f"book {(inp.get('tenancy') or {}).get('book_id')} is unknown to the tenant registry; no plan may spend from it")
+            return _stage("Policy", False, why, {"local": local}, started)
         if not self.opa.configured:
             return StageResult(engine="Policy", status="PASS",
                                summary="local policy evaluated" + (f"; approval needed: {', '.join(local['requires_approval'])}"

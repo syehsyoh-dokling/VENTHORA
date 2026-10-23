@@ -1,0 +1,83 @@
+{
+ "generated_at": "2026-10-23T22:47:57.877466+00:00",
+ "runs": [
+  {
+   "run": "run 1: the book's own payee, the book's approver",
+   "book": "tenant-real-0547571",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "TEN-1-054757": "PAY"
+   },
+   "requires_approval": [
+    "single_payment_above_limit"
+   ],
+   "tenant": "acme-group",
+   "matched_by": "pattern:tenant-real-*",
+   "book_known": true,
+   "disallowed": [],
+   "single_limit": 50000,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,997.00 >= USD 5,000.00",
+    "transfers": 1
+   }
+  },
+  {
+   "run": "run 2: the same, approved by a finance manager who is not this book's person",
+   "book": "tenant-real-0547572",
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "TEN-2-054757": "PAY"
+   },
+   "requires_approval": [
+    "single_payment_above_limit"
+   ],
+   "tenant": "acme-group",
+   "matched_by": "pattern:tenant-real-*",
+   "book_known": true,
+   "disallowed": [],
+   "single_limit": 50000,
+   "execution": {
+    "status": "REFUSED",
+    "message": "approval refused: Pat Lee (finance_manager) is not an approver of this book; the tenant registry names finance manager (owner) (finance_manager); tier 'default' needs 1 approval(s) from 1 different person (finance_manage",
+    "transfers": 0
+   }
+  },
+  {
+   "run": "run 3: another tenant's payee, with the approval attached",
+   "book": "tenant-real-0547573",
+   "decision": "APPROVED",
+   "actions": {
+    "TEN-3-054757": "ESCALATE"
+   },
+   "requires_approval": [],
+   "tenant": "acme-group",
+   "matched_by": "pattern:tenant-real-*",
+   "book_known": true,
+   "disallowed": [
+    "TEN-3-054757"
+   ],
+   "single_limit": 50000,
+   "execution": {
+    "status": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 20,000.00 >= USD 5,000.00",
+    "transfers": 0
+   }
+  },
+  {
+   "run": "run 4: the same book id under a strict registry that does not list it (plan only)",
+   "book": "tenant-real-0547574",
+   "decision": "BLOCKED",
+   "actions": {
+    "TEN-4-054757": "PAY"
+   },
+   "requires_approval": [],
+   "tenant": null,
+   "matched_by": null,
+   "book_known": false,
+   "disallowed": [],
+   "single_limit": null
+  }
+ ],
+ "ok": true
+}

@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Verity: which obligations are backed by evidence we can trust?"""
 from __future__ import annotations
 
@@ -6,6 +7,7 @@ from time import perf_counter
 
 from ..domain.models import Obligation, StageResult, TreasuryState
 from ..payees import blocking_reason
+from ..tenancy import blocking_reason as book_blocking_reason
 
 
 @dataclass
@@ -47,6 +49,11 @@ async def verity(state: TreasuryState) -> VerityResult:
         elif set(o.policy_flags) & set(state.policy.escalate_flags):
             flags = sorted(set(o.policy_flags) & set(state.policy.escalate_flags))
             exceptions[o.obligation_id] = "policy exception: " + ", ".join(f.replace("_", " ") for f in flags)
+            if dup_key:
+                seen_fingerprints[dup_key] = o.obligation_id
+        elif (why := book_blocking_reason(state, o.beneficiary_id)):
+            # Tenant segregation: a book pays only the payees its tenant allowed; anything else goes to a person.
+            exceptions[o.obligation_id] = f"policy exception: {why.replace('_', ' ')} ({o.beneficiary_id} is not a payee of book {state.book_id})"
             if dup_key:
                 seen_fingerprints[dup_key] = o.obligation_id
         elif state.payees is not None and (why := blocking_reason(state.payees, o.beneficiary_id)):

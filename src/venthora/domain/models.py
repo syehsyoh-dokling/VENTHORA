@@ -128,6 +128,32 @@ class PayeeRegistry(StrictModel):
         return next((r for r in self.records if r.beneficiary_id == beneficiary_id), None)
 
 
+class BookApprover(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+    role: str = Field(min_length=1, max_length=60)
+
+
+class BookConfig(StrictModel):
+    """What a tenant's book may do (data/tenants.json, src/venthora/tenancy.py): which payees it may pay, who may approve its
+    plans, and the policy values that override the shared policy for this book."""
+    tenant: str = Field(min_length=1, max_length=80)
+    book_id: str = Field(min_length=1, max_length=120, description="exact id, or a glob pattern such as 'ops-*'")
+    allowed_payees: list[str] = Field(default_factory=lambda: ["*"], description="beneficiary ids; ['*'] = any")
+    approvers: list[BookApprover] = Field(default_factory=list, description="empty = any approver of the right role")
+    policy_overrides: dict[str, object] = Field(default_factory=dict, description="TreasuryPolicy fields set for this book")
+
+    def allows(self, beneficiary_id: str) -> bool:
+        return "*" in self.allowed_payees or beneficiary_id in self.allowed_payees
+
+
+class Tenancy(StrictModel):
+    """How the book resolved against the tenant registry; None on the state = segregation not enforced."""
+    known: bool = Field(description="the book is in the registry (exact or by pattern), or fell back to a default tenant")
+    strict: bool = Field(default=False, description="an unknown book is BLOCKED (no default tenant)")
+    config: BookConfig | None = None
+    matched_by: str | None = Field(default=None, description="exact | pattern:<glob> | default | None")
+
+
 class PayerHistory(StrictModel):
     """How often this payer has kept its payment promises (calibrates receipt confidence)."""
     kept: int = Field(default=0, ge=0, le=10_000)
@@ -289,6 +315,7 @@ class TreasuryState(StrictModel):
     as_of: str | None = Field(default=None, description="ISO date the book is planned on (period cut-off, due dates)")
     history: PaymentHistory | None = Field(default=None, description="payments already made (limits and velocity)")
     payees: PayeeRegistry | None = Field(default=None, description="payee lifecycle records; None = lifecycle not enforced")
+    tenancy: Tenancy | None = Field(default=None, description="the book's tenant, allowed payees, approvers; None = not enforced")
     use_ecb_stress: bool = False
     fx_stress_model: Literal["horizon_m0", "ecb_empirical"] = Field(
         default="horizon_m0", description="horizon_m0 = original Horizon scenario engine; ecb_empirical = 5-day p95")

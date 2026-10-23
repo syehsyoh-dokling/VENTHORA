@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Ground truth: hand-derived answers compared with what VENTHORA returns.
 
 Two suites in data/groundtruth/: cases.json (the rules, one by one) and anomalies.json (the organizers'
@@ -56,6 +57,9 @@ def plan_view(plan: dict) -> dict:
             "aging_days": {r["obligation_id"]: r["days_overdue"] for r in (plan.get("aging") or {}).get("rows", [])},
             "aging_accrued": {r["obligation_id"]: r["accrued_interest_minor"] for r in (plan.get("aging") or {}).get("rows", [])},
             "aging_exposure": (plan.get("aging") or {}).get("exposure_minor"),
+            "tenant": next((s["details"].get("tenant") for s in plan["stages"] if s["engine"] == "Tenancy · book"), None),
+            "book_known": next((s["details"].get("book_known") for s in plan["stages"] if s["engine"] == "Tenancy · book"), None),
+            "disallowed": next((s["details"].get("disallowed_obligations") for s in plan["stages"] if s["engine"] == "Tenancy · book"), None),
             "aging_dunning": {r["obligation_id"]: r["dunning_level"] for r in (plan.get("aging") or {}).get("rows", [])},
             "breach_bp": (plan.get("simulation") or {}).get("breach_probability_bp"),
             "not_blocked": plan["decision"] != "BLOCKED", "duration_ms": plan.get("duration_ms")}
@@ -92,7 +96,7 @@ def reporting_view(d: dict) -> dict:
 def view_of(kind: str, result) -> dict:
     return {"plan": plan_view, "intake": intake_view, "incident": incident_view, "execution": execution_view,
             "reporting": reporting_view, "ledger": reporting_view, "payees": reporting_view,
-            "approvals": reporting_view, "aging": reporting_view}[kind](result)
+            "approvals": reporting_view, "aging": reporting_view, "tenancy": reporting_view}[kind](result)
 
 
 def compare(expect: dict, view: dict) -> dict:
@@ -204,6 +208,10 @@ async def run_case(case: dict, agent, intake, workdir: Path | None = None) -> di
         from ..aging import evaluate as aging_evaluate
 
         view = reporting_view(aging_evaluate(case["input"]))
+    elif kind == "tenancy":
+        from ..tenancy import evaluate as tenancy_evaluate
+
+        view = reporting_view(tenancy_evaluate(case["input"]))
     else:
         # The fake sandbox needs "credentials" to exist; restore the environment afterwards so later plan cases
         # (which share the agent) do not suddenly see a configured-but-unreachable Airwallex and get BLOCKED.

@@ -60,7 +60,7 @@ def section(suite: str, title: str, intro: list[str]) -> list[str]:
     inproc = asyncio.run(in_process(cases))
     endpoint = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_endpoint.json").read_text(encoding="utf-8"))}
     ui = {r["id"]: r for r in json.loads((ROOT / "docs" / f"groundtruth_log_{suite}_ui.json").read_text(encoding="utf-8"))["rows"]}
-    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "payees", "approvals", "aging", "execution"].index)
+    kinds = sorted({c["kind"] for c in cases}, key=["plan", "intake", "incident", "reporting", "ledger", "payees", "approvals", "aging", "tenancy", "execution"].index)
     lines = [f"## {title}", ""] + intro + ["", "| Path | Kind | Cases | Match | p50 ms | p95 ms | max ms |", "|---|---|---|---|---|---|---|"]
     for kind in kinds:
         ids = [c["id"] for c in cases if c["kind"] == kind]
@@ -152,6 +152,12 @@ def main() -> None:
         "rate, else the policy default); a reminder, second reminder or final notice read from a payee's email raises the book's "
         "dunning level and never creates a second payable; an item overdue beyond the escalation days, a final notice, or a "
         "late-interest exposure above its cap left unpaid by the plan needs a person; a paid item is never a reason."])
+    lines += [""] + section("tenancy", "Suite 12 — book and tenant segregation: whose book, which payees, whose signature, which policy", [
+        "A book resolves against the tenant registry (exact id beats a glob pattern, the longest pattern wins, an unknown book "
+        "goes to the default tenant unless the registry is strict, in which case the plan is BLOCKED); a payee the book's tenant "
+        "did not allow is escalated and never paid, with or without an approval; the book's policy overrides apply on top of the "
+        "shared policy; only the book's named approvers, in their roles, may approve its plans, on top of the approval matrix; "
+        "an override of a policy field that does not exist is refused."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

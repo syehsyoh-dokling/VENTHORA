@@ -168,7 +168,7 @@ def part_a(base: str) -> list[dict]:
     with httpx.Client(base_url=base, timeout=60) as client:
         status = client.get("/api/status").json()
         assert status["authorities"]["airwallex"], "the service is not connected to the sandbox"
-        for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees", "approvals", "fx", "aging"):
+        for suite in ("cases", "anomalies", "budget", "controls", "reporting", "ledger", "limits", "payees", "approvals", "fx", "aging", "tenancy"):
             for case in load_cases(suite):
                 if case["kind"] == "execution":
                     continue
@@ -187,6 +187,8 @@ def part_a(base: str) -> list[dict]:
                     res = client.post("/v1/approvals/eval", json=case["input"])
                 elif case["kind"] == "aging":
                     res = client.post("/v1/aging/eval", json=case["input"])
+                elif case["kind"] == "tenancy":
+                    res = client.post("/v1/tenants/eval", json=case["input"])
                 else:
                     params = {"dry_run": "true"} | ({"book": case["book"]} if case.get("book") else {})
                     res = client.post("/v1/intake/emails", content=case["input"].encode("utf-8"),

@@ -1,0 +1,1611 @@
+{
+ "_note": "Book and tenant segregation ground truth, hand-derived; see scripts/make_tenancy_groundtruth.py.",
+ "cases": [
+  {
+   "id": "T01",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "the book pays one of its own payees",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-us",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "tenancy": {
+     "known": true,
+     "strict": false,
+     "config": {
+      "tenant": "acme",
+      "book_id": "ops-us",
+      "allowed_payees": [
+       "ben-saas-vendor",
+       "payroll-group-us"
+      ],
+      "approvers": [
+       {
+        "name": "Dana Finch",
+        "role": "finance_manager"
+       }
+      ],
+      "policy_overrides": {}
+     },
+     "matched_by": "exact"
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "tenant": "acme",
+    "book_known": true,
+    "disallowed": []
+   },
+   "derivation": "ben-saas-vendor is on ops-us's list -> paid"
+  },
+  {
+   "id": "T02",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "a payee of another tenant is escalated, never paid",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-us",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-lumen-design",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "tenancy": {
+     "known": true,
+     "strict": false,
+     "config": {
+      "tenant": "acme",
+      "book_id": "ops-us",
+      "allowed_payees": [
+       "ben-saas-vendor",
+       "payroll-group-us"
+      ],
+      "approvers": [
+       {
+        "name": "Dana Finch",
+        "role": "finance_manager"
+       }
+      ],
+      "policy_overrides": {}
+     },
+     "matched_by": "exact"
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "paid": [],
+    "disallowed": [
+     "O1"
+    ]
+   },
+   "derivation": "ben-lumen-design is not a payee of ops-us -> policy exception -> ESCALATE; no approval can pay it"
+  },
+  {
+   "id": "T03",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "one allowed, one not, in one plan",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-us",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-eu-components",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O2"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "tenancy": {
+     "known": true,
+     "strict": false,
+     "config": {
+      "tenant": "acme",
+      "book_id": "ops-us",
+      "allowed_payees": [
+       "ben-saas-vendor",
+       "payroll-group-us"
+      ],
+      "approvers": [
+       {
+        "name": "Dana Finch",
+        "role": "finance_manager"
+       }
+      ],
+      "policy_overrides": {}
+     },
+     "matched_by": "exact"
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "paid": [
+     "O1"
+    ]
+   },
+   "derivation": "segregation is per payout; the allowed one proceeds"
+  },
+  {
+   "id": "T04",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "a wildcard book pays anyone",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-us",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-lumen-design",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "tenancy": {
+     "known": true,
+     "strict": false,
+     "config": {
+      "tenant": "lab",
+      "book_id": "*",
+      "allowed_payees": [
+       "*"
+      ],
+      "approvers": [],
+      "policy_overrides": {}
+     },
+     "matched_by": "default"
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "tenant": "lab"
+   },
+   "derivation": "['*'] allows every payee"
+  },
+  {
+   "id": "T05",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "an unknown book under a strict registry is blocked",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ghost-book",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "tenancy": {
+     "known": false,
+     "strict": true,
+     "config": null,
+     "matched_by": null
+    }
+   },
+   "expect": {
+    "decision": "BLOCKED",
+    "book_known": false,
+    "failed_stages": [
+     "Policy",
+     "Tenancy \u00b7 book"
+    ]
+   },
+   "derivation": "no tenant owns ghost-book and the registry is strict -> nothing may be spent from it"
+  },
+  {
+   "id": "T06",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "no tenancy attached: the control is off",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-us",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-lumen-design",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "tenant": null
+   },
+   "derivation": "plain plans and older suites unchanged"
+  },
+  {
+   "id": "T07",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "the book's policy override lowers the single-payment limit",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-us",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 60000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "max_single_payment_minor": 50000
+    },
+    "actor_role": "treasury_agent",
+    "tenancy": {
+     "known": true,
+     "strict": false,
+     "config": {
+      "tenant": "acme",
+      "book_id": "ops-us",
+      "allowed_payees": [
+       "ben-saas-vendor",
+       "payroll-group-us"
+      ],
+      "approvers": [
+       {
+        "name": "Dana Finch",
+        "role": "finance_manager"
+       }
+      ],
+      "policy_overrides": {}
+     },
+     "matched_by": "exact"
+    }
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "single_payment_above_limit"
+    ]
+   },
+   "derivation": "ops-us overrides max_single_payment to USD 500 (attach merged it into the policy); USD 600 > 500"
+  },
+  {
+   "id": "T08",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "the book's override raises the reserve floor",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-eu-1",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 1000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 800000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "tenancy": {
+     "known": true,
+     "strict": false,
+     "config": {
+      "tenant": "acme",
+      "book_id": "ops-eu-*",
+      "allowed_payees": [
+       "ben-saas-vendor"
+      ],
+      "approvers": [],
+      "policy_overrides": {
+       "reserve_floor_minor": 800000
+      }
+     },
+     "matched_by": "pattern:ops-eu-*"
+    }
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    }
+   },
+   "derivation": "USD 10,000 \u2212 floor 8,000 = 2,000 < 3,000 -> cannot be funded under this book's floor (5,000 would have paid it)"
+  },
+  {
+   "id": "T09",
+   "kind": "plan",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "a viewer: blocked before any tenancy rule",
+   "input": {
+    "case_id": "tenancy",
+    "book_id": "ops-us",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 100000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "viewer",
+    "tenancy": {
+     "known": true,
+     "strict": false,
+     "config": {
+      "tenant": "acme",
+      "book_id": "ops-us",
+      "allowed_payees": [
+       "ben-saas-vendor",
+       "payroll-group-us"
+      ],
+      "approvers": [
+       {
+        "name": "Dana Finch",
+        "role": "finance_manager"
+       }
+      ],
+      "policy_overrides": {}
+     },
+     "matched_by": "exact"
+    }
+   },
+   "expect": {
+    "decision": "BLOCKED"
+   },
+   "derivation": "role first"
+  },
+  {
+   "id": "U01",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "an exact book id",
+   "input": {
+    "registry": {
+     "strict": false,
+     "default_tenant": "lab",
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      },
+      "lab": {
+       "name": "Lab",
+       "books": {
+        "*": {
+         "allowed_payees": [
+          "*"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        }
+       }
+      }
+     }
+    },
+    "book_id": "ops-us",
+    "check_payees": []
+   },
+   "expect": {
+    "known": true,
+    "tenant": "acme",
+    "matched_by": "exact",
+    "allowed_payees": [
+     "ben-saas-vendor",
+     "payroll-group-us"
+    ]
+   },
+   "derivation": "exact entry"
+  },
+  {
+   "id": "U02",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "exact beats pattern",
+   "input": {
+    "registry": {
+     "strict": false,
+     "default_tenant": "lab",
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      },
+      "lab": {
+       "name": "Lab",
+       "books": {
+        "*": {
+         "allowed_payees": [
+          "*"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        }
+       }
+      }
+     }
+    },
+    "book_id": "ops-us",
+    "check_payees": []
+   },
+   "expect": {
+    "matched_by": "exact",
+    "policy_overrides": {
+     "max_single_payment_minor": 50000
+    }
+   },
+   "derivation": "ops-us also matches ops-*; the exact entry wins"
+  },
+  {
+   "id": "U03",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "the longest matching pattern wins",
+   "input": {
+    "registry": {
+     "strict": false,
+     "default_tenant": "lab",
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      },
+      "lab": {
+       "name": "Lab",
+       "books": {
+        "*": {
+         "allowed_payees": [
+          "*"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        }
+       }
+      }
+     }
+    },
+    "book_id": "ops-eu-7",
+    "check_payees": []
+   },
+   "expect": {
+    "matched_by": "pattern:ops-eu-*",
+    "allowed_payees": [
+     "ben-eu-components"
+    ],
+    "approvers": [
+     {
+      "name": "Lena Vogt",
+      "role": "finance_manager"
+     }
+    ]
+   },
+   "derivation": "ops-* and ops-eu-* both match; ops-eu-* is longer"
+  },
+  {
+   "id": "U04",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "a shorter pattern for the rest",
+   "input": {
+    "registry": {
+     "strict": false,
+     "default_tenant": "lab",
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      },
+      "lab": {
+       "name": "Lab",
+       "books": {
+        "*": {
+         "allowed_payees": [
+          "*"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        }
+       }
+      }
+     }
+    },
+    "book_id": "ops-apac",
+    "check_payees": []
+   },
+   "expect": {
+    "matched_by": "pattern:ops-*",
+    "allowed_payees": [
+     "ben-saas-vendor"
+    ]
+   },
+   "derivation": "only ops-* matches"
+  },
+  {
+   "id": "U05",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "an unknown book goes to the default tenant",
+   "input": {
+    "registry": {
+     "strict": false,
+     "default_tenant": "lab",
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      },
+      "lab": {
+       "name": "Lab",
+       "books": {
+        "*": {
+         "allowed_payees": [
+          "*"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        }
+       }
+      }
+     }
+    },
+    "book_id": "random-book",
+    "check_payees": []
+   },
+   "expect": {
+    "known": true,
+    "tenant": "lab",
+    "matched_by": "default",
+    "allowed_payees": [
+     "*"
+    ]
+   },
+   "derivation": "strict false -> lab"
+  },
+  {
+   "id": "U06",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "an unknown book under a strict registry",
+   "input": {
+    "registry": {
+     "strict": true,
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      }
+     }
+    },
+    "book_id": "random-book",
+    "check_payees": []
+   },
+   "expect": {
+    "known": false,
+    "tenant": null,
+    "matched_by": null
+   },
+   "derivation": "strict and no catch-all pattern -> unknown"
+  },
+  {
+   "id": "U07",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "a known book under a strict registry",
+   "input": {
+    "registry": {
+     "strict": true,
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      }
+     }
+    },
+    "book_id": "ops-us",
+    "check_payees": []
+   },
+   "expect": {
+    "known": true,
+    "tenant": "acme",
+    "strict": true
+   },
+   "derivation": "strict changes nothing for known books"
+  },
+  {
+   "id": "U08",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "allows() per payee",
+   "input": {
+    "registry": {
+     "strict": false,
+     "default_tenant": "lab",
+     "tenants": {
+      "acme": {
+       "name": "Acme",
+       "books": {
+        "ops-us": {
+         "allowed_payees": [
+          "ben-saas-vendor",
+          "payroll-group-us"
+         ],
+         "approvers": [
+          {
+           "name": "Dana Finch",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "max_single_payment_minor": 50000
+         }
+        },
+        "ops-*": {
+         "allowed_payees": [
+          "ben-saas-vendor"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        },
+        "ops-eu-*": {
+         "allowed_payees": [
+          "ben-eu-components"
+         ],
+         "approvers": [
+          {
+           "name": "Lena Vogt",
+           "role": "finance_manager"
+          }
+         ],
+         "policy_overrides": {
+          "reserve_floor_minor": 800000
+         }
+        }
+       }
+      },
+      "lab": {
+       "name": "Lab",
+       "books": {
+        "*": {
+         "allowed_payees": [
+          "*"
+         ],
+         "approvers": [],
+         "policy_overrides": {}
+        }
+       }
+      }
+     }
+    },
+    "book_id": "ops-us",
+    "check_payees": [
+     "ben-saas-vendor",
+     "ben-lumen-design"
+    ]
+   },
+   "expect": {
+    "allows": {
+     "ben-saas-vendor": true,
+     "ben-lumen-design": false
+    }
+   },
+   "derivation": "list membership"
+  },
+  {
+   "id": "U09",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "an override of a policy field that does not exist is refused",
+   "input": {
+    "registry": {
+     "strict": true,
+     "tenants": {
+      "x": {
+       "books": {
+        "bad-book": {
+         "policy_overrides": {
+          "max_single_paymnt_minor": 1
+         }
+        }
+       }
+      }
+     }
+    },
+    "book_id": "bad-book",
+    "check_payees": []
+   },
+   "expect": {
+    "known": false,
+    "error_contains": "unknown policy fields"
+   },
+   "derivation": "the registry is validated against TreasuryPolicy"
+  },
+  {
+   "id": "U10",
+   "kind": "tenancy",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "no tenants at all, strict",
+   "input": {
+    "registry": {
+     "strict": true,
+     "tenants": {}
+    },
+    "book_id": "any",
+    "check_payees": []
+   },
+   "expect": {
+    "known": false
+   },
+   "derivation": "nothing to resolve against"
+  },
+  {
+   "id": "J01",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "the book's named approver",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 100000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "finance_manager",
+      "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+     }
+    ],
+    "requested_by": "agent",
+    "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "book_approvers": [
+     {
+      "name": "Dana Finch",
+      "role": "finance_manager"
+     }
+    ]
+   },
+   "expect": {
+    "ok": true,
+    "approved_by": [
+     "Dana Finch"
+    ]
+   },
+   "derivation": "name and role match the registry"
+  },
+  {
+   "id": "J02",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "right role, not this book's person",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 100000,
+    "approvals": [
+     {
+      "approver": "Pat Lee",
+      "role": "finance_manager",
+      "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+     }
+    ],
+    "requested_by": "agent",
+    "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "book_approvers": [
+     {
+      "name": "Dana Finch",
+      "role": "finance_manager"
+     }
+    ]
+   },
+   "expect": {
+    "ok": false,
+    "first_problem_contains": "not an approver of this book"
+   },
+   "derivation": "a finance manager of another tenant cannot sign this book"
+  },
+  {
+   "id": "J03",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "the right person in the wrong role",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 100000,
+    "approvals": [
+     {
+      "approver": "Dana Finch",
+      "role": "cfo",
+      "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+     }
+    ],
+    "requested_by": "agent",
+    "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "book_approvers": [
+     {
+      "name": "Dana Finch",
+      "role": "finance_manager"
+     }
+    ]
+   },
+   "expect": {
+    "ok": false,
+    "first_problem_contains": "not an approver of this book"
+   },
+   "derivation": "the registry names (person, role) pairs"
+  },
+  {
+   "id": "J04",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "no book approvers configured: any approver of the right role",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 100000,
+    "approvals": [
+     {
+      "approver": "Pat Lee",
+      "role": "finance_manager",
+      "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+     }
+    ],
+    "requested_by": "agent",
+    "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "book_approvers": []
+   },
+   "expect": {
+    "ok": true
+   },
+   "derivation": "an empty list defers to the matrix"
+  },
+  {
+   "id": "J05",
+   "kind": "approvals",
+   "level": 4,
+   "pain": "whose book, which payees, whose signature, which policy",
+   "title": "names are compared normalised",
+   "input": {
+    "approval_matrix": [
+     {
+      "name": "one",
+      "min_total_minor": 0,
+      "reasons": [],
+      "approvals_required": 1,
+      "roles": [
+       "finance_manager",
+       "cfo"
+      ]
+     }
+    ],
+    "approver_roles": [
+     "finance_manager"
+    ],
+    "reasons": [
+     "single_payment_above_limit"
+    ],
+    "paying_total_minor": 100000,
+    "approvals": [
+     {
+      "approver": "  dana   FINCH ",
+      "role": "finance_manager",
+      "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+     }
+    ],
+    "requested_by": "agent",
+    "terms_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "book_approvers": [
+     {
+      "name": "Dana Finch",
+      "role": "finance_manager"
+     }
+    ]
+   },
+   "expect": {
+    "ok": true,
+    "approved_by": [
+     "  dana   FINCH "
+    ]
+   },
+   "derivation": "case and spacing do not matter"
+  }
+ ]
+}

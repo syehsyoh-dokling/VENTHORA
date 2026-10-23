@@ -76,6 +76,16 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
             notes.append(f"history: {len(hist['payees_paid_before'])} payee(s) paid before; outflow 24h "
                          f"{fmt(hist['outflow_24h_minor'], data['base_currency'])}, 7d {fmt(hist['outflow_7d_minor'], data['base_currency'])}")
     result = TreasuryState.model_validate(data)
+    # Tenant segregation: whose book this is, what it may pay, who may approve it, and its own policy values.
+    if result.tenancy is None:
+        from ..tenancy import TENANTS_FILE, attach
+
+        if TENANTS_FILE.is_file():
+            result = attach(result)
+            ten = result.tenancy
+            notes.append(f"book {result.book_id}: " + (f"tenant {ten.config.tenant} ({ten.matched_by})"
+                                                       + (f", policy overrides {sorted(ten.config.policy_overrides)}" if ten.config.policy_overrides else "")
+                                                       if ten and ten.known and ten.config else "unknown to the tenant registry"))
     # Payee lifecycle: the store's live records for the payees this book names (unregistered payees are escalated).
     if result.payees is None:
         records = store.list_payees()

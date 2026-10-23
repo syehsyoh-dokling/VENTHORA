@@ -75,7 +75,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | 49 | After a deposit, recalculate only the decisions it affects | ✅🧪 | incremental recalculation with locked decisions and a diff |
 | 50 | Execution limit tied to forecast confidence; strong data allows a larger autonomous conversion | ✅🧪 | limit = full at ≥90%, linear to 0 at ≤50% |
 | 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions; a contradicted forecast is capped below the full band whatever the payer record (audit mutation M6) |
-| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 10,606 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
+| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 10,618 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
 | 53 | Read balances and obligations | ✅ | `GET /balances/current`; scenario obligations |
 | 54 | Plan in code | ✅ | Theorem (CP-SAT + exact second candidate) |
 | 55 | Lower forecast confidence for one receipt | ✅ | RCV-ACME 90% → 70% (calibrated from payer history) |
@@ -252,7 +252,7 @@ sandbox cycle 12: two books reconciled on one wallet with nothing unexplained, a
 
 History comes from the spend ledger (`store.payment_history`, filled by `facts.py` as `state.history`); the stage
 `Policy · limits` names the payouts, payees and totals behind every reason; `proofcore/limits.py` mirrored in
-`policy/treasury.rego` (OPA grid: 10,606 inputs, 0 disagreements). Ground truth suite 7: 18 cases, 18/18 on three paths;
+`policy/treasury.rego` (OPA grid: 10,618 inputs, 0 disagreements). Ground truth suite 7: 18 cases, 18/18 on three paths;
 real sandbox cycle 13: a known payee paid inside the limit, the same payee over its period limit stopped for a person
 and then paid, a single payout above the limit refused without approval and executed with it.
 
@@ -275,7 +275,7 @@ the fingerprint of the bank details in `data/beneficiaries.json`):
 
 Verity turns NEW / CHANGED / SUSPENDED / unregistered into a policy exception (the obligation is escalated, the rest of
 the plan runs); the stage `Payee · lifecycle` and `policy/treasury.rego` carry the two approval reasons (OPA grid:
-10,606 inputs, 0 disagreements); the executor re-reads the live record before money moves and refuses a payee the plan
+10,618 inputs, 0 disagreements); the executor re-reads the live record before money moves and refuses a payee the plan
 saw differently; a PAID payout promotes the record. Endpoints `/v1/payees`, `/verify`, `/bank-change`, `/suspend`,
 `/reinstate`, `/eval`; dashboard section with the call-back and bank-change actions. Ground truth suite 8: 32 cases
 (14 plans, 18 state-machine), 32/32 on three paths; real sandbox cycle 14 (SANDBOX_RESULTS.md).
@@ -286,7 +286,7 @@ saw differently; a PAID payout promotes the record. Endpoints `/v1/payees`, `/ve
 `roles`), loosest first. When the plan stops for a person, the last applicable tier decides: a tier applies when the
 plan's paying total (base currency) reaches its threshold or when one of its reason codes was raised. No tier applies:
 one approver from `approver_roles`; no reason raised: nothing (`proofcore/approvals.py`, mirrored in
-`policy/treasury.rego` as `decision.approval`; OPA grid 10,606 inputs, 0 disagreements). The plan carries the
+`policy/treasury.rego` as `decision.approval`; OPA grid 10,618 inputs, 0 disagreements). The plan carries the
 requirement (`PlanResult.approval_requirement`, stage `Policy · approvals`, the dashboard's Decision tile).
 
 Before money moves the executor checks every approval given (`ExecutionRequest.approvals`, `requested_by`): an allowed
@@ -305,7 +305,7 @@ executed.
 | foreign cash held + bought below `min_hedge_ratio_bp` of the foreign obligations due inside the planning horizon (a paid obligation is covered by construction; a deferred or escalated one is the exposure) | `hedge_ratio_below_minimum` |
 
 `proofcore/fx_exposure.py` reads the projection the gate already proves; stage `Policy · FX exposure` names the
-currency, the position, the coverage and the day's sales; mirrored in `policy/treasury.rego` (OPA grid: 10,606 inputs,
+currency, the position, the coverage and the day's sales; mirrored in `policy/treasury.rego` (OPA grid: 10,618 inputs,
 0 disagreements); `state.history.converted_24h_minor` comes from the journal's convert entries. Ground truth suite 10:
 20 cases, 20/20 on three paths; real sandbox cycle 16 (SANDBOX_RESULTS.md).
 
@@ -325,9 +325,28 @@ for an invoice already in the book is a DUPLICATE that raises that obligation's 
 | accrued + projected late interest on the unpaid overdue items above `max_late_interest_exposure_minor` | `late_interest_exposure_above_limit` |
 
 A paid item is never a reason; a rejected one owes nothing. Stage `Verity · aging`, `PlanResult.aging`, mirrored in
-`policy/treasury.rego` (OPA grid: 10,606 inputs, 0 disagreements); endpoints `/v1/aging` (a book's table as of a date)
+`policy/treasury.rego` (OPA grid: 10,618 inputs, 0 disagreements); endpoints `/v1/aging` (a book's table as of a date)
 and `/v1/aging/eval`. Ground truth suite 11: 30 cases (15 plans, 10 tables, 5 emails), 30/30 on three paths; real
 sandbox cycle 17 (SANDBOX_RESULTS.md).
+
+## (18) Book and tenant segregation: whose book, which payees, whose signature, which policy
+
+`data/tenants.json` is the tenant registry: tenants own books (exact ids or glob patterns), each with its allowed
+payees, its named approvers (person and role) and the policy values that override the shared policy for that book.
+`src/venthora/tenancy.py` resolves a book (exact beats pattern, the longest pattern wins, an unknown book goes to the
+default tenant unless the registry is `strict`) and `facts.py` attaches the result to every live plan.
+
+| Isolation | Where it is enforced |
+|---|---|
+| an unknown book (strict registry) may not spend | `decision.allow` false in Python and Rego → **BLOCKED** (OPA grid: 10,618 inputs, 0 disagreements) |
+| a payee the tenant did not allow | Verity escalates the obligation: never paid, with or without an approval |
+| the book's own policy values | `attach` merges `policy_overrides` into the policy before planning |
+| only the book's named people may approve | `proofcore/approvals.check(book_approvers=…)` in the executor, on top of the approval matrix |
+| a book never spends another book's money | the book ledger (§12), reconciliation cases, the spend ledger per book |
+
+Stage `Tenancy · book`; endpoints `/v1/tenants` (the tenant view: registry rows with the books seen, their executions and
+ledger cash) and `/v1/tenants/eval`; dashboard section "Tenants · books". Ground truth suite 12: 24 cases (9 plans,
+10 resolutions, 5 approver checks), 24/24 on three paths; real sandbox cycle 18 (SANDBOX_RESULTS.md).
 
 ## Not applicable to this build
 

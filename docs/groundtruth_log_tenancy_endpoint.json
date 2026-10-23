@@ -1,0 +1,1322 @@
+[
+ {
+  "id": "T01",
+  "kind": "plan",
+  "title": "the book pays one of its own payees",
+  "ms": 98.85,
+  "ms_all": [
+   98.85
+  ],
+  "server_ms": 80.14,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "tenant": {
+    "expected": "acme",
+    "actual": "acme",
+    "ok": true
+   },
+   "book_known": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "disallowed": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": "acme",
+   "book_known": true,
+   "disallowed": [],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 80.14299999922514
+  }
+ },
+ {
+  "id": "T02",
+  "kind": "plan",
+  "title": "a payee of another tenant is escalated, never paid",
+  "ms": 108.19,
+  "ms_all": [
+   108.19
+  ],
+  "server_ms": 87.57,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   },
+   "disallowed": {
+    "expected": [
+     "O1"
+    ],
+    "actual": [
+     "O1"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": "acme",
+   "book_known": true,
+   "disallowed": [
+    "O1"
+   ],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 87.56830000129412
+  }
+ },
+ {
+  "id": "T03",
+  "kind": "plan",
+  "title": "one allowed, one not, in one plan",
+  "ms": 95.51,
+  "ms_all": [
+   95.51
+  ],
+  "server_ms": 84.5,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "actual": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "ok": true
+   },
+   "paid": {
+    "expected": [
+     "O1"
+    ],
+    "actual": [
+     "O1"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY",
+    "O2": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": "acme",
+   "book_known": true,
+   "disallowed": [
+    "O2"
+   ],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 84.5039000014367
+  }
+ },
+ {
+  "id": "T04",
+  "kind": "plan",
+  "title": "a wildcard book pays anyone",
+  "ms": 106.28,
+  "ms_all": [
+   106.28
+  ],
+  "server_ms": 90.93,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "tenant": {
+    "expected": "lab",
+    "actual": "lab",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": "lab",
+   "book_known": true,
+   "disallowed": [],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 90.93200000279467
+  }
+ },
+ {
+  "id": "T05",
+  "kind": "plan",
+  "title": "an unknown book under a strict registry is blocked",
+  "ms": 96.29,
+  "ms_all": [
+   96.29
+  ],
+  "server_ms": 80.47,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   },
+   "book_known": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "failed_stages": {
+    "expected": [
+     "Policy",
+     "Tenancy \u00b7 book"
+    ],
+    "actual": [
+     "Tenancy \u00b7 book",
+     "Policy"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [
+    "Tenancy \u00b7 book",
+    "Policy"
+   ],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": false,
+   "disallowed": [],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": false,
+   "duration_ms": 80.46849999664119
+  }
+ },
+ {
+  "id": "T06",
+  "kind": "plan",
+  "title": "no tenancy attached: the control is off",
+  "ms": 93.25,
+  "ms_all": [
+   93.25
+  ],
+  "server_ms": 77.99,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "PAY"
+    },
+    "actual": {
+     "O1": "PAY"
+    },
+    "ok": true
+   },
+   "tenant": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 77.99099999829195
+  }
+ },
+ {
+  "id": "T07",
+  "kind": "plan",
+  "title": "the book's policy override lowers the single-payment limit",
+  "ms": 94.97,
+  "ms_all": [
+   94.97
+  ],
+  "server_ms": 79.12,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "REQUIRES_APPROVAL",
+    "actual": "REQUIRES_APPROVAL",
+    "ok": true
+   },
+   "requires": {
+    "expected": [
+     "single_payment_above_limit"
+    ],
+    "actual": [
+     "single_payment_above_limit"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "REQUIRES_APPROVAL",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [
+    "single_payment_above_limit"
+   ],
+   "failed_stages": [],
+   "approval_tier": "default",
+   "approvals_required": 1,
+   "approval_roles": [
+    "finance_manager"
+   ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": "acme",
+   "book_known": true,
+   "disallowed": [],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 79.11830000011832
+  }
+ },
+ {
+  "id": "T08",
+  "kind": "plan",
+  "title": "the book's override raises the reserve floor",
+  "ms": 112.67,
+  "ms_all": [
+   112.67
+  ],
+  "server_ms": 97.81,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "ESCALATE"
+    },
+    "actual": {
+     "O1": "ESCALATE"
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "ESCALATE"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": "acme",
+   "book_known": true,
+   "disallowed": [],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 97.81280000242987
+  }
+ },
+ {
+  "id": "T09",
+  "kind": "plan",
+  "title": "a viewer: blocked before any tenancy rule",
+  "ms": 96.74,
+  "ms_all": [
+   96.74
+  ],
+  "server_ms": 81.7,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "BLOCKED",
+    "actual": "BLOCKED",
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "BLOCKED",
+   "actions": {
+    "O1": "PAY"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 0,
+   "conversions": {},
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [
+    "Policy"
+   ],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": "acme",
+   "book_known": true,
+   "disallowed": [],
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": false,
+   "duration_ms": 81.70099999915692
+  }
+ },
+ {
+  "id": "U01",
+  "kind": "tenancy",
+  "title": "an exact book id",
+  "ms": 1.87,
+  "ms_all": [
+   1.87
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "known": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "tenant": {
+    "expected": "acme",
+    "actual": "acme",
+    "ok": true
+   },
+   "matched_by": {
+    "expected": "exact",
+    "actual": "exact",
+    "ok": true
+   },
+   "allowed_payees": {
+    "expected": [
+     "ben-saas-vendor",
+     "payroll-group-us"
+    ],
+    "actual": [
+     "ben-saas-vendor",
+     "payroll-group-us"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "known": true,
+   "strict": false,
+   "tenant": "acme",
+   "matched_by": "exact",
+   "allowed_payees": [
+    "ben-saas-vendor",
+    "payroll-group-us"
+   ],
+   "approvers": [
+    {
+     "name": "Dana Finch",
+     "role": "finance_manager"
+    }
+   ],
+   "policy_overrides": {
+    "max_single_payment_minor": 50000
+   },
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "U02",
+  "kind": "tenancy",
+  "title": "exact beats pattern",
+  "ms": 1.82,
+  "ms_all": [
+   1.82
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "matched_by": {
+    "expected": "exact",
+    "actual": "exact",
+    "ok": true
+   },
+   "policy_overrides": {
+    "expected": {
+     "max_single_payment_minor": 50000
+    },
+    "actual": {
+     "max_single_payment_minor": 50000
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "known": true,
+   "strict": false,
+   "tenant": "acme",
+   "matched_by": "exact",
+   "allowed_payees": [
+    "ben-saas-vendor",
+    "payroll-group-us"
+   ],
+   "approvers": [
+    {
+     "name": "Dana Finch",
+     "role": "finance_manager"
+    }
+   ],
+   "policy_overrides": {
+    "max_single_payment_minor": 50000
+   },
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "U03",
+  "kind": "tenancy",
+  "title": "the longest matching pattern wins",
+  "ms": 1.63,
+  "ms_all": [
+   1.63
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "matched_by": {
+    "expected": "pattern:ops-eu-*",
+    "actual": "pattern:ops-eu-*",
+    "ok": true
+   },
+   "allowed_payees": {
+    "expected": [
+     "ben-eu-components"
+    ],
+    "actual": [
+     "ben-eu-components"
+    ],
+    "ok": true
+   },
+   "approvers": {
+    "expected": [
+     {
+      "name": "Lena Vogt",
+      "role": "finance_manager"
+     }
+    ],
+    "actual": [
+     {
+      "name": "Lena Vogt",
+      "role": "finance_manager"
+     }
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "known": true,
+   "strict": false,
+   "tenant": "acme",
+   "matched_by": "pattern:ops-eu-*",
+   "allowed_payees": [
+    "ben-eu-components"
+   ],
+   "approvers": [
+    {
+     "name": "Lena Vogt",
+     "role": "finance_manager"
+    }
+   ],
+   "policy_overrides": {
+    "reserve_floor_minor": 800000
+   },
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "U04",
+  "kind": "tenancy",
+  "title": "a shorter pattern for the rest",
+  "ms": 1.33,
+  "ms_all": [
+   1.33
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "matched_by": {
+    "expected": "pattern:ops-*",
+    "actual": "pattern:ops-*",
+    "ok": true
+   },
+   "allowed_payees": {
+    "expected": [
+     "ben-saas-vendor"
+    ],
+    "actual": [
+     "ben-saas-vendor"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "known": true,
+   "strict": false,
+   "tenant": "acme",
+   "matched_by": "pattern:ops-*",
+   "allowed_payees": [
+    "ben-saas-vendor"
+   ],
+   "approvers": [],
+   "policy_overrides": {},
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "U05",
+  "kind": "tenancy",
+  "title": "an unknown book goes to the default tenant",
+  "ms": 1.64,
+  "ms_all": [
+   1.64
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "known": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "tenant": {
+    "expected": "lab",
+    "actual": "lab",
+    "ok": true
+   },
+   "matched_by": {
+    "expected": "default",
+    "actual": "default",
+    "ok": true
+   },
+   "allowed_payees": {
+    "expected": [
+     "*"
+    ],
+    "actual": [
+     "*"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "known": true,
+   "strict": false,
+   "tenant": "lab",
+   "matched_by": "default",
+   "allowed_payees": [
+    "*"
+   ],
+   "approvers": [],
+   "policy_overrides": {},
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "U06",
+  "kind": "tenancy",
+  "title": "an unknown book under a strict registry",
+  "ms": 1.63,
+  "ms_all": [
+   1.63
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "known": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "tenant": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   },
+   "matched_by": {
+    "expected": null,
+    "actual": null,
+    "ok": true
+   }
+  },
+  "view": {
+   "known": false,
+   "strict": true,
+   "tenant": null,
+   "matched_by": null,
+   "allowed_payees": [],
+   "approvers": [],
+   "policy_overrides": {},
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "U07",
+  "kind": "tenancy",
+  "title": "a known book under a strict registry",
+  "ms": 1.67,
+  "ms_all": [
+   1.67
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "known": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "tenant": {
+    "expected": "acme",
+    "actual": "acme",
+    "ok": true
+   },
+   "strict": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "known": true,
+   "strict": true,
+   "tenant": "acme",
+   "matched_by": "exact",
+   "allowed_payees": [
+    "ben-saas-vendor",
+    "payroll-group-us"
+   ],
+   "approvers": [
+    {
+     "name": "Dana Finch",
+     "role": "finance_manager"
+    }
+   ],
+   "policy_overrides": {
+    "max_single_payment_minor": 50000
+   },
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "U08",
+  "kind": "tenancy",
+  "title": "allows() per payee",
+  "ms": 2.06,
+  "ms_all": [
+   2.06
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "allows": {
+    "expected": {
+     "ben-saas-vendor": true,
+     "ben-lumen-design": false
+    },
+    "actual": {
+     "ben-saas-vendor": true,
+     "ben-lumen-design": false
+    },
+    "ok": true
+   }
+  },
+  "view": {
+   "known": true,
+   "strict": false,
+   "tenant": "acme",
+   "matched_by": "exact",
+   "allowed_payees": [
+    "ben-saas-vendor",
+    "payroll-group-us"
+   ],
+   "approvers": [
+    {
+     "name": "Dana Finch",
+     "role": "finance_manager"
+    }
+   ],
+   "policy_overrides": {
+    "max_single_payment_minor": 50000
+   },
+   "error": null,
+   "allows": {
+    "ben-saas-vendor": true,
+    "ben-lumen-design": false
+   }
+  }
+ },
+ {
+  "id": "U09",
+  "kind": "tenancy",
+  "title": "an override of a policy field that does not exist is refused",
+  "ms": 2.01,
+  "ms_all": [
+   2.01
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "known": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "error_contains": {
+    "expected": "unknown policy fields",
+    "actual": "book 'bad-book' of 'x' overrides unknown policy fields: ['max_single_paymnt_minor']",
+    "ok": true
+   }
+  },
+  "view": {
+   "known": false,
+   "error": "book 'bad-book' of 'x' overrides unknown policy fields: ['max_single_paymnt_minor']",
+   "tenant": null,
+   "matched_by": null,
+   "allowed_payees": [],
+   "approvers": [],
+   "policy_overrides": {}
+  }
+ },
+ {
+  "id": "U10",
+  "kind": "tenancy",
+  "title": "no tenants at all, strict",
+  "ms": 2.06,
+  "ms_all": [
+   2.06
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "known": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   }
+  },
+  "view": {
+   "known": false,
+   "strict": true,
+   "tenant": null,
+   "matched_by": null,
+   "allowed_payees": [],
+   "approvers": [],
+   "policy_overrides": {},
+   "error": null,
+   "allows": {}
+  }
+ },
+ {
+  "id": "J01",
+  "kind": "approvals",
+  "title": "the book's named approver",
+  "ms": 1.84,
+  "ms_all": [
+   1.84
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "approved_by": {
+    "expected": [
+     "Dana Finch"
+    ],
+    "actual": [
+     "Dana Finch"
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "one",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": false
+   },
+   "tier": "one",
+   "approvals_required": 1,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "Dana Finch"
+   ]
+  }
+ },
+ {
+  "id": "J02",
+  "kind": "approvals",
+  "title": "right role, not this book's person",
+  "ms": 1.8,
+  "ms_all": [
+   1.8
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "not an approver of this book",
+    "actual": "Pat Lee (finance_manager) is not an approver of this book; the tenant registry names Dana Finch (finance_manager)",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "one",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": false
+   },
+   "tier": "one",
+   "approvals_required": 1,
+   "ok": false,
+   "problems": [
+    "Pat Lee (finance_manager) is not an approver of this book; the tenant registry names Dana Finch (finance_manager)",
+    "tier 'one' needs 1 approval(s) from 1 different person (finance_manager, cfo); 0 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "Pat Lee (finance_manager) is not an approver of this book; the tenant registry names Dana Finch (finance_manager)",
+   "approved_by": []
+  }
+ },
+ {
+  "id": "J03",
+  "kind": "approvals",
+  "title": "the right person in the wrong role",
+  "ms": 1.57,
+  "ms_all": [
+   1.57
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": false,
+    "actual": false,
+    "ok": true
+   },
+   "first_problem_contains": {
+    "expected": "not an approver of this book",
+    "actual": "Dana Finch (cfo) is not an approver of this book; the tenant registry names Dana Finch (finance_manager)",
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "one",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": false
+   },
+   "tier": "one",
+   "approvals_required": 1,
+   "ok": false,
+   "problems": [
+    "Dana Finch (cfo) is not an approver of this book; the tenant registry names Dana Finch (finance_manager)",
+    "tier 'one' needs 1 approval(s) from 1 different person (finance_manager, cfo); 0 valid"
+   ],
+   "problems_n": 2,
+   "first_problem": "Dana Finch (cfo) is not an approver of this book; the tenant registry names Dana Finch (finance_manager)",
+   "approved_by": []
+  }
+ },
+ {
+  "id": "J04",
+  "kind": "approvals",
+  "title": "no book approvers configured: any approver of the right role",
+  "ms": 1.5,
+  "ms_all": [
+   1.5
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "one",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": false
+   },
+   "tier": "one",
+   "approvals_required": 1,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "Pat Lee"
+   ]
+  }
+ },
+ {
+  "id": "J05",
+  "kind": "approvals",
+  "title": "names are compared normalised",
+  "ms": 1.59,
+  "ms_all": [
+   1.59
+  ],
+  "server_ms": null,
+  "match": true,
+  "fields": {
+   "ok": {
+    "expected": true,
+    "actual": true,
+    "ok": true
+   },
+   "approved_by": {
+    "expected": [
+     "  dana   FINCH "
+    ],
+    "actual": [
+     "  dana   FINCH "
+    ],
+    "ok": true
+   }
+  },
+  "view": {
+   "requirement": {
+    "tier": "one",
+    "approvals_required": 1,
+    "roles": [
+     "finance_manager",
+     "cfo"
+    ],
+    "distinct_people": false
+   },
+   "tier": "one",
+   "approvals_required": 1,
+   "ok": true,
+   "problems": [],
+   "problems_n": 0,
+   "first_problem": null,
+   "approved_by": [
+    "  dana   FINCH "
+   ]
+  }
+ }
+]

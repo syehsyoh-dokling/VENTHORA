@@ -1,0 +1,17 @@
+{"_note": "UI bench, tenancy suite: every case submitted through the dashboard form (Submit a case, suite = tenancy; plan cases to POST /v1/plans, resolution cases to POST /v1/tenants/eval, approver checks to POST /v1/approvals/eval) in the Claude in-app browser against the running service on 24 Oct 2026; ui_ms = round trip measured by the browser, server_ms = the plan's own duration_ms (plan cases only). 24/24 matched the hand-derived expectation.",
+ "n": 24, "matched": 24, "p50_ms": 5.1, "max_ms": 233.2, "plan_server_p50_ms": 86.1,
+ "rows": [
+  {"id": "T01", "kind": "plan", "match": true, "server_ms": 217.0, "ui_ms": 233.2}, {"id": "T02", "kind": "plan", "match": true, "server_ms": 82.2, "ui_ms": 97.1},
+  {"id": "T03", "kind": "plan", "match": true, "server_ms": 86.7, "ui_ms": 101.0}, {"id": "T04", "kind": "plan", "match": true, "server_ms": 86.2, "ui_ms": 102.3},
+  {"id": "T05", "kind": "plan", "match": true, "server_ms": 85.3, "ui_ms": 99.5}, {"id": "T06", "kind": "plan", "match": true, "server_ms": 87.5, "ui_ms": 101.2},
+  {"id": "T07", "kind": "plan", "match": true, "server_ms": 84.8, "ui_ms": 99.2}, {"id": "T08", "kind": "plan", "match": true, "server_ms": 83.1, "ui_ms": 95.8},
+  {"id": "T09", "kind": "plan", "match": true, "server_ms": 86.1, "ui_ms": 98.6},
+  {"id": "U01", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 4.2}, {"id": "U02", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 4.7},
+  {"id": "U03", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 4.9}, {"id": "U04", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 5.1},
+  {"id": "U05", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 4.7}, {"id": "U06", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 4.6},
+  {"id": "U07", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 5.2}, {"id": "U08", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 5.3},
+  {"id": "U09", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 4.2}, {"id": "U10", "kind": "tenancy", "match": true, "server_ms": null, "ui_ms": 4.9},
+  {"id": "J01", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 4.0}, {"id": "J02", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 5.1},
+  {"id": "J03", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 3.8}, {"id": "J04", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 4.8},
+  {"id": "J05", "kind": "approvals", "match": true, "server_ms": null, "ui_ms": 4.4}
+ ]}

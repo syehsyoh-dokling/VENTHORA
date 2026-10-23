@@ -216,6 +216,14 @@ projected over the horizon for whatever the plan leaves unpaid, and the supplier
 with a verbatim quote, raise the book's dunning level without ever creating a second payable. Past the escalation
 days, under a final notice, or above the interest cap, deferring is no longer the agent's call.
 
+### L. Whose money, whose suppliers, whose signature
+
+One wallet serves several tenants. The ledger already keeps their money apart; the tenant registry keeps apart what
+each book may do with it: which payees it may pay, which people may sign its plans, and which policy values are its
+own. A plan on an unregistered book is blocked by both policy engines, a payee outside the tenant is escalated before
+any amount is considered, and an approval from the right role but the wrong tenant is refused before money moves. The
+tenant view shows each book with what it has done and what it holds.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

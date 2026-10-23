@@ -104,6 +104,9 @@ def main() -> int:
         grid.append(base | {"aging": {"rows": [{"obligation_id": "O1", "days_overdue": days, "dunning_level": lvl, "paying": paying}],
                                       "exposure_minor": exposure, "overdue_escalation_days": esc, "dunning_escalation_level": level,
                                       "max_late_interest_exposure_minor": cap}})
+    # Tenant segregation: attached or not, book known or not, every role.
+    for attached, known, role in itertools.product([False, True], [False, True], ["treasury_agent", "finance_manager", "viewer"]):
+        grid.append(base | {"actor_role": role, "tenancy": {"attached": attached, "book_known": known, "book_id": "b"}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

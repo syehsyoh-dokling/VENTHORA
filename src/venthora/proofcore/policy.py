@@ -17,13 +17,15 @@ def forecast_confidence(state) -> int | None:
 def policy_input(state, conversion_base_minor: int, escalations: list[str],
                  breach_probability_bp: int | None = None, budget: dict | None = None,
                  paying_over_claims: list[str] | None = None, limits: dict | None = None,
-                 payees: dict | None = None, fx: dict | None = None, aging: dict | None = None) -> dict:
+                 payees: dict | None = None, fx: dict | None = None, aging: dict | None = None,
+                 tenancy: dict | None = None) -> dict:
     p = state.policy
     return {
         "paying_over_claims": sorted(paying_over_claims or []),
         "limits": limits or {},
         "fx": fx or {"rows": []},
         "aging": aging or {"rows": [], "exposure_minor": 0},
+        "tenancy": tenancy or {"attached": False, "book_known": True},
         "payees": payees or {"attached": False, "rows": []},
         "budget": budget or {"attached": False, "lines": [], "unbudgeted_paying": 0, "unbudgeted_requires_approval": False},
         "actor_role": state.actor_role,
@@ -80,7 +82,9 @@ def evaluate(inp: dict) -> dict:
     from .approvals import requirement
 
     reasons = sorted(set(reasons))
-    return {"allow": inp["actor_role"] != "viewer", "requires_approval": reasons,
+    ten = inp.get("tenancy") or {}
+    book_ok = not ten.get("attached") or bool(ten.get("book_known", True))
+    return {"allow": inp["actor_role"] != "viewer" and book_ok, "requires_approval": reasons,
             "conversion_limit_minor": limit, "escalations": inp["escalations"], "approval": requirement(inp, reasons)}
 
 

@@ -202,8 +202,25 @@ approval := {"tier": "default", "approvals_required": 1, "roles": input.approver
 	count(matching_tiers) == 0
 }
 
+# Tenant segregation (src/venthora/tenancy.py): a book the registry does not know (strict) may not spend at all.
+book_known if {
+	not input.tenancy.attached
+}
+
+book_known if {
+	input.tenancy.attached
+	input.tenancy.book_known
+}
+
+allow if {
+	input.actor_role != "viewer"
+	book_known
+}
+
+default allow := false
+
 decision := {
-	"allow": input.actor_role != "viewer",
+	"allow": allow,
 	"requires_approval": sort([r | some r in approval_reasons]),
 	"conversion_limit_minor": conversion_limit,
 	"escalations": input.escalations,
