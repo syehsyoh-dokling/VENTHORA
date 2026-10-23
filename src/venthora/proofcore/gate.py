@@ -20,6 +20,7 @@ from ..gateways.opa import OPA
 from ..gateways.tigerbeetle import TigerBeetleLedger
 from . import budget
 from . import policy as local_policy
+from .match import three_way_match
 
 
 @dataclass
@@ -60,7 +61,9 @@ class ProofCore:
             structural.append("obligation selected twice")
         if not set(selected) <= eligible:
             structural.append(f"unverified obligation selected: {sorted(set(selected) - eligible)}")
-        fingerprints = [by_id[i].invoice_fingerprint for i in selected if i in by_id and by_id[i].invoice_fingerprint]
+        # one payout per invoice, or per (invoice, instalment) when an invoice is settled in parts
+        fingerprints = [f"{by_id[i].invoice_fingerprint}#{by_id[i].installment or ''}" for i in selected
+                        if i in by_id and by_id[i].invoice_fingerprint]
         if len(fingerprints) != len(set(fingerprints)):
             structural.append("two selected obligations share an invoice fingerprint")
         # Project even a structurally invalid proposal so every reason it fails is reported.
@@ -106,7 +109,18 @@ class ProofCore:
                                       summary="; ".join(pipe["problems"]) if pipe["problems"] else summary, details=pipe,
                                       duration_ms=(perf_counter() - budget_started) * 1000))
         facts = budget.policy_facts(state, pipe)
-        inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts)
+        # Three-way match: contract / PO − paid so far vs what the invoice claims now.
+        match_started = perf_counter()
+        twm = three_way_match(state, decisions)
+        if twm["rows"]:
+            summary = (f"{sum(r['verdict'] == 'matched' for r in twm['rows'])} matched"
+                       + (f", {len(twm['over_claims'])} over-claim(s): {', '.join(twm['over_claims'])}"
+                          if twm["over_claims"] else "")
+                       + (f", {len(twm['under_claims'])} under-claim(s)" if twm["under_claims"] else ""))
+            stages.append(StageResult(engine="Verity · three-way match", status="WARN" if twm["over_claims"] else "PASS",
+                                      summary=summary, details=twm, duration_ms=(perf_counter() - match_started) * 1000))
+        inp = local_policy.policy_input(state, conversion_cost, escalations, breach_probability_bp, facts,
+                                        paying_over_claims=twm["paying_over_claims"])
         decision = local_policy.evaluate(inp)
         stages.append(await self._opa_stage(inp, decision))
         stages.append(await self._balance_stage(state, proj.conversions))

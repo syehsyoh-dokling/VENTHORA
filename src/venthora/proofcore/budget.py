@@ -70,11 +70,25 @@ def pipeline(state: TreasuryState, decisions: list[ObligationDecision]) -> dict:
         return {"attached": False, "lines": [], "alerts": [], "requests": [], "unbudgeted": [], "problems": []}
     by_id = {o.obligation_id: o for o in state.obligations}
     rows, alerts, requests, unbudgeted, problems = [], [], [], [], []
+    carry_forward, late_posted = [], []
     per_line: dict[str, dict] = {ln.line: {"paying": 0, "paying_ids": [], "owed": 0, "owed_ids": []} for ln in b.lines}
+    paying_in_period = 0
     for d in decisions:
         o = by_id.get(d.obligation_id)
         if o is None or d.action == "REJECT":
             continue
+        # Period cut-off: an obligation due after the period's end belongs to the next period (its commitment carries
+        # forward and does not draw on this period's lines); one due before the period started is late-posted.
+        placement = place_in_period(state, o)
+        if placement == "next":
+            carry_forward.append({"obligation_id": o.obligation_id, "line": o.budget_line, "due_date": due_date_of(state, o),
+                                  "base_cost_minor": d.base_cost_minor, "action": d.action})
+            continue
+        if placement == "previous":
+            late_posted.append({"obligation_id": o.obligation_id, "line": o.budget_line, "due_date": due_date_of(state, o),
+                                "base_cost_minor": d.base_cost_minor, "action": d.action})
+        if d.action in PAYING:
+            paying_in_period += d.base_cost_minor
         ln = b.line(o.budget_line)
         if ln is None:
             if d.action in PAYING:
@@ -124,8 +138,52 @@ def pipeline(state: TreasuryState, decisions: list[ObligationDecision]) -> dict:
                      "available_minor": available, "minus_minor": minus, "utilisation_bp": util_bp,
                      "auto_share_bp": ln.auto_share_bp, "alert_share_bp": ln.alert_share_bp, "bypass": ln.bypass,
                      "bypass_signed": ln.bypass_signed, "status": status})
-    return {"attached": True, "period": b.period, "lines": rows, "alerts": alerts, "requests": requests,
-            "unbudgeted": unbudgeted, "problems": problems}
+    if b.closed and paying_in_period:
+        alerts.append({"line": "*", "utilisation_bp": 0, "alert_share_bp": 0, "requires_approval": True,
+                       "message": f"period {b.period} is closed (cut-off report issued); paying against it needs a person"})
+    return {"attached": True, "period": b.period, "period_start": b.period_start, "period_end": b.period_end,
+            "closed": b.closed, "as_of": state.as_of, "lines": rows, "alerts": alerts, "requests": requests,
+            "unbudgeted": unbudgeted, "carry_forward": carry_forward, "late_posted": late_posted,
+            "paying_in_period_minor": paying_in_period, "problems": problems}
+
+
+def due_date_of(state: TreasuryState, o) -> str | None:
+    if o.due_date:
+        return o.due_date
+    if state.as_of:
+        import datetime as dt
+
+        return (dt.date.fromisoformat(state.as_of) + dt.timedelta(hours=o.due_in_hours)).isoformat()
+    return None
+
+
+def place_in_period(state: TreasuryState, o) -> str:
+    """'current' | 'next' | 'previous' — by due date against the period's dates; 'current' when dates are unknown."""
+    b = state.budget
+    due = due_date_of(state, o)
+    if b is None or due is None:
+        return "current"
+    if b.period_end and due > b.period_end:
+        return "next"
+    if b.period_start and due < b.period_start:
+        return "previous"
+    return "current"
+
+
+def cutoff_report(state: TreasuryState, pipe: dict, realized_by_line: dict[str, int] | None = None) -> dict:
+    """The period's cut-off statement: per line plan, realized up to the cut-off, open commitments, available, minus;
+    what carries forward to the next period; what was posted late. Derived, never typed."""
+    b = state.budget
+    lines = []
+    for r in pipe["lines"]:
+        lines.append({"line": r["line"], "plan_minor": r["plan_minor"], "granted_minor": r["granted_minor"],
+                      "realized_minor": (realized_by_line or {}).get(r["line"], r["realized_minor"]),
+                      "open_commitments_minor": r["committed_minor"] + r["paying_now_minor"],
+                      "available_minor": r["available_minor"], "minus_minor": r["minus_minor"], "status": r["status"]})
+    return {"period": b.period, "period_start": b.period_start, "period_end": b.period_end, "as_of": state.as_of,
+            "lines": lines, "carry_forward": pipe["carry_forward"], "late_posted": pipe["late_posted"],
+            "carry_forward_total_minor": sum(c["base_cost_minor"] for c in pipe["carry_forward"]),
+            "unbudgeted": pipe["unbudgeted"], "requests": pipe["requests"]}
 
 
 def policy_facts(state: TreasuryState, pipe: dict) -> dict:
@@ -138,7 +196,8 @@ def policy_facts(state: TreasuryState, pipe: dict) -> dict:
                        "require_approval_on_alert": next(ln.require_approval_on_alert for ln in state.budget.lines if ln.line == r["line"]),
                        "bypass": r["bypass"], "bypass_signed": r["bypass_signed"]} for r in pipe["lines"]],
             "unbudgeted_paying": len(pipe["unbudgeted"]),
-            "unbudgeted_requires_approval": state.budget.unbudgeted_requires_approval}
+            "unbudgeted_requires_approval": state.budget.unbudgeted_requires_approval,
+            "period_closed": bool(state.budget.closed), "paying_in_period": pipe.get("paying_in_period_minor", 0)}
 
 
 def _line_of(ln: BudgetLine) -> str:

@@ -155,6 +155,16 @@ realized (money that actually left), paying now, still owed, available, minus â€
 execution store, never typed in. Real-sandbox cycle 8 runs it end to end: pay inside the line, stop at it, grant,
 continue, alert at 98%.
 
+### E. The controls a finance team actually asks about
+
+Four things a controller checks before trusting any payment system, each a rule in code with hand-derived ground
+truth: an invoice settled in parts (a deposit, then the balance) is two payouts under a per-instalment duplicate lock
+that can never exceed the contract total; every claim is three-way matched against contract minus what was already
+paid, and an over-claim beyond tolerance goes to a person with the exact difference; the period has a cut-off â€” what
+falls due after it carries forward, what was posted late is marked, and a closed period's statement (plan, realized,
+open commitments, carry-forward) is issued once and never spent against autonomously again; and a reconciliation that
+does not add up opens a case that locks the book until a person closes it with a note. None of these is a prompt.
+
 ## What each original system contributes (beyond speed)
 
 The strengths below are the ones the portfolio describes for each system. Each one is now active

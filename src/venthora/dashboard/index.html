@@ -58,7 +58,7 @@ details summary{cursor:pointer;color:var(--accent)}.quote{border-left:3px solid 
 
  <section class="span12">
   <h2><span>Submit a case</span>
-   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option></select>
+   <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
     <select id="subKind"><option value="plan">treasury state (JSON) → /v1/plans</option><option value="intake">raw email → /v1/intake/emails (dry run)</option><option value="incident">incident facts (JSON) → /v1/incidents/decide</option></select>
     <label class="small"><input type="checkbox" id="queueIt"> queue the email</label>
@@ -131,8 +131,12 @@ async function intake(){try{const rows=await api("/v1/intake");const c={};rows.f
   try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:"finance manager",role:"finance_manager",note})});intake()}catch(e){alert(e.message)}})}
  catch(e){$("#intake").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 
-async function executions(){try{const rows=await api("/v1/executions?limit=15");
- $("#executions").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"Execution",f:r=>`<span class="mono">${esc(r.execution_id.slice(0,8))}…</span>`},{h:"Plan",f:r=>`<span class="mono">${esc(r.plan_hash.slice(0,12))}…</span>`},{h:"Updated",f:r=>`<span class="small">${esc(r.updated_at.slice(0,19).replace("T"," "))}</span>`}],rows)}catch(e){$("#executions").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function executions(){try{const rows=await api("/v1/executions?limit=15");const cases=await api("/v1/recon-cases");const open=cases.filter(c=>c.status==="OPEN");
+ $("#executions").innerHTML=(open.length?`<div style="margin-bottom:8px">${open.map(c=>`<div class="small"><span class="pill critical">RECON CASE</span> ${esc(c.case_id.slice(0,8))}… book <b>${esc(c.book_id)}</b> locked · ${esc(JSON.stringify(c.discrepancies))} <button data-case="${c.case_id}">Close</button></div>`).join("")}</div>`:"")
+  +table([{h:"Status",f:r=>pill(r.status)},{h:"Execution",f:r=>`<span class="mono">${esc(r.execution_id.slice(0,8))}…</span>`},{h:"Plan",f:r=>`<span class="mono">${esc(r.plan_hash.slice(0,12))}…</span>`},{h:"Updated",f:r=>`<span class="small">${esc(r.updated_at.slice(0,19).replace("T"," "))}</span>`}],rows);
+ $("#executions").querySelectorAll("button[data-case]").forEach(x=>x.onclick=async()=>{const note=prompt("Closing note — what explained the difference (required):");if(!note)return;
+  try{await api(`/v1/recon-cases/${x.dataset.case}/close`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reviewer:"finance manager",role:"finance_manager",note})});executions();budget()}catch(e){alert(e.message)}})}
+ catch(e){$("#executions").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 async function incidents(){try{const rows=await api("/v1/incidents");
  $("#incidents").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"Obligation",f:r=>esc(r.obligation_id)},{h:"Decision",f:r=>pill(r.decision||"OPEN")},{h:"Failure type",f:r=>`<span class="small">${esc(r.failure_type||"-")}</span>`},{h:"Original → replacement",f:r=>`<span class="mono">${esc((r.original_transfer_id||"").slice(0,8))}… → ${r.replacement_transfer_id?esc(r.replacement_transfer_id.slice(0,8))+"…":"-"}</span>`}],rows)}catch(e){$("#incidents").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 async function runs(){try{const rows=await api("/api/runs?limit=20");
@@ -162,6 +166,10 @@ async function budget(){try{if(!$("#budgetBook").options.length){const s=await a
   +(b.alerts.length?`<div style="margin-top:8px">${b.alerts.map(a=>`<div class="small"><span class="pill ${a.requires_approval?"serious":"warn"}">ALERT</span> ${esc(a.message)}</div>`).join("")}</div>`:"")
   +(b.requests.length?`<div style="margin-top:8px">${b.requests.map(q=>`<div class="small"><span class="pill critical">BUDGET REQUEST</span> ${esc(q.message)} · obligations ${esc(q.obligations.join(", "))}</div>`).join("")}</div>`:"")
   +(b.unbudgeted.length?`<div class="small" style="margin-top:8px"><span class="pill warn">UNBUDGETED</span> ${b.unbudgeted.map(u=>esc(u.obligation_id)).join(", ")}: no line in ${esc(b.period)}; a person must place them</div>`:"")
+  +((b.carry_forward||[]).length?`<div class="small" style="margin-top:8px"><span class="pill">CARRY-FORWARD</span> due after ${esc(b.period_end||"the period")}: ${b.carry_forward.map(c=>`${esc(c.obligation_id)} (${fmt(c.base_cost_minor,"USD")}, due ${esc(c.due_date)})`).join(", ")} — next period's commitment, not this period's lines</div>`:"")
+  +((b.late_posted||[]).length?`<div class="small" style="margin-top:8px"><span class="pill warn">LATE-POSTED</span> due before ${esc(b.period_start||"the period")}: ${b.late_posted.map(c=>esc(c.obligation_id)).join(", ")}</div>`:"")
+  +(b.closed_period?`<div class="small" style="margin-top:8px"><span class="pill critical">PERIOD CLOSED</span> ${esc(b.period)} has its cut-off statement; spending against it needs a person</div>`:"")
+  +((b.open_recon_cases||[]).length?`<div class="small" style="margin-top:8px"><span class="pill critical">BOOK LOCKED</span> open reconciliation case(s): ${b.open_recon_cases.map(c=>esc(c.case_id.slice(0,8))).join(", ")} — no autonomous execution until closed (see Executions)</div>`:"")
   +(b.grants.length?`<details class="small" style="margin-top:8px"><summary>${b.grants.length} grant(s) this period</summary>${table([{h:"Line",f:g=>esc(g.line)},{h:"Extra",num:1,f:g=>fmt(g.extra_minor,"USD")},{h:"By",f:g=>`${esc(g.approver)} (${esc(g.role)})`},{h:"Note",f:g=>esc(g.note||"")},{h:"When",f:g=>esc(g.created_at.slice(0,19).replace("T"," "))}],b.grants)}</details>`:"");
  $("#budget").querySelectorAll("button[data-line]").forEach(x=>x.onclick=async()=>{const amt=prompt(`Grant extra mandate on '${x.dataset.line}' (${x.dataset.period}) as finance manager — amount in USD${x.dataset.minus>0?` (request asks ${(x.dataset.minus/100).toFixed(2)})`:""}:`,x.dataset.minus>0?(x.dataset.minus/100).toFixed(2):"");if(amt===null)return;
   const note=prompt("note (why):")||"";try{await api(`/v1/budgets/${x.dataset.period}/${x.dataset.line}/grant`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({extra_minor:Math.round(parseFloat(amt)*100),approver:"finance manager",role:"finance_manager",note})});budget()}catch(e){alert(e.message)}})}

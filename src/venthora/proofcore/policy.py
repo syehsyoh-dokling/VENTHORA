@@ -15,9 +15,11 @@ def forecast_confidence(state) -> int | None:
 
 
 def policy_input(state, conversion_base_minor: int, escalations: list[str],
-                 breach_probability_bp: int | None = None, budget: dict | None = None) -> dict:
+                 breach_probability_bp: int | None = None, budget: dict | None = None,
+                 paying_over_claims: list[str] | None = None) -> dict:
     p = state.policy
     return {
+        "paying_over_claims": sorted(paying_over_claims or []),
         "budget": budget or {"attached": False, "lines": [], "unbudgeted_paying": 0, "unbudgeted_requires_approval": False},
         "actor_role": state.actor_role,
         "approver_roles": p.approver_roles,
@@ -50,6 +52,12 @@ def evaluate(inp: dict) -> dict:
     if breach is not None and breach > inp["max_breach_probability_bp"]:
         reasons.append("reserve_breach_risk_above_tolerance")
     reasons += budget_reasons(inp.get("budget") or {})
+    # Three-way match: an invoice that claims more than the contract still allows is paid only by a person.
+    if inp.get("paying_over_claims"):
+        reasons.append("amount_mismatch")
+    # Period cut-off: a plan drawn against a closed period cannot spend on it.
+    if (inp.get("budget") or {}).get("period_closed") and (inp.get("budget") or {}).get("paying_in_period", 0) > 0:
+        reasons.append("period_closed")
     return {"allow": inp["actor_role"] != "viewer", "requires_approval": sorted(set(reasons)),
             "conversion_limit_minor": limit, "escalations": inp["escalations"]}
 

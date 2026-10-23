@@ -1,12 +1,12 @@
 {
- "generated_at": "2026-10-23T12:54:36.989593+00:00",
+ "generated_at": "2026-10-23T13:23:46.351708+00:00",
  "part_a": [
   {
    "id": "P01",
    "suite": "cases",
    "kind": "plan",
    "title": "single obligation fits",
-   "ms": 502.0,
+   "ms": 139.1,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -38,6 +38,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -48,7 +51,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 493.4974000789225
+    "duration_ms": 127.9050000011921
    }
   },
   {
@@ -56,7 +59,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "single obligation does not fit, no receipt",
-   "ms": 125.6,
+   "ms": 92.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -88,6 +91,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -96,7 +102,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 112.90149996057153
+    "duration_ms": 80.77450003474951
    }
   },
   {
@@ -104,7 +110,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "obligation equals the headroom exactly",
-   "ms": 130.4,
+   "ms": 106.7,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -136,6 +142,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -146,7 +155,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.37900003511459
+    "duration_ms": 90.88479995261878
    }
   },
   {
@@ -154,7 +163,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "one cent over the headroom",
-   "ms": 126.7,
+   "ms": 87.4,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -181,6 +190,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -189,7 +201,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 117.53839999437332
+    "duration_ms": 78.32009997218847
    }
   },
   {
@@ -197,7 +209,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "two obligations both fit",
-   "ms": 131.4,
+   "ms": 92.2,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -232,6 +244,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1",
      "O2"
@@ -243,7 +258,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 117.52139998134226
+    "duration_ms": 82.18840009067208
    }
   },
   {
@@ -251,7 +266,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "two obligations, only the higher priority fits",
-   "ms": 126.6,
+   "ms": 96.2,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -281,6 +296,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -291,7 +309,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 112.6331000123173
+    "duration_ms": 85.08620003703982
    }
   },
   {
@@ -299,7 +317,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "same priority, earlier due first",
-   "ms": 122.6,
+   "ms": 96.2,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -329,6 +347,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O2"
     ],
@@ -339,7 +360,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.5398000953719
+    "duration_ms": 82.2518999921158
    }
   },
   {
@@ -347,7 +368,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "duplicate invoice fingerprint",
-   "ms": 131.9,
+   "ms": 93.5,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -377,6 +398,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -387,7 +411,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 115.94269995111972
+    "duration_ms": 83.5660999873653
    }
   },
   {
@@ -395,7 +419,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "evidence rejected",
-   "ms": 116.5,
+   "ms": 99.6,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -422,6 +446,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -430,7 +457,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 106.97019996587187
+    "duration_ms": 88.06889993138611
    }
   },
   {
@@ -438,7 +465,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "evidence pending",
-   "ms": 118.5,
+   "ms": 98.9,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -465,6 +492,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -473,7 +503,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 110.52490002475679
+    "duration_ms": 84.11759999580681
    }
   },
   {
@@ -481,7 +511,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "evidence missing",
-   "ms": 132.5,
+   "ms": 92.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -508,6 +538,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -516,7 +549,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 117.05100000835955
+    "duration_ms": 80.89470001868904
    }
   },
   {
@@ -524,7 +557,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "evidence names another obligation",
-   "ms": 128.6,
+   "ms": 91.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -551,6 +584,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -559,7 +595,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.88150001969188
+    "duration_ms": 79.76770005188882
    }
   },
   {
@@ -567,7 +603,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "already settled record",
-   "ms": 124.9,
+   "ms": 99.5,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -594,6 +630,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -602,7 +641,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 112.90890001691878
+    "duration_ms": 86.6928999312222
    }
   },
   {
@@ -610,7 +649,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "payee bank details changed",
-   "ms": 115.6,
+   "ms": 105.9,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -637,6 +676,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -645,7 +687,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 108.35380002390593
+    "duration_ms": 94.40199995879084
    }
   },
   {
@@ -653,7 +695,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "viewer cannot plan",
-   "ms": 116.6,
+   "ms": 102.4,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -676,6 +718,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -688,7 +733,7 @@
     ],
     "breach_bp": 0,
     "not_blocked": false,
-    "duration_ms": 108.75499993562698
+    "duration_ms": 88.59910001046956
    }
   },
   {
@@ -696,7 +741,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "finance manager plans like the agent",
-   "ms": 124.6,
+   "ms": 104.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -728,6 +773,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -738,7 +786,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 110.66020000725985
+    "duration_ms": 88.50159996654838
    }
   },
   {
@@ -746,7 +794,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "does not fit now, reliable receipt lands before due",
-   "ms": 123.1,
+   "ms": 109.6,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -773,6 +821,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -781,7 +832,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.79159991722554
+    "duration_ms": 93.70420000050217
    }
   },
   {
@@ -789,7 +840,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "receipt not reliable (60%)",
-   "ms": 123.9,
+   "ms": 96.6,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -816,6 +867,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -824,7 +878,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 112.2867000522092
+    "duration_ms": 82.04480004496872
    }
   },
   {
@@ -832,7 +886,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "receipt lands after due",
-   "ms": 131.3,
+   "ms": 95.0,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -859,6 +913,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -867,7 +924,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 120.08549994789064
+    "duration_ms": 81.04199997615069
    }
   },
   {
@@ -875,7 +932,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "receipt window ends after the horizon",
-   "ms": 167.1,
+   "ms": 105.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -902,6 +959,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -910,7 +970,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 155.1569999428466
+    "duration_ms": 90.31250001862645
    }
   },
   {
@@ -918,7 +978,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "receipt covers one of two deferrals",
-   "ms": 120.2,
+   "ms": 102.0,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -948,6 +1008,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -958,7 +1021,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 112.48390004038811
+    "duration_ms": 87.52389997243881
    }
   },
   {
@@ -966,7 +1029,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "EUR payout converted inside the limit",
-   "ms": 326.5,
+   "ms": 95.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1003,6 +1066,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1015,7 +1081,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 316.963899997063
+    "duration_ms": 83.88629998080432
    }
   },
   {
@@ -1023,7 +1089,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "conversion above the autonomous limit",
-   "ms": 121.9,
+   "ms": 102.0,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1064,6 +1130,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1078,7 +1147,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 113.38659992907196
+    "duration_ms": 93.60110003035516
    }
   },
   {
@@ -1086,7 +1155,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "limit zero: every conversion needs a person",
-   "ms": 116.4,
+   "ms": 92.7,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1118,6 +1187,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1132,7 +1204,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 110.00810004770756
+    "duration_ms": 83.42929999344051
    }
   },
   {
@@ -1140,7 +1212,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "EUR wallet already covers the EUR payout",
-   "ms": 182.3,
+   "ms": 90.1,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1177,6 +1249,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1187,7 +1262,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 174.48029993101954
+    "duration_ms": 81.47390000522137
    }
   },
   {
@@ -1195,7 +1270,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "GBP wallet covers part: convert the shortfall only",
-   "ms": 196.8,
+   "ms": 89.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1227,6 +1302,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1239,7 +1317,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 189.14090003818274
+    "duration_ms": 80.64790000207722
    }
   },
   {
@@ -1247,7 +1325,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "stress eats the headroom",
-   "ms": 125.2,
+   "ms": 89.1,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1274,6 +1352,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -1284,7 +1365,7 @@
     "failed_stages": [],
     "breach_bp": 1580,
     "not_blocked": true,
-    "duration_ms": 114.43910002708435
+    "duration_ms": 79.80319997295737
    }
   },
   {
@@ -1292,7 +1373,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "stress leaves exactly enough (deterministic) but no margin (probabilistic)",
-   "ms": 182.6,
+   "ms": 82.6,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1333,6 +1414,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1345,7 +1429,7 @@
     "failed_stages": [],
     "breach_bp": 4865,
     "not_blocked": true,
-    "duration_ms": 174.6442000148818
+    "duration_ms": 74.09850007388741
    }
   },
   {
@@ -1353,7 +1437,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "zero reserve floor",
-   "ms": 127.3,
+   "ms": 90.5,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1385,6 +1469,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1395,7 +1482,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 115.27770000975579
+    "duration_ms": 77.548100030981
    }
   },
   {
@@ -1403,7 +1490,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "zero cash",
-   "ms": 120.2,
+   "ms": 86.9,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1431,6 +1518,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -1441,7 +1531,7 @@
     "failed_stages": [],
     "breach_bp": 10000,
     "not_blocked": true,
-    "duration_ms": 111.44549993332475
+    "duration_ms": 78.5108000272885
    }
   },
   {
@@ -1449,7 +1539,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "twelve small obligations all fit",
-   "ms": 121.8,
+   "ms": 82.7,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1514,6 +1604,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1",
      "O10",
@@ -1535,7 +1628,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.24010002519935
+    "duration_ms": 73.45319993328303
    }
   },
   {
@@ -1543,7 +1636,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "large amounts, still inside the live sandbox wallet",
-   "ms": 125.3,
+   "ms": 80.8,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1575,6 +1668,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1585,7 +1681,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.82220003381371
+    "duration_ms": 73.16489994991571
    }
   },
   {
@@ -1593,7 +1689,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "confidence 90%: limit is full",
-   "ms": 177.0,
+   "ms": 89.8,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1621,6 +1717,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1633,7 +1732,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 163.77789992839098
+    "duration_ms": 81.34759997483343
    }
   },
   {
@@ -1641,7 +1740,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "confidence 70%: limit halves",
-   "ms": 122.1,
+   "ms": 86.1,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1678,6 +1777,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1692,7 +1794,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 109.46609999518842
+    "duration_ms": 78.86369992047548
    }
   },
   {
@@ -1700,7 +1802,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "confidence 40%: limit zero",
-   "ms": 169.5,
+   "ms": 87.2,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1728,6 +1830,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1742,7 +1847,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 158.3031000336632
+    "duration_ms": 80.26040007825941
    }
   },
   {
@@ -1750,7 +1855,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "priority 10 due now and priority 1 due at the horizon both fit",
-   "ms": 126.0,
+   "ms": 91.4,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1785,6 +1890,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1",
      "O2"
@@ -1796,7 +1904,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 118.00130002666265
+    "duration_ms": 83.34849996026605
    }
   },
   {
@@ -1804,7 +1912,7 @@
    "suite": "cases",
    "kind": "plan",
    "title": "cheapest obligation dropped, not the most urgent",
-   "ms": 120.5,
+   "ms": 89.0,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -1834,6 +1942,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -1844,7 +1955,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 112.10599995683879
+    "duration_ms": 81.41650003381073
    }
   },
   {
@@ -1852,7 +1963,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "registered mailbox, clean invoice",
-   "ms": 7.7,
+   "ms": 7.2,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -1911,7 +2022,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "unknown mailbox with the same display name",
-   "ms": 4.7,
+   "ms": 4.0,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -1950,7 +2061,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "registered mailbox announcing new bank details",
-   "ms": 4.0,
+   "ms": 4.6,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2000,7 +2111,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "unknown mailbox, bank change, urgency",
-   "ms": 3.8,
+   "ms": 3.4,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2048,7 +2159,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "registered mailbox but Reply-To elsewhere",
-   "ms": 4.6,
+   "ms": 4.9,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2082,7 +2193,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "registered customer remittance (outlook)",
-   "ms": 7.5,
+   "ms": 3.4,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2126,7 +2237,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "registered contractor timesheet (yahoo)",
-   "ms": 4.0,
+   "ms": 3.6,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2175,7 +2286,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "registered mailbox, no amount readable",
-   "ms": 5.6,
+   "ms": 3.3,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2209,7 +2320,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "injection text cannot verify itself",
-   "ms": 5.4,
+   "ms": 4.7,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2243,7 +2354,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "registered sender with pressure language",
-   "ms": 3.6,
+   "ms": 4.5,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2283,7 +2394,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "html body",
-   "ms": 4.5,
+   "ms": 4.2,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2327,7 +2438,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "euro symbol and thousands separator",
-   "ms": 7.0,
+   "ms": 3.6,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2371,7 +2482,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "duplicate of an invoice already in the book",
-   "ms": 5.8,
+   "ms": 5.3,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2405,7 +2516,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "embargoed future date does not matter for triage, amount in subject-less body",
-   "ms": 4.1,
+   "ms": 3.7,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2449,7 +2560,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "corporate domain match (non-freemail)",
-   "ms": 5.5,
+   "ms": 4.0,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2498,7 +2609,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "same corporate domain, different mailbox",
-   "ms": 4.0,
+   "ms": 3.0,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2532,7 +2643,7 @@
    "suite": "cases",
    "kind": "intake",
    "title": "freemail lookalike of a corporate payee",
-   "ms": 3.5,
+   "ms": 4.3,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2571,7 +2682,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "the SWIFT fee is what breaks the reserve",
-   "ms": 121.0,
+   "ms": 100.2,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2598,6 +2709,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -2606,7 +2720,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 113.06670005433261
+    "duration_ms": 92.08889992441982
    }
   },
   {
@@ -2614,7 +2728,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "a learned LOCAL fee is what breaks the reserve",
-   "ms": 119.8,
+   "ms": 85.3,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2641,6 +2755,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -2649,7 +2766,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 111.28489999100566
+    "duration_ms": 76.27590000629425
    }
   },
   {
@@ -2657,7 +2774,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "one-cent obligations are still money",
-   "ms": 170.6,
+   "ms": 82.6,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2695,6 +2812,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1",
      "O2",
@@ -2707,7 +2827,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 164.0541999367997
+    "duration_ms": 74.45110008120537
    }
   },
   {
@@ -2715,7 +2835,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "FX stress makes a 'fits exactly' conversion not fit",
-   "ms": 119.5,
+   "ms": 89.9,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2742,6 +2862,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -2750,7 +2873,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 113.81549993529916
+    "duration_ms": 81.61979995202273
    }
   },
   {
@@ -2758,7 +2881,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "the receipt slips past the due date",
-   "ms": 123.0,
+   "ms": 83.1,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2785,6 +2908,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -2793,7 +2919,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 113.30199998337775
+    "duration_ms": 74.9906999990344
    }
   },
   {
@@ -2801,7 +2927,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "the 90% window ends after the planning horizon",
-   "ms": 128.5,
+   "ms": 88.8,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2828,6 +2954,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -2836,7 +2965,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 116.95419996976852
+    "duration_ms": 79.56370001193136
    }
   },
   {
@@ -2844,7 +2973,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "due now, cash short, no receipt",
-   "ms": 117.0,
+   "ms": 91.8,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2876,6 +3005,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -2884,7 +3016,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 109.47809997014701
+    "duration_ms": 83.51610007230192
    }
   },
   {
@@ -2892,7 +3024,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "payer with a bad record: 40% confidence drops the FX limit to zero",
-   "ms": 433.7,
+   "ms": 81.5,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -2929,6 +3061,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -2943,7 +3078,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 422.1748999552801
+    "duration_ms": 74.2664000717923
    }
   },
   {
@@ -2951,7 +3086,7 @@
    "suite": "anomalies",
    "kind": "incident",
    "title": "SENT for 49 h: the wait window is over, still not final",
-   "ms": 2.1,
+   "ms": 1.6,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2972,7 +3107,7 @@
    "suite": "anomalies",
    "kind": "incident",
    "title": "PROCESSING for 1 h: wait, never replace",
-   "ms": 1.4,
+   "ms": 1.1,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -2993,7 +3128,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "evidence about the wrong obligation",
-   "ms": 122.0,
+   "ms": 81.9,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3020,6 +3155,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -3028,7 +3166,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.275399944745
+    "duration_ms": 75.29100007377565
    }
   },
   {
@@ -3036,7 +3174,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "the same invoice re-sent under a new id",
-   "ms": 130.5,
+   "ms": 78.8,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3066,6 +3204,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -3076,7 +3217,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 115.99459999706596
+    "duration_ms": 70.46610000543296
    }
   },
   {
@@ -3084,7 +3225,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "payee announces new bank details",
-   "ms": 172.7,
+   "ms": 81.4,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3111,6 +3252,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [],
     "n_conversions": 0,
     "conversions": {},
@@ -3119,7 +3263,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 163.65150001365691
+    "duration_ms": 73.81370000075549
    }
   },
   {
@@ -3127,7 +3271,7 @@
    "suite": "anomalies",
    "kind": "intake",
    "title": "lookalike mailbox, new bank account, urgency",
-   "ms": 4.4,
+   "ms": 3.4,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3175,7 +3319,7 @@
    "suite": "anomalies",
    "kind": "intake",
    "title": "the email tells the agent it is verified",
-   "ms": 4.1,
+   "ms": 3.3,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3204,7 +3348,7 @@
    "suite": "anomalies",
    "kind": "intake",
    "title": "registered mailbox, Reply-To elsewhere",
-   "ms": 5.1,
+   "ms": 3.6,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3238,7 +3382,7 @@
    "suite": "anomalies",
    "kind": "intake",
    "title": "registered mailbox announces a new account",
-   "ms": 3.5,
+   "ms": 4.2,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3274,7 +3418,7 @@
    "suite": "anomalies",
    "kind": "intake",
    "title": "a reminder for an invoice already in the book",
-   "ms": 3.5,
+   "ms": 4.1,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3308,7 +3452,7 @@
    "suite": "anomalies",
    "kind": "intake",
    "title": "registered sender, 'the CEO approved, pay immediately'",
-   "ms": 4.3,
+   "ms": 3.5,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3348,7 +3492,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "conversion above the autonomous limit",
-   "ms": 122.4,
+   "ms": 86.5,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3380,6 +3524,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -3394,7 +3541,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 114.07180002424866
+    "duration_ms": 78.86760006658733
    }
   },
   {
@@ -3402,7 +3549,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "70% confidence halves the limit and the conversion no longer fits",
-   "ms": 121.8,
+   "ms": 80.5,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3430,6 +3577,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -3444,7 +3594,7 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 115.64430000726134
+    "duration_ms": 73.92170000821352
    }
   },
   {
@@ -3452,7 +3602,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "the plan lands exactly on the floor: probabilistic breach risk",
-   "ms": 126.1,
+   "ms": 87.9,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3488,6 +3638,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -3500,7 +3653,7 @@
     "failed_stages": [],
     "breach_bp": 5115,
     "not_blocked": true,
-    "duration_ms": 113.55440004263073
+    "duration_ms": 81.00070001091808
    }
   },
   {
@@ -3508,7 +3661,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "a viewer asks for a plan",
-   "ms": 162.7,
+   "ms": 86.6,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3531,6 +3684,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1"
     ],
@@ -3543,7 +3699,7 @@
     ],
     "breach_bp": 0,
     "not_blocked": false,
-    "duration_ms": 153.70430005714297
+    "duration_ms": 78.6163000157103
    }
   },
   {
@@ -3551,7 +3707,7 @@
    "suite": "anomalies",
    "kind": "incident",
    "title": "CANCELLED with BENEFICIARY_BANK_RETURNED",
-   "ms": 1.2,
+   "ms": 1.4,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3572,7 +3728,7 @@
    "suite": "anomalies",
    "kind": "incident",
    "title": "CANCELLED with INVALID_ACCOUNT_NAME_OR_NUMBER",
-   "ms": 0.9,
+   "ms": 1.1,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3593,7 +3749,7 @@
    "suite": "anomalies",
    "kind": "incident",
    "title": "CANCELLED with RECALL_REQUESTED",
-   "ms": 0.8,
+   "ms": 1.1,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3614,7 +3770,7 @@
    "suite": "anomalies",
    "kind": "incident",
    "title": "FAILED with no typed failure",
-   "ms": 0.8,
+   "ms": 0.9,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3640,7 +3796,7 @@
    "suite": "anomalies",
    "kind": "incident",
    "title": "a second return after one replacement",
-   "ms": 0.8,
+   "ms": 1.4,
    "live_balances": null,
    "real": null,
    "match": true,
@@ -3661,7 +3817,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "base wallet already below the floor, foreign wallets cover the payouts",
-   "ms": 119.8,
+   "ms": 84.0,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3705,6 +3861,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O1",
      "O2"
@@ -3718,7 +3877,7 @@
     "failed_stages": [],
     "breach_bp": 10000,
     "not_blocked": true,
-    "duration_ms": 111.98250006418675
+    "duration_ms": 75.88200003374368
    }
   },
   {
@@ -3726,7 +3885,7 @@
    "suite": "anomalies",
    "kind": "plan",
    "title": "cash short, receipt contradicted, bank change, duplicate, SWIFT fee, viewer-free",
-   "ms": 132.6,
+   "ms": 86.5,
    "live_balances": "PASS",
    "real": true,
    "match": true,
@@ -3774,6 +3933,9 @@
     "budget_minus": {},
     "budget_alerts": 0,
     "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
     "paid": [
      "O2"
     ],
@@ -3786,7 +3948,2283 @@
     "failed_stages": [],
     "breach_bp": 0,
     "not_blocked": true,
-    "duration_ms": 117.13809997309
+    "duration_ms": 78.53259996045381
+   }
+  },
+  {
+   "id": "B01",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "inside the line, inside the auto share",
+   "ms": 84.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "budget_status": {
+     "expected": {
+      "suppliers": "auto"
+     },
+     "actual": {
+      "suppliers": "auto"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 700000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 76.57039992045611
+   }
+  },
+  {
+   "id": "B02",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "exactly the mandate",
+   "ms": 85.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "budget_available": {
+     "expected": {
+      "suppliers": 0
+     },
+     "actual": {
+      "suppliers": 0
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "alert"
+    },
+    "budget_available": {
+     "suppliers": 0
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 1,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 1000000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 77.04270002432168
+   }
+  },
+  {
+   "id": "B03",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "one cent over the mandate: the agent stops at the line",
+   "ms": 93.1,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    },
+    "paid": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    },
+    "budget_requests": {
+     "expected": {
+      "suppliers": 1
+     },
+     "actual": {
+      "suppliers": 1
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 1000000
+    },
+    "budget_minus": {
+     "suppliers": 1
+    },
+    "budget_alerts": 0,
+    "budget_requests": {
+     "suppliers": 1
+    },
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 0,
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 85.7086000032723
+   }
+  },
+  {
+   "id": "B04",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "above the auto share needs a person",
+   "ms": 91.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "budget_line_above_auto_share"
+     ],
+     "actual": [
+      "budget_line_above_auto_share"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "needs_approval"
+    },
+    "budget_available": {
+     "suppliers": 150000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 1,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 850000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [
+     "budget_line_above_auto_share"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 83.41710001695901
+   }
+  },
+  {
+   "id": "B05",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "exactly the auto share is still autonomous",
+   "ms": 86.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 200000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 800000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 78.79739999771118
+   }
+  },
+  {
+   "id": "B06",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "alert threshold reached (notification, still autonomous)",
+   "ms": 85.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "budget_alerts": {
+     "expected": 1,
+     "actual": 1,
+     "ok": true
+    },
+    "budget_status": {
+     "expected": {
+      "suppliers": "alert"
+     },
+     "actual": {
+      "suppliers": "alert"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "alert"
+    },
+    "budget_available": {
+     "suppliers": 180000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 1,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 820000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 76.83649996761233
+   }
+  },
+  {
+   "id": "B07",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "alert threshold with require_approval_on_alert",
+   "ms": 88.5,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "budget_line_alert_requires_approval"
+     ],
+     "actual": [
+      "budget_line_alert_requires_approval"
+     ],
+     "ok": true
+    },
+    "budget_alerts": {
+     "expected": 1,
+     "actual": 1,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "alert"
+    },
+    "budget_available": {
+     "suppliers": 180000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 1,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 820000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [
+     "budget_line_alert_requires_approval"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 80.38429997395724
+   }
+  },
+  {
+   "id": "B08",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "realized spend eats the line",
+   "ms": 96.9,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    },
+    "budget_requests": {
+     "expected": {
+      "suppliers": 1
+     },
+     "actual": {
+      "suppliers": 1
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 250000
+    },
+    "budget_minus": {
+     "suppliers": 50000
+    },
+    "budget_alerts": 0,
+    "budget_requests": {
+     "suppliers": 1
+    },
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 0,
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 88.06980005465448
+   }
+  },
+  {
+   "id": "B09",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "a grant restores the mandate",
+   "ms": 95.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "budget_available": {
+     "expected": {
+      "suppliers": 50000
+     },
+     "actual": {
+      "suppliers": 50000
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "alert"
+    },
+    "budget_available": {
+     "suppliers": 50000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 1,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 86.8132000323385
+   }
+  },
+  {
+   "id": "B10",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "two lines, one exhausted, the other fine",
+   "ms": 86.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE",
+      "O2": "PAY"
+     },
+     "actual": {
+      "O1": "ESCALATE",
+      "O2": "PAY"
+     },
+     "ok": true
+    },
+    "budget_requests": {
+     "expected": {
+      "suppliers": 1
+     },
+     "actual": {
+      "suppliers": 1
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE",
+     "O2": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto",
+     "saas": "auto"
+    },
+    "budget_available": {
+     "suppliers": 250000,
+     "saas": 300000
+    },
+    "budget_minus": {
+     "suppliers": 50000,
+     "saas": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {
+     "suppliers": 1
+    },
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 200000,
+    "paid": [
+     "O2"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 78.56210006866604
+   }
+  },
+  {
+   "id": "B11",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "priority within a line: the line pays the urgent one",
+   "ms": 88.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "ok": true
+    },
+    "budget_requests": {
+     "expected": {
+      "suppliers": 1
+     },
+     "actual": {
+      "suppliers": 1
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 400000
+    },
+    "budget_minus": {
+     "suppliers": 200000
+    },
+    "budget_alerts": 0,
+    "budget_requests": {
+     "suppliers": 1
+    },
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 600000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 81.35150000452995
+   }
+  },
+  {
+   "id": "B12",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "unbudgeted obligation needs a person",
+   "ms": 89.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "unbudgeted_obligation"
+     ],
+     "actual": [
+      "unbudgeted_obligation"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 1000000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 100000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [
+     "unbudgeted_obligation"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 82.27729995269328
+   }
+  },
+  {
+   "id": "B13",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "unbudgeted allowed by the budget's setting",
+   "ms": 87.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 1000000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 100000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 78.94410006701946
+   }
+  },
+  {
+   "id": "B14",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "bypass nobody signed keeps the cap",
+   "ms": 82.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    },
+    "budget_requests": {
+     "expected": {
+      "suppliers": 1
+     },
+     "actual": {
+      "suppliers": 1
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 200000
+    },
+    "budget_minus": {
+     "suppliers": 100000
+    },
+    "budget_alerts": 0,
+    "budget_requests": {
+     "suppliers": 1
+    },
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 0,
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 74.57930000964552
+   }
+  },
+  {
+   "id": "B15",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "signed bypass lifts the cap",
+   "ms": 73.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "budget_status": {
+     "expected": {
+      "suppliers": "bypass"
+     },
+     "actual": {
+      "suppliers": "bypass"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "bypass"
+    },
+    "budget_available": {
+     "suppliers": -100000
+    },
+    "budget_minus": {
+     "suppliers": 100000
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 65.18399994820356
+   }
+  },
+  {
+   "id": "B16",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "bypass signed but spending inside it is still recorded",
+   "ms": 83.9,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "bypass"
+    },
+    "budget_available": {
+     "suppliers": -1000000
+    },
+    "budget_minus": {
+     "suppliers": 1000000
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 76.63329993374646
+   }
+  },
+  {
+   "id": "B17",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "the whole November book against the November plan",
+   "ms": 92.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "paid": {
+     "expected": [
+      "O1",
+      "O2",
+      "O3",
+      "O4",
+      "O5"
+     ],
+     "actual": [
+      "O1",
+      "O2",
+      "O3",
+      "O4",
+      "O5"
+     ],
+     "ok": true
+    },
+    "budget_alerts": {
+     "expected": 1,
+     "actual": 1,
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY",
+     "O3": "PAY",
+     "O4": "PAY",
+     "O5": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "payroll": "auto",
+     "logistics": "auto",
+     "suppliers": "auto",
+     "contractors": "auto",
+     "saas": "alert"
+    },
+    "budget_available": {
+     "payroll": 100000,
+     "logistics": 100000,
+     "suppliers": 300000,
+     "contractors": 300000,
+     "saas": 30000
+    },
+    "budget_minus": {
+     "payroll": 0,
+     "logistics": 0,
+     "suppliers": 0,
+     "contractors": 0,
+     "saas": 0
+    },
+    "budget_alerts": 1,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 1920000,
+    "paid": [
+     "O1",
+     "O2",
+     "O3",
+     "O4",
+     "O5"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 84.40530009102076
+   }
+  },
+  {
+   "id": "B18",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "minus from what is still owed",
+   "ms": 84.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "ok": true
+    },
+    "budget_minus": {
+     "expected": {
+      "suppliers": 200000
+     },
+     "actual": {
+      "suppliers": 200000
+     },
+     "ok": true
+    },
+    "budget_requests": {
+     "expected": {
+      "suppliers": 1
+     },
+     "actual": {
+      "suppliers": 1
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 300000
+    },
+    "budget_minus": {
+     "suppliers": 200000
+    },
+    "budget_alerts": 0,
+    "budget_requests": {
+     "suppliers": 1
+    },
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 700000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 76.74400007817894
+   }
+  },
+  {
+   "id": "B19",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "viewer with a budget is still blocked",
+   "ms": 89.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "BLOCKED",
+     "actual": "BLOCKED",
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "BLOCKED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 700000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [
+     "Policy"
+    ],
+    "breach_bp": 0,
+    "not_blocked": false,
+    "duration_ms": 81.69060002546757
+   }
+  },
+  {
+   "id": "B20",
+   "suite": "budget",
+   "kind": "plan",
+   "title": "no budget attached: nothing changes",
+   "ms": 81.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "budget_attached": {
+     "expected": false,
+     "actual": false,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 74.36180009972304
+   }
+  },
+  {
+   "id": "K01",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "deposit and balance of one invoice are two payouts",
+   "ms": 82.9,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1",
+     "O2"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 76.10900001600385
+   }
+  },
+  {
+   "id": "K02",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "the balance sent twice is a duplicate",
+   "ms": 84.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "REJECT"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 76.45969989243895
+   }
+  },
+  {
+   "id": "K03",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "a balance that overshoots the contract is rejected",
+   "ms": 85.0,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "REJECT"
+     },
+     "actual": {
+      "O1": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "REJECT"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 77.86900002975017
+   }
+  },
+  {
+   "id": "K04",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "whole-invoice payout after a deposit is a duplicate of the invoice",
+   "ms": 87.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "ok": true
+    },
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "amount_mismatch"
+     ],
+     "actual": [
+      "amount_mismatch"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1",
+     "O2"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [
+     "amount_mismatch"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 78.54950008913875
+   }
+  },
+  {
+   "id": "K05",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "invoice equals the contract",
+   "ms": 88.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 80.76499996241182
+   }
+  },
+  {
+   "id": "K06",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "invoice inside tolerance (+0.4%)",
+   "ms": 178.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 79.01990006212145
+   }
+  },
+  {
+   "id": "K07",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "invoice above tolerance (+1%)",
+   "ms": 82.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "amount_mismatch"
+     ],
+     "actual": [
+      "amount_mismatch"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [
+     "amount_mismatch"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 74.42580000497401
+   }
+  },
+  {
+   "id": "K08",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "invoice below the contract (under-claim) is fine",
+   "ms": 90.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 80.74670005589724
+   }
+  },
+  {
+   "id": "K09",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "over-claim that is escalated anyway needs no second reason",
+   "ms": 98.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 88.79399998113513
+   }
+  },
+  {
+   "id": "K10",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "tolerance set to zero: one cent over needs a person",
+   "ms": 90.5,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "amount_mismatch"
+     ],
+     "actual": [
+      "amount_mismatch"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": false,
+    "budget_status": {},
+    "budget_available": {},
+    "budget_minus": {},
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": null,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [
+     "amount_mismatch"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 81.64990006480366
+   }
+  },
+  {
+   "id": "K11",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "due inside the period draws on the line",
+   "ms": 96.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "budget_carry_forward": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    },
+    "budget_status": {
+     "expected": {
+      "suppliers": "auto"
+     },
+     "actual": {
+      "suppliers": "auto"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 4700000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 87.1799000306055
+   }
+  },
+  {
+   "id": "K12",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "due after the period end carries forward",
+   "ms": 105.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "budget_carry_forward": {
+     "expected": 1,
+     "actual": 1,
+     "ok": true
+    },
+    "budget_paying_in_period": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 5000000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 1,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 0,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 94.92709999904037
+   }
+  },
+  {
+   "id": "K13",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "explicit due_date after the period end",
+   "ms": 95.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "budget_carry_forward": {
+     "expected": 1,
+     "actual": 1,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 5000000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 1,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 0,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 86.77429996896535
+   }
+  },
+  {
+   "id": "K14",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "late-posted: due before the period started",
+   "ms": 100.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "budget_late_posted": {
+     "expected": 1,
+     "actual": 1,
+     "ok": true
+    },
+    "budget_carry_forward": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 4700000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 1,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 92.27810008451343
+   }
+  },
+  {
+   "id": "K15",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "closed period: spending against it needs a person",
+   "ms": 91.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "period_closed"
+     ],
+     "actual": [
+      "period_closed"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 4700000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 1,
+    "budget_requests": {},
+    "budget_carry_forward": 0,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 300000,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [
+     "period_closed"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 83.20980006828904
+   }
+  },
+  {
+   "id": "K16",
+   "suite": "controls",
+   "kind": "plan",
+   "title": "closed period but the payment carries forward: no reason",
+   "ms": 91.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "requires": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "budget_attached": true,
+    "budget_status": {
+     "suppliers": "auto"
+    },
+    "budget_available": {
+     "suppliers": 5000000
+    },
+    "budget_minus": {
+     "suppliers": 0
+    },
+    "budget_alerts": 0,
+    "budget_requests": {},
+    "budget_carry_forward": 1,
+    "budget_late_posted": 0,
+    "budget_paying_in_period": 0,
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 10000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 83.08290003333241
    }
   }
  ],
@@ -3795,9 +6233,9 @@
    "id": "N04",
    "kind": "execution",
    "title": "planning rate stale: the rail is 3% dearer -> nothing booked",
-   "ms": 727.0,
+   "ms": 754.8,
    "how": "the planning rate is held stale (EUR 1.05) while the sandbox quotes the live rate (~1.13): the quote is above the slippage limit",
-   "book": "gt-real-195416n04",
+   "book": "gt-real-202321n04",
    "match": true,
    "fields": {
     "execution": {
@@ -3807,7 +6245,7 @@
     },
     "message_contains": {
      "expected": "slippage",
-     "actual": "EUR quote costs USD 4,546.63, above the slippage limit USD 4,398.07; nothing booked, re-plan",
+     "actual": "EUR quote costs USD 4,543.53, above the slippage limit USD 4,398.07; nothing booked, re-plan",
      "ok": true
     },
     "conversions": {
@@ -3826,7 +6264,7 @@
     "execution": "FAILED",
     "transfers": 0,
     "conversions": 0,
-    "message": "EUR quote costs USD 4,546.63, above the slippage limit USD 4,398.07; nothing booked, re-plan",
+    "message": "EUR quote costs USD 4,543.53, above the slippage limit USD 4,398.07; nothing booked, re-plan",
     "incident": null,
     "incident_decision": null,
     "invariants_ok": true,
@@ -3844,9 +6282,9 @@
    "id": "N26",
    "kind": "execution",
    "title": "an approval given on different terms is refused",
-   "ms": 251.9,
+   "ms": 179.4,
    "how": "a finance manager's approval carrying another plan's terms",
-   "book": "gt-real-195417n26",
+   "book": "gt-real-202322n26",
    "match": true,
    "fields": {
     "execution": {
@@ -3877,9 +6315,9 @@
    "id": "N27",
    "kind": "execution",
    "title": "a viewer 'approves'",
-   "ms": 253.0,
+   "ms": 229.9,
    "how": "an approval by a viewer",
-   "book": "gt-real-195418n27",
+   "book": "gt-real-202322n27",
    "match": true,
    "fields": {
     "execution": {
@@ -3910,9 +6348,9 @@
    "id": "N28",
    "kind": "execution",
    "title": "REQUIRES_APPROVAL executed without a person",
-   "ms": 247.3,
+   "ms": 193.6,
    "how": "REQUIRES_APPROVAL executed with no approval",
-   "book": "gt-real-195419n28",
+   "book": "gt-real-202323n28",
    "match": true,
    "fields": {
     "execution": {
@@ -3985,9 +6423,9 @@
    "id": "N41",
    "kind": "execution",
    "title": "the same invoice executed twice: second run refused before any money moves",
-   "ms": 6576.2,
+   "ms": 7676.2,
    "how": "the same invoices executed twice on the real store: the payout claim refuses the second run",
-   "book": "gt-real-195419n41",
+   "book": "gt-real-202323n41",
    "match": true,
    "fields": {
     "execution": {
@@ -4023,9 +6461,9 @@
    "id": "N42",
    "kind": "execution",
    "title": "the wallet holds less than the plan assumes",
-   "ms": 117.4,
+   "ms": 89.2,
    "how": "a treasury allocation larger than the live wallet (USD 20,000,000 against ~9.98 M): live balances do not cover the plan",
-   "book": "gt-real-195426n42",
+   "book": "gt-real-202331n42",
    "match": true,
    "fields": {
     "plan": {
@@ -4056,9 +6494,9 @@
    "id": "N44",
    "kind": "execution",
    "title": "bank return -> replace under the lock -> resolved only when the original is recorded",
-   "ms": 9748.4,
+   "ms": 14438.4,
    "how": "real transfer left in flight, failed on the sandbox with BENEFICIARY_BANK_RETURNED, replaced under the duplicate lock",
-   "book": "gt-real-195426n44",
+   "book": "gt-real-202331n44",
    "match": true,
    "fields": {
     "incident": {
@@ -4082,14 +6520,16 @@
     "execution": "IN_FLIGHT",
     "transfers": 1,
     "conversions": 1,
-    "message": "transfers still in flight: SUPPLIER-EU-NOV-195426n44",
+    "message": "transfers still in flight: SUPPLIER-EU-NOV-202331n44",
     "incident": "RESOLVED",
     "incident_decision": "REPLACE",
     "invariants_ok": true,
     "errors": [],
     "receipt_landed": null,
-    "incident_original": "68cf6c40-26cb-4214-803d-4d896db4619b",
-    "incident_replacement": "fa5b9e01-2f8d-47ce-aacc-a5230b0d00c3"
+    "incident_original": "83c014fa-dae6-4cd8-9df9-729b694b9b0d",
+    "incident_replacement": "6458c8cf-9a50-45ba-afbd-561cf3603ed4",
+    "incident_followups": 1,
+    "incident_final_decision": "REPLACE"
    }
   },
   {

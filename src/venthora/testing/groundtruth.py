@@ -42,6 +42,9 @@ def plan_view(plan: dict) -> dict:
             "budget_minus": {r["line"]: r["minus_minor"] for r in budget.get("lines", [])},
             "budget_alerts": len(budget.get("alerts", [])),
             "budget_requests": {q["line"]: 1 for q in budget.get("requests", [])},
+            "budget_carry_forward": len(budget.get("carry_forward", [])),
+            "budget_late_posted": len(budget.get("late_posted", [])),
+            "budget_paying_in_period": budget.get("paying_in_period_minor"),
             "paid": sorted(o for o, a in actions.items() if a in ("PAY", "CONVERT_AND_PAY")),
             "n_conversions": len(plan["conversions"]),
             "conversions": {c["buy_currency"]: c["buy_amount_minor"] for c in plan["conversions"]},
@@ -145,6 +148,7 @@ async def run_execution(inp: dict, workdir: Path) -> dict:
                 fail_on_paid=set(inp.get("fail_on_paid", [])), deposits_settle=inp.get("deposits_settle", True),
                 conversion_status=inp.get("conversion_status", "SETTLED"), rail_rates=inp.get("rail_rates"),
                 approve=inp.get("approve", True), receipt=inp.get("receipt", False), twice=inp.get("twice", False),
+                close_cases=inp.get("close_cases", False), fees=inp.get("fees"), hidden_charge=inp.get("hidden_charge"),
                 incident=tuple(inp["incident"]) if inp.get("incident") else None)
     return await run_variant(v, workdir)
 

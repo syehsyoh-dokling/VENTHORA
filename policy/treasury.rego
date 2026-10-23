@@ -73,6 +73,18 @@ approval_reasons contains "unbudgeted_obligation" if {
 	input.budget.unbudgeted_requires_approval
 }
 
+# Three-way match (proofcore/match.py): an invoice claiming more than contract − paid so far, beyond tolerance.
+approval_reasons contains "amount_mismatch" if {
+	count(input.paying_over_claims) > 0
+}
+
+# Period cut-off: spending on a closed period needs a person (the cut-off report was issued).
+approval_reasons contains "period_closed" if {
+	input.budget.attached
+	input.budget.period_closed
+	input.budget.paying_in_period > 0
+}
+
 decision := {
 	"allow": input.actor_role != "viewer",
 	"requires_approval": sort([r | some r in approval_reasons]),

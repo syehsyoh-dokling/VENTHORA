@@ -59,6 +59,7 @@ class FakeAirwallex:
         self.fault_queue: dict[str, list[tuple[int, str]]] = {}  # path -> [(http status, code)] returned once each
         self.deposits_settle = True  # False: simulated deposits stay PENDING forever
         self.conversion_status = "SETTLED"  # e.g. "SCHEDULED": conversions do not settle immediately
+        self.hidden_charge: dict[str, Decimal] = {}  # ccy -> extra debit per transfer the rail does not report
         self.fail_on_paid: set[str] = set()  # transfer references (substring) that fail when moved to PAID
         self.calls: list[tuple[str, str]] = []
 
@@ -193,6 +194,9 @@ class FakeAirwallex:
         if self.balances.get(ccy, Decimal(0)) < amount + fee:
             return self._error(400, "balance_insufficient")
         self.balances[ccy] -= amount + fee
+        # A charge the rail takes but does not report on the transfer (bank charge, correspondent fee): the
+        # reconciliation must catch it as a discrepancy.
+        self.balances[ccy] -= self.hidden_charge.get(ccy, Decimal(0))
         tid = f"t-{uuid4()}"
         self.transfer_requests[rid] = tid
         self.transfers[tid] = t = {

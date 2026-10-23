@@ -108,6 +108,11 @@ def main() -> None:
         "obligations, bypass signed or not, the whole November book against the November plan, minus from what is still owed, a viewer, "
         "and no budget at all. Real-sandbox cycle 8 (SANDBOX_RESULTS.md) runs the same mandate end to end: pay inside the line, stop at "
         "it, grant, continue."])
+    lines += [""] + section("controls", "Suite 4 — finance controls: instalments, three-way match, period cut-off, reconciliation cases", [
+        "Instalments (a deposit then the balance: two payouts of one invoice under the duplicate lock, never past the contract total), "
+        "the three-way match (contract − paid so far vs what the invoice claims; over-claims beyond tolerance need a person), the period "
+        "cut-off (due after period_end carries forward to the next period; due before period_start is late-posted; a closed period takes "
+        "no autonomous spend) and reconciliation cases (a mismatch opens a case that locks the book until a person closes it with a note)."])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
     real_path = ROOT / "docs" / "groundtruth_log_real.json"

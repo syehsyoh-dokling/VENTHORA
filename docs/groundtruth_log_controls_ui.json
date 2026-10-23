@@ -1,0 +1,20 @@
+{"_note": "UI bench, controls suite: every non-execution case submitted through the dashboard form (Submit a case, suite = controls) in the Claude in-app browser against the running service on 23 Oct 2026; ui_ms = round trip measured by the browser, server_ms = the plan's own duration_ms. 16/16 matched the hand-derived expectation; the 2 execution cases (reconciliation case lock) run in-process only.",
+ "n": 16, "matched": 16, "p50_ms": 90.2, "max_ms": 146.5, "server_p50_ms": 80.1,
+ "rows": [
+  {"id": "K01", "kind": "plan", "match": true, "server_ms": 135.9, "ui_ms": 146.5},
+  {"id": "K02", "kind": "plan", "match": true, "server_ms": 75.6, "ui_ms": 84.5},
+  {"id": "K03", "kind": "plan", "match": true, "server_ms": 80.4, "ui_ms": 89.4},
+  {"id": "K04", "kind": "plan", "match": true, "server_ms": 89.2, "ui_ms": 101.1},
+  {"id": "K05", "kind": "plan", "match": true, "server_ms": 84.2, "ui_ms": 93.7},
+  {"id": "K06", "kind": "plan", "match": true, "server_ms": 81.2, "ui_ms": 94.6},
+  {"id": "K07", "kind": "plan", "match": true, "server_ms": 80.1, "ui_ms": 91.9},
+  {"id": "K08", "kind": "plan", "match": true, "server_ms": 78.1, "ui_ms": 87.4},
+  {"id": "K09", "kind": "plan", "match": true, "server_ms": 78.4, "ui_ms": 87.9},
+  {"id": "K10", "kind": "plan", "match": true, "server_ms": 84.4, "ui_ms": 94.3},
+  {"id": "K11", "kind": "plan", "match": true, "server_ms": 74.9, "ui_ms": 83.9},
+  {"id": "K12", "kind": "plan", "match": true, "server_ms": 75, "ui_ms": 86},
+  {"id": "K13", "kind": "plan", "match": true, "server_ms": 77.4, "ui_ms": 86.8},
+  {"id": "K14", "kind": "plan", "match": true, "server_ms": 80.7, "ui_ms": 90.2},
+  {"id": "K15", "kind": "plan", "match": true, "server_ms": 74.2, "ui_ms": 86.5},
+  {"id": "K16", "kind": "plan", "match": true, "server_ms": 80.1, "ui_ms": 92.1}
+ ]}

@@ -168,7 +168,7 @@ def part_a(base: str) -> list[dict]:
     with httpx.Client(base_url=base, timeout=60) as client:
         status = client.get("/api/status").json()
         assert status["authorities"]["airwallex"], "the service is not connected to the sandbox"
-        for suite in ("cases", "anomalies"):
+        for suite in ("cases", "anomalies", "budget", "controls"):
             for case in load_cases(suite):
                 if case["kind"] == "execution":
                     continue
@@ -207,7 +207,7 @@ def main() -> int:
         fresh = {r["id"]: r for r in asyncio.run(part_b(args.approve, only))}
         b = [fresh.get(r["id"], r) for r in payload["part_b"]]
     else:
-        print("Part A: 84 plan / intake / incident cases through the live service (real sandbox balances)")
+        print("Part A: every plan / intake / incident case of all suites through the live service (real sandbox balances)")
         a = part_a(args.base)
         plans = [r for r in a if r["kind"] == "plan"]
         print(f"  {sum(r['match'] for r in a)} / {len(a)} match; {sum(bool(r['real']) for r in plans)} / {len(plans)} plans read live sandbox balances; "

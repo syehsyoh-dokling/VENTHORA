@@ -184,6 +184,20 @@ its "before" balances date from the original run and steps 4–6 had since moved
 known limit, now written down: on a shared wallet a resume can only reconcile to the cent when nothing else moved money
 in between (a book-level ledger — TigerBeetle, optional here — is the real answer). The payouts themselves are correct.
 
+## Cycle 10: finance controls on the real sandbox
+
+Approved by the owner as finance manager; 23 Oct 2026, ~20:30 WIB.
+
+- **All four ground-truth suites through the live service** (`scripts/groundtruth_real.py`): **120 / 120** plan / intake /
+  incident cases match, every one of the 90 plans with its `Airwallex · live balances` stage read from the sandbox (plan
+  round trip p50 90 ms); the 7 reproducible execution anomalies 7 / 7 on the real rail again. Log: `docs/groundtruth_log_real.json`.
+- **Instalments on the rail** (`scripts/controls_real.py`, log `docs/controls_log_real.json`): one invoice, contract
+  USD 1,000 — run 1 paid the **deposit** (USD 300) and the **balance** (USD 700) as two payouts of the same invoice under the
+  per-instalment duplicate lock, three-way matched (deposit: expected 1,000, balance: expected 700), reconciled; run 2
+  presented the balance again → `duplicate payment blocked before any money moved`.
+- The Rego mirror was re-proven on the real OPA with the two new reasons (`amount_mismatch`, `period_closed`):
+  7,646 inputs, 0 disagreements.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |

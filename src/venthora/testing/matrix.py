@@ -91,11 +91,13 @@ class Variant:
     fail_on_paid: set[str] = field(default_factory=set)
     deposits_settle: bool = True
     conversion_status: str = "SETTLED"
+    hidden_charge: dict[str, str] | None = None  # ccy -> major amount the rail debits per transfer without reporting it
     inbox: dict | None = None  # {"messages": [...], "as_of": "YYYY-MM-DD"}
     model: ChatModel | None = None
     execute: bool = True
     approve: bool | str = True  # True | False | "wrong-terms" | "viewer"
     twice: bool = False  # execute the same invoices a second time (must be refused)
+    close_cases: bool = False  # before the second run, a person closes any reconciliation case the first one opened
     receipt: bool = False
     incident: tuple[str | None, int] | None = None  # (failure_type, hours_in_flight)
     replan: dict | None = None  # second state to re-plan with previous=(state, plan)
@@ -397,12 +399,18 @@ def ecb_fixture(workdir: Path) -> Path:
 async def _harness(v: Variant, workdir: Path):
     rates = v.rail_rates or {f"{c}USD": r for c, r in v.state["fx_to_base"].items()}
     fake = FakeAirwallex(balances=_wallet_for(v), rates=rates)
-    fake.fees = dict(v.fees or REAL_SANDBOX_FEES)
+    from decimal import Decimal
+    fees = dict(REAL_SANDBOX_FEES)
+    for k, f in (v.fees or {}).items():  # ("SWIFT", "EUR") or "SWIFT:EUR", minor or Decimal major
+        key = tuple(k.split(":")) if isinstance(k, str) else tuple(k)
+        fees[key] = Decimal(f) / 100 if isinstance(f, int) else Decimal(f)
+    fake.fees = fees
     fake.fault_queue = {k: list(q) for k, q in v.faults.items()}
     fake.lose_response_once = set(v.lose_response)
     fake.fail_on_paid = set(v.fail_on_paid)
     fake.deposits_settle = v.deposits_settle
     fake.conversion_status = v.conversion_status
+    fake.hidden_charge = {c: Decimal(x) for c, x in (v.hidden_charge or {}).items()}
     if v.quote_markup:
         from decimal import Decimal
         fake.quote_markup = Decimal(v.quote_markup)
@@ -500,10 +508,13 @@ async def run_variant(v: Variant, workdir: Path) -> dict:
                 t1 = time.perf_counter()
                 result = await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash, approval=approval,
                                                                  simulate_settlement=v.incident is None))
-                if v.twice and result.status == "COMPLETED":  # the same invoices again, on a fresh plan of the same state
+                if v.twice and result.status in ("COMPLETED", "RECONCILIATION_MISMATCH"):  # the same invoices again
                     from decimal import Decimal
                     for c, amt in state.balances.items():  # top the wallet back up so the second plan is feasible
-                        fake.balances[c] = fake.balances.get(c, Decimal(0)) + Decimal(amt) / 100
+                        fake.balances[c] = max(fake.balances.get(c, Decimal(0)), Decimal(0)) + Decimal(amt) / 100
+                    if v.close_cases:
+                        for case in executor.store.open_recon_cases(state.book_id):
+                            executor.store.close_recon_case(case["case_id"], "matrix (finance_manager)", "fee variance explained")
                     plan2 = await agent.decide(state)
                     result = await executor.execute(ExecutionRequest(state=state, plan_hash=plan2.plan_hash, approval=approval))
                 exec_ms = (time.perf_counter() - t1) * 1000

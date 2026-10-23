@@ -75,7 +75,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | 49 | After a deposit, recalculate only the decisions it affects | ✅🧪 | incremental recalculation with locked decisions and a diff |
 | 50 | Execution limit tied to forecast confidence; strong data allows a larger autonomous conversion | ✅🧪 | limit = full at ≥90%, linear to 0 at ≤50% |
 | 51 | A contradicting customer email lowers the limit; a person approves the same conversion | ✅🧪 | 90% → 70% → limit 5,000 < conversion 7,931 → `REQUIRES_APPROVAL` for identical conversions; a contradicted forecast is capped below the full band whatever the payer record (audit mutation M6) |
-| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 7,638 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
+| 52 | Thresholds in policy code, not prompts | ✅🧪 | `TreasuryPolicy`, `proofcore/policy.py`, `policy/treasury.rego`; Rego and Python agree on 7,646 inputs under a real OPA 0.70.0, budget-line thresholds included (`scripts/check_policy_mirror.py`, 23 Oct 2026) |
 | 53 | Read balances and obligations | ✅ | `GET /balances/current`; scenario obligations |
 | 54 | Plan in code | ✅ | Theorem (CP-SAT + exact second candidate) |
 | 55 | Lower forecast confidence for one receipt | ✅ | RCV-ACME 90% → 70% (calibrated from payer history) |
@@ -200,6 +200,19 @@ counts only when a person signed it. Obligations name their line (intake-created
 Ground truth: 20 hand-derived cases (`scripts/make_budget_groundtruth.py`), 20/20 in-process, through the endpoints and
 through the form; real sandbox cycle 8 ran the mandate end to end (pay inside the line, stop at it with a request, grant,
 continue, alert near the end).
+
+## (10) Finance controls: instalments, three-way match, period cut-off, reconciliation cases
+
+| Control | Rule, in code | Where |
+|---|---|---|
+| Instalments (deposit, balance, term-N) | one payout per *(invoice, instalment)* under the duplicate lock; the parts may never exceed the contract total (Verity rejects the part that would) | `engines/verity.py`, `execution/executor.py::_payout_key`, `execution/facts.py` |
+| Three-way match | expected = contract − paid so far; an invoice claiming more than that beyond tolerance (max(USD 5, 0.5 %)) → `amount_mismatch`, a person; under-claims noted, never unsafe | `proofcore/match.py`, stage `Verity · three-way match`, `policy.py` + `treasury.rego` |
+| Period cut-off | obligations due after `period_end` carry forward to the next period (not this period's lines); due before `period_start` are late-posted; `POST /v1/budgets/{period}/close` issues the cut-off statement (plan, realized, open commitments, carry-forward) and closes the period; spend against a closed period → `period_closed`, a person | `proofcore/budget.py` (`place_in_period`, `cutoff_report`), `api.py` |
+| Reconciliation cases | a reconciliation that does not add up opens a case that **locks the book**: every later execution is REFUSED until a finance manager closes the case with a note (audited) | `execution/store.py` (`recon_cases`), `executor.py::_preflight`, `POST /v1/recon-cases/{id}/close`, dashboard |
+
+Ground truth suite 4 (`scripts/make_controls_groundtruth.py`): 18 hand-derived cases, 18/18 in-process; the 16 that do not
+move money also 16/16 through the endpoints and the dashboard form. Rego mirror re-proven on a real OPA with the two new
+reasons.
 
 ## Not applicable to this build
 

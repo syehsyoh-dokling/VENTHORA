@@ -17,9 +17,9 @@ from .store import ExecutionStore
 
 
 def payout_key(obligation) -> str:
-    fp = obligation.get("invoice_fingerprint") if isinstance(obligation, dict) else obligation.invoice_fingerprint
-    oid = obligation.get("obligation_id") if isinstance(obligation, dict) else obligation.obligation_id
-    return f"invoice:{fp}" if fp else f"obligation:{oid}"
+    get = obligation.get if isinstance(obligation, dict) else lambda k: getattr(obligation, k)
+    fp, oid, inst = get("invoice_fingerprint"), get("obligation_id"), get("installment")
+    return (f"invoice:{fp}" + (f"#{inst}" if inst else "")) if fp else f"obligation:{oid}"
 
 
 def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tuple[TreasuryState, list[str]]:

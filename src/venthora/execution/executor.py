@@ -102,6 +102,11 @@ class Executor:
             refuse("Airwallex sandbox credentials are not configured")
         if not self.bank.sandbox:
             refuse("execution is restricted to the Airwallex sandbox")
+        # A reconciliation that did not add up locks the book: no autonomous execution until a person closes the case.
+        open_cases = self.store.open_recon_cases(req.state.book_id)
+        if open_cases:
+            refuse(f"book {req.state.book_id} is locked by open reconciliation case(s) "
+                   + ", ".join(c["case_id"][:8] for c in open_cases) + "; a person must close them first")
         plan = await self.agent.decide(req.state)
         if plan.plan_hash != req.plan_hash:
             refuse("state or plan changed since it was reviewed; re-plan and approve again")
@@ -153,6 +158,10 @@ class Executor:
                 status, message = "IN_FLIGHT", f"transfers still in flight: {', '.join(pending)}"
             elif recon.discrepancies_minor or not recon.base_floor_ok:
                 status, message = "RECONCILIATION_MISMATCH", "live balances differ from expected or reserve breached"
+                case = self.store.open_recon_case(state.book_id, eid, recon.discrepancies_minor, message)
+                message += (f"; reconciliation case {case['case_id'][:8]} opened, book {state.book_id} locked until a "
+                            "person closes it")
+                steps.append(Step(kind="reconcile", key="case", status="FAILED", detail=case))
             else:
                 base = state.base_currency
                 after_base = recon.managed_after_minor.get(base, 0)
@@ -474,7 +483,10 @@ def terms_digest(plan: PlanResult) -> str:
 
 
 def _payout_key(o) -> str:
-    return f"invoice:{o.invoice_fingerprint}" if o.invoice_fingerprint else f"obligation:{o.obligation_id}"
+    """The duplicate lock's key: one live payout per invoice, or per (invoice, instalment) when the invoice is paid in parts."""
+    if o.invoice_fingerprint:
+        return f"invoice:{o.invoice_fingerprint}" + (f"#{o.installment}" if o.installment else "")
+    return f"obligation:{o.obligation_id}"
 
 
 def _approval_reasons(plan: PlanResult) -> list[str]:

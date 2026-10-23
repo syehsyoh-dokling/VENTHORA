@@ -49,6 +49,11 @@ CREATE TABLE IF NOT EXISTS budget_spend (
 CREATE TABLE IF NOT EXISTS budget_grants (
     grant_id TEXT PRIMARY KEY, period TEXT NOT NULL, line TEXT NOT NULL, extra_minor INTEGER NOT NULL,
     approver TEXT NOT NULL, role TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS recon_cases (
+    case_id TEXT PRIMARY KEY, book_id TEXT NOT NULL, execution_id TEXT NOT NULL, status TEXT NOT NULL,
+    discrepancies_json TEXT NOT NULL, note TEXT, opened_at TEXT NOT NULL, closed_at TEXT, closed_by TEXT, closing_note TEXT);
+CREATE TABLE IF NOT EXISTS budget_periods (
+    period TEXT PRIMARY KEY, closed_at TEXT NOT NULL, closed_by TEXT NOT NULL, report_json TEXT NOT NULL);
 """
 
 LIVE_PAYOUT_STATUSES = ("IN_FLIGHT", "PAID")
@@ -288,6 +293,48 @@ class ExecutionStore:
         with self._lock, self._connect() as c:
             rows = c.execute("SELECT * FROM budget_grants WHERE period = ? ORDER BY created_at DESC", (period,)).fetchall()
         return [dict(r) for r in rows]
+
+    # -- reconciliation cases: a mismatch locks the book until a person closes it -----------------
+
+    def open_recon_case(self, book_id: str, execution_id: str, discrepancies: dict, note: str) -> dict:
+        case_id = str(uuid4())
+        with self._lock, self._connect() as c:
+            c.execute("INSERT INTO recon_cases VALUES (?, ?, ?, 'OPEN', ?, ?, ?, NULL, NULL, NULL)",
+                      (case_id, book_id, execution_id, json.dumps(discrepancies, default=str), note, _now()))
+        return {"case_id": case_id, "book_id": book_id, "execution_id": execution_id, "status": "OPEN",
+                "discrepancies": discrepancies, "note": note}
+
+    def open_recon_cases(self, book_id: str | None = None) -> list[dict]:
+        with self._lock, self._connect() as c:
+            if book_id:
+                rows = c.execute("SELECT * FROM recon_cases WHERE status = 'OPEN' AND book_id = ?", (book_id,)).fetchall()
+            else:
+                rows = c.execute("SELECT * FROM recon_cases WHERE status = 'OPEN'").fetchall()
+        return [dict(r) | {"discrepancies": json.loads(r["discrepancies_json"])} for r in rows]
+
+    def list_recon_cases(self, limit: int = 50) -> list[dict]:
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT * FROM recon_cases ORDER BY opened_at DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) | {"discrepancies": json.loads(r["discrepancies_json"])} for r in rows]
+
+    def close_recon_case(self, case_id: str, closed_by: str, note: str) -> dict | None:
+        with self._lock, self._connect() as c:
+            c.execute("UPDATE recon_cases SET status = 'CLOSED', closed_at = ?, closed_by = ?, closing_note = ?"
+                      " WHERE case_id = ? AND status = 'OPEN'", (_now(), closed_by, note, case_id))
+            row = c.execute("SELECT * FROM recon_cases WHERE case_id = ?", (case_id,)).fetchone()
+        return (dict(row) | {"discrepancies": json.loads(row["discrepancies_json"])}) if row else None
+
+    # -- period cut-off ---------------------------------------------------------------------------
+
+    def close_period(self, period: str, closed_by: str, report: dict) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("INSERT OR REPLACE INTO budget_periods VALUES (?, ?, ?, ?)",
+                      (period, _now(), closed_by, json.dumps(report, default=str)))
+
+    def closed_period(self, period: str) -> dict | None:
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT * FROM budget_periods WHERE period = ?", (period,)).fetchone()
+        return (dict(row) | {"report": json.loads(row["report_json"])}) if row else None
 
     def paid_payouts(self) -> dict[str, dict]:
         with self._lock, self._connect() as c:

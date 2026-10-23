@@ -36,6 +36,13 @@ class Obligation(StrictModel):
     policy_flags: list[str] = Field(default_factory=list,
                                     description="policy exceptions raised by evidence, e.g. payee_bank_details_changed")
     budget_line: str | None = Field(default=None, max_length=60, description="budget line this obligation draws on")
+    # Instalments and the three-way match: an invoice may be settled in parts (deposit, balance, term-n); each part is
+    # its own payout under the duplicate lock, and the parts may never exceed what the contract / PO says.
+    installment: str | None = Field(default=None, max_length=40, description="deposit | balance | term-N; None = whole invoice")
+    contract_total_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR,
+                                             description="PO / contract amount (three-way match)")
+    paid_so_far_minor: int = Field(default=0, ge=0, le=MAX_MINOR, description="earlier instalments already paid on this invoice")
+    due_date: str | None = Field(default=None, description="ISO date; with as_of it places the obligation in a period")
 
 
 class BudgetLine(StrictModel):
@@ -67,6 +74,9 @@ class Budget(StrictModel):
     period: str = Field(min_length=1, max_length=40, description="e.g. 2026-11, 2026-Q4, 2026")
     lines: list[BudgetLine] = Field(min_length=1, max_length=50)
     unbudgeted_requires_approval: bool = Field(default=True, description="an obligation outside every line needs a person")
+    period_start: str | None = Field(default=None, description="ISO date; with period_end it defines the cut-off")
+    period_end: str | None = Field(default=None, description="ISO date (inclusive); obligations due after it carry forward")
+    closed: bool = Field(default=False, description="the period was closed (cut-off report issued); no more spend on it")
 
     @model_validator(mode="after")
     def unique_lines(self):
@@ -149,6 +159,8 @@ class TreasuryPolicy(StrictModel):
     incident_wait_hours: int = Field(default=48, ge=0, le=720,
                                      description="Kit 03: how long an in-flight transfer may stay unconfirmed before escalation")
     max_replacements: int = Field(default=1, ge=0, le=3, description="Kit 03: replacement transfers per obligation")
+    amount_tolerance_bp: int = Field(default=50, ge=0, le=10_000, description="three-way match tolerance, share of expected")
+    amount_tolerance_minor: int = Field(default=500, ge=0, le=MAX_MINOR, description="three-way match tolerance, absolute floor")
 
     @model_validator(mode="after")
     def confidence_band(self):
@@ -173,6 +185,7 @@ class TreasuryState(StrictModel):
     policy: TreasuryPolicy
     actor_role: Literal["treasury_agent", "finance_manager", "viewer"] = "treasury_agent"
     budget: Budget | None = Field(default=None, description="the period's plan: the agent's mandate per line")
+    as_of: str | None = Field(default=None, description="ISO date the book is planned on (period cut-off, due dates)")
     use_ecb_stress: bool = False
     fx_stress_model: Literal["horizon_m0", "ecb_empirical"] = Field(
         default="horizon_m0", description="horizon_m0 = original Horizon scenario engine; ecb_empirical = 5-day p95")

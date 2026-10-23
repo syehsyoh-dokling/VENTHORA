@@ -31,7 +31,7 @@ from .gateways.airwallex import AirwallexError  # noqa: E402
 from .intake.models import IntakeRequest, ReviewRequest  # noqa: E402
 from .intake.pipeline import Intake  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
-from .proofcore.budget import attach_budget, load_budget  # noqa: E402
+from .proofcore.budget import attach_budget, cutoff_report, load_budget  # noqa: E402
 from .testing.groundtruth import book_fingerprints, compare, load_cases, run_case, view_of  # noqa: E402
 
 SCENARIOS = ROOT / "data" / "scenarios"
@@ -119,12 +119,15 @@ async def get_scenario(scenario_id: str):
 
 
 def _with_budget(state: TreasuryState, period: str | None = None) -> TreasuryState:
-    """The period's plan from data/budgets.json plus what the execution store knows (realized spend, grants)."""
+    """The period's plan from data/budgets.json plus what the execution store knows (realized spend, grants, closure)."""
     budget = state.budget or load_budget(period)
     if budget is None or not (state.budget or any(o.budget_line for o in state.obligations)):
         return state
     store = app.state.executor.store
-    return attach_budget(state, budget.period, realized=store.realized(budget.period), grants=store.grants(budget.period))
+    state = attach_budget(state, budget.period, realized=store.realized(budget.period), grants=store.grants(budget.period))
+    if state.budget and store.closed_period(state.budget.period):
+        state = state.model_copy(update={"budget": state.budget.model_copy(update={"closed": True})})
+    return state
 
 
 @app.post("/api/scenarios/{scenario_id}/plan", response_model=PlanResult)
@@ -146,8 +149,70 @@ async def budget_pipeline(scenario_id: str = "kit01_initial", period: str | None
     result = await app.state.agent.decide(state)
     return {"scenario_id": scenario_id, "decision": result.decision, "plan_hash": result.plan_hash, **result.budget,
             "grants": app.state.executor.store.list_grants(state.budget.period),
+            "open_recon_cases": app.state.executor.store.open_recon_cases(state.book_id),
+            "closed_period": bool(app.state.executor.store.closed_period(state.budget.period)),
             "requires_approval": next((s.details.get("local", {}).get("requires_approval", [])
                                        for s in result.stages if s.engine == "Policy"), [])}
+
+
+class ReviewerAction(BaseModel):
+    reviewer: str = Field(min_length=1, max_length=120)
+    role: str = Field(min_length=1, max_length=60)
+    note: str = Field(default="", max_length=500)
+
+
+@app.get("/v1/recon-cases")
+async def list_recon_cases():
+    """Reconciliations that did not add up. An OPEN case locks its book: no autonomous execution until closed."""
+    return app.state.executor.store.list_recon_cases()
+
+
+@app.post("/v1/recon-cases/{case_id}/close")
+async def close_recon_case(case_id: str, act: ReviewerAction):
+    if act.role != "finance_manager":
+        raise HTTPException(403, f"role {act.role} may not close a reconciliation case")
+    if not act.note.strip():
+        raise HTTPException(422, "a closing note (what explained the difference) is required")
+    case = app.state.executor.store.close_recon_case(case_id, f"{act.reviewer} ({act.role})", act.note)
+    if case is None:
+        raise HTTPException(404, "unknown case")
+    await asyncio.to_thread(app.state.audit.append, "recon_case_closed", {"case_id": case_id, **act.model_dump()})
+    return case
+
+
+class PeriodCloseRequest(BaseModel):
+    scenario_id: str = "kit01_initial"
+    as_of: str = Field(min_length=10, max_length=10, description="cut-off date, ISO")
+    reviewer: str = Field(min_length=1, max_length=120)
+    role: str = Field(min_length=1, max_length=60)
+    note: str = Field(default="", max_length=500)
+
+
+@app.post("/v1/budgets/{period}/close")
+async def close_period(period: str, req: PeriodCloseRequest):
+    """Period cut-off: issue the period's statement (plan, realized to the cut-off, open commitments, carry-forward,
+    late-posted) and close it; later spend against it needs a person. Role-checked and audited."""
+    if req.role != "finance_manager":
+        raise HTTPException(403, f"role {req.role} may not close a period")
+    data = json.loads(_scenario_file(req.scenario_id).read_text(encoding="utf-8"))
+    state = _with_budget(TreasuryState.model_validate(data["state"] | {"as_of": req.as_of}), period)
+    if state.budget is None or state.budget.period != period:
+        raise HTTPException(404, "no such budget period for this book")
+    plan = await app.state.agent.decide(state)
+    report = cutoff_report(state, plan.budget, app.state.executor.store.realized(period))
+    report |= {"closed_by": f"{req.reviewer} ({req.role})", "note": req.note}
+    app.state.executor.store.close_period(period, report["closed_by"], report)
+    await asyncio.to_thread(app.state.audit.append, "period_closed", {
+        "period": period, "closed_by": report["closed_by"], "carry_forward_total_minor": report["carry_forward_total_minor"]})
+    return report
+
+
+@app.get("/v1/budgets/{period}/cutoff")
+async def period_cutoff(period: str):
+    closed = app.state.executor.store.closed_period(period)
+    if closed is None:
+        raise HTTPException(404, "period not closed")
+    return closed
 
 
 class GrantRequest(BaseModel):
@@ -340,7 +405,7 @@ async def groundtruth_cases(suite: str = "cases"):
 
 
 def _case(case_id: str) -> dict:
-    for suite in ("cases", "anomalies", "budget"):
+    for suite in ("cases", "anomalies", "budget", "controls"):
         with contextlib.suppress(FileNotFoundError):
             for c in load_cases(suite):
                 if c["id"] == case_id:

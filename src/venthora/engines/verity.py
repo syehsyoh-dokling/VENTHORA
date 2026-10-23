@@ -25,10 +25,18 @@ async def verity(state: TreasuryState) -> VerityResult:
 
     for o in sorted(state.obligations, key=lambda x: (-x.priority, x.due_in_hours, x.obligation_id)):
         doc = evidence.get(o.evidence_ref)
+        # Instalments: the duplicate lock is per (invoice, instalment); a deposit and its balance are two payouts of
+        # one invoice, two "balance" payouts are a duplicate, and the parts may never exceed the contract total.
+        dup_key = f"{o.invoice_fingerprint}#{o.installment}" if o.invoice_fingerprint and o.installment else o.invoice_fingerprint
         if o.record_kind != "payable":
             rejected[o.obligation_id] = "already settled; not a payable"
-        elif o.invoice_fingerprint and o.invoice_fingerprint in seen_fingerprints:
-            rejected[o.obligation_id] = f"duplicate of {seen_fingerprints[o.invoice_fingerprint]} (same invoice fingerprint)"
+        elif dup_key and dup_key in seen_fingerprints:
+            rejected[o.obligation_id] = (f"duplicate of {seen_fingerprints[dup_key]} (same invoice fingerprint"
+                                         + (f", same instalment '{o.installment}'" if o.installment else "") + ")")
+        elif (o.contract_total_minor is not None and o.installment
+              and o.paid_so_far_minor + o.amount_minor > o.contract_total_minor):
+            rejected[o.obligation_id] = (f"instalment '{o.installment}' would take the invoice past its contract total: "
+                                         f"paid {o.paid_so_far_minor} + claimed {o.amount_minor} > {o.contract_total_minor}")
         elif doc is None:
             rejected[o.obligation_id] = f"no evidence document {o.evidence_ref}"
         elif doc.subject_id != o.obligation_id:
@@ -38,12 +46,12 @@ async def verity(state: TreasuryState) -> VerityResult:
         elif set(o.policy_flags) & set(state.policy.escalate_flags):
             flags = sorted(set(o.policy_flags) & set(state.policy.escalate_flags))
             exceptions[o.obligation_id] = "policy exception: " + ", ".join(f.replace("_", " ") for f in flags)
-            if o.invoice_fingerprint:
-                seen_fingerprints[o.invoice_fingerprint] = o.obligation_id
+            if dup_key:
+                seen_fingerprints[dup_key] = o.obligation_id
         else:
             eligible[o.obligation_id] = o
-            if o.invoice_fingerprint:
-                seen_fingerprints[o.invoice_fingerprint] = o.obligation_id
+            if dup_key:
+                seen_fingerprints[dup_key] = o.obligation_id
 
     summary = (f"{len(eligible)} obligations verified, {len(rejected)} rejected"
                + (f", {len(exceptions)} policy exception(s) to a person" if exceptions else ""))

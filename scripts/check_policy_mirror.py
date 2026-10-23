@@ -59,6 +59,11 @@ def main() -> int:
                                        "lines": [{"line": "l", "mandate_minor": mandate, "used_minor": used, "paying_now_minor": used,
                                                   "auto_share_bp": auto, "alert_share_bp": alert, "require_approval_on_alert": on_alert,
                                                   "bypass": bypass, "bypass_signed": bypass and signed}]}})
+    # Three-way match and period cut-off.
+    for over, closed, paying in itertools.product([[], ["O1"]], [False, True], [0, 1]):
+        grid.append(base | {"paying_over_claims": over,
+                            "budget": {"attached": True, "unbudgeted_paying": 0, "unbudgeted_requires_approval": False, "lines": [],
+                                       "period_closed": closed, "paying_in_period": paying}})
     local = [policy.evaluate(i) for i in grid]
     remote = opa_eval(grid)
     bad = [(i, a, b) for i, a, b in zip(grid, local, remote, strict=True) if a != b]

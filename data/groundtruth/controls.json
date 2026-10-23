@@ -1,0 +1,1629 @@
+{
+ "_note": "Controls ground truth, hand-derived; see scripts/make_controls_groundtruth.py.",
+ "cases": [
+  {
+   "id": "K01",
+   "kind": "plan",
+   "level": 4,
+   "pain": "a deposit then the balance",
+   "title": "deposit and balance of one invoice are two payouts",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-INV9",
+      "budget_line": "suppliers",
+      "installment": "deposit",
+      "contract_total_minor": 1000000
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 700000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-INV9",
+      "budget_line": "suppliers",
+      "installment": "balance",
+      "contract_total_minor": 1000000,
+      "paid_so_far_minor": 300000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY"
+    }
+   },
+   "derivation": "same invoice, different instalments -> both payable; 3,000 + 7,000 = contract 10,000"
+  },
+  {
+   "id": "K02",
+   "kind": "plan",
+   "level": 4,
+   "pain": "paying twice",
+   "title": "the balance sent twice is a duplicate",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 700000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-INV9",
+      "budget_line": "suppliers",
+      "installment": "balance",
+      "contract_total_minor": 1000000,
+      "paid_so_far_minor": 300000
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 700000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-INV9",
+      "budget_line": "suppliers",
+      "installment": "balance",
+      "contract_total_minor": 1000000,
+      "paid_so_far_minor": 300000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "actions": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    }
+   },
+   "derivation": "same (invoice, instalment) -> the second copy is REJECT"
+  },
+  {
+   "id": "K03",
+   "kind": "plan",
+   "level": 4,
+   "pain": "over-claim on the balance",
+   "title": "a balance that overshoots the contract is rejected",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 800000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-INV9",
+      "budget_line": "suppliers",
+      "installment": "balance",
+      "contract_total_minor": 1000000,
+      "paid_so_far_minor": 300000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "actions": {
+     "O1": "REJECT"
+    }
+   },
+   "derivation": "3,000 paid + 8,000 claimed = 11,000 > contract 10,000 -> REJECT before anything else"
+  },
+  {
+   "id": "K04",
+   "kind": "plan",
+   "level": 4,
+   "pain": "double-billing after a deposit",
+   "title": "whole-invoice payout after a deposit is a duplicate of the invoice",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-INV9",
+      "budget_line": "suppliers",
+      "installment": "deposit",
+      "contract_total_minor": 1000000
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 2",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-INV9",
+      "budget_line": "suppliers",
+      "contract_total_minor": 1000000,
+      "paid_so_far_minor": 300000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "amount_mismatch"
+    ]
+   },
+   "derivation": "O2 claims the whole 10,000 although 3,000 is paid: expected 7,000, claimed 10,000 -> over-claim -> a person (amount_mismatch); O1 unaffected"
+  },
+  {
+   "id": "K05",
+   "kind": "plan",
+   "level": 4,
+   "pain": "three-way match",
+   "title": "invoice equals the contract",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "contract_total_minor": 1000000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": []
+   },
+   "derivation": "expected 10,000 = claimed -> matched"
+  },
+  {
+   "id": "K06",
+   "kind": "plan",
+   "level": 4,
+   "pain": "rounding and small variances",
+   "title": "invoice inside tolerance (+0.4%)",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1004000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "contract_total_minor": 1000000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "diff 40 <= tolerance max(5, 0.5% of 10,000 = 50) -> matched"
+  },
+  {
+   "id": "K07",
+   "kind": "plan",
+   "level": 4,
+   "pain": "over-claim",
+   "title": "invoice above tolerance (+1%)",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1010000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "contract_total_minor": 1000000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "requires": [
+     "amount_mismatch"
+    ]
+   },
+   "derivation": "diff 100 > 50 -> over-claim -> a person"
+  },
+  {
+   "id": "K08",
+   "kind": "plan",
+   "level": 4,
+   "pain": "under-claim",
+   "title": "invoice below the contract (under-claim) is fine",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 900000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "contract_total_minor": 1000000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "the payee bills less; paying less is never unsafe; noted as under-claim"
+  },
+  {
+   "id": "K09",
+   "kind": "plan",
+   "level": 4,
+   "pain": "controls compose",
+   "title": "over-claim that is escalated anyway needs no second reason",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1010000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "contract_total_minor": 1000000,
+      "policy_flags": [
+       "payee_bank_details_changed"
+      ]
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "requires": []
+   },
+   "derivation": "the bank-change flag already sends it to a person; the plan pays nothing on it, so no amount_mismatch"
+  },
+  {
+   "id": "K10",
+   "kind": "plan",
+   "level": 4,
+   "pain": "strict books",
+   "title": "tolerance set to zero: one cent over needs a person",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 1000001,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "contract_total_minor": 1000000
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "amount_tolerance_bp": 0,
+     "amount_tolerance_minor": 0
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "amount_mismatch"
+    ]
+   },
+   "derivation": "tolerance 0 -> any excess is an over-claim"
+  },
+  {
+   "id": "K11",
+   "kind": "plan",
+   "level": 4,
+   "pain": "cut-off",
+   "title": "due inside the period draws on the line",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "period_start": "2026-11-01",
+     "period_end": "2026-11-30",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 5000000
+      }
+     ]
+    },
+    "as_of": "2026-11-10"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "budget_carry_forward": 0,
+    "budget_status": {
+     "suppliers": "auto"
+    }
+   },
+   "derivation": "as_of 10 Nov + 24h = 11 Nov, inside Nov -> counted on 'suppliers'"
+  },
+  {
+   "id": "K12",
+   "kind": "plan",
+   "level": 4,
+   "pain": "cut-off",
+   "title": "due after the period end carries forward",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 72,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "period_start": "2026-11-01",
+     "period_end": "2026-11-30",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 5000000
+      }
+     ]
+    },
+    "as_of": "2026-11-29"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "budget_carry_forward": 1,
+    "budget_paying_in_period": 0
+   },
+   "derivation": "29 Nov + 72h = 2 Dec > 30 Nov -> next period's commitment; it is still payable from cash but draws on no November line"
+  },
+  {
+   "id": "K13",
+   "kind": "plan",
+   "level": 4,
+   "pain": "cut-off",
+   "title": "explicit due_date after the period end",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "due_date": "2026-12-05"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "period_start": "2026-11-01",
+     "period_end": "2026-11-30",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 5000000
+      }
+     ]
+    },
+    "as_of": "2026-11-20"
+   },
+   "expect": {
+    "budget_carry_forward": 1
+   },
+   "derivation": "due_date wins over due_in_hours; 5 Dec is after 30 Nov -> carry-forward"
+  },
+  {
+   "id": "K14",
+   "kind": "plan",
+   "level": 4,
+   "pain": "cut-off",
+   "title": "late-posted: due before the period started",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers",
+      "due_date": "2026-10-28"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "period_start": "2026-11-01",
+     "period_end": "2026-11-30",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 5000000
+      }
+     ]
+    },
+    "as_of": "2026-11-03"
+   },
+   "expect": {
+    "budget_late_posted": 1,
+    "budget_carry_forward": 0,
+    "actions": {
+     "O1": "PAY"
+    }
+   },
+   "derivation": "28 Oct < 1 Nov -> late-posted on the November statement, still payable"
+  },
+  {
+   "id": "K15",
+   "kind": "plan",
+   "level": 4,
+   "pain": "cut-off",
+   "title": "closed period: spending against it needs a person",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "period_start": "2026-11-01",
+     "period_end": "2026-11-30",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 5000000
+      }
+     ],
+     "closed": true
+    },
+    "as_of": "2026-11-10"
+   },
+   "expect": {
+    "decision": "REQUIRES_APPROVAL",
+    "requires": [
+     "period_closed"
+    ]
+   },
+   "derivation": "the statement was issued; a payment that draws on the closed period goes to a person"
+  },
+  {
+   "id": "K16",
+   "kind": "plan",
+   "level": 4,
+   "pain": "cut-off",
+   "title": "closed period but the payment carries forward: no reason",
+   "input": {
+    "case_id": "controls",
+    "book_id": "controls",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 300000,
+      "currency": "USD",
+      "priority": 5,
+      "due_in_hours": 72,
+      "beneficiary_id": "ben-saas-vendor",
+      "payee_name": "Payee 1",
+      "payout_method": "LOCAL",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1",
+      "budget_line": "suppliers"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 10000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72
+    },
+    "actor_role": "treasury_agent",
+    "budget": {
+     "period": "2026-11",
+     "period_start": "2026-11-01",
+     "period_end": "2026-11-30",
+     "lines": [
+      {
+       "line": "suppliers",
+       "amount_minor": 5000000
+      }
+     ],
+     "closed": true
+    },
+    "as_of": "2026-11-29"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "requires": []
+   },
+   "derivation": "nothing is paid against November (carry-forward) -> period_closed does not apply"
+  },
+  {
+   "id": "K17",
+   "kind": "execution",
+   "level": 4,
+   "pain": "reconciliation mismatch",
+   "title": "a mismatch opens a case and the book is locked for the next run",
+   "input": {
+    "state": {
+     "case_id": "kit01-initial",
+     "book_id": "kit01-nov",
+     "base_currency": "USD",
+     "balances": {
+      "USD": 2250000,
+      "EUR": 0,
+      "GBP": 0
+     },
+     "fx_to_base": {
+      "EUR": "1.0850",
+      "GBP": "1.2700"
+     },
+     "obligations": [
+      {
+       "obligation_id": "PAYROLL-NOV",
+       "amount_minor": 800000,
+       "currency": "USD",
+       "priority": 10,
+       "due_in_hours": 24,
+       "beneficiary_id": "payroll-group-us",
+       "budget_line": "payroll",
+       "payee_name": "Northwind Payroll Services",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-payroll-nov",
+       "invoice_fingerprint": "northwind:PR-2026-11",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "SHIPPING-UK",
+       "amount_minor": 250000,
+       "currency": "GBP",
+       "priority": 10,
+       "due_in_hours": 24,
+       "beneficiary_id": "ben-uk-logistics",
+       "budget_line": "logistics",
+       "payee_name": "Thames Freight Ltd",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-inv-thames-311",
+       "invoice_fingerprint": "thames-freight:TF-311",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "SUPPLIER-EU",
+       "amount_minor": 400000,
+       "currency": "EUR",
+       "priority": 9,
+       "due_in_hours": 48,
+       "beneficiary_id": "ben-eu-components",
+       "budget_line": "suppliers",
+       "payee_name": "Rheinwerk Komponenten GmbH",
+       "payout_method": "SWIFT",
+       "evidence_ref": "doc-inv-eu-0512",
+       "invoice_fingerprint": "eu-components:INV-2026-0512",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "SUPPLIER-EU-RESENT",
+       "amount_minor": 400000,
+       "currency": "EUR",
+       "priority": 9,
+       "due_in_hours": 48,
+       "beneficiary_id": "ben-eu-components",
+       "budget_line": "suppliers",
+       "payee_name": "Rheinwerk Komponenten GmbH",
+       "payout_method": "SWIFT",
+       "evidence_ref": "doc-inv-eu-0512-resent",
+       "invoice_fingerprint": "eu-components:INV-2026-0512",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "CONTRACTOR-US",
+       "amount_minor": 300000,
+       "currency": "USD",
+       "priority": 6,
+       "due_in_hours": 72,
+       "beneficiary_id": "ben-lumen-design",
+       "budget_line": "contractors",
+       "payee_name": "Lumen Design Studio",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-inv-lumen-77",
+       "invoice_fingerprint": "lumen:LD-77",
+       "record_kind": "payable",
+       "policy_flags": [
+        "payee_bank_details_changed"
+       ]
+      },
+      {
+       "obligation_id": "SAAS-USD",
+       "amount_minor": 120000,
+       "currency": "USD",
+       "priority": 2,
+       "due_in_hours": 72,
+       "beneficiary_id": "ben-saas-vendor",
+       "budget_line": "saas",
+       "payee_name": "Cloudloom Software LLC",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-inv-saas-nov",
+       "invoice_fingerprint": "cloudloom:CL-2026-11",
+       "record_kind": "payable",
+       "policy_flags": []
+      }
+     ],
+     "receivables": [
+      {
+       "receivable_id": "RCV-ACME",
+       "payer": "Acme Retail Ltd",
+       "amount_minor": 1000000,
+       "currency": "USD",
+       "expected_in_hours": 24,
+       "confidence_bp": 9000,
+       "evidence_ref": "doc-acme-remittance",
+       "arrival_window_hours": null,
+       "payer_history": {
+        "kept": 6,
+        "missed": 1
+       }
+      }
+     ],
+     "evidence": [
+      {
+       "ref": "doc-payroll-nov",
+       "subject_id": "PAYROLL-NOV",
+       "source": "hris:payroll-run-2026-11",
+       "status": "verified",
+       "summary": "Approved November payroll run"
+      },
+      {
+       "ref": "doc-inv-thames-311",
+       "subject_id": "SHIPPING-UK",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Freight invoice TF-311; carrier holds the next container until paid"
+      },
+      {
+       "ref": "doc-inv-eu-0512",
+       "subject_id": "SUPPLIER-EU",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Invoice INV-2026-0512, PO matched, early-payment window closes in 48h"
+      },
+      {
+       "ref": "doc-inv-eu-0512-resent",
+       "subject_id": "SUPPLIER-EU-RESENT",
+       "source": "email:ap-inbox",
+       "status": "verified",
+       "summary": "Same invoice re-sent by email"
+      },
+      {
+       "ref": "doc-inv-lumen-77",
+       "subject_id": "CONTRACTOR-US",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Design services invoice LD-77"
+      },
+      {
+       "ref": "doc-inv-saas-nov",
+       "subject_id": "SAAS-USD",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Monthly subscription; no late fee within 14 days"
+      },
+      {
+       "ref": "doc-acme-remittance",
+       "subject_id": "RCV-ACME",
+       "source": "email:customer",
+       "status": "verified",
+       "summary": "Remittance advice: paying tomorrow"
+      },
+      {
+       "ref": "inbox:msg-lumen-bank-1022:CONTRACTOR-US",
+       "subject_id": "CONTRACTOR-US",
+       "source": "email:billing@lumen-design.example",
+       "status": "verified",
+       "summary": "Hello accounts team, please note that Lumen Design Studio has changed banks and our account details are updated."
+      }
+     ],
+     "scenarios": [
+      {
+       "name": "unplanned_card_spend",
+       "unexpected_outflow_minor": 100000
+      }
+     ],
+     "policy": {
+      "reserve_floor_minor": 500000,
+      "min_receivable_confidence_bp": 8000,
+      "autonomous_conversion_limit_minor": 1000000,
+      "full_confidence_bp": 9000,
+      "zero_limit_below_bp": 5000,
+      "escalate_flags": [
+       "payee_bank_details_changed"
+      ],
+      "swift_fee_currency": "EUR",
+      "swift_fee_minor": 1285,
+      "payout_fees_minor": {
+       "SWIFT:EUR": 1337,
+       "LOCAL:USD": 300,
+       "LOCAL:GBP": 224
+      },
+      "planning_horizon_hours": 72,
+      "approver_roles": [
+       "finance_manager"
+      ]
+     },
+     "actor_role": "treasury_agent",
+     "use_ecb_stress": false,
+     "fx_stress_model": "horizon_m0"
+    },
+    "hidden_charge": {
+     "EUR": "0.63"
+    },
+    "twice": true
+   },
+   "expect": {
+    "execution": "REFUSED",
+    "message_contains": "locked by open reconciliation case"
+   },
+   "derivation": "the rail debits EUR 0.63 it never reports on the transfer -> live EUR differs from expected by 63 minor -> RECONCILIATION_MISMATCH opens a case -> the second run is REFUSED before anything moves"
+  },
+  {
+   "id": "K18",
+   "kind": "execution",
+   "level": 4,
+   "pain": "reconciliation mismatch",
+   "title": "closing the case unlocks the book",
+   "input": {
+    "state": {
+     "case_id": "kit01-initial",
+     "book_id": "kit01-nov",
+     "base_currency": "USD",
+     "balances": {
+      "USD": 2250000,
+      "EUR": 0,
+      "GBP": 0
+     },
+     "fx_to_base": {
+      "EUR": "1.0850",
+      "GBP": "1.2700"
+     },
+     "obligations": [
+      {
+       "obligation_id": "PAYROLL-NOV",
+       "amount_minor": 800000,
+       "currency": "USD",
+       "priority": 10,
+       "due_in_hours": 24,
+       "beneficiary_id": "payroll-group-us",
+       "budget_line": "payroll",
+       "payee_name": "Northwind Payroll Services",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-payroll-nov",
+       "invoice_fingerprint": "northwind:PR-2026-11",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "SHIPPING-UK",
+       "amount_minor": 250000,
+       "currency": "GBP",
+       "priority": 10,
+       "due_in_hours": 24,
+       "beneficiary_id": "ben-uk-logistics",
+       "budget_line": "logistics",
+       "payee_name": "Thames Freight Ltd",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-inv-thames-311",
+       "invoice_fingerprint": "thames-freight:TF-311",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "SUPPLIER-EU",
+       "amount_minor": 400000,
+       "currency": "EUR",
+       "priority": 9,
+       "due_in_hours": 48,
+       "beneficiary_id": "ben-eu-components",
+       "budget_line": "suppliers",
+       "payee_name": "Rheinwerk Komponenten GmbH",
+       "payout_method": "SWIFT",
+       "evidence_ref": "doc-inv-eu-0512",
+       "invoice_fingerprint": "eu-components:INV-2026-0512",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "SUPPLIER-EU-RESENT",
+       "amount_minor": 400000,
+       "currency": "EUR",
+       "priority": 9,
+       "due_in_hours": 48,
+       "beneficiary_id": "ben-eu-components",
+       "budget_line": "suppliers",
+       "payee_name": "Rheinwerk Komponenten GmbH",
+       "payout_method": "SWIFT",
+       "evidence_ref": "doc-inv-eu-0512-resent",
+       "invoice_fingerprint": "eu-components:INV-2026-0512",
+       "record_kind": "payable",
+       "policy_flags": []
+      },
+      {
+       "obligation_id": "CONTRACTOR-US",
+       "amount_minor": 300000,
+       "currency": "USD",
+       "priority": 6,
+       "due_in_hours": 72,
+       "beneficiary_id": "ben-lumen-design",
+       "budget_line": "contractors",
+       "payee_name": "Lumen Design Studio",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-inv-lumen-77",
+       "invoice_fingerprint": "lumen:LD-77",
+       "record_kind": "payable",
+       "policy_flags": [
+        "payee_bank_details_changed"
+       ]
+      },
+      {
+       "obligation_id": "SAAS-USD",
+       "amount_minor": 120000,
+       "currency": "USD",
+       "priority": 2,
+       "due_in_hours": 72,
+       "beneficiary_id": "ben-saas-vendor",
+       "budget_line": "saas",
+       "payee_name": "Cloudloom Software LLC",
+       "payout_method": "LOCAL",
+       "evidence_ref": "doc-inv-saas-nov",
+       "invoice_fingerprint": "cloudloom:CL-2026-11",
+       "record_kind": "payable",
+       "policy_flags": []
+      }
+     ],
+     "receivables": [
+      {
+       "receivable_id": "RCV-ACME",
+       "payer": "Acme Retail Ltd",
+       "amount_minor": 1000000,
+       "currency": "USD",
+       "expected_in_hours": 24,
+       "confidence_bp": 9000,
+       "evidence_ref": "doc-acme-remittance",
+       "arrival_window_hours": null,
+       "payer_history": {
+        "kept": 6,
+        "missed": 1
+       }
+      }
+     ],
+     "evidence": [
+      {
+       "ref": "doc-payroll-nov",
+       "subject_id": "PAYROLL-NOV",
+       "source": "hris:payroll-run-2026-11",
+       "status": "verified",
+       "summary": "Approved November payroll run"
+      },
+      {
+       "ref": "doc-inv-thames-311",
+       "subject_id": "SHIPPING-UK",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Freight invoice TF-311; carrier holds the next container until paid"
+      },
+      {
+       "ref": "doc-inv-eu-0512",
+       "subject_id": "SUPPLIER-EU",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Invoice INV-2026-0512, PO matched, early-payment window closes in 48h"
+      },
+      {
+       "ref": "doc-inv-eu-0512-resent",
+       "subject_id": "SUPPLIER-EU-RESENT",
+       "source": "email:ap-inbox",
+       "status": "verified",
+       "summary": "Same invoice re-sent by email"
+      },
+      {
+       "ref": "doc-inv-lumen-77",
+       "subject_id": "CONTRACTOR-US",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Design services invoice LD-77"
+      },
+      {
+       "ref": "doc-inv-saas-nov",
+       "subject_id": "SAAS-USD",
+       "source": "ap:invoice",
+       "status": "verified",
+       "summary": "Monthly subscription; no late fee within 14 days"
+      },
+      {
+       "ref": "doc-acme-remittance",
+       "subject_id": "RCV-ACME",
+       "source": "email:customer",
+       "status": "verified",
+       "summary": "Remittance advice: paying tomorrow"
+      },
+      {
+       "ref": "inbox:msg-lumen-bank-1022:CONTRACTOR-US",
+       "subject_id": "CONTRACTOR-US",
+       "source": "email:billing@lumen-design.example",
+       "status": "verified",
+       "summary": "Hello accounts team, please note that Lumen Design Studio has changed banks and our account details are updated."
+      }
+     ],
+     "scenarios": [
+      {
+       "name": "unplanned_card_spend",
+       "unexpected_outflow_minor": 100000
+      }
+     ],
+     "policy": {
+      "reserve_floor_minor": 500000,
+      "min_receivable_confidence_bp": 8000,
+      "autonomous_conversion_limit_minor": 1000000,
+      "full_confidence_bp": 9000,
+      "zero_limit_below_bp": 5000,
+      "escalate_flags": [
+       "payee_bank_details_changed"
+      ],
+      "swift_fee_currency": "EUR",
+      "swift_fee_minor": 1285,
+      "payout_fees_minor": {
+       "SWIFT:EUR": 1337,
+       "LOCAL:USD": 300,
+       "LOCAL:GBP": 224
+      },
+      "planning_horizon_hours": 72,
+      "approver_roles": [
+       "finance_manager"
+      ]
+     },
+     "actor_role": "treasury_agent",
+     "use_ecb_stress": false,
+     "fx_stress_model": "horizon_m0"
+    },
+    "hidden_charge": {
+     "EUR": "0.63"
+    },
+    "twice": true,
+    "close_cases": true
+   },
+   "expect": {
+    "execution": "FAILED",
+    "message_contains": "duplicate payment blocked"
+   },
+   "derivation": "with the case closed by a person (note required), the next run reaches the duplicate lock as usual (the invoices were paid in run 1)"
+  }
+ ]
+}
