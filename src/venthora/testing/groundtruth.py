@@ -33,7 +33,8 @@ def plan_view(plan: dict) -> dict:
     requires = ((policy or {}).get("details") or {}).get("local", {}).get("requires_approval", []) if policy else []
     actions = {d["obligation_id"]: d["action"] for d in plan["obligations"]}
     fails = [s["engine"] for s in plan["stages"] if s["status"] == "FAIL"]
-    return {"decision": plan["decision"], "actions": actions,
+    live = next((s["status"] for s in plan["stages"] if s["engine"] == "Airwallex · live balances"), None)
+    return {"decision": plan["decision"], "actions": actions, "live_balances": live,
             "paid": sorted(o for o, a in actions.items() if a in ("PAY", "CONVERT_AND_PAY")),
             "n_conversions": len(plan["conversions"]),
             "conversions": {c["buy_currency"]: c["buy_amount_minor"] for c in plan["conversions"]},

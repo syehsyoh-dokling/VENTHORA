@@ -67,6 +67,31 @@ def test_real_sandbox_failure_shape_maps_code_to_typed_failure():
     assert failure_type_of({"status": "CANCELLED"}) is None
 
 
+def test_asking_again_returns_the_same_incident_not_a_new_one_on_the_replacement(tmp_path):
+    """Real sandbox, 23 Oct 2026: after a replacement the payout record points at the replacement; a follow-up
+    opened a second incident on it and 'resolved' that. Asking again must find the existing incident."""
+    fake = FakeAirwallex(balances={"USD": "8000", "EUR": "1700", "GBP": "0"})
+
+    async def go():
+        agent, executor = harness(fake, tmp_path)
+        try:
+            state = TreasuryState.model_validate(scenario("kit03_incident"))
+            plan = await agent.decide(state)
+            await executor.execute(ExecutionRequest(state=state, plan_hash=plan.plan_hash, simulate_settlement=False))
+            cmd = IncidentCommander(executor)
+            first = await cmd.handle(IncidentRequest(state=state, obligation_id="SUPPLIER-EU-NOV",
+                                                    simulate_failure_type="BENEFICIARY_BANK_RETURNED"))
+            again = await cmd.handle(IncidentRequest(state=state, obligation_id="SUPPLIER-EU-NOV"))
+            return first, again, executor.store.list_incidents()
+        finally:
+            await agent.close()
+
+    first, again, incidents = asyncio.run(go())
+    assert first.status == "RESOLVED" and first.decision == "REPLACE"
+    assert again.incident_id == first.incident_id and again.status == "RESOLVED" and again.decision == "REPLACE"
+    assert len(incidents) == 1  # no second incident opened on the replacement transfer
+
+
 def test_only_one_replacement_then_a_person():
     assert decide(transfer("CANCELLED", "BENEFICIARY_BANK_RETURNED"), 0, POLICY, 1).action == "ESCALATE"
 
@@ -140,7 +165,9 @@ def test_second_incident_on_the_same_invoice_does_not_pay_a_third_time(tmp_path)
     fake = FakeAirwallex(balances={"USD": "8000", "EUR": "1700", "GBP": "0"})
     _, first, second = asyncio.run(pay_then_incident(fake, tmp_path, "BENEFICIARY_BANK_RETURNED", twice=True))
     assert first.status == "RESOLVED"
-    assert second.decision == "RESOLVE"  # the replacement is PAID: the invoice is settled
+    # asking again finds the same, resolved incident (decision REPLACE); it never treats the PAID replacement
+    # as a new original, and nothing is paid a third time
+    assert second.incident_id == first.incident_id and second.status == "RESOLVED" and second.decision == "REPLACE"
     assert sum(t["status"] == "PAID" for t in fake.transfers.values()) == 1 and len(fake.transfers) == 2
 
 

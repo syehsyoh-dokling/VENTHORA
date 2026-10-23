@@ -109,10 +109,39 @@ Two things went wrong first, both recorded:
 
 Run report: `data/runs/20261023-145138-intake.json`.
 
+## Cycle 7: both ground-truth suites against the real sandbox (`python scripts/groundtruth_real.py`)
+
+Approved by the owner as finance manager; 23 Oct 2026, 16:18–16:25 WIB. Full detail in [GROUND_TRUTH.md](GROUND_TRUTH.md)
+("Both suites on the real Airwallex sandbox") and `docs/groundtruth_log_real.json`.
+
+**Part A — 84 plan / intake / incident cases through the live service.** 84 / 84 match the hand-derived answers; all 54
+plans had their `Airwallex · live balances` stage read from the sandbox (none SKIPPED); plan round trip p50 105 ms.
+
+**Part B — the execution anomalies on the real rail**, a fresh book per run (new obligation ids and invoice fingerprints):
+
+| Case | On the real rail | Result |
+|---|---|---|
+| N04 stale planning rate | planning rate held at EUR 1.085 while the sandbox quoted ~1.13 | `EUR quote costs USD 4,540.70, above the slippage limit USD 4,398.07; nothing booked` — FAILED before any conversion ✅ |
+| N26 / N27 / N28 approvals | wrong terms / viewer / none on a REQUIRES_APPROVAL plan | all three REFUSED, nothing moved ✅ |
+| N41 same invoices twice | first run paid `9fb3a655-…`, `41559988-…`, `40b35ea3-…` (3 transfers, 2 conversions) | second run: `duplicate payment blocked before any money moved` ✅ |
+| N42 stale state | allocation USD 20,000,000 against a ~9.98 M wallet | plan BLOCKED by the live-balance check, nothing executed ✅ |
+| N44 Kit 03 end to end | transfer `66c8e69c-…` left in flight, failed with BENEFICIARY_BANK_RETURNED, replaced by `10220738-…` (run 1); `d62bc549-…` → `8033cd19-…` (run 2) | REPLACE under the duplicate lock; incident RESOLVED after a follow-up ✅ (see below) |
+| N09, N29–N33, N39, N40, N45 | not reproducible on a real rail (a deposit that never settles, a lost response, a 429 storm, a reused request_id, a wallet drop between read and transfer, a conversion that never settles, a wallet of exactly EUR 1,512.85) | fake sandbox only; reasons recorded per case |
+
+**What N44 found on the real rail.** Right after the FAILED transition the sandbox still reports the original as `FAILED`
+without the typed failure; it moves to `CANCELLED` with `failure.code 90802` a few seconds later. The commander correctly
+left the incident `REPLACED_AWAITING_ORIGINAL`. But when asked again, it looked up the invoice's live payout — now the
+*replacement* — and opened a **second incident on the replacement** (PAID → "RESOLVE"), leaving the real one open. Fixed:
+`IncidentCommander.handle` now finds the invoice's existing incident first; an incident awaiting its original re-reads
+the original and closes only when its terminal status, typed failure and refund are on file; asking again returns the
+same incident (`test_asking_again_returns_the_same_incident_not_a_new_one_on_the_replacement`). With the fix both
+real incidents (`1027e8f3-…`, `ded29b6e-…`) were closed as RESOLVED / REPLACE; the one record the bug created was removed.
+
 ## Findings the sandbox revealed (and the fixes)
 
 | Assumption (guide / fake) | Real sandbox | Fix |
 |---|---|---|
+| A follow-up on an incident finds the same incident | after a replacement, the invoice's live payout *is* the replacement; a follow-up opened a second incident on it | the commander looks up the invoice's existing incident before anything else; see cycle 7 |
 | Beneficiary payload needs `transfer_methods` | the corridor schema (`POST /beneficiaries/schema`) marks **`payment_methods`** required and relevant (23 Oct 2026) | both fields are sent for every registered payee; the schema check caught it before anything was created |
 | A failed transfer carries `failure_type` | status **`CANCELLED`**, failure in `failure.code` (**90802**) and `failure.details.type` (`INCORRECT_ROUTING`); the transition response carries the detail type, not the enum sent | `failure_type_of()` maps the code through the documented table first, then `failure_reason` ("90802: …"), then the typed fields; unknown shapes still fail closed to ESCALATE |
 | Flat EUR 12.85 per SWIFT payout | **EUR 13.37** | fees observed per `METHOD:CCY` are stored and used by later plans |

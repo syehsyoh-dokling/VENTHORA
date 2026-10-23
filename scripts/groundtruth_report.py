@@ -103,6 +103,27 @@ def main() -> None:
         "Every case here is an anomaly; the expected answer is what the published rules say must happen.", ""] + [f"- **L{k}** — {v}" for k, v in LEVELS.items()])
     lines += [""] + section("cases", "Suite 1 — the rules, one by one", [
         "37 treasury plans and 17 intake emails that exercise one rule each (fit / do not fit / exactly at the limit, priorities, evidence, duplicates, receipts, limits scaling with confidence, roles)."])
+    real_path = ROOT / "docs" / "groundtruth_log_real.json"
+    if real_path.is_file():
+        real = json.loads(real_path.read_text(encoding="utf-8"))
+        a, b = real["part_a"], real["part_b"]
+        plans = [r for r in a if r["kind"] == "plan"]
+        ran = [r for r in b if "ms" in r]
+        lines += ["", "## Both suites on the real Airwallex sandbox", "",
+                  f"`python scripts/groundtruth_real.py`, {real['generated_at'][:16].replace('T', ' ')} UTC, approved by the owner as finance manager.", "",
+                  f"**Part A** — the {len(a)} plan / intake / incident cases through the live service: **{sum(r['match'] for r in a)} / {len(a)} match**; "
+                  f"{sum(bool(r.get('real')) for r in plans)} / {len(plans)} plans had their `Airwallex · live balances` stage read from the sandbox "
+                  f"(none SKIPPED); plan round trip p50 {statistics.median(r['ms'] for r in plans):.1f} ms.", "",
+                  f"**Part B** — the execution anomalies on the real rail, a fresh book per run (new obligation ids and invoice fingerprints, "
+                  f"so nothing already paid is re-paid): **{sum(r['match'] for r in ran)} / {len(ran)} match**; {len(b) - len(ran)} cannot be forced on a real rail.", "",
+                  "| ID | Case | On the real rail | Result | ms | Match |", "|---|---|---|---|---|---|"]
+        for r in b:
+            if "ms" in r:
+                v = r["view"]
+                res = f"plan {v.get('plan')} · execution {v.get('execution')}" + (f" · incident {v.get('incident')} ({v.get('incident_decision')}" + (f", {v.get('incident_followups')} follow-ups" if v.get("incident_followups") else "") + ")" if v.get("incident") else "")
+                lines.append(f"| {r['id']} | {r['title']} | {r['how']} | {res} | {r['ms']:.0f} | {'✅' if r['match'] else '❌'} |")
+            else:
+                lines.append(f"| {r['id']} | {r['title']} | not reproducible: {r['skipped']} | fake sandbox only | - | – |")
     lines += ["", "## What the exercise changed", "",
               "- **P28 / N24** — the hand answer first said APPROVED when the headroom exactly covers the payment. The service answered REQUIRES_APPROVAL: the 72-hour simulation draws the unexpected outflow with a lognormal size, so a plan that lands exactly on the floor breaches it in about half the paths, above the 5% tolerance. The probabilistic rule is the documented one; the expectation was corrected and the case kept.",
               "- **P32** — USD 10 bn cash was BLOCKED by the live service (the sandbox wallet holds about USD 10 M) while passing in-process: a connected service grounds every plan in real balances. The case now uses amounts inside the wallet.",

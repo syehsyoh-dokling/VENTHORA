@@ -186,6 +186,18 @@ class ExecutionStore:
                                 (original_transfer_id,)).fetchone()
         return dict(row)
 
+    def latest_incident(self, payout_key: str) -> dict | None:
+        """The most recent incident on this invoice, whatever its status (an operator re-asking must find it)."""
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT * FROM incidents WHERE payout_key = ? ORDER BY opened_at DESC LIMIT 1",
+                            (payout_key,)).fetchone()
+        return dict(row) if row else None
+
+    def close_incident(self, incident_id: str, *, reason: str, record: dict) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("UPDATE incidents SET status = 'RESOLVED', reason = ?, record_json = ?, updated_at = ?"
+                      " WHERE incident_id = ?", (reason, json.dumps(record, default=str), _now(), incident_id))
+
     def update_incident(self, incident_id: str, *, status: str, decision: str, reason: str, failure_type: str | None,
                         replacement_transfer_id: str | None, record: dict) -> None:
         with self._lock, self._connect() as c:

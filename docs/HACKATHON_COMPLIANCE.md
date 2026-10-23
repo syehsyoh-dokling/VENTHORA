@@ -176,6 +176,11 @@ its derivation ([GROUND_TRUTH.md](GROUND_TRUTH.md)):
 
 All 100 are reproduced in-process (CI); the 84 that do not move money also through the HTTP endpoints
 (`scripts/groundtruth_bench.py`) and through the dashboard's `Submit a case` form in a browser, with latency on every path.
+**Both suites were then run against the real sandbox** (`scripts/groundtruth_real.py`, SANDBOX_RESULTS.md cycle 7): 84 / 84
+through the live service with live balances read for every plan, and the 7 execution anomalies a real rail can reproduce
+(stale rate, three approval refusals, the same invoices twice, stale state, Kit 03 end to end) 7 / 7; the other 9 are
+fake-only with the reason recorded. The real rail found one more product bug (a follow-up on a replaced incident opened a
+second incident on the replacement), fixed and tested.
 
 ## Not applicable to this build
 

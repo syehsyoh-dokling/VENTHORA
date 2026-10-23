@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Kit 03: Payment Ops Incident Commander.
 
 A supplier says the money never arrived. The agent decides to WAIT, REPLACE or ESCALATE, and
@@ -123,6 +124,15 @@ class IncidentCommander:
         payout = self.store.payout(key)
         if not payout or not payout.get("transfer_id"):
             raise LookupError(f"no transfer on record for {o.obligation_id}")
+        # An operator asking again about an invoice that already has an incident must get THAT incident: once a
+        # replacement exists the payout record points at the replacement, which is not a new original.
+        # (Found on the real sandbox, 23 Oct 2026: a follow-up opened a second incident on the replacement.)
+        latest = self.store.latest_incident(key)
+        if latest and latest["status"] == "REPLACED_AWAITING_ORIGINAL":
+            return await self._follow_up(latest, o, req, started)
+        if latest and latest["status"] == "RESOLVED" and latest.get("replacement_transfer_id") == payout["transfer_id"]:
+            return self._as_result(latest, o, events=[IncidentEvent(step="lookup", status="INFO", detail={
+                "note": "the incident on this invoice is already resolved; the live payout is its replacement"})])
         original_id = payout["transfer_id"]
         incident = self.store.open_incident(key, o.obligation_id, original_id)
 
@@ -177,6 +187,48 @@ class IncidentCommander:
             original_failure_type=transfer.failure_type,
             replacement_transfer_id=replacement.transfer_id if replacement else None,
             replacement_status=replacement.status if replacement else None, events=events, reconciliation=recon)
+
+    async def _follow_up(self, incident: dict, o, req: IncidentRequest, started: float) -> IncidentResult:
+        """The replacement is out; the incident closes only when the ORIGINAL's fate is on file: its terminal
+        status, its typed failure and the refund (recorded at replacement time). Until then it stays open."""
+        events = [IncidentEvent(step="lookup", status="INFO", detail={"incident_id": incident["incident_id"],
+                                                                        "status": incident["status"]})]
+        original = await self.bank.get_transfer(incident["original_transfer_id"])
+        replacement = await self.bank.get_transfer(incident["replacement_transfer_id"]) if incident.get("replacement_transfer_id") else None
+        events.append(IncidentEvent(step="original", status="INFO", detail={
+            "transfer_id": original.transfer_id, "status": original.status, "failure_type": original.failure_type}))
+        full = self.store.get_incident(incident["incident_id"]) or {}
+        record = full.get("record") or {}
+        refund = (record.get("reconciliation") or {}).get("refund_observed", False)
+        if original.status in ("CANCELLED", "FAILED") and original.failure_type and refund:
+            reason = (f"original {original.transfer_id[:8]}… recorded {original.status} / {original.failure_type} with the refund; "
+                      f"replacement {replacement.transfer_id[:8] if replacement else '-'}… {replacement.status if replacement else '-'}")
+            record["events"] = record.get("events", []) + [e.model_dump() for e in events]
+            self.store.close_incident(incident["incident_id"], reason=reason, record=record)
+            status = "RESOLVED"
+        else:
+            reason = (f"original {original.transfer_id[:8]}… is {original.status}"
+                      f"{' / ' + original.failure_type if original.failure_type else ' without a typed failure'}; "
+                      "the incident stays open until its terminal status, failure type and refund are on file")
+            status = "REPLACED_AWAITING_ORIGINAL"
+        await self.executor.audit_async("incident", {
+            "incident_id": incident["incident_id"], "obligation_id": o.obligation_id, "original": original.transfer_id,
+            "original_status": original.status, "failure_type": original.failure_type, "decision": incident["decision"],
+            "replacement": incident.get("replacement_transfer_id"), "status": status, "follow_up": True,
+            "duration_ms": (perf_counter() - started) * 1000})
+        return IncidentResult(
+            incident_id=incident["incident_id"], obligation_id=o.obligation_id, status=status, decision=incident["decision"],
+            reason=reason, original_transfer_id=original.transfer_id, original_status=original.status,
+            original_failure_type=original.failure_type, replacement_transfer_id=incident.get("replacement_transfer_id"),
+            replacement_status=replacement.status if replacement else None, events=events,
+            reconciliation=record.get("reconciliation") or {})
+
+    def _as_result(self, incident: dict, o, events: list[IncidentEvent]) -> IncidentResult:
+        return IncidentResult(
+            incident_id=incident["incident_id"], obligation_id=o.obligation_id, status=incident["status"],
+            decision=incident["decision"], reason=incident.get("reason") or "", original_transfer_id=incident["original_transfer_id"],
+            original_status="CANCELLED", original_failure_type=incident.get("failure_type"),
+            replacement_transfer_id=incident.get("replacement_transfer_id"), replacement_status="PAID", events=events)
 
     async def _replace(self, state, o, key, incident, original, req, events):
         """Replacement under the duplicate lock, with the second fee budgeted and the refund verified."""

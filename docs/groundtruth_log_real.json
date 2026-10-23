@@ -1,0 +1,3781 @@
+{
+ "generated_at": "2026-10-23T09:20:26.154635+00:00",
+ "part_a": [
+  {
+   "id": "P01",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "single obligation fits",
+   "ms": 392.1,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 359.428400057368
+   }
+  },
+  {
+   "id": "P02",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "single obligation does not fit, no receipt",
+   "ms": 95.0,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    },
+    "not_blocked": {
+     "expected": true,
+     "actual": true,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 83.60010001342744
+   }
+  },
+  {
+   "id": "P03",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "obligation equals the headroom exactly",
+   "ms": 140.1,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 128.22710000909865
+   }
+  },
+  {
+   "id": "P04",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "one cent over the headroom",
+   "ms": 119.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 107.08039999008179
+   }
+  },
+  {
+   "id": "P05",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "two obligations both fit",
+   "ms": 114.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1",
+     "O2"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 103.03780005779117
+   }
+  },
+  {
+   "id": "P06",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "two obligations, only the higher priority fits",
+   "ms": 95.5,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 83.58310000039637
+   }
+  },
+  {
+   "id": "P07",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "same priority, earlier due first",
+   "ms": 147.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O2": "PAY",
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O2": "PAY",
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O2": "PAY",
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O2"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 131.33070000912994
+   }
+  },
+  {
+   "id": "P08",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "duplicate invoice fingerprint",
+   "ms": 114.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "REJECT"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 102.8854000614956
+   }
+  },
+  {
+   "id": "P09",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "evidence rejected",
+   "ms": 118.1,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "REJECT"
+     },
+     "actual": {
+      "O1": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 105.31640006229281
+   }
+  },
+  {
+   "id": "P10",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "evidence pending",
+   "ms": 438.5,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "REJECT"
+     },
+     "actual": {
+      "O1": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 429.2012999067083
+   }
+  },
+  {
+   "id": "P11",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "evidence missing",
+   "ms": 118.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "REJECT"
+     },
+     "actual": {
+      "O1": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 106.17150005418807
+   }
+  },
+  {
+   "id": "P12",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "evidence names another obligation",
+   "ms": 91.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "REJECT"
+     },
+     "actual": {
+      "O1": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 81.01920003537089
+   }
+  },
+  {
+   "id": "P13",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "already settled record",
+   "ms": 97.1,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "REJECT"
+     },
+     "actual": {
+      "O1": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 84.62390000931919
+   }
+  },
+  {
+   "id": "P14",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "payee bank details changed",
+   "ms": 100.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 84.46620008908212
+   }
+  },
+  {
+   "id": "P15",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "viewer cannot plan",
+   "ms": 96.9,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "BLOCKED",
+     "actual": "BLOCKED",
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "BLOCKED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [
+     "Policy"
+    ],
+    "breach_bp": 0,
+    "not_blocked": false,
+    "duration_ms": 85.5726000154391
+   }
+  },
+  {
+   "id": "P16",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "finance manager plans like the agent",
+   "ms": 117.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 100.93860002234578
+   }
+  },
+  {
+   "id": "P17",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "does not fit now, reliable receipt lands before due",
+   "ms": 115.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "DEFER"
+     },
+     "actual": {
+      "O1": "DEFER"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "DEFER"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 103.9843000471592
+   }
+  },
+  {
+   "id": "P18",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "receipt not reliable (60%)",
+   "ms": 108.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 250000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 98.08939998038113
+   }
+  },
+  {
+   "id": "P19",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "receipt lands after due",
+   "ms": 114.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 102.63059998396784
+   }
+  },
+  {
+   "id": "P20",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "receipt window ends after the horizon",
+   "ms": 117.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 104.42810005042702
+   }
+  },
+  {
+   "id": "P21",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "receipt covers one of two deferrals",
+   "ms": 149.9,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 137.81960005871952
+   }
+  },
+  {
+   "id": "P22",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "EUR payout converted inside the limit",
+   "ms": 119.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "CONVERT_AND_PAY"
+     },
+     "actual": {
+      "O1": "CONVERT_AND_PAY"
+     },
+     "ok": true
+    },
+    "n_conversions": {
+     "expected": 1,
+     "actual": 1,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 101285
+    },
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 102.09980001673102
+   }
+  },
+  {
+   "id": "P23",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "conversion above the autonomous limit",
+   "ms": 90.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "CONVERT_AND_PAY"
+     },
+     "actual": {
+      "O1": "CONVERT_AND_PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "conversion_above_autonomous_limit"
+     ],
+     "actual": [
+      "conversion_above_autonomous_limit"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 1201285
+    },
+    "limit": 1000000,
+    "requires": [
+     "conversion_above_autonomous_limit"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 79.09550005570054
+   }
+  },
+  {
+   "id": "P24",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "limit zero: every conversion needs a person",
+   "ms": 115.9,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "conversion_above_autonomous_limit"
+     ],
+     "actual": [
+      "conversion_above_autonomous_limit"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 101285
+    },
+    "limit": 0,
+    "requires": [
+     "conversion_above_autonomous_limit"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 98.73180009890348
+   }
+  },
+  {
+   "id": "P25",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "EUR wallet already covers the EUR payout",
+   "ms": 86.0,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "n_conversions": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    },
+    "paid": {
+     "expected": [
+      "O1"
+     ],
+     "actual": [
+      "O1"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 76.36579999234527
+   }
+  },
+  {
+   "id": "P26",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "GBP wallet covers part: convert the shortfall only",
+   "ms": 93.0,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "conversions": {
+     "expected": {
+      "GBP": 60000
+     },
+     "actual": {
+      "GBP": 60000
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "GBP": 60000
+    },
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 82.58039993233979
+   }
+  },
+  {
+   "id": "P27",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "stress eats the headroom",
+   "ms": 130.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "failed_stages": [],
+    "breach_bp": 1580,
+    "not_blocked": true,
+    "duration_ms": 104.7701999777928
+   }
+  },
+  {
+   "id": "P28",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "stress leaves exactly enough (deterministic) but no margin (probabilistic)",
+   "ms": 126.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "reserve_breach_risk_above_tolerance"
+     ],
+     "actual": [
+      "reserve_breach_risk_above_tolerance"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "failed_stages": [],
+    "breach_bp": 4865,
+    "not_blocked": true,
+    "duration_ms": 91.12850006204098
+   }
+  },
+  {
+   "id": "P29",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "zero reserve floor",
+   "ms": 101.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 86.27600001636893
+   }
+  },
+  {
+   "id": "P30",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "zero cash",
+   "ms": 100.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "paid": {
+     "expected": [],
+     "actual": [],
+     "ok": true
+    },
+    "not_blocked": {
+     "expected": true,
+     "actual": true,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "failed_stages": [],
+    "breach_bp": 10000,
+    "not_blocked": true,
+    "duration_ms": 85.7777000637725
+   }
+  },
+  {
+   "id": "P31",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "twelve small obligations all fit",
+   "ms": 103.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "paid": {
+     "expected": [
+      "O1",
+      "O2",
+      "O3",
+      "O4",
+      "O5",
+      "O6",
+      "O7",
+      "O8",
+      "O9",
+      "O10",
+      "O11",
+      "O12"
+     ],
+     "actual": [
+      "O1",
+      "O10",
+      "O11",
+      "O12",
+      "O2",
+      "O3",
+      "O4",
+      "O5",
+      "O6",
+      "O7",
+      "O8",
+      "O9"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O9": "PAY",
+     "O8": "PAY",
+     "O7": "PAY",
+     "O6": "PAY",
+     "O5": "PAY",
+     "O4": "PAY",
+     "O3": "PAY",
+     "O2": "PAY",
+     "O12": "PAY",
+     "O1": "PAY",
+     "O11": "PAY",
+     "O10": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1",
+     "O10",
+     "O11",
+     "O12",
+     "O2",
+     "O3",
+     "O4",
+     "O5",
+     "O6",
+     "O7",
+     "O8",
+     "O9"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 89.03090003877878
+   }
+  },
+  {
+   "id": "P32",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "large amounts, still inside the live sandbox wallet",
+   "ms": 96.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 82.55530009046197
+   }
+  },
+  {
+   "id": "P33",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "confidence 90%: limit is full",
+   "ms": 102.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "limit": {
+     "expected": 1000000,
+     "actual": 1000000,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 701285
+    },
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 89.9814999429509
+   }
+  },
+  {
+   "id": "P34",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "confidence 70%: limit halves",
+   "ms": 105.9,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "limit": {
+     "expected": 500000,
+     "actual": 500000,
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "conversion_above_autonomous_limit"
+     ],
+     "actual": [
+      "conversion_above_autonomous_limit"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 701285
+    },
+    "limit": 500000,
+    "requires": [
+     "conversion_above_autonomous_limit"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 92.28099999018013
+   }
+  },
+  {
+   "id": "P35",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "confidence 40%: limit zero",
+   "ms": 104.0,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "limit": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 101285
+    },
+    "limit": 0,
+    "requires": [
+     "conversion_above_autonomous_limit"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 92.17199997510761
+   }
+  },
+  {
+   "id": "P36",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "priority 10 due now and priority 1 due at the horizon both fit",
+   "ms": 96.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "PAY"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1",
+     "O2"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 81.5847999183461
+   }
+  },
+  {
+   "id": "P37",
+   "suite": "cases",
+   "kind": "plan",
+   "title": "cheapest obligation dropped, not the most urgent",
+   "ms": 99.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 87.95329998247325
+   }
+  },
+  {
+   "id": "I01",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "registered mailbox, clean invoice",
+   "ms": 57.7,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "registered",
+     "actual": "registered",
+     "ok": true
+    },
+    "kind": {
+     "expected": "supplier_invoice",
+     "actual": "supplier_invoice",
+     "ok": true
+    },
+    "amount_minor": {
+     "expected": 125000,
+     "actual": 125000,
+     "ok": true
+    },
+    "currency": {
+     "expected": "USD",
+     "actual": "USD",
+     "ok": true
+    },
+    "invoice_no": {
+     "expected": "LD-90",
+     "actual": "LD-90",
+     "ok": true
+    },
+    "due_date": {
+     "expected": "2026-11-05",
+     "actual": "2026-11-05",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 125000,
+    "currency": "USD",
+    "invoice_no": "LD-90",
+    "due_date": "2026-11-05",
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I02",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "unknown mailbox with the same display name",
+   "ms": 9.8,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "unknown_sender",
+     "actual": "unknown_sender",
+     "ok": true
+    },
+    "claimed_name": {
+     "expected": "Lumen Design Studio",
+     "actual": "Lumen Design Studio",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "kind": "supplier_invoice",
+    "amount_minor": 90000,
+    "currency": "USD",
+    "invoice_no": "LD-91",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I03",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "registered mailbox announcing new bank details",
+   "ms": 8.2,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "NEEDS_REVIEW",
+     "actual": "NEEDS_REVIEW",
+     "ok": true
+    },
+    "trust": {
+     "expected": "registered",
+     "actual": "registered",
+     "ok": true
+    },
+    "kind": {
+     "expected": "bank_change",
+     "actual": "bank_change",
+     "ok": true
+    },
+    "flags": {
+     "expected": [
+      "payee_bank_details_changed"
+     ],
+     "actual": [
+      "payee_bank_details_changed"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "NEEDS_REVIEW",
+    "trust": "registered",
+    "kind": "bank_change",
+    "amount_minor": 70000,
+    "currency": "USD",
+    "invoice_no": "LD-92",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": [
+     "payee_bank_details_changed"
+    ]
+   }
+  },
+  {
+   "id": "I04",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "unknown mailbox, bank change, urgency",
+   "ms": 9.2,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    },
+    "kind": {
+     "expected": "bank_change",
+     "actual": "bank_change",
+     "ok": true
+    },
+    "flags": {
+     "expected": [
+      "payee_bank_details_changed",
+      "urgency_pressure"
+     ],
+     "actual": [
+      "payee_bank_details_changed",
+      "urgency_pressure"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "kind": "bank_change",
+    "amount_minor": 300000,
+    "currency": "USD",
+    "invoice_no": "LD-79",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": [
+     "payee_bank_details_changed",
+     "urgency_pressure"
+    ]
+   }
+  },
+  {
+   "id": "I05",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "registered mailbox but Reply-To elsewhere",
+   "ms": 10.1,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "reply_to_mismatch",
+     "actual": "reply_to_mismatch",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "reply_to_mismatch",
+    "kind": "supplier_invoice",
+    "amount_minor": 40000,
+    "currency": "USD",
+    "invoice_no": "LD-93",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I06",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "registered customer remittance (outlook)",
+   "ms": 9.3,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "kind": {
+     "expected": "remittance_notice",
+     "actual": "remittance_notice",
+     "ok": true
+    },
+    "amount_minor": {
+     "expected": 200000,
+     "actual": 200000,
+     "ok": true
+    },
+    "due_date": {
+     "expected": "2026-10-30",
+     "actual": "2026-10-30",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "remittance_notice",
+    "amount_minor": 200000,
+    "currency": "USD",
+    "invoice_no": "AR-6001",
+    "due_date": "2026-10-30",
+    "claimed_name": "Acme Retail Ltd",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I07",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "registered contractor timesheet (yahoo)",
+   "ms": 9.0,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "kind": {
+     "expected": "contractor_claim",
+     "actual": "contractor_claim",
+     "ok": true
+    },
+    "amount_minor": {
+     "expected": 100000,
+     "actual": 100000,
+     "ok": true
+    },
+    "invoice_no": {
+     "expected": "OK-2026-11",
+     "actual": "OK-2026-11",
+     "ok": true
+    },
+    "due_date": {
+     "expected": "2026-11-07",
+     "actual": "2026-11-07",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "contractor_claim",
+    "amount_minor": 100000,
+    "currency": "USD",
+    "invoice_no": "OK-2026-11",
+    "due_date": "2026-11-07",
+    "claimed_name": "Mia Okafor",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I08",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "registered mailbox, no amount readable",
+   "ms": 8.6,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "NEEDS_REVIEW",
+     "actual": "NEEDS_REVIEW",
+     "ok": true
+    },
+    "trust": {
+     "expected": "registered",
+     "actual": "registered",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "NEEDS_REVIEW",
+    "trust": "registered",
+    "kind": "unknown",
+    "amount_minor": null,
+    "currency": null,
+    "invoice_no": "LD-94",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I09",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "injection text cannot verify itself",
+   "ms": 9.1,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "unknown_sender",
+     "actual": "unknown_sender",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "kind": "supplier_invoice",
+    "amount_minor": 9500,
+    "currency": "USD",
+    "invoice_no": "LD-95",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I10",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "registered sender with pressure language",
+   "ms": 8.2,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "NEEDS_REVIEW",
+     "actual": "NEEDS_REVIEW",
+     "ok": true
+    },
+    "flags": {
+     "expected": [
+      "urgency_pressure"
+     ],
+     "actual": [
+      "urgency_pressure"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "NEEDS_REVIEW",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 65000,
+    "currency": "USD",
+    "invoice_no": "LD-96",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": [
+     "urgency_pressure"
+    ]
+   }
+  },
+  {
+   "id": "I11",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "html body",
+   "ms": 12.6,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "amount_minor": {
+     "expected": 32000,
+     "actual": 32000,
+     "ok": true
+    },
+    "invoice_no": {
+     "expected": "LD-97",
+     "actual": "LD-97",
+     "ok": true
+    },
+    "due_date": {
+     "expected": "2026-11-02",
+     "actual": "2026-11-02",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 32000,
+    "currency": "USD",
+    "invoice_no": "LD-97",
+    "due_date": "2026-11-02",
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I12",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "euro symbol and thousands separator",
+   "ms": 9.9,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "amount_minor": {
+     "expected": 150000,
+     "actual": 150000,
+     "ok": true
+    },
+    "currency": {
+     "expected": "EUR",
+     "actual": "EUR",
+     "ok": true
+    },
+    "due_date": {
+     "expected": "2026-11-10",
+     "actual": "2026-11-10",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 150000,
+    "currency": "EUR",
+    "invoice_no": "LD-98",
+    "due_date": "2026-11-10",
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I13",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "duplicate of an invoice already in the book",
+   "ms": 12.0,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "DUPLICATE",
+     "actual": "DUPLICATE",
+     "ok": true
+    },
+    "duplicate_of": {
+     "expected": "SHIPPING-UK",
+     "actual": "SHIPPING-UK",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "DUPLICATE",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 250000,
+    "currency": "GBP",
+    "invoice_no": "TF-311",
+    "due_date": null,
+    "claimed_name": "Thames Freight Ltd",
+    "duplicate_of": "SHIPPING-UK",
+    "flags": []
+   }
+  },
+  {
+   "id": "I14",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "embargoed future date does not matter for triage, amount in subject-less body",
+   "ms": 7.3,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "amount_minor": {
+     "expected": 1000,
+     "actual": 1000,
+     "ok": true
+    },
+    "invoice_no": {
+     "expected": "LD-99",
+     "actual": "LD-99",
+     "ok": true
+    },
+    "due_date": {
+     "expected": "2026-12-01",
+     "actual": "2026-12-01",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 1000,
+    "currency": "USD",
+    "invoice_no": "LD-99",
+    "due_date": "2026-12-01",
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I15",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "corporate domain match (non-freemail)",
+   "ms": 11.1,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "registered",
+     "actual": "registered",
+     "ok": true
+    },
+    "currency": {
+     "expected": "EUR",
+     "actual": "EUR",
+     "ok": true
+    },
+    "amount_minor": {
+     "expected": 400000,
+     "actual": 400000,
+     "ok": true
+    },
+    "invoice_no": {
+     "expected": "INV-2026-0700",
+     "actual": "INV-2026-0700",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 400000,
+    "currency": "EUR",
+    "invoice_no": "INV-2026-0700",
+    "due_date": "2026-11-15",
+    "claimed_name": "Rheinwerk Komponenten GmbH",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I16",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "same corporate domain, different mailbox",
+   "ms": 9.1,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "VERIFIED",
+     "actual": "VERIFIED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "registered",
+     "actual": "registered",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "VERIFIED",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 10000,
+    "currency": "EUR",
+    "invoice_no": "INV-2026-0701",
+    "due_date": "2026-11-15",
+    "claimed_name": "Rheinwerk Komponenten GmbH",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "I17",
+   "suite": "cases",
+   "kind": "intake",
+   "title": "freemail lookalike of a corporate payee",
+   "ms": 11.0,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "unknown_sender",
+     "actual": "unknown_sender",
+     "ok": true
+    },
+    "claimed_name": {
+     "expected": "Rheinwerk Komponenten GmbH",
+     "actual": "Rheinwerk Komponenten GmbH",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "kind": "supplier_invoice",
+    "amount_minor": 10000,
+    "currency": "EUR",
+    "invoice_no": "INV-2026-0702",
+    "due_date": null,
+    "claimed_name": "Rheinwerk Komponenten GmbH",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "N01",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "the SWIFT fee is what breaks the reserve",
+   "ms": 107.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 94.60479998961091
+   }
+  },
+  {
+   "id": "N02",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "a learned LOCAL fee is what breaks the reserve",
+   "ms": 119.2,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 106.72669997438788
+   }
+  },
+  {
+   "id": "N03",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "one-cent obligations are still money",
+   "ms": 92.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "APPROVED",
+     "actual": "APPROVED",
+     "ok": true
+    },
+    "paid": {
+     "expected": [
+      "O1",
+      "O2",
+      "O3"
+     ],
+     "actual": [
+      "O1",
+      "O2",
+      "O3"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "PAY",
+     "O3": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1",
+     "O2",
+     "O3"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 81.12099999561906
+   }
+  },
+  {
+   "id": "N05",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "FX stress makes a 'fits exactly' conversion not fit",
+   "ms": 101.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 89.58520006854087
+   }
+  },
+  {
+   "id": "N06",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "the receipt slips past the due date",
+   "ms": 91.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 82.16700004413724
+   }
+  },
+  {
+   "id": "N07",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "the 90% window ends after the planning horizon",
+   "ms": 97.8,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 86.81779995094985
+   }
+  },
+  {
+   "id": "N08",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "due now, cash short, no receipt",
+   "ms": 88.5,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    },
+    "not_blocked": {
+     "expected": true,
+     "actual": true,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 75.66930004395545
+   }
+  },
+  {
+   "id": "N10",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "payer with a bad record: 40% confidence drops the FX limit to zero",
+   "ms": 96.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "limit": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "conversion_above_autonomous_limit"
+     ],
+     "actual": [
+      "conversion_above_autonomous_limit"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 101285
+    },
+    "limit": 0,
+    "requires": [
+     "conversion_above_autonomous_limit"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 83.50649999920279
+   }
+  },
+  {
+   "id": "N11",
+   "suite": "anomalies",
+   "kind": "incident",
+   "title": "SENT for 49 h: the wait window is over, still not final",
+   "ms": 4.8,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "action": {
+     "expected": "ESCALATE",
+     "actual": "ESCALATE",
+     "ok": true
+    }
+   },
+   "view": {
+    "action": "ESCALATE",
+    "reason": "SENT for 49h, beyond the 48h window, and still not final: a person must chase the rail; replacing now could pay twice"
+   }
+  },
+  {
+   "id": "N12",
+   "suite": "anomalies",
+   "kind": "incident",
+   "title": "PROCESSING for 1 h: wait, never replace",
+   "ms": 3.2,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "action": {
+     "expected": "WAIT",
+     "actual": "WAIT",
+     "ok": true
+    }
+   },
+   "view": {
+    "action": "WAIT",
+    "reason": "PROCESSING is not final; 1h in flight is within the 48h wait window; a transfer that may still clear is never replaced"
+   }
+  },
+  {
+   "id": "N13",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "evidence about the wrong obligation",
+   "ms": 97.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "REJECT"
+     },
+     "actual": {
+      "O1": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 88.34749995730817
+   }
+  },
+  {
+   "id": "N14",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "the same invoice re-sent under a new id",
+   "ms": 101.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY",
+      "O2": "REJECT"
+     },
+     "actual": {
+      "O1": "PAY",
+      "O2": "REJECT"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "PAY",
+     "O2": "REJECT"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 87.41759997792542
+   }
+  },
+  {
+   "id": "N15",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "payee announces new bank details",
+   "ms": 122.5,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE"
+     },
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 112.07889998331666
+   }
+  },
+  {
+   "id": "N16",
+   "suite": "anomalies",
+   "kind": "intake",
+   "title": "lookalike mailbox, new bank account, urgency",
+   "ms": 6.7,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "unknown_sender",
+     "actual": "unknown_sender",
+     "ok": true
+    },
+    "flags": {
+     "expected": [
+      "payee_bank_details_changed",
+      "urgency_pressure"
+     ],
+     "actual": [
+      "payee_bank_details_changed",
+      "urgency_pressure"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "kind": "bank_change",
+    "amount_minor": 300000,
+    "currency": "USD",
+    "invoice_no": "LD-201",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": [
+     "payee_bank_details_changed",
+     "urgency_pressure"
+    ]
+   }
+  },
+  {
+   "id": "N17",
+   "suite": "anomalies",
+   "kind": "intake",
+   "title": "the email tells the agent it is verified",
+   "ms": 7.1,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "kind": "supplier_invoice",
+    "amount_minor": 20200,
+    "currency": "USD",
+    "invoice_no": "LD-202",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "N18",
+   "suite": "anomalies",
+   "kind": "intake",
+   "title": "registered mailbox, Reply-To elsewhere",
+   "ms": 5.9,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "QUARANTINED",
+     "actual": "QUARANTINED",
+     "ok": true
+    },
+    "trust": {
+     "expected": "reply_to_mismatch",
+     "actual": "reply_to_mismatch",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "QUARANTINED",
+    "trust": "reply_to_mismatch",
+    "kind": "supplier_invoice",
+    "amount_minor": 40000,
+    "currency": "USD",
+    "invoice_no": "LD-203",
+    "due_date": "2026-11-05",
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": []
+   }
+  },
+  {
+   "id": "N19",
+   "suite": "anomalies",
+   "kind": "intake",
+   "title": "registered mailbox announces a new account",
+   "ms": 6.7,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "NEEDS_REVIEW",
+     "actual": "NEEDS_REVIEW",
+     "ok": true
+    },
+    "kind": {
+     "expected": "bank_change",
+     "actual": "bank_change",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "NEEDS_REVIEW",
+    "trust": "registered",
+    "kind": "bank_change",
+    "amount_minor": 70000,
+    "currency": "USD",
+    "invoice_no": "LD-204",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": [
+     "payee_bank_details_changed"
+    ]
+   }
+  },
+  {
+   "id": "N20",
+   "suite": "anomalies",
+   "kind": "intake",
+   "title": "a reminder for an invoice already in the book",
+   "ms": 8.5,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "DUPLICATE",
+     "actual": "DUPLICATE",
+     "ok": true
+    },
+    "duplicate_of": {
+     "expected": "SHIPPING-UK",
+     "actual": "SHIPPING-UK",
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "DUPLICATE",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 250000,
+    "currency": "GBP",
+    "invoice_no": "TF-311",
+    "due_date": null,
+    "claimed_name": "Thames Freight Ltd",
+    "duplicate_of": "SHIPPING-UK",
+    "flags": []
+   }
+  },
+  {
+   "id": "N21",
+   "suite": "anomalies",
+   "kind": "intake",
+   "title": "registered sender, 'the CEO approved, pay immediately'",
+   "ms": 8.0,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "status": {
+     "expected": "NEEDS_REVIEW",
+     "actual": "NEEDS_REVIEW",
+     "ok": true
+    },
+    "flags": {
+     "expected": [
+      "urgency_pressure"
+     ],
+     "actual": [
+      "urgency_pressure"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "status": "NEEDS_REVIEW",
+    "trust": "registered",
+    "kind": "supplier_invoice",
+    "amount_minor": 65000,
+    "currency": "USD",
+    "invoice_no": "LD-205",
+    "due_date": null,
+    "claimed_name": "Lumen Design Studio",
+    "duplicate_of": null,
+    "flags": [
+     "urgency_pressure"
+    ]
+   }
+  },
+  {
+   "id": "N22",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "conversion above the autonomous limit",
+   "ms": 151.1,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "conversion_above_autonomous_limit"
+     ],
+     "actual": [
+      "conversion_above_autonomous_limit"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 1201285
+    },
+    "limit": 1000000,
+    "requires": [
+     "conversion_above_autonomous_limit"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 136.91950007341802
+   }
+  },
+  {
+   "id": "N23",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "70% confidence halves the limit and the conversion no longer fits",
+   "ms": 100.3,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "REQUIRES_APPROVAL",
+     "actual": "REQUIRES_APPROVAL",
+     "ok": true
+    },
+    "limit": {
+     "expected": 500000,
+     "actual": 500000,
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 701285
+    },
+    "limit": 500000,
+    "requires": [
+     "conversion_above_autonomous_limit"
+    ],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 83.70830002240837
+   }
+  },
+  {
+   "id": "N24",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "the plan lands exactly on the floor: probabilistic breach risk",
+   "ms": 109.7,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "PAY"
+     },
+     "actual": {
+      "O1": "PAY"
+     },
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "reserve_breach_risk_above_tolerance"
+     ],
+     "actual": [
+      "reserve_breach_risk_above_tolerance"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "failed_stages": [],
+    "breach_bp": 5115,
+    "not_blocked": true,
+    "duration_ms": 95.91999999247491
+   }
+  },
+  {
+   "id": "N25",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "a viewer asks for a plan",
+   "ms": 96.5,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "decision": {
+     "expected": "BLOCKED",
+     "actual": "BLOCKED",
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "BLOCKED",
+    "actions": {
+     "O1": "PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [],
+    "failed_stages": [
+     "Policy"
+    ],
+    "breach_bp": 0,
+    "not_blocked": false,
+    "duration_ms": 85.47690010163933
+   }
+  },
+  {
+   "id": "N34",
+   "suite": "anomalies",
+   "kind": "incident",
+   "title": "CANCELLED with BENEFICIARY_BANK_RETURNED",
+   "ms": 3.6,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "action": {
+     "expected": "REPLACE",
+     "actual": "REPLACE",
+     "ok": true
+    }
+   },
+   "view": {
+    "action": "REPLACE",
+    "reason": "BENEFICIARY_BANK_RETURNED: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id"
+   }
+  },
+  {
+   "id": "N35",
+   "suite": "anomalies",
+   "kind": "incident",
+   "title": "CANCELLED with INVALID_ACCOUNT_NAME_OR_NUMBER",
+   "ms": 3.2,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "action": {
+     "expected": "ESCALATE",
+     "actual": "ESCALATE",
+     "ok": true
+    }
+   },
+   "view": {
+    "action": "ESCALATE",
+    "reason": "INVALID_ACCOUNT_NAME_OR_NUMBER: the payee's bank details are wrong; paying them again pays the wrong account again"
+   }
+  },
+  {
+   "id": "N36",
+   "suite": "anomalies",
+   "kind": "incident",
+   "title": "CANCELLED with RECALL_REQUESTED",
+   "ms": 3.8,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "action": {
+     "expected": "ESCALATE",
+     "actual": "ESCALATE",
+     "ok": true
+    }
+   },
+   "view": {
+    "action": "ESCALATE",
+    "reason": "RECALL_REQUESTED: a person or a control stopped this payment; only a person may restart it"
+   }
+  },
+  {
+   "id": "N37",
+   "suite": "anomalies",
+   "kind": "incident",
+   "title": "FAILED with no typed failure",
+   "ms": 3.2,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "action": {
+     "expected": "ESCALATE",
+     "actual": "ESCALATE",
+     "ok": true
+    },
+    "reason_contains": {
+     "expected": "unknown",
+     "actual": "UNKNOWN: unknown failure type; a person decides",
+     "ok": true
+    }
+   },
+   "view": {
+    "action": "ESCALATE",
+    "reason": "UNKNOWN: unknown failure type; a person decides"
+   }
+  },
+  {
+   "id": "N38",
+   "suite": "anomalies",
+   "kind": "incident",
+   "title": "a second return after one replacement",
+   "ms": 3.2,
+   "live_balances": null,
+   "real": null,
+   "match": true,
+   "fields": {
+    "action": {
+     "expected": "ESCALATE",
+     "actual": "ESCALATE",
+     "ok": true
+    }
+   },
+   "view": {
+    "action": "ESCALATE",
+    "reason": "BENEFICIARY_BANK_RETURNED: 1 replacement(s) already attempted; a person decides"
+   }
+  },
+  {
+   "id": "N43",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "base wallet already below the floor, foreign wallets cover the payouts",
+   "ms": 121.4,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "paid": {
+     "expected": [
+      "O1",
+      "O2"
+     ],
+     "actual": [
+      "O1",
+      "O2"
+     ],
+     "ok": true
+    },
+    "n_conversions": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    },
+    "requires": {
+     "expected": [
+      "reserve_breach_risk_above_tolerance"
+     ],
+     "actual": [
+      "reserve_breach_risk_above_tolerance"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "REQUIRES_APPROVAL",
+    "actions": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "CONVERT_AND_PAY"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O1",
+     "O2"
+    ],
+    "n_conversions": 0,
+    "conversions": {},
+    "limit": 1000000,
+    "requires": [
+     "reserve_breach_risk_above_tolerance"
+    ],
+    "failed_stages": [],
+    "breach_bp": 10000,
+    "not_blocked": true,
+    "duration_ms": 106.52239993214607
+   }
+  },
+  {
+   "id": "N46",
+   "suite": "anomalies",
+   "kind": "plan",
+   "title": "cash short, receipt contradicted, bank change, duplicate, SWIFT fee, viewer-free",
+   "ms": 112.6,
+   "live_balances": "PASS",
+   "real": true,
+   "match": true,
+   "fields": {
+    "actions": {
+     "expected": {
+      "O1": "ESCALATE",
+      "O2": "CONVERT_AND_PAY",
+      "O3": "REJECT",
+      "O4": "ESCALATE",
+      "O5": "ESCALATE"
+     },
+     "actual": {
+      "O1": "ESCALATE",
+      "O2": "CONVERT_AND_PAY",
+      "O3": "REJECT",
+      "O4": "ESCALATE",
+      "O5": "ESCALATE"
+     },
+     "ok": true
+    },
+    "paid": {
+     "expected": [
+      "O2"
+     ],
+     "actual": [
+      "O2"
+     ],
+     "ok": true
+    }
+   },
+   "view": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "ESCALATE",
+     "O2": "CONVERT_AND_PAY",
+     "O3": "REJECT",
+     "O4": "ESCALATE",
+     "O5": "ESCALATE"
+    },
+    "live_balances": "PASS",
+    "paid": [
+     "O2"
+    ],
+    "n_conversions": 1,
+    "conversions": {
+     "EUR": 201285
+    },
+    "limit": 250000,
+    "requires": [],
+    "failed_stages": [],
+    "breach_bp": 0,
+    "not_blocked": true,
+    "duration_ms": 97.63069998007268
+   }
+  }
+ ],
+ "part_b": [
+  {
+   "id": "N04",
+   "kind": "execution",
+   "title": "planning rate stale: the rail is 3% dearer -> nothing booked",
+   "ms": 846.5,
+   "how": "the planning rate is held stale (EUR 1.05) while the sandbox quotes the live rate (~1.13): the quote is above the slippage limit",
+   "book": "gt-real-161854n04",
+   "match": true,
+   "fields": {
+    "execution": {
+     "expected": "FAILED",
+     "actual": "FAILED",
+     "ok": true
+    },
+    "message_contains": {
+     "expected": "slippage",
+     "actual": "EUR quote costs USD 4,540.70, above the slippage limit USD 4,398.07; nothing booked, re-plan",
+     "ok": true
+    },
+    "conversions": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    },
+    "transfers": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    }
+   },
+   "view": {
+    "plan": "APPROVED",
+    "execution": "FAILED",
+    "transfers": 0,
+    "conversions": 0,
+    "message": "EUR quote costs USD 4,540.70, above the slippage limit USD 4,398.07; nothing booked, re-plan",
+    "incident": null,
+    "incident_decision": null,
+    "invariants_ok": true,
+    "errors": [],
+    "receipt_landed": null
+   }
+  },
+  {
+   "id": "N09",
+   "kind": "execution",
+   "title": "the deposit stays PENDING: the receipt is not counted",
+   "skipped": "the sandbox settles a simulated deposit by itself; a deposit that never settles cannot be requested"
+  },
+  {
+   "id": "N26",
+   "kind": "execution",
+   "title": "an approval given on different terms is refused",
+   "ms": 207.3,
+   "how": "a finance manager's approval carrying another plan's terms",
+   "book": "gt-real-161856n26",
+   "match": true,
+   "fields": {
+    "execution": {
+     "expected": "REFUSED",
+     "actual": "REFUSED",
+     "ok": true
+    },
+    "transfers": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    }
+   },
+   "view": {
+    "plan": "REQUIRES_APPROVAL",
+    "execution": "REFUSED",
+    "transfers": 0,
+    "conversions": 0,
+    "message": "the approval was given on different terms (amount, counterparty or evidence changed)",
+    "incident": null,
+    "incident_decision": null,
+    "invariants_ok": true,
+    "errors": [],
+    "receipt_landed": null
+   }
+  },
+  {
+   "id": "N27",
+   "kind": "execution",
+   "title": "a viewer 'approves'",
+   "ms": 191.5,
+   "how": "an approval by a viewer",
+   "book": "gt-real-161856n27",
+   "match": true,
+   "fields": {
+    "execution": {
+     "expected": "REFUSED",
+     "actual": "REFUSED",
+     "ok": true
+    },
+    "transfers": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    }
+   },
+   "view": {
+    "plan": "REQUIRES_APPROVAL",
+    "execution": "REFUSED",
+    "transfers": 0,
+    "conversions": 0,
+    "message": "role 'viewer' may not approve; allowed: ['finance_manager']",
+    "incident": null,
+    "incident_decision": null,
+    "invariants_ok": true,
+    "errors": [],
+    "receipt_landed": null
+   }
+  },
+  {
+   "id": "N28",
+   "kind": "execution",
+   "title": "REQUIRES_APPROVAL executed without a person",
+   "ms": 203.2,
+   "how": "REQUIRES_APPROVAL executed with no approval",
+   "book": "gt-real-161857n28",
+   "match": true,
+   "fields": {
+    "execution": {
+     "expected": "REFUSED",
+     "actual": "REFUSED",
+     "ok": true
+    },
+    "transfers": {
+     "expected": 0,
+     "actual": 0,
+     "ok": true
+    }
+   },
+   "view": {
+    "plan": "REQUIRES_APPROVAL",
+    "execution": "REFUSED",
+    "transfers": 0,
+    "conversions": 0,
+    "message": "plan requires a person's approval: conversion_above_autonomous_limit, reserve_breach_risk_above_tolerance",
+    "incident": null,
+    "incident_decision": null,
+    "invariants_ok": true,
+    "errors": [],
+    "receipt_landed": null
+   }
+  },
+  {
+   "id": "N29",
+   "kind": "execution",
+   "title": "the transfer response is lost: recovered by request_id, paid once",
+   "skipped": "a lost HTTP response cannot be injected into the real rail (covered on the fake; the recovery path is request_id lookup, which the real rail supports)"
+  },
+  {
+   "id": "N30",
+   "kind": "execution",
+   "title": "429 storm on transfer create",
+   "skipped": "429 storms cannot be requested from the sandbox"
+  },
+  {
+   "id": "N31",
+   "kind": "execution",
+   "title": "the rail answers duplicate_request_id",
+   "skipped": "duplicate_request_id would require re-sending a used request_id, which the executor never does by design"
+  },
+  {
+   "id": "N32",
+   "kind": "execution",
+   "title": "wallet read says yes, rail says balance_insufficient",
+   "skipped": "balance_insufficient at the rail needs the wallet to drop between the balance read and the transfer; the live-balance check prevents the setup"
+  },
+  {
+   "id": "N33",
+   "kind": "execution",
+   "title": "the conversion stays SCHEDULED: transfers are held",
+   "skipped": "sandbox conversions settle immediately; a conversion that stays SCHEDULED cannot be requested"
+  },
+  {
+   "id": "N39",
+   "kind": "execution",
+   "title": "one payout fails after SENT: refund expected, fee lost",
+   "skipped": "a bank return after SENT is exactly N44's mechanism on the real rail; not run twice"
+  },
+  {
+   "id": "N40",
+   "kind": "execution",
+   "title": "all three payouts fail after SENT",
+   "skipped": "same mechanism as N44, three times; not run to keep the sandbox ledger readable"
+  },
+  {
+   "id": "N41",
+   "kind": "execution",
+   "title": "the same invoice executed twice: second run refused before any money moves",
+   "ms": 9351.2,
+   "how": "the same invoices executed twice on the real store: the payout claim refuses the second run",
+   "book": "gt-real-161857n41",
+   "match": true,
+   "fields": {
+    "execution": {
+     "expected": "FAILED",
+     "actual": "FAILED",
+     "ok": true
+    },
+    "message_contains": {
+     "expected": "duplicate payment blocked",
+     "actual": "duplicate payment blocked before any money moved",
+     "ok": true
+    },
+    "invariants_ok": {
+     "expected": true,
+     "actual": true,
+     "ok": true
+    }
+   },
+   "view": {
+    "plan": "REQUIRES_APPROVAL",
+    "execution": "FAILED",
+    "transfers": 3,
+    "conversions": 2,
+    "message": "duplicate payment blocked before any money moved",
+    "incident": null,
+    "incident_decision": null,
+    "invariants_ok": true,
+    "errors": [],
+    "receipt_landed": null
+   }
+  },
+  {
+   "id": "N42",
+   "kind": "execution",
+   "title": "the wallet holds less than the plan assumes",
+   "ms": 99.1,
+   "how": "a treasury allocation larger than the live wallet (USD 20,000,000 against ~9.98 M): live balances do not cover the plan",
+   "book": "gt-real-161907n42",
+   "match": true,
+   "fields": {
+    "plan": {
+     "expected": "BLOCKED",
+     "actual": "BLOCKED",
+     "ok": true
+    },
+    "execution": {
+     "expected": null,
+     "actual": null,
+     "ok": true
+    }
+   },
+   "view": {
+    "plan": "BLOCKED",
+    "execution": null,
+    "transfers": 0,
+    "conversions": 0,
+    "message": null,
+    "incident": null,
+    "incident_decision": null,
+    "invariants_ok": true,
+    "errors": [],
+    "receipt_landed": null
+   }
+  },
+  {
+   "id": "N44",
+   "kind": "execution",
+   "title": "bank return -> replace under the lock -> resolved only when the original is recorded",
+   "ms": 14822.9,
+   "how": "real transfer left in flight, failed on the sandbox with BENEFICIARY_BANK_RETURNED, replaced under the duplicate lock",
+   "book": "gt-real-162010n44",
+   "match": true,
+   "fields": {
+    "incident": {
+     "expected": "RESOLVED",
+     "actual": "RESOLVED",
+     "ok": true
+    },
+    "incident_decision": {
+     "expected": "REPLACE",
+     "actual": "REPLACE",
+     "ok": true
+    },
+    "invariants_ok": {
+     "expected": true,
+     "actual": true,
+     "ok": true
+    }
+   },
+   "view": {
+    "plan": "APPROVED",
+    "execution": "IN_FLIGHT",
+    "transfers": 1,
+    "conversions": 1,
+    "message": "transfers still in flight: SUPPLIER-EU-NOV-162010n44",
+    "incident": "RESOLVED",
+    "incident_decision": "REPLACE",
+    "invariants_ok": true,
+    "errors": [],
+    "receipt_landed": null,
+    "incident_original": "d62bc549-0162-41f7-908f-5916d1333316",
+    "incident_replacement": "8033cd19-21a4-4d1e-9274-e7a4c109cbad",
+    "incident_followups": 1,
+    "incident_final_decision": "RESOLVE",
+    "note": "First call: REPLACE -> REPLACED_AWAITING_ORIGINAL (the sandbox still showed the original as FAILED, no refund recorded yet). The follow-up at first opened a second incident on the replacement transfer (bug, fixed: IncidentCommander now finds the invoice's existing incident); with the fix the follow-up recorded the original as CANCELLED / BENEFICIARY_BANK_RETURNED with the refund and closed incident ded29b6e (RESOLVED, decision REPLACE). Asking again returns the same incident."
+   }
+  },
+  {
+   "id": "N45",
+   "kind": "execution",
+   "title": "replacement would need a fee the wallet cannot cover",
+   "skipped": "the replacement's budget check reads the live EUR wallet (~10 M), which cannot be set to EUR 1,512.85"
+  }
+ ]
+}
