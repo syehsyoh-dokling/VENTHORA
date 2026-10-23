@@ -1,0 +1,207 @@
+{
+ "generated_at": "2026-10-23T23:06:50.977295+00:00",
+ "base": "http://127.0.0.1:8001",
+ "seconds": 4.2,
+ "scenes": [
+  {
+   "scene": 1,
+   "title": "The plan, proven",
+   "say": "Kit 01's book: five obligations, two receivables, a reserve floor. The agent pays what it can prove safe, defers the cheapest bill, escalates the one with a policy exception. Every stage is a check, not a narrative.",
+   "show": "Plan section: press Plan on kit01_initial; read the Decision tile and the stage list; open the counterfactuals.",
+   "result": {
+    "decision": "APPROVED",
+    "actions": {
+     "PAYROLL-NOV": "PAY",
+     "SHIPPING-UK": "CONVERT_AND_PAY",
+     "SUPPLIER-EU": "CONVERT_AND_PAY",
+     "SUPPLIER-EU-RESENT": "REJECT",
+     "CONTRACTOR-US": "ESCALATE",
+     "SAAS-USD": "DEFER"
+    },
+    "stages": [
+     "Verity \u00b7 evidence",
+     "Horizon \u00b7 risk",
+     "Horizon \u00b7 72h simulation",
+     "Theorem \u00b7 optimizer",
+     "ProofCore \u00b7 invariants",
+     "Theorem \u00b7 FX legs",
+     "Budget \u00b7 mandate",
+     "Policy",
+     "Airwallex \u00b7 live balances",
+     "TigerBeetle \u00b7 ledger",
+     "Theorem \u00b7 decision frame"
+    ],
+    "ms": 156.48510000028182
+   }
+  },
+  {
+   "scene": 2,
+   "title": "An email that wants money",
+   "say": "A payee 'moved banks', urgent, please pay today. The sender is not the registered mailbox. The pipeline quarantines it with the verbatim quotes; no model opinion is involved. Case N16: lookalike mailbox, new bank account, urgency.",
+   "show": "Submit a case: suite anomalies, pick the quarantined email, Submit; the verdict and the quotes appear; ground truth PASS.",
+   "result": {
+    "case": "N16",
+    "status": "QUARANTINED",
+    "trust": "unknown_sender",
+    "flags": [
+     "payee_bank_details_changed",
+     "urgency_pressure"
+    ],
+    "quotes": [
+     "new bank",
+     "URGENT",
+     "immediately"
+    ]
+   }
+  },
+  {
+   "scene": 3,
+   "title": "The call-back nobody can skip",
+   "say": "New bank details move the payee to CHANGED: no plan and no approval can pay it. The call-back to the number printed in the email is refused by code; the call-back to the registered number verifies, and a cooling period follows.",
+   "show": "Payees \u00b7 lifecycle: Lumen Design turns CHANGED, press Call-back with a wrong number (refused), then the registered number (VERIFIED, cooling until).",
+   "result": {
+    "after_change": "CHANGED",
+    "wrong_callback": {
+     "http": 409,
+     "detail": "the call-back must be made to the registered number, not to a number taken from the request"
+    },
+    "after_callback": "VERIFIED",
+    "cooling_until": "2026-10-26T23:06:46.944914+00:00"
+   }
+  },
+  {
+   "scene": 4,
+   "title": "The plan is the mandate",
+   "say": "The organisation's November plan is the agent's mandate per line: plan, realized, paying now, committed, available, minus. Past the auto share a person decides; past the mandate the agent raises a budget request with the exact shortfall.",
+   "show": "Budget \u00b7 mandate: the Kit 01 book against the period plan; read the line table, the alerts and the budget requests.",
+   "result": {
+    "period": "2026-11",
+    "decision": "APPROVED",
+    "lines": [
+     [
+      "payroll",
+      "auto",
+      8888
+     ],
+     [
+      "logistics",
+      "auto",
+      7937
+     ],
+     [
+      "suppliers",
+      "auto",
+      6219
+     ],
+     [
+      "contractors",
+      "auto",
+      0
+     ],
+     [
+      "saas",
+      "auto",
+      0
+     ]
+    ],
+    "requests": 0
+   }
+  },
+  {
+   "scene": 5,
+   "title": "How much, and how many signatures",
+   "say": "One cent above the single-payment limit stops the plan for a person. At the two-person threshold the plan itself says: two approvals from different people, never the requester.",
+   "show": "Submit a case: suite limits V03 (one cent above), then suite approvals Q03; the Decision tile shows the tier and the number of people.",
+   "result": {
+    "V03": {
+     "match": true,
+     "requires": [
+      "single_payment_above_limit"
+     ]
+    },
+    "Q03": {
+     "match": true,
+     "tier": "two",
+     "people": 2
+    }
+   }
+  },
+  {
+   "scene": 6,
+   "title": "Money moves, and the books agree to the cent",
+   "say": "A fresh book, USD 1,000 to a verified payee, inside every control: the agent executes alone on the Airwallex sandbox. Claims before money moves, a transfer polled to PAID, then the wallet's movement against every book's cash lines: zero unexplained.",
+   "show": "Executions: the new run appears COMPLETED; open it to see the steps and the reconciliation; Books \u00b7 ledger: the new book with cash, expense, fees.",
+   "result": {
+    "plan": "APPROVED",
+    "execution": "COMPLETED",
+    "message": "executed and reconciled; USD reserve (managed budget) confirmed at USD 18,997.00 >= USD 5,000.00",
+    "discrepancies": {},
+    "ledger_entries": 3,
+    "book_balances": {
+     "USD": {
+      "cash": 1899700,
+      "expense": 100000,
+      "fees": 300,
+      "funding": -2000000
+     }
+    }
+   }
+  },
+  {
+   "scene": 7,
+   "title": "A supplier says the money never arrived",
+   "say": "Kit 03: the rail's typed failure decides. Returned by the beneficiary bank: replace once, with a new request id and a second fee budgeted. Wrong account details: escalate, because paying again pays the wrong account again.",
+   "show": "Submit a case: kind incident; paste the two facts in turn; read the decision and the reason.",
+   "result": {
+    "returned": {
+     "action": "REPLACE",
+     "reason": "BENEFICIARY_BANK_RETURNED: funds returned and the payee record is not in question; replace under the duplicate lock with a new request_id"
+    },
+    "wrong_details": {
+     "action": "ESCALATE",
+     "reason": "INVALID_BENEFICIARY_DETAILS: the payee's bank details are wrong; paying them again pays the wrong account again"
+    }
+   }
+  },
+  {
+   "scene": 8,
+   "title": "What lateness costs",
+   "say": "An invoice 45 days overdue that the book cannot fund: bucketed, interest accrued at 8 % a year, and the plan stops for a person instead of deferring quietly. A supplier's final notice, read from the inbox with its quote, raises the book's dunning level.",
+   "show": "Submit a case: suite aging, pick G02 (overdue and unfundable) then D03 (a final notice); the reasons and the quote appear; ground truth PASS.",
+   "result": {
+    "G02": {
+     "match": true,
+     "requires": [
+      "overdue_obligation_unpaid"
+     ],
+     "days": {
+      "O1": 45
+     },
+     "accrued": {
+      "O1": 9863
+     }
+    },
+    "D03": {
+     "match": true,
+     "status": "VERIFIED",
+     "dunning_level": 3
+    }
+   }
+  },
+  {
+   "scene": 9,
+   "title": "Whose book, whose suppliers, whose signature",
+   "say": "One wallet, several tenants. Each book may pay only its payees, is signed only by its people, runs under its own policy, and keeps its own ledger. An unregistered book cannot spend at all.",
+   "show": "Tenants \u00b7 books: the registry with the books seen, their executions and cash; the demo book just created sits under the sandbox lab.",
+   "result": {
+    "strict": false,
+    "tenants": [
+     "acme-group",
+     "lumen-holdings",
+     "sandbox-lab"
+    ],
+    "books_seen": 1
+   }
+  }
+ ]
+}
