@@ -1,121 +1,106 @@
-# Demo narration script: word for word, about five minutes
+# Demo narration script: word for word, about four and a half minutes
 
-Read at a brisk, clear pace, roughly 160 words a minute (about 820 spoken words); at a slower 140 the video runs
-close to six minutes, which is still inside most submission limits. The figures are the ones the dashboard shows on a clean demo server
-(`python scripts/demo_server.py --reset`), as recorded in `docs/demo_run_log.json`. Stage directions are in brackets and
-are not read aloud; the scene timings add up to about five minutes and ten seconds. The storyboard with what to click
-is `docs/DEMO_STORYBOARD.md`.
+The organizers ask for a video **under five minutes**. The spoken text is about 530 words: about three and a half
+minutes of speech at 150–160 words a minute. The time codes below include the pauses for clicks, page loads and the
+real execution in scene 6, which bring the video to about 4:30 and leave a margin under the limit. The figures are the ones the dashboard shows on a
+clean demo server (`python scripts/demo_server.py --reset`), as recorded in `docs/demo_run_log.json`. Stage directions
+are in brackets and are not read aloud. What to click in each scene is in `docs/DEMO_STORYBOARD.md`.
 
 ---
 
-## Opening (0:00 – 0:20)
+## Opening (0:00 – 0:15)
 
 [Dashboard open at the top. Do not click yet.]
 
-This is VENTHORA, an evidence-gated treasury agent on Airwallex, built for Kit 01, the adaptive treasury controller,
-with Kit 03's incident handling on top. The idea in one sentence: the AI proposes, deterministic engines verify, and
-Airwallex executes. Every decision you are about to see comes from a rule you can read, and every payment ran on the
-real sandbox.
+This is VENTHORA, a treasury agent on Airwallex for Kit 01, with Kit 03's incident handling on top. The AI proposes,
+deterministic engines verify, and Airwallex executes. Every decision you will see comes from a rule, and every payment
+ran on the real sandbox.
 
-## Scene 1 · The plan, proven (0:20 – 1:00)
+## Scene 1 · The plan, proven (0:15 – 0:50)
 
-[Press **Plan** on the Kit 01 initial book. Point at the Decision tile, then the decisions table, then the stage list,
-then the counterfactual column.]
+[Press **Plan** on the Kit 01 initial book. Point at the Decision tile, the decisions, the stages, the counterfactuals.]
 
-Here is day one. Five obligations in three currencies, two receivables, a reserve floor of five thousand dollars.
-Payroll and shipping must go out; the agent pays them and converts exactly what it needs. The European supplier is
-paid; its duplicate invoice is rejected on the fingerprint. The contractor whose email changed bank details is
-escalated to a person, not paid. The cheapest bill is deferred until a reliable receipt lands.
+Day one: five obligations in three currencies, two receivables, a five-thousand-dollar reserve floor. Payroll and
+shipping go out, converting exactly what they need. The duplicate invoice is rejected. The contractor whose email
+changed bank details is escalated, not paid. The cheapest bill waits for a reliable receipt.
 
-Twelve stages check that plan: evidence, risk, a seventy-two-hour simulation, the optimizer, the invariants, the
-budget, the policy in two engines, and live balances. And on the right, the counterfactuals: pay everything now and
-the reserve breaches with a twenty-eight percent probability. The plan is approved because it is proven, not because
-it sounds right.
+Twelve stages check the plan, from evidence and a seventy-two-hour simulation to the policy in two engines and live
+balances. On the right, the counterfactuals: pay everything now, and the reserve breaches with a twenty-eight percent
+probability. The plan is approved because it is proven.
 
-## Scene 2 · An email that wants money (1:00 – 1:30)
+## Scene 2 · An email that wants money (0:50 – 1:10)
 
 [Submit a case: suite **anomalies**, case **N16**, press **Submit**.]
 
-Now the classic attack. An email from a lookalike mailbox: we have moved banks, it is urgent, please pay today. The
-intake pipeline does not weigh the tone; it checks the registry. The sender is not the registered mailbox, so the
-request is quarantined, and the three phrases that decided it are quoted verbatim: new bank, urgent, immediately. No
-language model was asked for an opinion, and the result matches the hand-derived ground truth in twelve milliseconds.
+A lookalike mailbox: we moved banks, it is urgent, pay today. The pipeline checks the registry, not the tone. The
+sender is not registered, so the request is quarantined, with the three phrases that decided it quoted verbatim. No
+model was asked for an opinion.
 
-## Scene 3 · The call-back nobody can skip (1:30 – 2:10)
+## Scene 3 · The call-back nobody can skip (1:10 – 1:45)
 
-[Payees · lifecycle: on Lumen Design press **Bank change**, enter any identifier. Then **Call-back** with a wrong
-number, read the refusal. Then **Call-back** with the registered number shown in the row.]
+[Payees · lifecycle: on Lumen Design press **Bank change**, then **Call-back** with a wrong number, then with the
+registered number.]
 
-Suppose the bank change were genuine. The payee moves to CHANGED, and from this moment no plan and no approval can pay
-it. The only way out is a call-back. If I enter the number printed in the email, the system refuses: the call-back
-must go to the number registered at onboarding. With the registered number, the payee is verified, and a cooling
-period of seventy-two hours begins, during which every payment still needs a person. The agent pays the new account
-alone only after a real payment has gone through.
+If the bank change is genuine, the payee moves to CHANGED, and no plan and no approval can pay it. A call-back to the
+number in the email is refused by code. A call-back to the number registered at onboarding verifies the payee and
+starts a seventy-two-hour cooling period, in which every payment still needs a person.
 
-## Scene 4 · The plan is the mandate (2:10 – 2:35)
+## Scene 4 · The plan is the mandate (1:45 – 2:05)
 
 [Scroll to Budget · mandate. Point along one line, then at the utilisation bars.]
 
-The organisation's monthly plan is the agent's mandate, line by line: payroll, logistics, suppliers, contractors,
-software. Inside the autonomous share, the agent acts alone; here payroll is at eighty-nine percent, logistics at
-seventy-nine, suppliers at sixty-two. At the alert threshold it warns. Above the mandate it stops and raises a budget
-request with the exact shortfall, and a person grants or refuses it.
+The monthly plan is the agent's mandate, line by line. Inside the autonomous share it acts alone; at the alert
+threshold it warns; above the mandate it stops and raises a budget request with the exact shortfall.
 
-## Scene 5 · How much, and how many signatures (2:35 – 3:05)
+## Scene 5 · How much, and how many signatures (2:05 – 2:30)
 
 [Submit a case: suite **limits**, case **V03**, Submit. Then suite **approvals**, case **Q03**, Submit.]
 
-Limits are numbers, not judgement. One cent above the single-payment limit, and the plan requires approval. Then the
-approval matrix: at the two-person threshold the plan itself announces what it will take: two approvals, from two
-different people, in named roles. The same person twice counts once, and the person who submitted the plan can never
-be one of its approvers. Four eyes, enforced before money moves.
+One cent above the single-payment limit, and the plan needs approval. At the two-person threshold, the plan states what
+it will take: two approvals from two different people, in named roles. The same person twice counts once, and the
+requester can never approve.
 
-## Scene 6 · Money moves, and the books agree to the cent (3:05 – 3:50)
+## Scene 6 · Money moves, and the books agree to the cent (2:30 – 3:10)
 
-[In the second terminal run `python scripts/demo_walkthrough.py`; wait for scene 6. Then Executions: open the new
-COMPLETED run. Then Books · ledger: the new book.]
+[In the second terminal run `python scripts/demo_walkthrough.py`. Open the new COMPLETED run in Executions, then the
+new book in Books · ledger.]
 
-Now a real payment. A fresh book, one thousand dollars to a verified payee, inside every control, so the agent
-executes alone on the Airwallex sandbox. It claims the invoice before any money moves, so it can never be paid twice.
-It creates the transfer with a persisted request id, polls it to PAID, and then reconciles: the wallet moved by
-exactly the sum of this book's cash lines. Discrepancies: none. The book's own ledger shows cash of eighteen thousand
-nine hundred ninety-seven, expense one thousand, fees three dollars. The wallet is shared; the book is not.
+Now a real payment: one thousand dollars to a verified payee, inside every control, so the agent executes alone on the
+sandbox. It claims the invoice before money moves, so it can never be paid twice, polls the transfer to PAID, and
+reconciles: the wallet moved by exactly this book's cash lines. Discrepancies: none. The wallet is shared; the book's
+ledger is not.
 
-## Scene 7 · A supplier says the money never arrived (3:50 – 4:15)
+## Scene 7 · A supplier says the money never arrived (3:10 – 3:35)
 
-[Submit a case: kind **incident facts**. Paste the BENEFICIARY_BANK_RETURNED facts, Submit. Then the
-INVALID_BENEFICIARY_DETAILS facts, Submit.]
+[Submit a case: kind **incident facts**. The BENEFICIARY_BANK_RETURNED facts, Submit; then INVALID_BENEFICIARY_DETAILS,
+Submit.]
 
-Kit 03. The supplier says the money never arrived. The agent does not trust the email; it reads the rail's typed
-failure. Returned by the beneficiary bank: replace once, with a new request id and a second fee budgeted, under the
-same duplicate lock. Wrong account details: escalate, because paying again would pay the wrong account again. Wait,
-replace, or escalate: a decision table, not a conversation.
+Kit 03. The agent reads the rail's typed failure, not the supplier's email. Returned by the bank: replace once, with a
+new request id, under the same duplicate lock. Wrong account details: escalate, because paying again pays the wrong
+account again.
 
-## Scene 8 · What lateness costs (4:15 – 4:40)
+## Scene 8 · What lateness costs (3:35 – 3:55)
 
 [Submit a case: suite **aging**, case **G02**, Submit. Then **D03**, Submit.]
 
-An agent that only optimises cash would defer the cheapest bill forever. So lateness has a price. An invoice
-forty-five days overdue that the book cannot fund is bucketed, its late interest is accrued, ninety-eight dollars and
-sixty-three cents, and the plan stops for a person instead of deferring quietly. A supplier's final notice, read from
-the inbox with its quote, raises the book's dunning level to three.
+Deferring has a price. An invoice forty-five days overdue that the book cannot fund accrues ninety-eight dollars of
+interest, and the plan stops for a person. A supplier's final notice, read from the inbox, raises the dunning level.
 
-## Scene 9 · Whose book, whose suppliers, whose signature (4:40 – 5:00)
+## Scene 9 · Whose book, whose suppliers, whose signature (3:55 – 4:15)
 
-[Scroll to Tenants · books. Point at the Acme pattern book, then at the demo book under the sandbox lab.]
+[Scroll to Tenants · books. Point at the Acme pattern book, then at the demo book.]
 
-One wallet, several tenants. Each book may pay only its own payees, is signed only by its own people, runs under its
-own policy values, and keeps its own ledger. A book the registry does not know cannot spend at all. And here is the
-book we just paid from, with its one execution and its cash.
+One wallet, several tenants. Each book pays only its own payees, is signed only by its own people, and keeps its own
+policy and ledger. An unregistered book cannot spend at all.
 
-## Closing (5:00 – 5:15)
+## Closing (4:15 – 4:30)
 
 [Scroll back to the top. Hold on the Decision tile.]
 
-Twelve ground-truth suites, three hundred twenty-one hand-derived cases, reproduced in-process, through the API and
-through this form. The policy proven identical in Python and in OPA on ten thousand six hundred eighteen inputs.
-Eighteen cycles on the real sandbox. The AI proposes. The engines verify. Airwallex executes. Thank you.
+Three hundred twenty-one hand-derived test cases on three paths, the policy proven identical in two engines on over ten
+thousand inputs, eighteen cycles on the real sandbox. The AI proposes, the engines verify, Airwallex executes. Thank you.
 
 ---
 
-Word count of the spoken text: about eight hundred and twenty.
+Spoken text: about 530 words. If a take runs long, drop scene 4 (budget) first; it is the one scene whose point is
+also visible in scene 1's stage list.

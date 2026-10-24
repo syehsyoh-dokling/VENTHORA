@@ -279,11 +279,13 @@ docs/            architecture, hackathon compliance, demo script
 - [x] Airwallex execution tools: FX quote → conversion → transfer, single-use quotes, persisted `request_id`
 - [x] Sandbox simulation: deposit + transfer transition; post-execution reconciliation
 - [x] Human approval for `REQUIRES_APPROVAL` plans, bound to `plan_hash`
-- [x] Run end to end against the real Airwallex sandbox: three cycles, see docs/SANDBOX_RESULTS.md
+- [x] Run end to end against the real Airwallex sandbox: eighteen recorded cycles and the eight-step suite (8 / 8), see docs/SANDBOX_RESULTS.md and docs/REAL_SUITE.md
 - [x] LLM evidence reader (local Qwen or any OpenAI-compatible model), verified by the original Verity validator
 - [x] Kit 03 Payment Ops Incident Commander on the same rails (`--incident`)
 - [x] 72-hour discrete-event reserve simulation (probabilistic proof) with a policy tolerance
-- [ ] Treasury dashboard for the demo video
+- [x] Treasury dashboard for the demo video (`python scripts/demo_server.py`), storyboard and narration in docs/
+- [x] Finance controls: budget mandate, book ledger, reporting periods, limits and velocity, payee lifecycle, approval matrix, FX exposure, aging and dunning, tenant segregation; 321 ground-truth cases in 12 suites
+- [ ] Record the video walkthrough (under five minutes) and submit on HackerEarth
 
 Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). Adversarial audit, oracle hunt and known limitations: [docs/AUDIT.md](docs/AUDIT.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).
 
