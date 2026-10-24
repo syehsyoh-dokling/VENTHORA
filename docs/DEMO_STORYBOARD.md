@@ -15,6 +15,30 @@ Win+Alt+R, or OBS). Keep `python scripts/demo_walkthrough.py` ready in a second 
 (the call-backs and the real execution) through the same endpoints the dashboard uses, and prints each scene's cue.
 Its last run is in `docs/demo_run_log.json`; `docs/demo.gif` is a silent capture of the dashboard flow for the README.
 
+## The live page: the builder guide's five elements on the real sandbox
+
+`http://localhost:8001/live` is built for the video's working-demo part. The guide asks a demo to show the user's goal,
+the agent's initial plan, new information, the revised decision and the resulting financial state; the page walks
+through exactly those, one **Next** button at a time, on a fresh book of USD 30,000 ring-fenced from the live Airwallex
+wallet with a USD 10,000 reserve floor (`data/scenarios/demo_live.json`, made by `scripts/make_demo_live.py`).
+
+| Step on the page | What happens, for real | What the viewer sees |
+|---|---|---|
+| 1 · User's goal and mandate | a fresh book opens on the live wallet | the goal, the floor, the FX limit tied to receipt confidence, the budget lines, the obligations |
+| 2 · Initial plan | the day-1 inbox is read and verified; Theorem plans, ProofCore proves | `APPROVED`: payroll, shipping and the EU supplier paid, the duplicate rejected, Lumen escalated (quoted), SaaS deferred on Acme's receipt |
+| 3 · New information | Acme's email (day 2) is read and calibrated | the email quoted; confidence 90 % → 70 %, expected 24 h → 144 h |
+| 4 · Revised decision | only the touched decisions are reconsidered | `REQUIRES_APPROVAL`: FX limit USD 10,000 → 5,000; SaaS DEFER → ESCALATE (row highlighted), five decisions locked |
+| 3 + 4 · The receipt lands | a new USD 10,000 deposit on Airwallex, counted only once SETTLED | the deposit id and status; SaaS ESCALATE → PAY; the SaaS budget line crosses its 80 % alert |
+| 5 · Resulting state | execution on the sandbox, reconciliation to the cent | two conversions and four transfers PAID with Airwallex ids; wallet before / after; the book's ledger (EUR and GBP cash exactly 0); reconciliation PASS |
+
+The right-hand panel polls the Airwallex wallet every three seconds (balance and change since the run started), the
+book's managed budget against the floor, then its ledger; the event log lists every step with its time in milliseconds,
+and every step is also written to the audit chain. A refresh keeps the run (the session id is in the URL). Each run
+creates one new deposit and moves real sandbox money, so restart the demo server with `--reset` between takes.
+
+Measured on the real sandbox, 24 Oct 2026: start 0.8 s, plan 1.0 s, news 2 ms, revise 109 ms, deposit to SETTLED 2.4 s,
+execution with polling to PAID and reconciliation 9.1 s.
+
 ## Scenes
 
 | # | Scene (≈ seconds) | What to do on screen | Narration outline | What the viewer sees |

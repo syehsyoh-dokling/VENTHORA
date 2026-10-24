@@ -260,13 +260,14 @@ def _matches(d: dict, r) -> bool:
 
 
 async def simulate_receipt(bank: Airwallex, state: TreasuryState, store: ExecutionStore, *, fake: bool,
-                           poll_s: float = 1.0, polls: int = 20, receivable_id: str | None = None
-                           ) -> tuple[TreasuryState, dict | None]:
+                           poll_s: float = 1.0, polls: int = 20, receivable_id: str | None = None,
+                           reuse: bool = True) -> tuple[TreasuryState, dict | None]:
     """Kit 01: 'simulate the deposit, recalculate'.
 
     The receipt counts only when Airwallex's deposit record says SETTLED (the balance can lag:
     observed on the real sandbox). A settled deposit already matching the receivable and not yet
-    counted is reused instead of depositing twice."""
+    counted is reused instead of depositing twice (reuse=False always creates a new deposit: the live
+    demo, whose store may not know deposits counted elsewhere)."""
     pending = sorted(state.receivables, key=lambda r: r.confidence_bp)
     if receivable_id:
         pending = [r for r in pending if r.receivable_id == receivable_id]
@@ -276,7 +277,7 @@ async def simulate_receipt(bank: Airwallex, state: TreasuryState, store: Executi
     r = pending[0]
     counted = store.counted_deposits()
     found = [d for d in await bank.list_deposits()
-             if d.get("status") == "SETTLED" and d.get("id") not in counted and _matches(d, r)]
+             if d.get("status") == "SETTLED" and d.get("id") not in counted and _matches(d, r)] if reuse else []
     if found:
         deposit = found[-1]
         print(f"  found settled deposit {deposit['id']} from {r.payer} ({fmt(r.amount_minor, r.currency)}) "

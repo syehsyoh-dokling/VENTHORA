@@ -21,6 +21,7 @@ load_env()
 
 from pydantic import BaseModel, Field  # noqa: E402
 
+from . import live as live_session  # noqa: E402
 from .aging import evaluate as aging_evaluate  # noqa: E402
 from .config import env  # noqa: E402
 from .domain.models import PlanResult, TreasuryState  # noqa: E402
@@ -291,6 +292,70 @@ async def get_payee(beneficiary_id: str):
     if rec is None:
         raise HTTPException(404, "unregistered payee")
     return rec | {"events": store.payee_events(beneficiary_id)}
+
+
+# -- the live demo: the builder guide's five elements, step by step, on the real sandbox ----------------------------------
+
+class LiveStart(BaseModel):
+    scenario: str = Field(default="demo_live", min_length=1, max_length=80)
+
+
+class LiveStep(BaseModel):
+    approver: str | None = Field(default=None, max_length=120, description="finance_manager approving a plan that needs a person")
+
+
+@app.get("/live", include_in_schema=False)
+async def live_page():
+    return FileResponse(DASHBOARD.parent / "live.html", media_type="text/html")
+
+
+@app.post("/api/live/start")
+async def live_start(req: LiveStart):
+    _scenario_file(req.scenario)
+    if not app.state.executor.bank.configured:
+        raise HTTPException(409, "Airwallex sandbox credentials are not configured")
+    try:
+        s = await live_session.start(req.scenario, app.state.executor, app.state.audit)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+    sessions = getattr(app.state, "live", {})
+    sessions[s.sid] = s
+    app.state.live = sessions
+    return live_session.view(s)
+
+
+def _live(sid: str):
+    s = getattr(app.state, "live", {}).get(sid)
+    if s is None:
+        raise HTTPException(404, "unknown live session")
+    return s
+
+
+@app.get("/api/live/{sid}")
+async def live_get(sid: str):
+    return live_session.view(_live(sid))
+
+
+@app.post("/api/live/{sid}/step")
+async def live_step(sid: str, req: LiveStep):
+    s = _live(sid)
+    try:
+        return await live_session.step(s, app.state.executor, app.state.audit, approver=req.approver)
+    except live_session.LiveError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+
+
+@app.get("/api/live/{sid}/wallet")
+async def live_wallet(sid: str):
+    """Polled by the page: the live Airwallex wallet, the book's managed budget, and its ledger once it has one."""
+    s = _live(sid)
+    store = app.state.executor.store
+    book = s.state.book_id if s.state else None
+    return {"at": datetime.now(UTC).isoformat(timespec="seconds"), "wallet": await live_session.wallet(app.state.executor.bank),
+            "start": s.wallet_start, "managed": dict(s.state.balances) if s.state else {},
+            "ledger": ({c: {k: v for k, v in a.items() if v} for c, a in store.book_balances(book).items()} if book and store.has_book(book) else {})}
 
 
 @app.get("/v1/tenants")
