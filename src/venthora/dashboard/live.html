@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VENTHORA Live</title>
+<title>VENTHORA Operations</title>
 <style>
 :root{--bg:#f6f7f9;--surface:#fff;--ink:#17202a;--ink2:#4b5563;--muted:#8a94a6;--line:#e3e6eb;--accent:#1f4e8c;--accentlt:#e8eef7;
  --good:#1e7f4f;--goodlt:#e6f4ec;--warn:#b7791f;--warnlt:#fbf3e4;--serious:#c2410c;--critical:#b42318;--critlt:#fbeaea;--seq:#2f6db3;--radius:10px}
@@ -11,10 +11,11 @@
  --accent:#8ab4f8;--accentlt:#1d2a3d;--goodlt:#15291f;--warnlt:#2d2416;--critlt:#2e1717;--seq:#79a7e8}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 header{display:flex;align-items:center;gap:14px;padding:16px 24px 8px;flex-wrap:wrap}header h1{font-size:20px;margin:0}
-header .sub{color:var(--ink2)}header .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+header .sub{color:var(--ink2)}header .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.badge{font-size:12px;border:1px solid var(--good);color:var(--good);border-radius:999px;padding:1px 10px;font-weight:600}
 a{color:var(--accent)}
 .steps{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:6px 24px 10px}
-.step{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;min-width:0}
+.step{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;min-width:0;cursor:pointer;text-align:left;font:inherit;color:inherit}
 .step .n{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}.step .t{font-weight:600;font-size:13px}
 .step.done{border-color:var(--good);background:var(--goodlt)}.step.next{border-color:var(--accent);background:var(--accentlt)}
 main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;padding:0 24px 32px}
@@ -22,13 +23,14 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;padding:0 2
 @media (max-width:600px){.steps{grid-template-columns:repeat(2,1fr)}header,main,.steps{padding-left:16px;padding-right:16px}}
 section{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;min-width:0}
 section h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink2);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+section h3{font-size:12px;margin:16px 0 6px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink2)}
 section h2 .tag{font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:0 8px;text-transform:none;letter-spacing:0}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:6px 0 10px}
 .tile{border:1px solid var(--line);border-radius:8px;padding:8px 10px}.tile .k{color:var(--muted);font-size:12px}.tile .v{font-size:19px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
 .tile .d{color:var(--ink2);font-size:12px}
 table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);padding:5px 8px;white-space:nowrap}
-td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}tr:last-child td{border-bottom:0}.num{text-align:right;font-variant-numeric:tabular-nums}
-tr.changed td{background:var(--warnlt)}
+td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:middle}tr:last-child td{border-bottom:0}.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.changed td{background:var(--warnlt)}tr.off td{color:var(--muted)}
 .scroll{overflow-x:auto}
 .pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600;border:1px solid var(--line);white-space:nowrap}
 .pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--muted)}
@@ -37,11 +39,15 @@ tr.changed td{background:var(--warnlt)}
 .quote{border-left:3px solid var(--accent);background:var(--accentlt);padding:6px 10px;margin:6px 0;border-radius:0 6px 6px 0;font-size:13px}
 .quote .meta{color:var(--muted);font-size:12px}
 .muted{color:var(--muted)}.small{font-size:12px}.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}.err{color:var(--critical)}
-button,input{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:7px;padding:6px 12px}
+button,input,select,textarea{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:7px;padding:5px 9px}
+input[type=checkbox]{width:16px;height:16px;padding:0;vertical-align:middle;accent-color:var(--accent)}
+input.n{width:120px;text-align:right;font-variant-numeric:tabular-nums}input.s{width:80px;text-align:right}textarea{width:100%;min-height:52px}
 button{cursor:pointer}button.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}button:disabled{opacity:.5;cursor:default}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.fields label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink2)}
 .nextbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:2;background:var(--bg);padding:8px 0}
 .say{color:var(--ink2);font-size:13px;margin:0 0 8px}
-aside section{position:relative}aside .sticky{position:sticky;top:10px}
+aside .sticky{position:sticky;top:10px}
 .wallet td.num{font-size:15px}.delta{font-size:12px;font-variant-numeric:tabular-nums}.delta.neg{color:var(--critical)}.delta.pos{color:var(--good)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px;animation:pulse 1.6s infinite}
 @keyframes pulse{0%{opacity:1}50%{opacity:.25}100%{opacity:1}}
@@ -49,22 +55,24 @@ aside section{position:relative}aside .sticky{position:sticky;top:10px}
 .floor b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--critical)}
 .log li{margin:0 0 6px}.log{padding-left:18px;margin:0}
 .empty{color:var(--muted);padding:20px 0;text-align:center}
+.chan{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;background:var(--accentlt);color:var(--accent);white-space:nowrap}
+.help{color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
-<header><h1>VENTHORA <span style="font-weight:400">Live</span></h1>
- <span class="sub">real Airwallex sandbox · the AI proposes, the engines verify, Airwallex executes</span>
- <span class="right"><span id="book" class="mono small muted"></span><a class="small" href="/">full dashboard</a><button id="startBtn" class="primary">Start a new run</button></span></header>
+<header><h1>VENTHORA <span style="font-weight:400">Operations</span></h1>
+ <span class="sub">the AI proposes, the engines verify, Airwallex executes</span><span class="badge">Airwallex · live</span>
+ <span class="right"><span id="book" class="small muted"></span><a class="small" href="/">Control center</a><button id="newBtn">New run</button></span></header>
 <div class="steps" id="steps"></div>
 <main>
  <div>
   <div class="nextbar" id="nextbar"></div>
-  <div id="cards"><section><div class="empty">Press <b>Start a new run</b>: a fresh book is opened at USD 30,000, ring-fenced from the live Airwallex wallet, with a USD 10,000 reserve floor.</div></section></div>
+  <div id="cards"><section><div class="empty">loading the mandate…</div></section></div>
  </div>
  <aside><div class="sticky">
-  <section class="wallet"><h2><span><span class="dot"></span>Airwallex wallet · live</span><span class="small muted" id="wAt"></span></h2>
-   <div id="wallet" class="small muted">waiting for a run</div></section>
-  <section><h2><span>This book</span><span class="small muted">ring-fenced</span></h2><div id="bookPanel" class="small muted">no book yet</div></section>
+  <section class="wallet"><h2><span><span class="dot"></span>Airwallex wallet</span><span class="small muted" id="wAt"></span></h2>
+   <div id="wallet" class="small muted">opens with the book</div></section>
+  <section><h2><span>This book</span><span class="small muted">ring-fenced</span></h2><div id="bookPanel" class="small muted">no book open</div></section>
   <section><h2><span>Event log</span><span class="small muted">audit-chained</span></h2><ol class="log small" id="log"></ol></section>
  </div></aside>
 </main>
@@ -74,100 +82,165 @@ const fmt=(m,c)=>m==null?"-":`${c||""} ${(m/100).toLocaleString("en-US",{minimum
 const pct=bp=>bp==null?"-":`${(bp/100).toFixed(bp%100?1:0)}%`;
 const tone={PAY:"good",CONVERT_AND_PAY:"good",DEFER:"warn",ESCALATE:"serious",REJECT:"critical",APPROVED:"good",REQUIRES_APPROVAL:"warn",BLOCKED:"critical",
  COMPLETED:"good",IN_FLIGHT:"warn",FAILED:"critical",REFUSED:"critical",OK:"good",PASS:"good",WARN:"warn",FAIL:"critical",SETTLED:"good",PAID:"good",SENT:"warn",SCHEDULED:"warn",
- CANCELLED:"critical",auto:"good",alert:"warn",needs_approval:"warn",exceeded:"critical"};
+ CANCELLED:"critical",auto:"good",alert:"warn",needs_approval:"warn",exceeded:"critical",granted:"good",revoked:"critical",enforced:"good",off:"",always:"good",
+ ACTIVE:"good",VERIFIED:"warn",NEW:"warn",CHANGED:"critical",SUSPENDED:"critical",allowed:"good",blocked:"critical"};
 const pill=s=>`<span class="pill ${tone[s]||""}">${esc(s)}</span>`;
-async function api(u,o){const r=await fetch(u,o);const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.detail||r.statusText);return b}
-const table=(cols,rows,cls)=>`<div class="scroll"><table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr class="${cls?cls(r):""}">${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-let S=null,timer=null;
-const GUIDE={goal:"1 · User's goal",plan:"2 · Initial plan",news:"3 · New information",revise:"4 · Revised decision",deposit:"3+4 · The receipt lands",execute:"5 · Resulting state"};
-const NEXT={plan:"Read the day-1 inbox and plan",news:"Day 2: new information arrives",revise:"Revise the decision",deposit:"Land Acme's deposit on Airwallex",execute:"Execute on Airwallex and reconcile"};
-const SAY={goal:"The finance team's goal and the agent's mandate. Nothing here is a prompt: every number is a rule the engines enforce.",
- plan:"The agent reads the inbox, plans the next 72 hours and proves the plan before anything moves.",
+async function api(u,o){const r=await fetch(u,o);const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof b.detail==="string"?b.detail:JSON.stringify(b.detail||r.statusText));return b}
+const table=(cols,rows,cls)=>`<div class="scroll"><table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map((r,i)=>`<tr class="${cls?cls(r):""}">${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r,i)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+let S=null,D=null,timer=null,editing=false;
+const GUIDE={goal:"1 · Goal and mandate",plan:"2 · Initial plan",news:"3 · New information",revise:"4 · Revised decision",deposit:"3+4 · Payment received",execute:"5 · Resulting state"};
+const NEXT={plan:"Read the requests received and plan",news:"Receive new information",revise:"Revise the decision",deposit:"Confirm the incoming payment on Airwallex",execute:"Execute on Airwallex and reconcile"};
+const SAY={goal:"The finance manager's goal and the mandate granted to VENTHORA. Every number is a rule the engines enforce; a permission that is revoked goes to a person instead.",
+ plan:"VENTHORA reads every request received, plans the horizon and proves the plan before anything moves.",
  news:"An email changes the picture. The claim counts only because it can be quoted verbatim from a dated message.",
- revise:"Only the decisions the news touches are reconsidered; the rest stay locked. The same conversion now needs a person.",
- deposit:"Airwallex confirms the deposit as SETTLED; the agent re-reads the balance and revises again, on its own.",
- execute:"Money moves on the Airwallex sandbox, and the books are reconciled to the cent."};
+ revise:"Only the decisions the news touches are reconsidered; the rest stay locked.",
+ deposit:"Airwallex confirms the incoming payment as SETTLED; VENTHORA re-reads the balance and revises again, on its own.",
+ execute:"Money moves on Airwallex, and the books are reconciled to the cent."};
+const UNIT={usd:"USD",pct:"%",days:"days",hours:"hours",level:"level"};
+const toInput=(u,v)=>v==null?"":u==="usd"?(v/100):u==="pct"?(v/100):v;
+const fromInput=(u,v)=>u==="usd"?Math.round(Number(v)*100):u==="pct"?Math.round(Number(v)*100):Math.round(Number(v));
 
-function renderSteps(){const v=S;$("#steps").innerHTML=(v?v.steps:["goal","plan","news","revise","deposit","execute"].map(n=>({name:n,title:"",done:false}))).map((s,i)=>
- `<div class="step ${s.done?"done":""} ${v&&v.next===s.name?"next":""}"><div class="n">${esc(GUIDE[s.name])}</div><div class="t">${esc(s.title||"")}</div></div>`).join("")}
+// ---- the mandate form ------------------------------------------------------------------------------------
+function mandateRows(kind){return D.mandates.map((m,i)=>({...m,i})).filter(m=>m.kind===kind)}
+function mrow(m){const locked=m.kind==="locked";return `<tr class="${m.enabled||locked?"":"off"}"><td style="width:30px">${locked?pill("always"):`<input type="checkbox" data-m="${m.i}" ${m.enabled?"checked":""}>`}</td>
+ <td>${esc(m.label)}<div class="help">${esc(m.help||"")}</div></td>
+ <td class="num" style="white-space:nowrap">${m.unit?`<input class="n" data-mv="${m.i}" value="${esc(toInput(m.unit,m.value))}"> <span class="small muted">${UNIT[m.unit]}</span>`:""}</td></tr>`}
+function renderForm(){const d=D;const per=d.periods;
+ const tiers=d.approval_matrix;const roles=["finance_manager","cfo","controller"];
+ $("#cards").innerHTML=`<section id="c-form"><h2><span>1 · Goal and mandate</span><span class="tag">set by the finance manager</span></h2>
+ <p class="say">Grant VENTHORA its mandate. Checked permissions are VENTHORA's to use on its own; an unchecked permission is revoked and that action always waits for an approver. Nothing outside this mandate can happen.</p>
+ <h3>Goal</h3><textarea id="f-goal">${esc(d.goal)}</textarea>
+ <h3>Book and allocation</h3><div class="fields">
+  <label>Book<input id="f-book" value="${esc(d.book_name)}"></label><label>Organisation<input id="f-tenant" value="${esc(d.tenant_name)}"></label>
+  <label>Allocation (USD, ring-fenced from the wallet)<input id="f-alloc" class="n" value="${d.allocation_minor/100}"></label>
+  <label>Reserve floor (USD, never crossed)<input id="f-floor" class="n" value="${d.reserve_floor_minor/100}"></label>
+  <label>Planning horizon (hours)<input id="f-horizon" class="n" value="${d.horizon_hours}"></label>
+  <label>Budget period<select id="f-period">${["monthly","quarterly","annual"].map(k=>`<option value="${k}" ${k===d.period_type?"selected":""}>${k[0].toUpperCase()+k.slice(1)} · ${esc(per[k].label)}</option>`).join("")}</select></label>
+  <label>Full FX permission at receipt confidence ≥ (%)<input id="f-full" class="n" value="${d.full_confidence_bp/100}"></label>
+  <label>No FX permission at receipt confidence ≤ (%)<input id="f-zero" class="n" value="${d.zero_limit_below_bp/100}"></label></div>
+ <h3>What VENTHORA may do on its own</h3><div class="scroll"><table><tbody>${mandateRows("grant").map(mrow).join("")}</tbody></table></div>
+ <h3>Safeguards VENTHORA keeps</h3><div class="scroll"><table><tbody>${mandateRows("guard").map(mrow).join("")}</tbody></table></div>
+ <h3>Always enforced</h3><div class="scroll"><table><tbody>${mandateRows("locked").map(mrow).join("")}</tbody></table></div>
+ <h3>Budget for the period</h3>${table([{h:"Line",f:r=>`<b>${esc(r.line)}</b>`},{h:"Amount (USD)",num:1,f:(r,i)=>`<input class="n" data-b="${i}" data-k="amount_minor" value="${r.amount_minor/100}">`},
+   {h:"VENTHORA alone up to (%)",num:1,f:(r,i)=>`<input class="s" data-b="${i}" data-k="auto_share_bp" value="${r.auto_share_bp/100}">`},{h:"Alert at (%)",num:1,f:(r,i)=>`<input class="s" data-b="${i}" data-k="alert_share_bp" value="${r.alert_share_bp/100}">`},
+   {h:"Approver at alert",f:(r,i)=>`<input type="checkbox" data-bc="${i}" data-k="require_approval_on_alert" ${r.require_approval_on_alert?"checked":""}>`},
+   {h:"Unlimited (signed by)",f:(r,i)=>`<input type="checkbox" data-bc="${i}" data-k="bypass" ${r.bypass?"checked":""}> <input data-bs="${i}" placeholder="signatory" value="${esc(r.bypass_approved_by||"")}" style="width:130px">`}],d.budget)}
+ <p class="small"><label><input type="checkbox" id="f-unbudgeted" ${d.unbudgeted_requires_approval?"checked":""}> A payment outside every budget line waits for an approver</label></p>
+ <h3>Approvers and the approval matrix</h3><div class="grid2"><div>${table([{h:"Approver",f:(r,i)=>`<input data-a="${i}" data-k="name" value="${esc(r.name)}" style="width:170px">`},
+   {h:"Role",f:(r,i)=>`<select data-a="${i}" data-k="role">${roles.map(x=>`<option ${x===r.role?"selected":""}>${x}</option>`).join("")}</select>`}],d.approvers)}
+   <p class="small"><button id="addApprover">Add approver</button> <span class="help">Only these people may approve this book's plans; the requester never may.</span></p></div>
+  <div>${table([{h:"Tier",f:r=>`<b>${esc(r.name)}</b>`},{h:"From total (USD)",num:1,f:(r,i)=>`<input class="n" data-t="${i}" data-k="min_total_minor" value="${r.min_total_minor/100}">`},
+   {h:"Different people",num:1,f:(r,i)=>`<input class="s" data-t="${i}" data-k="approvals_required" value="${r.approvals_required}">`},{h:"Also for",f:r=>`<span class="small muted">${esc((r.reasons||[]).join(", ").replaceAll("_"," ")||"-")}</span>`}],tiers)}</div></div>
+ <h3>Payees VENTHORA may pay</h3>${table([{h:"",f:(r,i)=>`<input type="checkbox" data-p="${i}" ${r.allowed?"checked":""}>`},{h:"Payee",f:r=>`<b>${esc(r.name)}</b><div class="help">${esc(r.id)}</div>`},
+   {h:"Pays in",f:r=>`${esc(r.currency||"")} · ${esc(r.method||"")}`},{h:"Status",f:r=>pill(r.status)},{h:"Registered mailbox",f:r=>`<span class="small">${esc((r.contacts||[]).join(", "))}</span>`},{h:"Call-back number",f:r=>`<span class="small">${esc(r.phone||"-")}</span>`}],d.payees)}
+ <h3>Reporting</h3><div class="fields">
+  <label>Cut-off day of month<input id="f-cday" class="n" value="${d.reporting.cutoff_day}" ${d.reporting.editable?"":"disabled"}></label>
+  <label>Cut-off time<input id="f-ctime" class="n" value="${esc(d.reporting.cutoff_time)}" ${d.reporting.editable?"":"disabled"}></label>
+  <label>Timezone<input id="f-tz" value="${esc(d.reporting.timezone)}" ${d.reporting.editable?"":"disabled"}></label>
+  <label>Reporting currency<input id="f-rccy" class="n" value="${esc(d.reporting.reporting_currency)}" ${d.reporting.editable?"":"disabled"}></label></div>
+ ${d.reporting.editable?"":`<p class="help">Set by the admin in the Control center.</p>`}
+ <h3>Requests received</h3>${incomingTable(d.incoming)}
+ <p style="margin-top:14px"><button class="primary" id="grantBtn">Grant the mandate and open the book</button> <span id="formErr" class="small err"></span></p></section>`;
+ $("#addApprover").onclick=e=>{e.preventDefault();collect();D.approvers.push({name:"",role:"finance_manager"});renderForm()};
+ $("#grantBtn").onclick=grant;
+ document.querySelectorAll("input[data-m]").forEach(cb=>cb.onchange=()=>cb.closest("tr").classList.toggle("off",!cb.checked))}
+function incomingTable(rows){return table([{h:"Channel",f:r=>`<span class="chan">${esc(r.channel)}</span>`},{h:"From",f:r=>esc(r.from)},{h:"Request",f:r=>`${esc(r.subject)}${r.text?`<div class="help">${esc(r.text.slice(0,160))}${r.text.length>160?"…":""}</div>`:""}`},
+ {h:"Amount",num:1,f:r=>r.amount_minor!=null?fmt(r.amount_minor,r.currency):""},{h:"Received",f:r=>esc(r.date||"on file")}],rows)}
+function collect(){const d=D;const v=id=>$(id)?$(id).value:null;
+ d.goal=v("#f-goal");d.book_name=v("#f-book");d.tenant_name=v("#f-tenant");d.allocation_minor=Math.round(Number(v("#f-alloc"))*100);d.reserve_floor_minor=Math.round(Number(v("#f-floor"))*100);
+ d.horizon_hours=Number(v("#f-horizon"));d.period_type=v("#f-period");d.full_confidence_bp=Math.round(Number(v("#f-full"))*100);d.zero_limit_below_bp=Math.round(Number(v("#f-zero"))*100);
+ document.querySelectorAll("input[data-m]").forEach(cb=>d.mandates[cb.dataset.m].enabled=cb.checked);
+ document.querySelectorAll("input[data-mv]").forEach(x=>{const m=d.mandates[x.dataset.mv];m.value=fromInput(m.unit,x.value)});
+ document.querySelectorAll("input[data-b]").forEach(x=>{const k=x.dataset.k;d.budget[x.dataset.b][k]=Math.round(Number(x.value)*100)});
+ document.querySelectorAll("input[data-bc]").forEach(x=>d.budget[x.dataset.bc][x.dataset.k]=x.checked);
+ document.querySelectorAll("input[data-bs]").forEach(x=>d.budget[x.dataset.bs].bypass_approved_by=x.value);
+ d.unbudgeted_requires_approval=$("#f-unbudgeted").checked;
+ document.querySelectorAll("[data-a]").forEach(x=>d.approvers[x.dataset.a][x.dataset.k]=x.value);
+ document.querySelectorAll("input[data-t]").forEach(x=>{const t=d.approval_matrix[x.dataset.t];t[x.dataset.k]=x.dataset.k==="min_total_minor"?Math.round(Number(x.value)*100):Number(x.value)});
+ document.querySelectorAll("input[data-p]").forEach(x=>d.payees[x.dataset.p].allowed=x.checked);
+ if(d.reporting.editable){d.reporting.cutoff_day=Number(v("#f-cday"));d.reporting.cutoff_time=v("#f-ctime");d.reporting.timezone=v("#f-tz");d.reporting.reporting_currency=v("#f-rccy")}
+ d.approvers=d.approvers.filter(a=>a.name.trim());return d}
+async function grant(){const b=$("#grantBtn");b.disabled=true;$("#formErr").textContent="opening the book on the live wallet…";
+ try{const cfg=collect();S=await api("/api/live/start",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario:D.scenario,config:cfg})});
+  editing=false;history.replaceState(null,"","#"+S.sid);render();pollWallet();clearInterval(timer);timer=setInterval(pollWallet,3000);window.scrollTo({top:0,behavior:"smooth"})}
+ catch(e){$("#formErr").textContent=e.message;b.disabled=false}}
 
-function renderNext(){const n=S&&S.next;if(!S){$("#nextbar").innerHTML="";return}
+// ---- the run ---------------------------------------------------------------------------------------------
+function renderSteps(){const names=["goal","plan","news","revise","deposit","execute"];const st=S?S.steps:names.map(n=>({name:n,title:"",done:false}));
+ $("#steps").innerHTML=st.map(s=>`<button class="step ${s.done?"done":""} ${(S&&S.next===s.name)||(!S&&s.name==="goal")?"next":""}" data-step="${s.name}"><div class="n">${esc(GUIDE[s.name])}</div><div class="t">${esc(s.title||{goal:"Grant the mandate"}[s.name]||"")}</div></button>`).join("");
+ document.querySelectorAll(".step").forEach(b=>b.onclick=()=>{const el=$(`#c-${b.dataset.step}`)||(b.dataset.step==="goal"&&$("#c-form"));if(el)el.scrollIntoView({behavior:"smooth",block:"start"})})}
+function renderNext(){if(!S||editing){$("#nextbar").innerHTML="";return}const n=S.next;
  if(!n){$("#nextbar").innerHTML=`<span class="pill good">run complete</span><span class="small muted">every step is in the event log and the audit chain</span>`;return}
- $("#nextbar").innerHTML=`<button class="primary" id="nextBtn">Next: ${esc(NEXT[n])} ▸</button>${S.next_needs_approval?`<label class="small">Approved by <input id="approver" value="finance manager (owner)" style="width:200px"> (finance_manager)</label>`:""}<span id="busy" class="small muted"></span>`;
+ const opts=(S.approvers||[]).map(a=>`<option value="${esc(a.name)}|${esc(a.role)}">${esc(a.name)} (${esc(a.role)})</option>`).join("");
+ $("#nextbar").innerHTML=`<button class="primary" id="nextBtn">Next: ${esc(NEXT[n])} ▸</button>${S.next_needs_approval?`<label class="small">Approved by <select id="approver">${opts}</select></label>`:""}<span id="busy" class="small muted"></span>`;
  $("#nextBtn").onclick=next}
-
-function planBlock(p,prev){
- const changed=new Set((p.changes||[]).map(c=>c.id));
- return `<div class="tiles"><div class="tile"><div class="k">Decision</div><div class="v">${pill(p.decision)}</div><div class="d">${esc((p.requires||[]).join(", ")||"no approval needed")}</div></div>
-  <div class="tile"><div class="k">Autonomous FX limit</div><div class="v">${fmt(p.conversion_limit_minor,"USD")}</div><div class="d">${p.forecast_confidence_bp==null?"no open receipt to rely on":`receipt confidence ${pct(p.forecast_confidence_bp)}`}</div></div>
+function planBlock(p){const changed=new Set((p.changes||[]).map(c=>c.id));
+ return `<div class="tiles"><div class="tile"><div class="k">Decision</div><div class="v">${pill(p.decision)}</div><div class="d">${esc((p.requires||[]).join(", ").replaceAll("_"," ")||"no approval needed")}${p.approval?` · ${p.approval.approvals_required} approver(s)`:""}</div></div>
+  <div class="tile"><div class="k">FX it may convert alone</div><div class="v">${fmt(p.conversion_limit_minor,"USD")}</div><div class="d">${p.forecast_confidence_bp==null?"no expected payment relied on":`receipt confidence ${pct(p.forecast_confidence_bp)}`}</div></div>
   <div class="tile"><div class="k">Conversions planned</div><div class="v">${fmt(p.conversion_total_minor,"USD")}</div><div class="d">${p.conversions.map(c=>`${c.buy} ${(c.buy_minor/100).toLocaleString("en-US")}`).join(" · ")||"none"}</div></div>
-  <div class="tile"><div class="k">USD after plan</div><div class="v">${fmt(p.base_after_minor,"USD")}</div><div class="d">floor ${fmt(p.floor_minor,"USD")} · P(breach) ${pct(p.breach_bp)}</div></div>
-  <div class="tile"><div class="k">Planned and proven in</div><div class="v">${p.ms.toFixed(0)} ms</div><div class="d">${p.stages.length} stages · ${p.counterfactuals.length} counterfactuals</div></div></div>
+  <div class="tile"><div class="k">USD after the plan</div><div class="v">${fmt(p.base_after_minor,"USD")}</div><div class="d">floor ${fmt(p.floor_minor,"USD")} · P(breach) ${pct(p.breach_bp)}</div></div>
+  <div class="tile"><div class="k">Planned and proven in</div><div class="v">${p.ms.toFixed(0)} ms</div><div class="d">${p.stages.length} checks · ${p.counterfactuals.length} alternatives proven</div></div></div>
   ${table([{h:"Obligation",f:r=>`<b>${esc(r.id)}</b>`},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Decision",f:r=>(changed.has(r.id)?`<span class="small muted">${esc((p.changes.find(c=>c.id===r.id)||{}).before)} → </span>`:"")+pill(r.action)},{h:"Why",f:r=>`<span class="small">${esc(r.reason)}</span>`}],p.obligations,r=>changed.has(r.id)?"changed":"")}
-  ${p.changes&&p.changes.length?`<p class="small"><b>Changed:</b> ${p.changes.map(c=>`${esc(c.id)} ${esc(c.before)} → ${esc(c.after)}`).join("; ")} · <span class="muted">locked: ${p.locked.length} decisions</span></p>`:""}
+  ${p.changes&&p.changes.length?`<p class="small"><b>Changed:</b> ${p.changes.map(c=>`${esc(c.id)} ${esc(c.before)} → ${esc(c.after)}`).join("; ")} · <span class="muted">${p.locked.length} decisions locked</span></p>`:""}
   ${p.alerts&&p.alerts.length?`<p class="small">${pill("alert")} ${p.alerts.map(esc).join("; ")}</p>`:""}
-  <details class="small"><summary>Stages and counterfactuals</summary><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:8px">
-   <div>${table([{h:"Stage",f:r=>pill(r.status)+" "+esc(r.engine)},{h:"",f:r=>`<span class="small muted">${esc(r.summary)}</span>`}],p.stages)}</div>
+  <details class="small"><summary>Checks and alternatives</summary><div class="grid2" style="margin-top:8px">
+   <div>${table([{h:"Check",f:r=>pill(r.status)+" "+esc(r.engine)},{h:"",f:r=>`<span class="small muted">${esc(r.summary)}</span>`}],p.stages)}</div>
    <div>${table([{h:"What if…",f:r=>esc(r.question)},{h:"",f:r=>pill(r.feasible?"PASS":"FAIL")},{h:"P(breach)",num:1,f:r=>pct(r.breach_bp)}],p.counterfactuals)}</div></div></details>`}
-
 function readingBlock(r){
  const ups=(r.updates||[]).map(u=>`<div class="quote"><div class="meta">${esc(u.payer)} · ${esc(u.receivable_id)}</div>expected in <b>${u.previous_expected_in_hours} h → ${u.new_expected_in_hours} h</b>, confidence <b>${pct(u.previous_confidence_bp)} → ${pct(u.new_confidence_bp)}</b>${u.arrival_window_hours?`, 90% window ${u.arrival_window_hours.join("–")} h`:""}<div class="meta">${esc(u.calibration||"")}</div></div>`).join("");
  const fl=(r.flags||[]).map(f=>`<div class="quote"><div class="meta">${esc(f.payee)} · ${esc(f.id)} · ${f.verified?"verified":"not verified"}</div>“${esc(f.quote)}” → ${pill("ESCALATE")} <span class="small">${esc(f.flag.replaceAll("_"," "))}</span></div>`).join("");
- const msgs=(r.messages||[]).map(m=>`<div class="quote"><div class="meta">${esc(m.date)} · ${esc(m.sender)} · <b>${esc(m.subject)}</b></div>${esc(m.text)}</div>`).join("");
- return `${msgs?`<p class="small muted" style="margin:4px 0">Message received</p>${msgs}`:""}${ups||fl?`<p class="small muted" style="margin:8px 0 4px">What the evidence changes (quoted, Verity-verified)</p>${ups}${fl}`:""}<p class="small muted">${esc(r.summary)}</p>`}
-
-function card(name,body){return `<section id="c-${name}"><h2><span>${esc(GUIDE[name])} · ${esc(S.steps.find(s=>s.name===name).title)}</span><span class="tag">done</span></h2><p class="say">${esc(SAY[name])}</p>${body}</section>`}
-
-function renderCards(){if(!S)return;const V=S.views;const out=[];
- if(V.goal){const g=V.goal,m=g.mandate;out.push(card("goal",`<div class="quote"><b>Goal.</b> ${esc(g.goal.text)}</div>
-  <div class="tiles"><div class="tile"><div class="k">Allocation (ring-fenced)</div><div class="v">${fmt(g.managed.USD,"USD")}</div><div class="d">from a live wallet of ${fmt(g.wallet.USD,"USD")}</div></div>
+ const msgs=(r.messages||[]).map(m=>`<div class="quote"><div class="meta"><span class="chan">Email</span> ${esc(m.date)} · ${esc(m.sender)} · <b>${esc(m.subject)}</b></div>${esc(m.text)}</div>`).join("");
+ return `${msgs?`<p class="small muted" style="margin:4px 0">Received</p>${msgs}`:""}${ups||fl?`<p class="small muted" style="margin:8px 0 4px">What the evidence changes (quoted and verified)</p>${ups}${fl}`:""}<p class="small muted">${esc(r.summary)}</p>`}
+function card(name,body,extra){return `<section id="c-${name}"><h2><span>${esc(GUIDE[name])} · ${esc(S.steps.find(s=>s.name===name).title)}</span><span>${extra||""}<span class="tag">done</span></span></h2><p class="say">${esc(SAY[name])}</p>${body}</section>`}
+function goalCard(){const g=S.views.goal,m=g.mandate,gr=g.granted;
+ const rows=gr.mandates.map(x=>({...x,state:x.kind==="locked"?"always":x.kind==="grant"?(x.enabled?"granted":"revoked"):(x.enabled?"enforced":"off")}));
+ return card("goal",`<div class="quote"><b>Goal.</b> ${esc(g.goal.text)}</div>
+  <div class="tiles"><div class="tile"><div class="k">Book</div><div class="v" style="font-size:15px">${esc(g.book_name)}</div><div class="d">${esc(g.tenant||"")}</div></div>
+   <div class="tile"><div class="k">Allocation (ring-fenced)</div><div class="v">${fmt(g.managed.USD,"USD")}</div><div class="d">from a live wallet of ${fmt(g.wallet.USD,"USD")}</div></div>
    <div class="tile"><div class="k">Reserve floor</div><div class="v">${fmt(m.reserve_floor_minor,"USD")}</div><div class="d">never crossed, plus an FX stress buffer</div></div>
-   <div class="tile"><div class="k">Autonomous FX limit</div><div class="v">${fmt(m.autonomous_conversion_limit_minor,"USD")}</div><div class="d">full at ≥${pct(m.full_confidence_bp)}, zero at ≤${pct(m.zero_limit_below_bp)} confidence</div></div>
-   <div class="tile"><div class="k">Horizon · risk tolerance</div><div class="v">${m.horizon_hours} h</div><div class="d">P(breach) ≤ ${pct(m.max_breach_probability_bp)}</div></div>
-   <div class="tile"><div class="k">Who approves</div><div class="v" style="font-size:15px">${esc(m.approver_roles.join(", "))}</div><div class="d">always escalated: ${esc(m.escalate_flags.join(", ").replaceAll("_"," "))}</div></div></div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
-   <div>${table([{h:"Obligation",f:r=>`<b>${esc(r.id)}</b><br><span class="small muted">${esc(r.payee)}</span>`},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Due",num:1,f:r=>`${r.due_in_hours} h`},{h:"Priority",num:1,f:r=>r.priority}],g.obligations)}
-    ${g.receivables.map(r=>`<p class="small">Expected receipt: <b>${esc(r.payer)}</b> ${fmt(r.amount_minor,r.currency)} in ${r.expected_in_hours} h, confidence ${pct(r.confidence_bp)}</p>`).join("")}</div>
-   <div>${table([{h:"Budget line (November)",f:r=>esc(r.line)},{h:"Mandate",num:1,f:r=>fmt(r.mandate_minor,"USD")},{h:"Alone up to",num:1,f:r=>pct(r.auto_share_bp)},{h:"Alert at",num:1,f:r=>pct(r.alert_share_bp)}],m.budget)}
-    ${Object.keys(m.learned_fees||{}).length?`<p class="small muted">Fees learned from earlier real executions: ${esc(Object.entries(m.learned_fees).map(([k,v])=>`${k} ${(v/100).toFixed(2)}`).join(", "))}</p>`:""}</div></div>`))}
+   <div class="tile"><div class="k">Horizon · budget period</div><div class="v">${m.horizon_hours} h</div><div class="d">${esc(gr.budget.period)} (${esc(gr.budget.type)})</div></div>
+   <div class="tile"><div class="k">Approvers</div><div class="v" style="font-size:14px">${gr.approvers.map(a=>esc(a.name)).join(", ")}</div><div class="d">${gr.revoked.length?`${gr.revoked.length} permission(s) revoked`:"every permission granted"}</div></div></div>
+  <div class="grid2"><div>${table([{h:"Mandate",f:r=>esc(r.label)},{h:"",num:1,f:r=>r.unit?`<span style="white-space:nowrap">${r.unit==="usd"?fmt(r.value,"USD"):r.unit==="pct"?pct(r.value):`${r.value} ${UNIT[r.unit]}`}</span>`:""},{h:"",f:r=>pill(r.state)}],rows,r=>r.state==="revoked"||r.state==="off"?"off":"")}</div>
+   <div>${table([{h:`Budget · ${esc(gr.budget.period)}`,f:r=>esc(r.line)},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,"USD")},{h:"Alone up to",num:1,f:r=>pct(r.auto_share_bp)},{h:"Alert",num:1,f:r=>pct(r.alert_share_bp)}],gr.budget.lines)}
+    <h3>Obligations on the book</h3>${table([{h:"Obligation",f:r=>`<b>${esc(r.id)}</b><br><span class="small muted">${esc(r.payee)}</span>`},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Due",num:1,f:r=>`${r.due_in_hours} h`},{h:"Priority",num:1,f:r=>r.priority}],g.obligations)}
+    ${g.receivables.map(r=>`<p class="small">Expected payment: <b>${esc(r.payer)}</b> ${fmt(r.amount_minor,r.currency)} in ${r.expected_in_hours} h, confidence ${pct(r.confidence_bp)}</p>`).join("")}
+    <p class="small muted">Payees it may pay: ${gr.allowed_payees.length} · fees known from Airwallex: ${esc(Object.entries(m.learned_fees||{}).map(([k,v])=>`${k} ${(v/100).toFixed(2)}`).join(", "))}</p></div></div>
+  <h3>Requests received</h3>${incomingTable(g.incoming)}`,`<button id="editMandate" class="small" style="margin-right:8px">Change the mandate (new run)</button>`)}
+function renderCards(){if(editing||!S){if(D)renderForm();return}const V=S.views;const out=[];
+ if(V.goal)out.push(goalCard());
  if(V.plan)out.push(card("plan",readingBlock(V.plan.reading)+planBlock(V.plan.plan)));
  if(V.news)out.push(card("news",readingBlock(V.news.reading)));
  if(V.revise)out.push(card("revise",planBlock(V.revise.plan)));
- if(V.deposit){const d=V.deposit.deposit||{};out.push(card("deposit",`<div class="tiles"><div class="tile"><div class="k">Airwallex deposit</div><div class="v">${pill(d.status||"-")}</div><div class="d mono">${esc(d.id||"")}</div></div>
-   <div class="tile"><div class="k">Amount</div><div class="v">${d.amount==null?"-":fmt(Math.round(Number(d.amount)*100),d.currency)}</div><div class="d">${d.landed?"counted only because SETTLED":"not counted"}</div></div>
-   <div class="tile"><div class="k">Book after the receipt</div><div class="v">${fmt(S.managed.USD,"USD")}</div><div class="d">managed USD, re-read before re-planning</div></div></div>${planBlock(V.deposit.plan)}`))}
- if(V.execute){const e=V.execute;const cur=["USD","EUR","GBP"];out.push(card("execute",`<div class="tiles"><div class="tile"><div class="k">Execution</div><div class="v">${pill(e.status)}</div><div class="d">${esc(e.message)}</div></div>
-   <div class="tile"><div class="k">Reconciliation</div><div class="v">${e.discrepancies&&Object.keys(e.discrepancies).length?pill("FAIL"):pill("PASS")}</div><div class="d">${e.discrepancies&&Object.keys(e.discrepancies).length?esc(JSON.stringify(e.discrepancies)):"wallet moved by exactly the book's cash lines"}</div></div>
-   <div class="tile"><div class="k">Reserve floor</div><div class="v">${pill(e.floor_ok?"PASS":"FAIL")}</div><div class="d">held after execution</div></div></div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
-   <div>${table([{h:"On Airwallex",f:r=>`${esc(r.kind)} <b>${esc(r.key)}</b>`},{h:"Status",f:r=>pill(r.final||r.status)},{h:"Id",f:r=>`<span class="mono">${esc((r.airwallex_id||"").slice(0,8))}…</span>`},
+ if(V.deposit){const d=V.deposit.deposit||{};out.push(card("deposit",`<div class="tiles"><div class="tile"><div class="k">Incoming payment</div><div class="v">${pill(d.status||"-")}</div><div class="d mono">${esc(d.id||"")}</div></div>
+   <div class="tile"><div class="k">Amount</div><div class="v">${d.amount==null?"-":fmt(Math.round(Number(d.amount)*100),d.currency)}</div><div class="d">${d.landed?"counted only once SETTLED":"not counted"}</div></div>
+   <div class="tile"><div class="k">Book after the payment</div><div class="v">${fmt(S.managed.USD,"USD")}</div><div class="d">balance re-read before re-planning</div></div></div>${planBlock(V.deposit.plan)}`))}
+ if(V.execute){const e=V.execute;const cur=["USD","EUR","GBP"];out.push(card("execute",`<div class="tiles"><div class="tile"><div class="k">Execution</div><div class="v">${pill(e.status)}</div><div class="d">${esc(e.refusal||e.message)}</div></div>
+   <div class="tile"><div class="k">Reconciliation</div><div class="v">${e.discrepancies==null?"-":Object.keys(e.discrepancies).length?pill("FAIL"):pill("PASS")}</div><div class="d">${e.discrepancies&&Object.keys(e.discrepancies).length?esc(JSON.stringify(e.discrepancies)):"wallet moved by exactly the book's cash lines"}</div></div>
+   <div class="tile"><div class="k">Reserve floor</div><div class="v">${e.floor_ok==null?"-":pill(e.floor_ok?"PASS":"FAIL")}</div><div class="d">held after execution</div></div></div>
+  <div class="grid2"><div>${table([{h:"On Airwallex",f:r=>`${esc(r.kind)} <b>${esc(r.key)}</b>`},{h:"Status",f:r=>pill(r.final||r.status)},{h:"Id",f:r=>`<span class="mono">${esc((r.airwallex_id||"").slice(0,8))}…</span>`},
      {h:"Detail",f:r=>`<span class="small muted">${esc([r.detail.amount,r.detail.method,r.detail.fee_minor!=null?`fee ${(r.detail.fee_minor/100).toFixed(2)}`:null,r.detail.sell_minor!=null?`sell USD ${(r.detail.sell_minor/100).toLocaleString("en-US",{minimumFractionDigits:2})}`:null,r.detail.client_rate?`rate ${r.detail.client_rate}`:null].filter(Boolean).join(" · "))}</span>`}],e.steps)}</div>
    <div>${table([{h:"Wallet",f:r=>r},{h:"Before",num:1,f:r=>fmt(e.wallet_before[r],r)},{h:"After",num:1,f:r=>fmt(e.wallet_after[r],r)},{h:"Change",num:1,f:r=>{const d=e.wallet_after[r]-e.wallet_before[r];return `<span class="delta ${d<0?"neg":d>0?"pos":""}">${d?(d>0?"+":"")+fmt(d,""):"0.00"}</span>`}}],cur)}
     ${table([{h:"Book ledger",f:r=>r},{h:"Cash",num:1,f:r=>fmt((e.book[r]||{}).cash||0,r)},{h:"Expense",num:1,f:r=>fmt((e.book[r]||{}).expense||0,r)},{h:"Fees",num:1,f:r=>fmt((e.book[r]||{}).fees||0,r)}],Object.keys(e.book))}
-    <p class="small"><b>Paid:</b> ${e.paid.map(esc).join(", ")}<br><b>Not paid, by rule:</b> ${e.not_paid.map(x=>`${esc(x.id)} ${pill(x.action)}`).join(" ")}</p></div></div>`))}
- $("#cards").innerHTML=out.reverse().join("")||"";}
-
-function renderLog(){$("#log").innerHTML=(S?S.events:[]).map(e=>`<li><b>${esc(GUIDE[e.step])}</b> <span class="muted">${esc(e.at.slice(11,19))} · ${e.ms.toFixed(0)} ms</span><br>${esc(e.detail)}</li>`).join("")}
-function render(){renderSteps();renderNext();renderCards();renderLog();$("#book").textContent=S?`book ${S.book_id}`:""}
-
+    <p class="small"><b>Paid:</b> ${e.paid.map(esc).join(", ")||"none"}<br><b>Not paid, by rule:</b> ${e.not_paid.map(x=>`${esc(x.id)} ${pill(x.action)}`).join(" ")}</p></div></div>`))}
+ $("#cards").innerHTML=out.reverse().join("");const ed=$("#editMandate");if(ed)ed.onclick=()=>{editing=true;clearInterval(timer);render()}}
+function renderLog(){$("#log").innerHTML=(S&&!editing?S.events:[]).map(e=>`<li><b>${esc(GUIDE[e.step])}</b> <span class="muted">${esc(e.at.slice(11,19))} · ${e.ms.toFixed(0)} ms</span><br>${esc(e.detail)}</li>`).join("")}
+function render(){renderSteps();renderNext();renderCards();renderLog();$("#book").textContent=S&&!editing?(S.book_name||S.book_id):""}
 async function pollWallet(){if(!S)return;try{const w=await api(`/api/live/${S.sid}/wallet`);$("#wAt").textContent=w.at.slice(11,19)+" UTC";
- const cur=["USD","EUR","GBP"];$("#wallet").innerHTML=table([{h:"",f:r=>`<b>${r}</b>`},{h:"Live balance",num:1,f:r=>fmt(w.wallet[r],"")},{h:"Since start",num:1,f:r=>{const d=w.wallet[r]-(w.start[r]||0);return `<span class="delta ${d<0?"neg":d>0?"pos":""}">${d?(d>0?"+":"")+fmt(d,""):"0.00"}</span>`}}],cur);
+ const cur=["USD","EUR","GBP"];$("#wallet").innerHTML=table([{h:"",f:r=>`<b>${r}</b>`},{h:"Balance",num:1,f:r=>fmt(w.wallet[r],"")},{h:"Since the book opened",num:1,f:r=>{const d=w.wallet[r]-(w.start[r]||0);return `<span class="delta ${d<0?"neg":d>0?"pos":""}">${d?(d>0?"+":"")+fmt(d,""):"0.00"}</span>`}}],cur);
  const booked=w.ledger&&w.ledger.USD&&w.ledger.USD.cash!=null;const usd=booked?w.ledger.USD.cash:(w.managed.USD||0),floor=(S.views.goal||{}).mandate?.reserve_floor_minor||0,top=Math.max(usd,floor,w.managed.USD||0)*1.15||1;
- $("#bookPanel").innerHTML=`<div class="small">${booked?"USD cash in the ledger":"Managed USD"} <b>${fmt(usd,"USD")}</b> · floor ${fmt(floor,"USD")}</div><div class="floor"><i style="width:${Math.min(100,usd/top*100)}%"></i><b style="left:${floor/top*100}%"></b></div>
+ $("#bookPanel").innerHTML=`<div class="small">${booked?"USD cash in the ledger":"USD allocated"} <b>${fmt(usd,"USD")}</b> · floor ${fmt(floor,"USD")}</div><div class="floor"><i style="width:${Math.min(100,usd/top*100)}%"></i><b style="left:${floor/top*100}%"></b></div>
   <div class="small muted">red mark = reserve floor</div>${Object.keys(w.ledger||{}).length?table([{h:"Ledger",f:r=>r},{h:"Cash",num:1,f:r=>fmt(w.ledger[r].cash||0,"")},{h:"Expense",num:1,f:r=>fmt(w.ledger[r].expense||0,"")},{h:"Fees",num:1,f:r=>fmt(w.ledger[r].fees||0,"")}],Object.keys(w.ledger)):""}`}
  catch(e){$("#wallet").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
-
-async function start(){$("#startBtn").disabled=true;$("#cards").innerHTML='<section><div class="empty">opening a fresh book on the live wallet…</div></section>';
- try{S=await api("/api/live/start",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario:"demo_live"})});history.replaceState(null,"","#"+S.sid);render();pollWallet();clearInterval(timer);timer=setInterval(pollWallet,3000)}
- catch(e){$("#cards").innerHTML=`<section><div class="err">${esc(e.message)}</div></section>`}finally{$("#startBtn").disabled=false}}
-
-async function next(){const b=$("#nextBtn");b.disabled=true;$("#busy").textContent=S.next==="deposit"?"waiting for Airwallex to settle the deposit…":S.next==="execute"?"executing on the Airwallex sandbox…":"working…";
- const approver=$("#approver")?$("#approver").value:null;
- try{S=await api(`/api/live/${S.sid}/step`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({approver})});render();pollWallet();window.scrollTo({top:0,behavior:"smooth"})}
+async function next(){const b=$("#nextBtn");b.disabled=true;$("#busy").textContent=S.next==="deposit"?"waiting for Airwallex to settle the payment…":S.next==="execute"?"executing on Airwallex…":"working…";
+ const sel=$("#approver")?$("#approver").value.split("|"):[null,"finance_manager"];
+ try{S=await api(`/api/live/${S.sid}/step`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({approver:sel[0],role:sel[1]})});render();pollWallet();window.scrollTo({top:0,behavior:"smooth"})}
  catch(e){$("#busy").innerHTML=`<span class="err">${esc(e.message)}</span>`;b.disabled=false}}
-$("#startBtn").onclick=start;window.venthoraLive={start,next:()=>next(),state:()=>S};render();
-// A refresh keeps the run: the session id is in the URL and the server holds the session.
-(async()=>{const sid=location.hash.slice(1);if(!sid)return;try{S=await api(`/api/live/${encodeURIComponent(sid)}`);render();pollWallet();timer=setInterval(pollWallet,3000)}catch(e){history.replaceState(null,"","/live")}})();
+async function loadForm(){D=await api("/api/live/setup");}
+$("#newBtn").onclick=async()=>{clearInterval(timer);S=null;editing=false;history.replaceState(null,"","/live");await loadForm();render()};
+window.venthoraLive={grant,next:()=>next(),state:()=>S,form:()=>D,collect};
+(async()=>{try{await loadForm()}catch(e){$("#cards").innerHTML=`<section><div class="err">${esc(e.message)}</div></section>`;return}
+ const sid=location.hash.slice(1);if(sid){try{S=await api(`/api/live/${encodeURIComponent(sid)}`);render();pollWallet();timer=setInterval(pollWallet,3000);return}catch(e){history.replaceState(null,"","/live")}}
+ render()})();
 </script>
 </body>
 </html>

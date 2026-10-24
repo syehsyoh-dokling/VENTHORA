@@ -22,6 +22,7 @@ def fx_facts(state: TreasuryState, decisions: list[ObligationDecision], proj: Pr
     p = state.policy
     base = state.base_currency
     horizon = p.planning_horizon_hours
+    rejected = {d.obligation_id for d in decisions if d.action == "REJECT"}
     bought: dict[str, int] = {}
     sold_base = 0
     for c in proj.conversions:
@@ -30,8 +31,10 @@ def fx_facts(state: TreasuryState, decisions: list[ObligationDecision], proj: Pr
             sold_base += c.estimated_sell_minor
     rows = []
     for ccy in sorted(k for k in state.balances if k != base):
+        # A rejected obligation (a duplicate, an unverified claim) is owed by nobody: it is not an exposure to hedge.
         due = sum(o.amount_minor for o in state.obligations
-                  if o.currency == ccy and o.record_kind == "payable" and o.due_in_hours <= horizon)
+                  if o.currency == ccy and o.record_kind == "payable" and o.due_in_hours <= horizon
+                  and o.obligation_id not in rejected)
         held = state.balance(ccy)
         covered = held + bought.get(ccy, 0)
         coverage_bp = None if due == 0 else min(10_000, covered * 10_000 // due)

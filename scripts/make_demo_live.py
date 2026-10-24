@@ -18,8 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 base = json.loads((ROOT / "data" / "scenarios" / "kit01_baseline.json").read_text(encoding="utf-8"))
 st = base["state"]
-st["case_id"] = "demo-live"
-st["book_id"] = "demo-live"
+st["case_id"] = "us-ops"
+st["book_id"] = "us-ops"
 st["balances"] = {"USD": 3_000_000, "EUR": 0, "GBP": 0}
 st["policy"]["reserve_floor_minor"] = 1_000_000
 # The fees the real sandbox charged in earlier cycles (SANDBOX_RESULTS.md), so a demo on a clean store does not repeat the
@@ -28,13 +28,21 @@ st["policy"]["payout_fees_minor"] = {"SWIFT:EUR": 1343, "LOCAL:GBP": 225, "LOCAL
 for o in st["obligations"]:
     if o["obligation_id"] == "SAAS-USD":
         o["amount_minor"] = 500_000
+    if o["obligation_id"] == "PAYROLL-NOV":  # the book runs in whatever period the finance manager chooses
+        o["obligation_id"] = "PAYROLL"
+for e in st["evidence"]:
+    if e["subject_id"] == "PAYROLL-NOV":
+        e["subject_id"] = "PAYROLL"
+        e["summary"] = "Approved payroll run"
 st["budget"] = {"period": "2026-11", "unbudgeted_requires_approval": True, "period_start": "2026-11-01", "period_end": "2026-11-30",
                 "lines": [{"line": "payroll", "amount_minor": 1_200_000, "auto_share_bp": 10_000, "alert_share_bp": 9_000},
                           {"line": "logistics", "amount_minor": 500_000, "auto_share_bp": 10_000, "alert_share_bp": 8_000},
                           {"line": "suppliers", "amount_minor": 900_000, "auto_share_bp": 8_000, "alert_share_bp": 7_000},
                           {"line": "contractors", "amount_minor": 600_000, "auto_share_bp": 7_000, "alert_share_bp": 6_000, "require_approval_on_alert": True},
                           {"line": "saas", "amount_minor": 600_000, "auto_share_bp": 10_000, "alert_share_bp": 8_000}]}
-out = {"title": "Live demo - Kit 01 at USD 30,000 with a USD 10,000 reserve floor",
+out = {"title": "US operations - USD 30,000 treasury allocation, USD 10,000 reserve floor",
+       "book_name": "US operations · payables",
+       "tenant_name": "Acme Group (US operations)",
        "story": ("The user's goal: pay what is due in the next 72 hours in USD, EUR and GBP without the wallet ever falling below "
                  "USD 10,000. Day 1: Acme promises USD 10,000 tomorrow and Lumen announces new bank details. Day 2: Acme's "
                  "payment slips five days. Then the deposit lands on Airwallex."),

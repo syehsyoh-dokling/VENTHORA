@@ -298,15 +298,25 @@ async def get_payee(beneficiary_id: str):
 
 class LiveStart(BaseModel):
     scenario: str = Field(default="demo_live", min_length=1, max_length=80)
+    config: dict | None = Field(default=None, description="the mandate form as submitted (GET /api/live/setup returns its shape)")
 
 
 class LiveStep(BaseModel):
-    approver: str | None = Field(default=None, max_length=120, description="finance_manager approving a plan that needs a person")
+    approver: str | None = Field(default=None, max_length=120, description="the person approving a plan that needs one")
+    role: str = Field(default="finance_manager", max_length=60)
 
 
 @app.get("/live", include_in_schema=False)
 async def live_page():
     return FileResponse(DASHBOARD.parent / "live.html", media_type="text/html")
+
+
+@app.get("/api/live/setup")
+async def live_setup(scenario: str = "demo_live"):
+    """The mandate form, filled with the platform's current settings: allocation, reserve, every permission and safeguard,
+    budget lines, approvers and the approval matrix, payees, the reporting cut-off, and the requests received."""
+    _scenario_file(scenario)
+    return live_session.defaults(scenario, app.state.executor)
 
 
 @app.post("/api/live/start")
@@ -315,7 +325,9 @@ async def live_start(req: LiveStart):
     if not app.state.executor.bank.configured:
         raise HTTPException(409, "Airwallex sandbox credentials are not configured")
     try:
-        s = await live_session.start(req.scenario, app.state.executor, app.state.audit)
+        s = await live_session.start(req.scenario, app.state.executor, app.state.audit, req.config)
+    except live_session.LiveError as exc:
+        raise HTTPException(422, str(exc)) from exc
     except AirwallexError as exc:
         raise HTTPException(502, f"Airwallex: {exc}") from exc
     sessions = getattr(app.state, "live", {})
@@ -340,7 +352,7 @@ async def live_get(sid: str):
 async def live_step(sid: str, req: LiveStep):
     s = _live(sid)
     try:
-        return await live_session.step(s, app.state.executor, app.state.audit, approver=req.approver)
+        return await live_session.step(s, app.state.executor, app.state.audit, approver=req.approver, role=req.role)
     except live_session.LiveError as exc:
         raise HTTPException(409, str(exc)) from exc
     except AirwallexError as exc:

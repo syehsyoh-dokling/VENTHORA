@@ -1,5 +1,7 @@
 {
-  "title": "Live demo - Kit 01 at USD 30,000 with a USD 10,000 reserve floor",
+  "title": "US operations - USD 30,000 treasury allocation, USD 10,000 reserve floor",
+  "book_name": "US operations \u00b7 payables",
+  "tenant_name": "Acme Group (US operations)",
   "story": "The user's goal: pay what is due in the next 72 hours in USD, EUR and GBP without the wallet ever falling below USD 10,000. Day 1: Acme promises USD 10,000 tomorrow and Lumen announces new bank details. Day 2: Acme's payment slips five days. Then the deposit lands on Airwallex.",
   "goal": {
     "text": "Pay every obligation due in the next 72 hours on time, in USD, EUR and GBP, without the wallet ever falling below the USD 10,000 reserve floor; never pay an invoice twice; never pay a changed bank account without a person.",
@@ -9,8 +11,8 @@
   },
   "inbox": "kit01_inbox.json",
   "state": {
-    "case_id": "demo-live",
-    "book_id": "demo-live",
+    "case_id": "us-ops",
+    "book_id": "us-ops",
     "base_currency": "USD",
     "balances": {
       "USD": 3000000,
@@ -23,7 +25,7 @@
     },
     "obligations": [
       {
-        "obligation_id": "PAYROLL-NOV",
+        "obligation_id": "PAYROLL",
         "amount_minor": 800000,
         "currency": "USD",
         "priority": 10,
@@ -115,10 +117,10 @@
     "evidence": [
       {
         "ref": "doc-payroll-nov",
-        "subject_id": "PAYROLL-NOV",
+        "subject_id": "PAYROLL",
         "source": "hris:payroll-run-2026-11",
         "status": "verified",
-        "summary": "Approved November payroll run"
+        "summary": "Approved payroll run"
       },
       {
         "ref": "doc-inv-thames-311",

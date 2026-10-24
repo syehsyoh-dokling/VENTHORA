@@ -307,7 +307,7 @@ executed.
 `proofcore/fx_exposure.py` reads the projection the gate already proves; stage `Policy · FX exposure` names the
 currency, the position, the coverage and the day's sales; mirrored in `policy/treasury.rego` (OPA grid: 10,618 inputs,
 0 disagreements); `state.history.converted_24h_minor` comes from the journal's convert entries. Ground truth suite 10:
-20 cases, 20/20 on three paths; real sandbox cycle 16 (SANDBOX_RESULTS.md).
+21 cases, 21/21 on three paths (X21: a rejected duplicate is not an exposure to hedge); real sandbox cycle 16 (SANDBOX_RESULTS.md).
 
 ## (17) Invoice aging and dunning: how old what we owe is, who is reminding us, what lateness costs
 

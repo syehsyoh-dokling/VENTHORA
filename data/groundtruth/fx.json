@@ -1358,6 +1358,89 @@
    "derivation": "the control is off"
   },
   {
+   "id": "X21",
+   "kind": "plan",
+   "level": 4,
+   "pain": "how much foreign currency may stay open, be sold, or stay unhedged",
+   "title": "a rejected duplicate is not an exposure to hedge",
+   "input": {
+    "case_id": "fx",
+    "book_id": "fx",
+    "base_currency": "USD",
+    "balances": {
+     "USD": 10000000,
+     "EUR": 0,
+     "GBP": 0
+    },
+    "fx_to_base": {
+     "EUR": "1.0850",
+     "GBP": "1.2700"
+    },
+    "obligations": [
+     {
+      "obligation_id": "O1",
+      "amount_minor": 400000,
+      "currency": "EUR",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-eu-components",
+      "payee_name": "Payee 1",
+      "payout_method": "SWIFT",
+      "evidence_ref": "ev-O1",
+      "invoice_fingerprint": "fp-O1"
+     },
+     {
+      "obligation_id": "O2",
+      "amount_minor": 400000,
+      "currency": "EUR",
+      "priority": 5,
+      "due_in_hours": 24,
+      "beneficiary_id": "ben-eu-components",
+      "payee_name": "Payee 2",
+      "payout_method": "SWIFT",
+      "evidence_ref": "ev-O2",
+      "invoice_fingerprint": "fp-O1"
+     }
+    ],
+    "receivables": [],
+    "evidence": [
+     {
+      "ref": "ev-O1",
+      "subject_id": "O1",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 1"
+     },
+     {
+      "ref": "ev-O2",
+      "subject_id": "O2",
+      "source": "ap:invoice",
+      "status": "verified",
+      "summary": "inv 2"
+     }
+    ],
+    "scenarios": [],
+    "policy": {
+     "reserve_floor_minor": 500000,
+     "autonomous_conversion_limit_minor": 100000000,
+     "swift_fee_currency": "EUR",
+     "swift_fee_minor": 1285,
+     "planning_horizon_hours": 72,
+     "min_hedge_ratio_bp": 8000
+    },
+    "actor_role": "treasury_agent"
+   },
+   "expect": {
+    "decision": "APPROVED",
+    "actions": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "REJECT"
+    },
+    "requires": []
+   },
+   "derivation": "O2 repeats O1's invoice fingerprint -> REJECT; only O1's EUR 4,000 is due; bought 4,012.85 -> 100% (before the fix the duplicate counted: 50% < 80%)"
+  },
+  {
    "id": "X20",
    "kind": "plan",
    "level": 4,

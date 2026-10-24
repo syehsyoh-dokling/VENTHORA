@@ -22,13 +22,40 @@ the agent's initial plan, new information, the revised decision and the resultin
 through exactly those, one **Next** button at a time, on a fresh book of USD 30,000 ring-fenced from the live Airwallex
 wallet with a USD 10,000 reserve floor (`data/scenarios/demo_live.json`, made by `scripts/make_demo_live.py`).
 
+**The mandate form (step 1).** Before anything runs, the finance manager grants the mandate on one form, drawn from a
+single specification (`MANDATES` in `src/venthora/live.py`) that also turns the submitted form into the book's policy,
+budget, approvers and payees, so no row is decorative:
+
+- the goal, the book and organisation, the allocation ring-fenced from the wallet, the reserve floor, the planning horizon,
+  the budget period (monthly, quarterly or annual) and the receipt-confidence band for FX;
+- **what VENTHORA may do on its own**, each with its amount: a single payout, one payee per reporting period, a first
+  payment to a payee, outflow per 24 hours and per 7 days, currency conversion, daily conversion volume, deferring against
+  an expected customer payment, spending within each budget line's autonomous share, accepting a simulated reserve-breach
+  risk. **Unchecking a permission revokes it**: that action then always waits for an approver;
+- **safeguards VENTHORA keeps** (unchecked = not enforced): open FX position per currency, hedge coverage, overdue days,
+  late-interest exposure, the supplier-reminder level;
+- **always enforced** (cannot be revoked): default late interest, the three-way-match tolerance, the call-back and
+  cooling period after a bank change, no invoice or instalment paid twice, evidence only when quoted verbatim, the book
+  stopped when a reconciliation does not add up;
+- the budget lines (amount, autonomous share, alert, approver at alert, unlimited only when signed), whether a payment
+  outside every line waits for an approver;
+- the approvers (name and role: only they may approve this book's plans, never the requester) and the approval matrix;
+- the payees VENTHORA may pay (unchecked = never paid, escalated), with status, registered mailbox and call-back number;
+- the reporting cut-off (day, time, timezone) and reporting currency;
+- every request received, by channel: payroll system, accounts payable system, the AP inbox, customer email.
+
+Afterwards step 1 shows the mandate as granted: each permission *granted* or *revoked*, each safeguard *enforced* or
+*off*, with its amount. **Change the mandate** starts a new run. Tests (`tests/test_live.py`) prove the effect: revoking
+currency conversion sends the conversion to a person; an unchecked payee is never paid; an approver who is not on the
+book's list is refused.
+
 | Step on the page | What happens, for real | What the viewer sees |
 |---|---|---|
-| 1 · User's goal and mandate | a fresh book opens on the live wallet | the goal, the floor, the FX limit tied to receipt confidence, the budget lines, the obligations |
-| 2 · Initial plan | the day-1 inbox is read and verified; Theorem plans, ProofCore proves | `APPROVED`: payroll, shipping and the EU supplier paid, the duplicate rejected, Lumen escalated (quoted), SaaS deferred on Acme's receipt |
-| 3 · New information | Acme's email (day 2) is read and calibrated | the email quoted; confidence 90 % → 70 %, expected 24 h → 144 h |
+| 1 · Goal and mandate | the mandate is applied and the book opens on the live wallet | the form above, then the granted mandate |
+| 2 · Initial plan | the requests received so far are read and verified; Theorem plans, ProofCore proves | `APPROVED`: payroll, shipping and the EU supplier paid, the duplicate rejected, Lumen escalated (quoted), SaaS deferred on Acme's receipt |
+| 3 · New information | Acme's later email is read and calibrated | the email quoted; confidence 90 % → 70 %, expected 24 h → 144 h |
 | 4 · Revised decision | only the touched decisions are reconsidered | `REQUIRES_APPROVAL`: FX limit USD 10,000 → 5,000; SaaS DEFER → ESCALATE (row highlighted), five decisions locked |
-| 3 + 4 · The receipt lands | a new USD 10,000 deposit on Airwallex, counted only once SETTLED | the deposit id and status; SaaS ESCALATE → PAY; the SaaS budget line crosses its 80 % alert |
+| 3 + 4 · Payment received | a new USD 10,000 deposit on Airwallex, counted only once SETTLED | the deposit id and status; SaaS ESCALATE → PAY; the SaaS budget line crosses its 80 % alert |
 | 5 · Resulting state | execution on the sandbox, reconciliation to the cent | two conversions and four transfers PAID with Airwallex ids; wallet before / after; the book's ledger (EUR and GBP cash exactly 0); reconciliation PASS |
 
 The right-hand panel polls the Airwallex wallet every three seconds (balance and change since the run started), the
@@ -55,7 +82,7 @@ execution with polling to PAID and reconciliation 9.1 s.
 
 ## Closing line (10 s)
 
-Twelve ground-truth suites, 321 hand-derived cases reproduced in-process, through the endpoints and through this form;
+Twelve ground-truth suites, 322 hand-derived cases reproduced in-process, through the endpoints and through this form;
 the policy proven in two engines on 10,618 inputs; eighteen cycles on the real sandbox. The agent proposes, the engines
 verify, Airwallex executes.
 

@@ -1,5 +1,5 @@
 {"_note": "UI bench, fx suite: every case submitted through the dashboard form (Submit a case, suite = fx exposure, POST /v1/plans) in the Claude in-app browser against the running service on 24 Oct 2026; ui_ms = round trip measured by the browser, server_ms = the plan's own duration_ms. 20/20 matched the hand-derived expectation.",
- "n": 20, "matched": 20, "p50_ms": 102.0, "max_ms": 266.7, "server_p50_ms": 86.1,
+ "n": 21, "matched": 21, "added_24_oct": "X21 (a rejected duplicate is not an exposure to hedge), submitted through the form on 24 Oct 2026: ui 222.2 ms, server 208.4 ms, match", "p50_ms": 102.0, "max_ms": 266.7, "server_p50_ms": 86.1,
  "rows": [
   {"id": "X01", "kind": "plan", "match": true, "server_ms": 252.0, "ui_ms": 266.7}, {"id": "X02", "kind": "plan", "match": true, "server_ms": 81.5, "ui_ms": 96.3},
   {"id": "X03", "kind": "plan", "match": true, "server_ms": 110.3, "ui_ms": 125.6}, {"id": "X04", "kind": "plan", "match": true, "server_ms": 85.5, "ui_ms": 100.4},
@@ -10,5 +10,6 @@
   {"id": "X13", "kind": "plan", "match": true, "server_ms": 96.5, "ui_ms": 110.9}, {"id": "X14", "kind": "plan", "match": true, "server_ms": 92.4, "ui_ms": 111.7},
   {"id": "X15", "kind": "plan", "match": true, "server_ms": 83.6, "ui_ms": 104.2}, {"id": "X16", "kind": "plan", "match": true, "server_ms": 121.0, "ui_ms": 137.6},
   {"id": "X17", "kind": "plan", "match": true, "server_ms": 83.2, "ui_ms": 98.9}, {"id": "X18", "kind": "plan", "match": true, "server_ms": 87.4, "ui_ms": 101.9},
-  {"id": "X19", "kind": "plan", "match": true, "server_ms": 100.5, "ui_ms": 127.3}, {"id": "X20", "kind": "plan", "match": true, "server_ms": 79.7, "ui_ms": 94.4}
+  {"id": "X19", "kind": "plan", "match": true, "server_ms": 100.5, "ui_ms": 127.3}, {"id": "X20", "kind": "plan", "match": true, "server_ms": 79.7, "ui_ms": 94.4},
+  {"id": "X21", "kind": "plan", "match": true, "server_ms": 208.4, "ui_ms": 222.2}
  ]}

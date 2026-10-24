@@ -93,6 +93,10 @@ add("X18", "three reasons at once, each named", state([ob(1, 400_000, priority=9
     "GBP 3,000 > 1,000; sold 4,353.95 > 4,000; EUR 50.16% < 80%")
 add("X19", "no FX limits: nothing changes", state([ob(1, 400_000, priority=9), ob(2, 400_000, priority=2)], balances={"USD": 1_000_000, "GBP": 300_000}),
     {"decision": "APPROVED", "actions": {"O1": "CONVERT_AND_PAY", "O2": "ESCALATE"}, "requires": []}, "the control is off")
+dup = ob(2, 400_000) | {"invoice_fingerprint": "fp-O1"}
+add("X21", "a rejected duplicate is not an exposure to hedge", state([ob(1, 400_000), dup], policy={"min_hedge_ratio_bp": 8000}),
+    {"decision": "APPROVED", "actions": {"O1": "CONVERT_AND_PAY", "O2": "REJECT"}, "requires": []},
+    "O2 repeats O1's invoice fingerprint -> REJECT; only O1's EUR 4,000 is due; bought 4,012.85 -> 100% (before the fix the duplicate counted: 50% < 80%)")
 add("X20", "a viewer: blocked before any FX rule", state([ob(1, 400_000)], policy={"max_conversion_daily_minor": 1}, role="viewer"), {"decision": "BLOCKED"}, "role first")
 
 OUT.write_text(json.dumps({"_note": "FX-exposure ground truth, hand-derived; see scripts/make_fx_groundtruth.py.", "cases": C}, indent=1), encoding="utf-8")

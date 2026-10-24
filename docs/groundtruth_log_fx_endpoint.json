@@ -3,11 +3,11 @@
   "id": "X01",
   "kind": "plan",
   "title": "an exact conversion leaves no open position",
-  "ms": 93.89,
+  "ms": 101.7,
   "ms_all": [
-   93.89
+   101.7
   ],
-  "server_ms": 82.04,
+  "server_ms": 91.76,
   "match": true,
   "fields": {
    "decision": {
@@ -67,20 +67,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 82.04310000292026
+   "duration_ms": 91.75630000390811
   }
  },
  {
   "id": "X02",
   "kind": "plan",
   "title": "the wallet already holds more EUR than the cap: a person decides",
-  "ms": 95.74,
+  "ms": 105.16,
   "ms_all": [
-   95.74
+   105.16
   ],
-  "server_ms": 85.02,
+  "server_ms": 95.46,
   "match": true,
   "fields": {
    "decision": {
@@ -142,20 +150,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 85.01700000124401
+   "duration_ms": 95.45860000071116
   }
  },
  {
   "id": "X03",
   "kind": "plan",
   "title": "open position exactly at the cap",
-  "ms": 108.88,
+  "ms": 91.91,
   "ms_all": [
-   108.88
+   91.91
   ],
-  "server_ms": 96.28,
+  "server_ms": 82.64,
   "match": true,
   "fields": {
    "decision": {
@@ -195,20 +211,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 96.28230000089388
+   "duration_ms": 82.63910000096075
   }
  },
  {
   "id": "X04",
   "kind": "plan",
   "title": "one cent above the cap",
-  "ms": 99.75,
+  "ms": 103.64,
   "ms_all": [
-   99.75
+   103.64
   ],
-  "server_ms": 88.08,
+  "server_ms": 92.41,
   "match": true,
   "fields": {
    "decision": {
@@ -256,20 +280,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 88.07890000025509
+   "duration_ms": 92.41099999781
   }
  },
  {
   "id": "X05",
   "kind": "plan",
   "title": "the cap is per currency: GBP over, EUR fine",
-  "ms": 92.75,
+  "ms": 117.52,
   "ms_all": [
-   92.75
+   117.52
   ],
-  "server_ms": 81.52,
+  "server_ms": 99.41,
   "match": true,
   "fields": {
    "decision": {
@@ -319,20 +351,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 81.51740000175778
+   "duration_ms": 99.41070000058971
   }
  },
  {
   "id": "X06",
   "kind": "plan",
   "title": "no cap for a currency: nothing applies",
-  "ms": 93.12,
+  "ms": 98.71,
   "ms_all": [
-   93.12
+   98.71
   ],
-  "server_ms": 82.54,
+  "server_ms": 86.76,
   "match": true,
   "fields": {
    "decision": {
@@ -374,20 +414,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 82.53870000044117
+   "duration_ms": 86.76430000195978
   }
  },
  {
   "id": "X07",
   "kind": "plan",
   "title": "daily conversion cap: 24 h sales + now above it",
-  "ms": 102.32,
+  "ms": 93.27,
   "ms_all": [
-   102.32
+   93.27
   ],
-  "server_ms": 89.34,
+  "server_ms": 83.0,
   "match": true,
   "fields": {
    "decision": {
@@ -437,20 +485,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 89.34470000167494
+   "duration_ms": 82.99629999964964
   }
  },
  {
   "id": "X08",
   "kind": "plan",
   "title": "daily conversion cap exactly reached",
-  "ms": 95.83,
+  "ms": 93.58,
   "ms_all": [
-   95.83
+   93.58
   ],
-  "server_ms": 84.43,
+  "server_ms": 81.36,
   "match": true,
   "fields": {
    "decision": {
@@ -492,20 +548,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 84.43070000066655
+   "duration_ms": 81.35599999513943
   }
  },
  {
   "id": "X09",
   "kind": "plan",
   "title": "no history: only this plan's conversions count",
-  "ms": 93.15,
+  "ms": 95.93,
   "ms_all": [
-   93.15
+   95.93
   ],
-  "server_ms": 80.49,
+  "server_ms": 82.48,
   "match": true,
   "fields": {
    "decision": {
@@ -555,20 +619,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 80.48559999951976
+   "duration_ms": 82.47960000153398
   }
  },
  {
   "id": "X10",
   "kind": "plan",
   "title": "a plan without conversions does not touch the daily cap",
-  "ms": 97.32,
+  "ms": 94.52,
   "ms_all": [
-   97.32
+   94.52
   ],
-  "server_ms": 83.94,
+  "server_ms": 83.78,
   "match": true,
   "fields": {
    "decision": {
@@ -608,20 +680,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 83.93860000069253
+   "duration_ms": 83.78409999568248
   }
  },
  {
   "id": "X11",
   "kind": "plan",
   "title": "hedge ratio: a paid foreign obligation is fully covered",
-  "ms": 101.49,
+  "ms": 94.42,
   "ms_all": [
-   101.49
+   94.42
   ],
-  "server_ms": 87.21,
+  "server_ms": 82.12,
   "match": true,
   "fields": {
    "decision": {
@@ -663,20 +743,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 87.20879999964382
+   "duration_ms": 82.12020000064513
   }
  },
  {
   "id": "X12",
   "kind": "plan",
   "title": "hedge ratio: the second EUR obligation cannot be funded and stays unhedged",
-  "ms": 97.81,
+  "ms": 99.44,
   "ms_all": [
-   97.81
+   99.44
   ],
-  "server_ms": 83.5,
+  "server_ms": 88.22,
   "match": true,
   "fields": {
    "decision": {
@@ -738,20 +826,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 83.50179999979446
+   "duration_ms": 88.21619999798713
   }
  },
  {
   "id": "X13",
   "kind": "plan",
   "title": "hedge ratio exactly at the minimum",
-  "ms": 93.89,
+  "ms": 1104.6,
   "ms_all": [
-   93.89
+   1104.6
   ],
-  "server_ms": 79.32,
+  "server_ms": 1095.0,
   "match": true,
   "fields": {
    "decision": {
@@ -794,20 +890,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 79.32029999938095
+   "duration_ms": 1094.9963000020944
   }
  },
  {
   "id": "X14",
   "kind": "plan",
   "title": "hedge ratio one bp below the minimum",
-  "ms": 107.45,
+  "ms": 116.05,
   "ms_all": [
-   107.45
+   116.05
   ],
-  "server_ms": 93.27,
+  "server_ms": 106.02,
   "match": true,
   "fields": {
    "decision": {
@@ -858,20 +962,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 93.27489999850513
+   "duration_ms": 106.01909999968484
   }
  },
  {
   "id": "X15",
   "kind": "plan",
   "title": "foreign cash already held counts as hedge",
-  "ms": 100.72,
+  "ms": 99.42,
   "ms_all": [
-   100.72
+   99.42
   ],
-  "server_ms": 80.4,
+  "server_ms": 87.97,
   "match": true,
   "fields": {
    "decision": {
@@ -926,20 +1038,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 80.39869999993243
+   "duration_ms": 87.97279999998864
   }
  },
  {
   "id": "X16",
   "kind": "plan",
   "title": "an obligation beyond the horizon is not an exposure yet",
-  "ms": 98.11,
+  "ms": 206.92,
   "ms_all": [
-   98.11
+   206.92
   ],
-  "server_ms": 85.97,
+  "server_ms": 194.47,
   "match": true,
   "fields": {
    "decision": {
@@ -982,20 +1102,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 85.973199998989
+   "duration_ms": 194.46510000125272
   }
  },
  {
   "id": "X17",
   "kind": "plan",
   "title": "nothing due in a currency: nothing to hedge",
-  "ms": 110.09,
+  "ms": 95.39,
   "ms_all": [
-   110.09
+   95.39
   ],
-  "server_ms": 96.49,
+  "server_ms": 83.63,
   "match": true,
   "fields": {
    "decision": {
@@ -1035,20 +1163,28 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 96.4899000027799
+   "duration_ms": 83.62960000522435
   }
  },
  {
   "id": "X18",
   "kind": "plan",
   "title": "three reasons at once, each named",
-  "ms": 99.37,
+  "ms": 93.45,
   "ms_all": [
-   99.37
+   93.45
   ],
-  "server_ms": 86.02,
+  "server_ms": 81.4,
   "match": true,
   "fields": {
    "decision": {
@@ -1105,20 +1241,28 @@
    "approval_roles": [
     "finance_manager"
    ],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 86.01529999941704
+   "duration_ms": 81.40370000182884
   }
  },
  {
   "id": "X19",
   "kind": "plan",
   "title": "no FX limits: nothing changes",
-  "ms": 95.35,
+  "ms": 102.9,
   "ms_all": [
-   95.35
+   102.9
   ],
-  "server_ms": 82.88,
+  "server_ms": 90.77,
   "match": true,
   "fields": {
    "decision": {
@@ -1172,20 +1316,103 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": true,
-   "duration_ms": 82.87950000158162
+   "duration_ms": 90.7699000017601
+  }
+ },
+ {
+  "id": "X21",
+  "kind": "plan",
+  "title": "a rejected duplicate is not an exposure to hedge",
+  "ms": 95.5,
+  "ms_all": [
+   95.5
+  ],
+  "server_ms": 85.82,
+  "match": true,
+  "fields": {
+   "decision": {
+    "expected": "APPROVED",
+    "actual": "APPROVED",
+    "ok": true
+   },
+   "actions": {
+    "expected": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "REJECT"
+    },
+    "actual": {
+     "O1": "CONVERT_AND_PAY",
+     "O2": "REJECT"
+    },
+    "ok": true
+   },
+   "requires": {
+    "expected": [],
+    "actual": [],
+    "ok": true
+   }
+  },
+  "view": {
+   "decision": "APPROVED",
+   "actions": {
+    "O1": "CONVERT_AND_PAY",
+    "O2": "REJECT"
+   },
+   "live_balances": "PASS",
+   "budget_attached": false,
+   "budget_status": {},
+   "budget_available": {},
+   "budget_minus": {},
+   "budget_alerts": 0,
+   "budget_requests": {},
+   "budget_carry_forward": 0,
+   "budget_late_posted": 0,
+   "budget_paying_in_period": null,
+   "paid": [
+    "O1"
+   ],
+   "n_conversions": 1,
+   "conversions": {
+    "EUR": 401285
+   },
+   "limit": 100000000,
+   "requires": [],
+   "failed_stages": [],
+   "approval_tier": null,
+   "approvals_required": 0,
+   "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
+   "breach_bp": 0,
+   "not_blocked": true,
+   "duration_ms": 85.82279999973252
   }
  },
  {
   "id": "X20",
   "kind": "plan",
   "title": "a viewer: blocked before any FX rule",
-  "ms": 102.51,
+  "ms": 95.1,
   "ms_all": [
-   102.51
+   95.1
   ],
-  "server_ms": 90.3,
+  "server_ms": 82.21,
   "match": true,
   "fields": {
    "decision": {
@@ -1226,9 +1453,17 @@
    "approval_tier": null,
    "approvals_required": 0,
    "approval_roles": [],
+   "aging_buckets": {},
+   "aging_days": {},
+   "aging_accrued": {},
+   "aging_exposure": null,
+   "tenant": null,
+   "book_known": null,
+   "disallowed": null,
+   "aging_dunning": {},
    "breach_bp": 0,
    "not_blocked": false,
-   "duration_ms": 90.30340000026627
+   "duration_ms": 82.21060000505531
   }
  }
 ]

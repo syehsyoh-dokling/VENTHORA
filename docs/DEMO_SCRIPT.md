@@ -97,7 +97,7 @@ policy and ledger. An unregistered book cannot spend at all.
 
 [Scroll back to the top. Hold on the Decision tile.]
 
-Three hundred twenty-one hand-derived test cases on three paths, the policy proven identical in two engines on over ten
+Three hundred twenty-two hand-derived test cases on three paths, the policy proven identical in two engines on over ten
 thousand inputs, eighteen cycles on the real sandbox. The AI proposes, the engines verify, Airwallex executes. Thank you.
 
 ---

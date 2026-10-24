@@ -43,14 +43,25 @@ class ReportingConfig(BaseModel):
     set_by: str | None = None
 
 
-def load_config(path: Path = CONFIG_FILE) -> ReportingConfig:
+def config_path() -> Path:
+    """The admin's reporting configuration; a separate deployment (VENTHORA_REPORTING_CONFIG) keeps its own copy."""
+    import os
+
+    override = os.environ.get("VENTHORA_REPORTING_CONFIG")
+    return Path(override) if override else CONFIG_FILE
+
+
+def load_config(path: Path | None = None) -> ReportingConfig:
+    path = path or config_path()
     if path.is_file():
         return ReportingConfig.model_validate(json.loads(path.read_text(encoding="utf-8")))
+    if path != CONFIG_FILE and CONFIG_FILE.is_file():  # a fresh deployment starts from the shipped configuration
+        return ReportingConfig.model_validate(json.loads(CONFIG_FILE.read_text(encoding="utf-8")))
     return ReportingConfig()
 
 
-def save_config(cfg: ReportingConfig, path: Path = CONFIG_FILE) -> None:
-    path.write_text(json.dumps(cfg.model_dump(), indent=2), encoding="utf-8")
+def save_config(cfg: ReportingConfig, path: Path | None = None) -> None:
+    (path or config_path()).write_text(json.dumps(cfg.model_dump(), indent=2), encoding="utf-8")
 
 
 # -- period assignment --------------------------------------------------------------------------

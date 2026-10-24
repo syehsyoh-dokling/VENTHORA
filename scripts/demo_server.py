@@ -31,6 +31,7 @@ def main() -> int:
     os.environ["VENTHORA_EXECUTION_DB"] = str(demo / "execution.db")
     os.environ["VENTHORA_INTAKE_DB"] = str(demo / "intake.db")
     os.environ["VENTHORA_AUDIT_DB"] = str(demo / "audit.db")
+    os.environ["VENTHORA_REPORTING_CONFIG"] = str(demo / "reporting.json")  # the mandate form may change the cut-off
     sys.path.insert(0, str(ROOT / "src"))
     import uvicorn
 
