@@ -327,6 +327,11 @@ async def live_page():
     return FileResponse(DASHBOARD.parent / "live.html", media_type="text/html")
 
 
+@app.get("/flow", include_in_schema=False)
+async def flow_page():
+    return FileResponse(DASHBOARD.parent / "flow.html", media_type="text/html")
+
+
 @app.get("/api/live/setup")
 async def live_setup(scenario: str = "demo_live"):
     """The mandate form, filled with the platform's current settings: allocation, reserve, every permission and safeguard,
