@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Record the dashboard part of the demo video: a scripted three-minute walk through /live and the Control center.
 
 Runs Microsoft Edge through Playwright at 1920x1080, drives the operations page on the real Airwallex sandbox (the demo

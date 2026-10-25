@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Body, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from . import __version__
 from .audit import AuditStore
@@ -155,6 +155,26 @@ async def plan_scenario(scenario_id: str, period: str | None = None):
 
 
 # -- Budget · mandate -------------------------------------------------------------------------
+
+@app.get("/api/live/latest")
+async def live_latest():
+    """Whether an operations run exists in this process, so the dashboard can offer it without probing for a 404."""
+    sessions = getattr(app.state, "live", {})
+    if not sessions:
+        return {"sid": None}
+    s = list(sessions.values())[-1]
+    return {"sid": s.sid, "book_name": s.book_name}
+
+
+FAVICON = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#1d3f8f"/>'
+           '<path d="M16 18l16 28 16-28" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.svg", include_in_schema=False)
+async def favicon():
+    return Response(FAVICON, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
+
 
 @app.get("/api/budget")
 async def budget_pipeline(scenario_id: str = "kit01_initial", period: str | None = None):

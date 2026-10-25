@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VENTHORA Control Center</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#f3f5f9;--surface:#ffffff;--surface2:#f8fafc;--ink:#0f1b2d;--ink2:#46536a;--muted:#8792a6;--line:#e4e8ef;
  --brand:#1d3f8f;--brand2:#2f6fe4;--brandlt:#eaf1fe;--accent:#2f6fe4;--seq:#2f6fe4;--seqlt:#d6e4fd;
@@ -223,7 +224,7 @@ async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$
 const btone={auto:"good",alert:"warn",needs_approval:"warn",exceeded:"critical",bypass:"serious"};
 async function budget(){try{if(!$("#budgetBook").options.length){const s=await api("/api/scenarios");
   // The book of the latest operations run comes first when there is one; the stored books follow.
-  let live=false;try{await api("/api/budget?scenario_id=live");live=true}catch(e){}
+  let live=false;try{live=!!(await api("/api/live/latest")).sid}catch(e){}
   $("#budgetBook").innerHTML=(live?`<option value="live" selected>Latest operations run</option>`:"")+s.map(x=>`<option value="${x.id}" ${!live&&x.id==="kit01_initial"?"selected":""}>${esc((x.title||x.id).replace(/^Kit 0\d\s*-\s*/,"").split(":")[0])}</option>`).join("");$("#budgetBook").onchange=budget}
  const b=await api("/api/budget?scenario_id="+$("#budgetBook").value);
  $("#budgetMeta").textContent=`${b.period} · plan ${b.decision}${b.requires_approval.length?" ("+b.requires_approval.join(", ")+")":""}`;

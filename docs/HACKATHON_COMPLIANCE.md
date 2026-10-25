@@ -20,7 +20,7 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | Requirement | Status | Evidence |
 |---|---|---|
 | Working demo | ✅ | `venthora-sandbox` on the real sandbox; eighteen recorded cycles (SANDBOX_RESULTS.md), cycle 4 = the Kit 01 flow word for word; the dashboard on clean stores via `python scripts/demo_server.py`, driven scene by scene by `python scripts/demo_walkthrough.py`; the live page `/live` walks the guide's five demo elements (goal, initial plan, new information, revised decision, resulting state) on the real sandbox with the wallet polled live; `python scripts/real_suite.py` runs the whole set on the real sandbox in one command, 8 / 8 steps ([REAL_SUITE.md](REAL_SUITE.md)) |
-| Video walkthrough under 5 minutes | ⬜ to record | narration timed to about 4:30: [DEMO_SCRIPT.md](DEMO_SCRIPT.md); clicks and timing: [DEMO_STORYBOARD.md](DEMO_STORYBOARD.md) |
+| Video walkthrough under 5 minutes | ⬜ to upload | dashboard part recorded on the real sandbox by `scripts/record_demo.py` (2:24, take validated: deposit settled, four transfers paid); its voice-over: [DEMO_VOICEOVER_3MIN.md](DEMO_VOICEOVER_3MIN.md); opening on `/flow`; full narration: [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
 | Repository link with setup instructions | ✅ | https://github.com/syehsyoh-dokling/VENTHORA, README quick start |
 | Built on Airwallex APIs | ✅ | balances, rates, quotes, conversions, beneficiaries (schema/validate/create), transfers, deposits, simulation |
 
