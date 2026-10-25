@@ -6,7 +6,7 @@
     "acme-group": {
       "name": "Acme Group (US operations)",
       "books": {
-        "kit01_initial": {"allowed_payees": ["payroll-group-us", "ben-saas-vendor", "ben-eu-components", "ben-uk-logistics", "ben-lumen-design", "ben-contractor-okafor"],
+        "kit01_initial": {"internal": true, "allowed_payees": ["payroll-group-us", "ben-saas-vendor", "ben-eu-components", "ben-uk-logistics", "ben-lumen-design", "ben-contractor-okafor"],
                           "approvers": [{"name": "Dana Finch", "role": "finance_manager"}, {"name": "finance manager (owner)", "role": "finance_manager"}, {"name": "Omar Reyes", "role": "cfo"}],
                           "policy_overrides": {}},
         "ops-us": {"allowed_payees": ["payroll-group-us", "ben-saas-vendor", "ben-uk-logistics"],
@@ -15,7 +15,10 @@
         "eu-procurement": {"allowed_payees": ["ben-eu-components"],
                            "approvers": [{"name": "Lena Vogt", "role": "finance_manager"}],
                            "policy_overrides": {"reserve_floor_minor": 800000, "max_open_position_minor": {"EUR": 500000}}},
-        "tenant-real-*": {"allowed_payees": ["ben-saas-vendor"],
+        "us-ops-*": {"allowed_payees": ["payroll-group-us", "ben-saas-vendor", "ben-eu-components", "ben-uk-logistics", "ben-lumen-design", "ben-contractor-okafor"],
+                     "approvers": [{"name": "Dana Finch", "role": "finance_manager"}, {"name": "Omar Reyes", "role": "cfo"}],
+                     "policy_overrides": {}},
+        "tenant-real-*": {"internal": true, "allowed_payees": ["ben-saas-vendor"],
                           "approvers": [{"name": "finance manager (owner)", "role": "finance_manager"}],
                           "policy_overrides": {"max_single_payment_minor": 50000}}
       }
@@ -29,7 +32,7 @@
       }
     },
     "sandbox-lab": {
-      "name": "Sandbox lab (demo and real-sandbox cycles)",
+      "name": "Default operations",
       "books": {
         "*": {"allowed_payees": ["*"], "approvers": [], "policy_overrides": {}}
       }

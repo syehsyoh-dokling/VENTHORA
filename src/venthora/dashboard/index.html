@@ -141,7 +141,7 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600}
  <section class="span6"><h2>Executions</h2><div id="executions" class="empty">loading…</div></section>
  <section class="span6"><h2>Payment incidents</h2><div id="incidents" class="empty">loading…</div></section>
 
- <section class="span6"><h2><span>Run reports</span><span class="small muted">data/runs</span></h2><div id="runs" class="empty">loading…</div></section>
+ <section class="span6"><h2><span>Run reports</span><span class="small muted">cycles recorded on Airwallex</span></h2><div id="runs" class="empty">loading…</div></section>
  <section class="span6"><h2><span>Resilience test matrix</span><span class="small muted" id="matrixMeta"></span></h2><div id="matrix" class="empty">loading…</div></section>
 </main>
 <script>
@@ -150,7 +150,7 @@ const fmt=(m,c)=>{if(m==null)return"-";const s=m<0?"-":"",a=Math.abs(m);return`$
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const tone={APPROVED:"good",COMPLETED:"good",RESOLVED:"good",VERIFIED:"good",PASS:"good",OK:"good",PAID:"good",PAY:"good",CONVERT_AND_PAY:"good",SETTLED:"good",ACTIVE:"good",
  DEFER:"warn",REJECT:"critical",CHANGED:"critical",SUSPENDED:"critical",NEW:"warn",
- REQUIRES_APPROVAL:"warn",NEEDS_REVIEW:"warn",WAITING:"warn",IN_FLIGHT:"warn",WARN:"warn",RUNNING:"warn",
+ REQUIRES_APPROVAL:"warn",NEEDS_REVIEW:"warn",WAITING:"warn",IN_FLIGHT:"warn",OPEN:"warn",WARN:"warn",RUNNING:"warn",
  ESCALATED:"serious",QUARANTINED:"serious",REFUSED:"serious",ESCALATE:"serious",
  BLOCKED:"critical",FAILED:"critical",REJECTED:"critical",DUPLICATE:"critical",RECONCILIATION_MISMATCH:"critical",FAIL:"critical"};
 const pill=s=>`<span class="pill ${tone[s]||""}">${esc(s??"-")}</span>`;
@@ -180,7 +180,7 @@ function renderPlan(p){const sim=p.simulation||{};const pol=(p.stages.find(s=>s.
  ${p.approval_terms.length?`<details style="margin-top:10px"><summary>Approval terms (${p.approval_terms.length}) · plan ${esc(p.plan_hash.slice(0,16))}…</summary>${table([{h:"Type",f:r=>esc(r.type||r.kind||"")},{h:"Terms",f:r=>`<span class="mono">${esc(JSON.stringify(r))}</span>`}],p.approval_terms)}</details>`:""}
  <details style="margin-top:6px"><summary>Explanation</summary><ul class="small">${p.explanation.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></details>`}
 
-async function scenarios(){const s=await api("/api/scenarios");$("#scenario").innerHTML=s.map(x=>`<option value="${x.id}" ${x.id==="kit01_initial"?"selected":""}>${esc((x.title||x.id).replace(/^Kit 0\d\s*-\s*/,""))}</option>`).join("")}
+async function scenarios(){const s=await api("/api/scenarios");$("#scenario").innerHTML=s.map(x=>`<option value="${x.id}" ${x.id==="demo_live"?"selected":""}>${esc((x.title||x.id).replace(/^Kit 0\d\s*-\s*/,""))}</option>`).join("")}
 $("#plan").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">planning…</div>';try{renderPlan(await api(`/api/scenarios/${$("#scenario").value}/plan`,{method:"POST"}))}catch(e){$("#planOut").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
 $("#planIntake").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">adding the intake queue to the book and planning…</div>';
  try{renderPlan(await api("/v1/intake/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario_id:$("#scenario").value,as_of:"2026-10-24"})}))}catch(e){$("#planOut").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
@@ -192,7 +192,7 @@ async function intake(){try{const rows=await api("/v1/intake");const c={};rows.f
   {h:"Kind",f:r=>esc(r.kind)},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>esc(r.invoice_no||"-")},{h:"Due",f:r=>esc(r.due_date||"-")},
   {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}</details>`},
   {h:"",f:r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`:""}],
-  rows,"no requests yet · POST /v1/intake/emails or run venthora-intake");
+  rows,"No requests waiting. Emails from registered suppliers and customers appear here as they arrive.");
  $("#intake").querySelectorAll("button").forEach(b=>b.onclick=async()=>{const note=prompt(`${b.dataset.d} as finance manager — note (e.g. call-back done on the registered phone number):`);if(note===null)return;
   try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:"finance manager",role:"finance_manager",note})});intake()}catch(e){alert(e.message)}})}
  catch(e){$("#intake").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
@@ -205,8 +205,12 @@ async function executions(){try{const rows=await api("/v1/executions?limit=15");
  catch(e){$("#executions").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 async function incidents(){try{const rows=await api("/v1/incidents");
  $("#incidents").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"Obligation",f:r=>esc(r.obligation_id)},{h:"Decision",f:r=>pill(r.decision||"OPEN")},{h:"Failure type",f:r=>`<span class="small">${esc(r.failure_type||"-")}</span>`},{h:"Original → replacement",f:r=>`<span class="mono">${esc((r.original_transfer_id||"").slice(0,8))}… → ${r.replacement_transfer_id?esc(r.replacement_transfer_id.slice(0,8))+"…":"-"}</span>`}],rows)}catch(e){$("#incidents").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-async function runs(){try{const rows=await api("/api/runs?limit=20");
- $("#runs").innerHTML=table([{h:"When",f:r=>`<span class="small">${esc((r.started_at||"").slice(0,16).replace("T"," "))}</span>`},{h:"Scenario",f:r=>`${esc(r.scenario||"-")}${r.fake?' <span class="small muted">fake</span>':' <span class="small" style="color:var(--accent)">real sandbox</span>'}`},
+async function runs(){try{const all=await api("/api/runs?limit=200");
+ // Runs on the Airwallex rail first; simulated rehearsals only when there are none.
+ const real=all.filter(r=>!r.fake);const rows=(real.length?real:all).slice(0,12);
+ const titles={};try{(await api("/api/scenarios")).forEach(x=>titles[x.id]=(x.title||x.id).replace(/^Kit 0\d\s*-\s*/,"").split(":")[0])}catch(e){}
+ $("#runs").innerHTML=table([{h:"When",f:r=>`<span class="small">${esc((r.started_at||"").slice(0,16).replace("T"," "))}</span>`},
+  {h:"Book",f:r=>`${esc(titles[r.scenario]||({intake:"Email intake"})[r.scenario]||r.scenario||"-")}`},{h:"Rail",f:r=>r.fake?'<span class="small muted">simulated</span>':'<span class="small" style="color:var(--accent);font-weight:600">Airwallex</span>'},
   {h:"Plan",f:r=>r.decision?pill(r.decision):"-"},{h:"Execution",f:r=>r.execution?pill(r.execution):"-"},{h:"Incident",f:r=>r.incident?pill(r.incident):(r.intake?`<span class="small">intake: ${r.intake.map(s=>s.toLowerCase()).join(", ")}</span>`:"-")}],rows)}catch(e){$("#runs").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$("#matrixMeta").textContent=`${s.ok} / ${s.variants} variants · plan p50 ${s.plan_ms?.p50} ms · ${m.generated_at.slice(0,10)}`;
  const fam=Object.entries(s.by_family);const bad=m.rows.filter(r=>!r.ok);
@@ -217,7 +221,10 @@ async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$
 
 // ---- Budget · mandate: plan / realized / paying now / committed / available / minus per line ----
 const btone={auto:"good",alert:"warn",needs_approval:"warn",exceeded:"critical",bypass:"serious"};
-async function budget(){try{if(!$("#budgetBook").options.length){const s=await api("/api/scenarios");$("#budgetBook").innerHTML=s.map(x=>`<option value="${x.id}" ${x.id==="kit01_initial"?"selected":""}>${esc(x.id)}</option>`).join("");$("#budgetBook").onchange=budget}
+async function budget(){try{if(!$("#budgetBook").options.length){const s=await api("/api/scenarios");
+  // The book of the latest operations run comes first when there is one; the stored books follow.
+  let live=false;try{await api("/api/budget?scenario_id=live");live=true}catch(e){}
+  $("#budgetBook").innerHTML=(live?`<option value="live" selected>Latest operations run</option>`:"")+s.map(x=>`<option value="${x.id}" ${!live&&x.id==="kit01_initial"?"selected":""}>${esc((x.title||x.id).replace(/^Kit 0\d\s*-\s*/,"").split(":")[0])}</option>`).join("");$("#budgetBook").onchange=budget}
  const b=await api("/api/budget?scenario_id="+$("#budgetBook").value);
  $("#budgetMeta").textContent=`${b.period} · plan ${b.decision}${b.requires_approval.length?" ("+b.requires_approval.join(", ")+")":""}`;
  const mx=Math.max(1,...b.lines.map(r=>r.mandate_minor));
@@ -250,11 +257,16 @@ async function ledgerBooks(){try{const books=await api("/v1/ledger");
   rows.slice(0,40),"no books yet: the first execution opens one")}catch(e){$("#ledger").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
 // ---- tenants: the registry and what each book has done ----
-async function tenants(){try{const t=await api("/v1/tenants");
- $("#tenantMeta").textContent=`${t.strict?"strict: an unknown book is blocked":"unknown books go to "+t.default_tenant}`;
+const OVR={max_single_payment_minor:v=>`single payout ≤ ${fmt(v,"USD")}`,max_per_payee_period_minor:v=>`per payee per period ≤ ${fmt(v,"USD")}`,
+ max_first_payment_minor:v=>`first payment ≤ ${fmt(v,"USD")}`,reserve_floor_minor:v=>`reserve floor ${fmt(v,"USD")}`,
+ max_open_position_minor:v=>Object.entries(v).map(([c,n])=>`open ${c} ≤ ${fmt(n,c)}`).join(", "),max_outflow_daily_minor:v=>`outflow per 24 h ≤ ${fmt(v,"USD")}`};
+const ovr=o=>Object.entries(o).map(([k,v])=>OVR[k]?OVR[k](v):`${k.replace(/_minor$/,"").replaceAll("_"," ")} ${typeof v==="object"?JSON.stringify(v):v}`).join("<br>");
+async function tenants(){try{const t0=await api("/v1/tenants");const t={...t0,rows:t0.rows.filter(r=>!r.internal)};
+ const dflt=(t.rows.find(r=>r.tenant===t.default_tenant)||{}).tenant_name||t.default_tenant;
+ $("#tenantMeta").textContent=t.strict?"an unregistered book cannot spend":`a book without an owner falls under ${dflt}`;
  $("#tenants").innerHTML=table([{h:"Tenant",f:r=>`<b>${esc(r.tenant)}</b><br><span class="small muted">${esc(r.tenant_name||"")}</span>`},{h:"Book",f:r=>`<span class="mono">${esc(r.book)}</span>${r.pattern?' <span class="small muted">pattern</span>':''}`},
   {h:"Allowed payees",f:r=>esc(r.allowed_payees.join(", "))},{h:"Approvers",f:r=>r.approvers.length?r.approvers.map(a=>`${esc(a.name)} <span class="small muted">${esc(a.role)}</span>`).join("<br>"):'<span class="muted">any approver role</span>'},
-  {h:"Policy overrides",f:r=>Object.keys(r.policy_overrides).length?`<span class="mono small">${esc(JSON.stringify(r.policy_overrides))}</span>`:"-"},
+  {h:"Own policy",f:r=>Object.keys(r.policy_overrides).length?`<span class="small">${ovr(r.policy_overrides)}</span>`:"<span class=\"muted small\">company policy</span>"},
   {h:"Books seen (executions · cash)",f:r=>r.books_seen.length?r.books_seen.slice(0,6).map(b=>`${esc(b.book_id)} · ${b.executions}${Object.keys(b.cash).length?" · "+Object.entries(b.cash).filter(([c,v])=>v).map(([c,v])=>fmt(v,c)).join(", "):""}`).join("<br>")+(r.books_seen.length>6?`<br><span class="muted small">+${r.books_seen.length-6} more</span>`:""):"-"}],
   t.rows,"no tenants registered")}catch(e){$("#tenants").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
@@ -287,8 +299,8 @@ async function reporting(){try{const cfg=await api("/v1/reporting/config");if(!$
   <div class="two"><div><h3 class="small muted" style="margin:0 0 6px">Layer 1 · by currency and line</h3>${table([{h:"Currency",f:x=>esc(x.ccy)},{h:"Paid",num:1,f:x=>fmt(x.amt,x.ccy)},{h:"Closing rate",num:1,f:x=>esc(x.rate||"-")},{h:cfg.reporting_currency,num:1,f:x=>x.rep==null?"-":fmtAny(x.rep,cfg.reporting_currency)}],
    Object.entries(s.by_currency).map(([ccy,amt])=>{const c=s.consolidated.find(z=>z.currency===ccy);return {ccy,amt,rate:c&&c.closing_rate,rep:c&&c.reporting_minor}}),"no payments in this period")}
    <div class="small muted" style="margin-top:6px">${Object.entries(s.by_line_base_minor).map(([l,v])=>`${esc(l)}: ${fmt(v,"USD")}`).join(" · ")}</div></div>
-  <div><h3 class="small muted" style="margin:0 0 6px">Layer 2 · invoice statements as of period end</h3>${table([{h:"Invoice",f:x=>esc(x.invoice_fingerprint)},{h:"Status",f:x=>pill(x.status==="RECONCILED"?"COMPLETED":"IN_FLIGHT")+" "+esc(x.status)},{h:"Paid",num:1,f:x=>x.paid_minor.toLocaleString()},{h:"Outstanding",num:1,f:x=>x.outstanding_minor==null?"-":x.outstanding_minor.toLocaleString()},{h:"Instalments",f:x=>`<span class="small">${x.instalments.map(i=>`${esc(i.installment||"whole")} ${esc(i.reporting_period)}`).join(", ")}</span>`}],
-   [...r.invoices_completed,...r.invoices_open],"no instalment invoices")}</div></div>`}
+  <div><h3 class="small muted" style="margin:0 0 6px">Layer 2 · invoice statements as of period end</h3>${table([{h:"Invoice",f:x=>esc(x.invoice_fingerprint.replace(/-\d{10}$/,""))},{h:"Status",f:x=>pill(x.status==="RECONCILED"?"SETTLED":"OPEN")},{h:"Paid",num:1,f:x=>fmt(x.paid_minor,(x.instalments[0]||{}).currency||"")},{h:"Outstanding",num:1,f:x=>x.outstanding_minor==null?"-":fmt(x.outstanding_minor,(x.instalments[0]||{}).currency||"")},{h:"Instalments",f:x=>`<span class="small">${x.instalments.map(i=>`${esc(i.installment||"whole")} ${esc(i.reporting_period)}`).join(", ")}</span>`}],
+   [...r.invoices_completed,...r.invoices_open],"no invoices paid in this period")}</div></div>`}
  catch(e){$("#reporting").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 $("#repLoad").onclick=reporting;
 $("#repRates").onclick=async()=>{try{const r=await api(`/v1/reporting/periods/${$("#repPeriod").value}/rates?role=admin`,{method:"POST",headers:{"content-type":"application/json"}});alert(`closing rates recorded from ${r.source}: ${JSON.stringify(r.rates)}`);reporting()}catch(e){alert(e.message)}};

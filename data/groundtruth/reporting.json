@@ -678,6 +678,57 @@
    "derivation": "deposit 20,000 of 50,000 -> 30,000 outstanding, not reconciled"
   },
   {
+   "id": "R19",
+   "kind": "reporting",
+   "level": 4,
+   "pain": "two-layer reporting",
+   "title": "an invoice paid whole, with no contract total on file, is settled in the month it was paid",
+   "input": {
+    "config": {
+     "timezone": "Asia/Jakarta",
+     "cutoff_day": 25,
+     "cutoff_time": "23:59",
+     "reporting_currency": "IDR",
+     "base_currency": "USD",
+     "closing_rates": {
+      "2026-11": {
+       "USD": "15800",
+       "EUR": "17900",
+       "GBP": "21400"
+      },
+      "2026-12": {
+       "USD": "16000",
+       "EUR": "18000",
+       "GBP": "21000"
+      }
+     }
+    },
+    "ledger": [
+     {
+      "transfer_id": "t9",
+      "book_id": "b",
+      "obligation_id": "t9",
+      "invoice_fingerprint": "inv-W",
+      "installment": null,
+      "contract_total_minor": null,
+      "line": "suppliers",
+      "currency": "USD",
+      "amount_minor": 50000,
+      "base_cost_minor": 50000,
+      "paid_at": "2026-11-12T10:00:00+07:00"
+     }
+    ],
+    "invoice": "inv-W"
+   },
+   "expect": {
+    "invoice_status": "RECONCILED",
+    "invoice_paid_minor": 50000,
+    "invoice_outstanding_minor": 0,
+    "invoice_completed_in": "2026-11"
+   },
+   "derivation": "one whole payment, no instalments: the payment is the invoice -> reconciled in November, nothing outstanding"
+  },
+  {
    "id": "R14",
    "kind": "reporting",
    "level": 4,

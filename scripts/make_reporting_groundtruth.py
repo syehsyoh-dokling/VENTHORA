@@ -58,6 +58,11 @@ add("R13", "an open invoice shows what is outstanding", {"ledger": L, "invoice":
     {"invoice_status": "OPEN", "invoice_paid_minor": 20_000, "invoice_outstanding_minor": 30_000, "invoice_completed_in": None},
     "deposit 20,000 of 50,000 -> 30,000 outstanding, not reconciled", "two-layer reporting")
 
+W = [pay("t9", "inv-W", None, 50_000, "USD", "2026-11-12T10:00:00+07:00")]
+add("R19", "an invoice paid whole, with no contract total on file, is settled in the month it was paid", {"ledger": W, "invoice": "inv-W"},
+    {"invoice_status": "RECONCILED", "invoice_paid_minor": 50_000, "invoice_outstanding_minor": 0, "invoice_completed_in": "2026-11"},
+    "one whole payment, no instalments: the payment is the invoice -> reconciled in November, nothing outstanding", "two-layer reporting")
+
 # consolidation
 add("R14", "November consolidated to IDR at closing rates", {"ledger": L, "period": "2026-11"},
     {"reporting_total_minor": 300 * 15800 + 400 * 17900 + 200 * 21400, "missing_rates": []},

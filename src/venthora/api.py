@@ -28,6 +28,7 @@ from .domain.models import PlanResult, TreasuryState  # noqa: E402
 from .engines.llm_planner import llm_proposal  # noqa: E402
 from .evidence.llm import ChatModel  # noqa: E402
 from .execution.executor import Executor  # noqa: E402
+from .execution.facts import apply_operational_facts  # noqa: E402
 from .execution.incidents import IncidentCommander, IncidentRequest, IncidentResult  # noqa: E402
 from .execution.live import with_live_balances_and_rates  # noqa: E402
 from .execution.models import ExecutionRequest, ExecutionResult  # noqa: E402
@@ -158,7 +159,22 @@ async def plan_scenario(scenario_id: str, period: str | None = None):
 @app.get("/api/budget")
 async def budget_pipeline(scenario_id: str = "kit01_initial", period: str | None = None):
     """The pipeline for a book: plan / granted / realized / paying now / committed / available / minus per line,
-    alerts and budget requests, computed from the current plan of that book."""
+    alerts and budget requests, computed from the current plan of that book. scenario_id=live: the book of the latest
+    operations run, with what the store has realized since (paid obligations are settled, not paid again)."""
+    if scenario_id == "live":
+        sessions = getattr(app.state, "live", {})
+        if not sessions:
+            raise HTTPException(404, "no operations run yet")
+        s = list(sessions.values())[-1]
+        state, _notes = await asyncio.to_thread(apply_operational_facts, s.state, app.state.executor.store)
+        result = await app.state.agent.decide(state)
+        shown = json.loads(json.dumps(result.budget).replace(f"-{s.tag}", ""))  # obligation names as the finance team knows them
+        return {"scenario_id": "live", "book_name": s.book_name, "decision": result.decision, "plan_hash": result.plan_hash, **shown,
+                "grants": app.state.executor.store.list_grants(state.budget.period) if state.budget else [],
+                "open_recon_cases": app.state.executor.store.open_recon_cases(state.book_id),
+                "closed_period": bool(state.budget and app.state.executor.store.closed_period(state.budget.period)),
+                "requires_approval": next((x.details.get("local", {}).get("requires_approval", [])
+                                           for x in result.stages if x.engine == "Policy"), [])}
     data = json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
     state = _with_budget(TreasuryState.model_validate(data["state"]), period)
     if state.budget is None:
@@ -390,7 +406,7 @@ async def tenants():
                               and resolve_tenancy(reg, b).config.tenant == tenant and resolve_tenancy(reg, b).config.book_id == pattern)
             out.append({"tenant": tenant, "tenant_name": t.get("name"), "book": pattern, "pattern": any(ch in pattern for ch in "*?["),
                         "allowed_payees": raw.get("allowed_payees") or ["*"], "approvers": raw.get("approvers") or [],
-                        "policy_overrides": raw.get("policy_overrides") or {},
+                        "policy_overrides": raw.get("policy_overrides") or {}, "internal": bool(raw.get("internal")),
                         "books_seen": [{"book_id": b, "executions": seen.get(b, 0),
                                         "cash": {c: a.get("cash", 0) for c, a in store.book_balances(b).items()} if b in books else {}}
                                        for b in matching]})

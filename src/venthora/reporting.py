@@ -147,6 +147,9 @@ def invoice_statement(fingerprint: str, ledger: list[dict]) -> dict:
     parts = sorted((r for r in ledger if r.get("invoice_fingerprint") == fingerprint), key=lambda r: r["paid_at"])
     paid = sum(r["amount_minor"] for r in parts)
     contract = next((r["contract_total_minor"] for r in parts if r.get("contract_total_minor") is not None), None)
+    # An invoice paid whole (no instalments, no contract total on file) is settled by that one payment.
+    if contract is None and parts and all(r.get("installment") is None for r in parts):
+        contract = paid
     complete = contract is not None and paid == contract
     return {"invoice_fingerprint": fingerprint, "contract_total_minor": contract, "paid_minor": paid,
             "outstanding_minor": (contract - paid) if contract is not None else None,

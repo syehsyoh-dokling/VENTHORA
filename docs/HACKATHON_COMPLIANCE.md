@@ -222,7 +222,7 @@ reasons.
 | Every payment is booked to the report period of its **payment instant** (ledger `spend_ledger`, written at reconciliation from the transfer's timestamp) | `execution/executor.py`, `store.py` |
 | Layer 1 monthly spend by currency and line · layer 2 invoice statements as of the period's end (an instalment invoice is RECONCILED only when its parts add up to the contract, in the month of the last part) · layer 3 consolidation to the reporting currency at the period's closing rates (snapshot from Airwallex or set by the admin, recorded with source), beside the base cost actually paid (FX difference); missing rates flagged | `GET /v1/reporting/periods/{period}`, `POST …/rates`, dashboard section |
 
-Ground truth suite 5: 18 hand-derived cases, 18/18 in-process, through the endpoint (`POST /v1/reporting/eval`) and through
+Ground truth suite 5: 19 hand-derived cases (R19: an invoice paid whole, with no contract on file, is settled in its month), 19/19 in-process, through the endpoint (`POST /v1/reporting/eval`) and through
 the form; real sandbox: the ledger holds today's real instalments (deposit + balance, both booked to 2026-10, invoice
 RECONCILED); the rate snapshot found that the sandbox does not quote IDR (`unsupported_currency` / `invalid_parameter`), so the admin's fallback
 rates are recorded with that source — a finding, not a guess (SANDBOX_RESULTS.md cycle 11).

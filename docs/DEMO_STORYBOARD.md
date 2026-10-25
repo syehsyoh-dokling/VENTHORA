@@ -82,7 +82,7 @@ execution with polling to PAID and reconciliation 9.1 s.
 
 ## Closing line (10 s)
 
-Twelve ground-truth suites, 322 hand-derived cases reproduced in-process, through the endpoints and through this form;
+Twelve ground-truth suites, 323 hand-derived cases reproduced in-process, through the endpoints and through this form;
 the policy proven in two engines on 10,618 inputs; eighteen cycles on the real sandbox. The agent proposes, the engines
 verify, Airwallex executes.
 
