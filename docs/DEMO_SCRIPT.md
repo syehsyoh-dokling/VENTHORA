@@ -1,110 +1,91 @@
-# Demo voice-over: VENTHORA alpha, about four and three-quarter minutes
+# Demo voice-over: the two dashboards, about four and three-quarter minutes
 
-A product walkthrough for people who would use VENTHORA, built around what the organizers ask a demo to show:
-**the user's goal, the agent's initial plan, new information, the revised decision, and the resulting financial state**,
-with amounts, limits, reserves, validation, duplicate protection and state changes controlled by code. The video must be
-**under five minutes**; this cut runs about 4:40 including the real waits on Airwallex.
+Every sentence describes something visible on the operations page (`/live`) or the Control center (`/`), so the video
+shows each strength as it is named. It covers what the organizers ask a demo to show: **the user's goal, the agent's
+initial plan, new information, the revised decision, and the resulting financial state**. The video must be **under five
+minutes**; this one runs about 4:45 including the real waits on Airwallex.
 
-**Before recording:** `python scripts/demo_server.py --reset`, browser at 100 % zoom and at least 1,500 px wide.
-Each operations run moves real sandbox money, so reset between takes. Figures that follow live sandbox rates are said in
-round numbers. Stage directions are in brackets and are not read aloud.
-
-The cut has three parts, and each one shows strengths the others do not:
-
-| Part | Page | Strengths it shows |
-|---|---|---|
-| Opening | `/flow` | mandate lanes, evidence, two policy engines, AI suggestions judged like plans, approvals, Airwallex, incident handling, reconciliation |
-| Operations | `/live` | the five demo elements on real money, counterfactual proof, only affected decisions change, finality, learned fees |
-| Control center | `/` | audit trail, budget against plan, a ledger per book and team, ground truth |
+**Before recording:** `python scripts/demo_server.py --reset`, open `http://localhost:8001/live`, browser at 100 % zoom
+and at least 1,500 px wide. Each run moves real sandbox money, so reset between takes. Click **Next** right after the
+last sentence of each block. Figures that follow live sandbox rates are said in round numbers. Stage directions are in
+brackets and are not read aloud.
 
 ---
 
-## Part 1 · Opening: how it works (0:00 – 1:20)
+## Operations page (0:00 – 3:20)
 
-**[Open `http://localhost:8001/flow?speed=1.5` and press F for full screen.]** At 1.5x each step lasts about four
-seconds and the page moves on by itself; read one line per step as its box appears. To set the pace yourself, press
-Space to pause and click anywhere for the next step.
+**[0:00 – 0:40 · Step 1, the mandate form; scroll slowly through the permissions, guards and locked rules]**
+You tell VENTHORA what you want: every bill due in the next seventy-two hours paid on time, in dollars, euros and
+pounds, with at least ten thousand dollars always left in the wallet. Then you set its mandate. Each permission has a
+limit you choose. Uncheck one, and that action comes back to you. It also guards your currency exposure, overdue
+invoices and late interest. And some rules can't be turned off: no invoice is paid twice, and a changed bank account is
+never paid until you've confirmed it.
 
-| Step | On screen | Voice-over |
-|---|---|---|
-| 1 | Mandate assigned | It starts with your mandate: the goal, the money, the reserve. |
-| 2 | Green lane | What you check, VENTHORA does on its own, within your limit. |
-| 3 | Amber lane | What you uncheck comes back to you. Big payments need two people. |
-| 4 | Blue lane | Some rules never switch off: no double payments, no crossing the reserve. |
-| 5 | Requests arrive | Requests arrive from everywhere: invoices, payroll, emails, forms. |
-| 6 | Read and verify | It reads each one, and keeps only what it can quote. |
-| 7 | Forecast | It forecasts the money coming in, and how sure it can be. |
-| 8 | Plan | Then it plans the next seventy-two hours, in milliseconds. |
-| 9 | Prove | Two independent engines check that plan against your mandate. Both must agree. |
-| 10 | Verdict | Every plan, even an AI's suggestion, gets a verdict and a reason. |
-| 11 | Blocked | Blocked means never paid, like an invoice sent twice. |
-| 12 | Approval | Anything outside your mandate waits for you, like changed bank details. |
-| 13 | Airwallex | Approved payments go to Airwallex: quote, convert, pay, confirm. |
-| 14 | Approval to Airwallex | Once you approve, it takes the same path, sent exactly once. |
-| 15 | Payout failed | If a payout fails, it waits, replaces it once, or calls you. |
-| 16 | Re-plan loop | Money coming in counts only when Airwallex confirms it. Then it re-plans. |
-| 17 | Reconcile | Every movement is matched to your ledger, to the cent. |
-| 18 | Control center | And your CFO sees all of it in the Control center. |
-| 19 | End card | This is VENTHORA alpha, live on Airwallex. Let's see it run. |
+**[0:40 – 1:05 · Approvers and the approval matrix, then Requests received; click Save the mandate and start]**
+Your approvers are here: one for routine payments, two different people from twenty-five thousand dollars, and the
+requester can never approve. Here's what's waiting: invoices from your payables and payroll systems, and emails from
+suppliers and customers. Save the mandate, and VENTHORA opens the book on your Airwallex wallet.
 
-## Part 2 · Operations, live on Airwallex (1:20 – 4:00)
+**[1:05 – 1:50 · Step 2, the plan; at the end open Checks and alternatives]**
+In under a second it has a plan. Payroll, the UK freight bill and the German supplier get paid, buying exactly the
+euros and pounds they need. A resent invoice is rejected as a duplicate. A contractor who emailed new bank details
+comes to you, with the email quoted word for word. The subscription waits for a customer payment due tomorrow.
+Every plan shows its checks: two thousand simulated runs of the next seventy-two hours for your reserve, and why each
+alternative is worse. Paying everything now would cross your reserve by about two thousand dollars.
 
-**[Switch to `http://localhost:8001/live`. Click Next right after the last sentence of each block; the time codes include
-the waits for Airwallex, about 4 s for the incoming payment and about 10 s for the execution.]**
+**[1:50 – 2:05 · Step 3, new information]**
+Then the customer writes: their payment will be five days late. VENTHORA weighs that customer's track record, and its
+confidence drops from ninety to seventy percent.
 
-**[1:20 – 1:45 · Step 1, the mandate form, scroll slowly]**
-Here it is, live. You write the goal and set every limit yourself. Anything you uncheck comes back to you. It also
-watches currency exposure, overdue invoices and late interest, and payments from twenty-five thousand dollars need two
-different approvers.
+**[2:05 – 2:22 · Step 4, the revised decision; point at the highlighted row]**
+Only what the news affects changes. It halves how much currency it may convert on its own, so that conversion now waits
+for you, and the subscription comes to you too. Everything else stays as planned.
 
-**[1:45 – 1:52 · Requests received, then click Save the mandate and start]**
-Here's what's waiting. Save the mandate, and VENTHORA opens the book on your Airwallex wallet.
+**[2:22 – 2:40 · Incoming payment confirmed]**
+The customer's money lands. VENTHORA counts it only once Airwallex confirms it, re-reads the balance, and re-plans on
+its own. The subscription is paid, with an alert that its budget line is almost used.
 
-**[1:52 – 2:28 · Step 2, the plan; open Checks and alternatives at the end]**
-In under a second it has a plan. Payroll, the UK freight bill and the German supplier get paid. An invoice sent a
-second time is rejected as a duplicate, and a contractor's new bank details come to you, quoted word for word. The
-subscription waits for a customer payment due tomorrow. And it proves why every other option is worse: paying
-everything now would cross your reserve by about two thousand dollars.
+**[2:40 – 3:20 · Step 5, the result; point at the table, then the wallet and ledger panels]**
+Then it pays, on Airwallex. Both conversions settle, and all four payments come back paid, each with its Airwallex
+reference and the fee Airwallex actually charged. The wallet moved about twenty-one thousand dollars, and every cent
+matches the book's ledger. Your reserve was never touched, and the duplicate and the changed bank account were never
+paid.
 
-**[2:28 – 2:40 · Step 3, new information]**
-Then the customer writes: five days late. Confidence in that money drops from ninety to seventy percent.
+## Control center (3:20 – 4:45)
 
-**[2:40 – 2:57 · Step 4, the updated plan; point at the highlighted row]**
-Only what the news affects changes. It halves how much it may convert on its own, and the subscription now comes to
-you. Everything else stays as planned.
+**[3:20 – 3:40 · Click Control center; Plan & proof, then Platform]**
+The Control center keeps all of it on the record. Any plan can be re-proven here, with every alternative and its chance
+of breaching the reserve. Your policy runs in two engines that must agree, the Airwallex connection refuses production,
+and every event goes into a hash-chained audit trail.
 
-**[2:57 – 3:15 · Incoming payment confirmed]**
-When the money lands, it counts only once Airwallex confirms it, then re-plans on its own. The subscription is paid,
-with an alert that its budget line is almost used.
+**[3:40 – 3:55 · Budget · mandate, Books · ledger, Tenants · books]**
+You see spending against each budget line, a double-entry ledger for every book, and which team owns each book, with
+its own payees, approvers and limits. One team's money is never spent by another.
 
-**[3:15 – 4:00 · Step 5, the result; point at the table, then the wallet panel]**
-Then it pays, on Airwallex. Both conversions settle, and all four payments come back paid. Every fee is what Airwallex
-really charged, and VENTHORA learns it for the next plan. The wallet moved about twenty-one thousand dollars, matching
-the ledger to the cent, and your reserve was never touched. The duplicate and the changed bank account were never paid.
+**[3:55 – 4:05 · Payees · lifecycle]**
+Every payee moves from new, to verified, to active. A bank change starts a cooling period, and the call-back goes only
+to the number already on file.
 
-## Part 3 · Control center (4:00 – 4:30)
+**[4:05 – 4:13 · Reporting periods]**
+At your cut-off, each payment lands in the right period, consolidated into your reporting currency, with the exchange
+difference shown.
 
-**[4:00 – 4:15 · Click Control center; scroll through Plan & proof, Budget and Books · ledger]**
-Everything stays on the record: an audit trail that can't be altered, spending against each budget line, and a separate
-ledger for every book and team, so one team's money is never spent by another.
+**[4:13 – 4:38 · Ground-truth checks: choose "anomalies", then case N34, then Submit; then the Resilience test matrix]**
+And you can test it yourself. Take a payout the bank returned: VENTHORA replaces it under the same invoice lock. Had the
+account details been wrong, it would call a person instead. Three hundred twenty-three checks like this, from lookalike
+emails to injected instructions, all pass, along with a hundred and thirty-six stress scenarios.
 
-**[4:15 – 4:30 · Ground-truth checks, then Resilience test matrix]**
-And you can test it yourself: three hundred twenty-three checked cases, and a hundred and thirty-six stress scenarios,
-all passed.
-
-## Close (4:30 – 4:40)
-
-**[Scroll back to the top]**
-VENTHORA alpha. Set your rules, and let it run your payments on Airwallex.
+**[4:38 – 4:45 · Scroll back to the top]**
+VENTHORA alpha: your rules, proven plans, and payments on Airwallex reconciled to the cent.
 
 ---
 
-**Timing.** The opening is fixed by the animation at about 1:20. The rest is about 360 spoken words, about 2:25 at 150
-words a minute, plus clicks, pointing and about 15 seconds of waits on Airwallex. Total about 4:40, with some slack. If a take runs long, shorten
-the Control center part to the ground-truth sentence first.
+**Timing.** About 585 spoken words, about 3:55 at 150 words a minute, plus about 45 seconds of clicks and waits on
+Airwallex. Total about 4:40. If a take runs long, drop the Reporting periods block first, then the Payees block.
 
-**What each claim rests on.** The counterfactual figure comes from the plan's "What if we pay every verified obligation
-now?" check on the demo book (USD 1,951.63 over the floor on 25 Oct 2026; it moves with live rates). The AI suggestion
-line refers to the challenger gate (`POST /v1/plans/challenge`), which blocked a local model's attempt to pay payroll
-twice on the real sandbox. The incident line refers to the Incident Commander's WAIT, REPLACE and ESCALATE decisions.
-Learned fees are the per-rail fees the executor records after each payout. Details are in [INNOVATION.md](INNOVATION.md).
+**What each claim rests on, all on screen.** The checks and the counterfactual figure are in the plan card's "Checks and
+alternatives" (paying every verified obligation now: USD 1,951.63 over the floor on 25 Oct 2026; it moves with live
+rates). The approval matrix is in the mandate form. Fees are in the result table's Detail column. The two engines, the
+production refusal and the audit chain are in the Platform panel. Case N34 returns REPLACE and matches its ground truth;
+N35 (wrong account details) returns ESCALATE. Lookalike emails and injected instructions are intake cases I02, I09 and
+I17.
