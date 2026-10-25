@@ -303,7 +303,7 @@ def plan_view(s: LiveSession, plan: PlanResult) -> dict:
             "changes": [{"id": s.short(c.obligation_id), "before": c.before, "after": c.after, "reason": c.reason.replace(f"-{s.tag}", "")}
                         for c in (plan.recalculation.changes if plan.recalculation else [])],
             "locked": [s.short(i) for i in (plan.recalculation.locked if plan.recalculation else [])],
-            "counterfactuals": [{"question": c.question, "feasible": c.feasible, "breach_bp": c.breach_probability_bp, "headroom_minor": c.headroom_minor}
+            "counterfactuals": [{"question": c.question.replace(f"-{s.tag}", ""), "feasible": c.feasible, "breach_bp": c.breach_probability_bp, "headroom_minor": c.headroom_minor}
                                 for c in plan.counterfactuals],
             "stages": [{"engine": x.engine, "status": x.status, "summary": x.summary[:220].replace(f"-{s.tag}", "")} for x in plan.stages],
             "budget": [{"line": r["line"], "status": r["status"], "utilisation_bp": r["utilisation_bp"], "available_minor": r["available_minor"]}

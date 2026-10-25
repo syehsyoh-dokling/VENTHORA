@@ -13,3 +13,4 @@ native/*.dll
 native/*.dylib
 data/runs/
 data/demo/
+demo_video/
