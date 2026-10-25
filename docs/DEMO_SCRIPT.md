@@ -14,6 +14,39 @@ Stage directions are in brackets and are not read aloud.
 
 ---
 
+## Opening · How it works (`/flow`, about 1:15)
+
+Play `http://localhost:8001/flow?speed=1.5` in full screen (F). At 1.5x each step lasts about four seconds and the
+page moves on by itself; read one line per step as its box appears. To control the pace yourself, pause with Space and
+click anywhere for the next step. About 190 spoken words.
+
+| Step | On screen | Voice-over |
+|---|---|---|
+| 1 | Mandate assigned | It starts with your mandate: the goal, the money, the reserve. |
+| 2 | Green lane | What you check, VENTHORA does on its own, within your limit. |
+| 3 | Amber lane | What you uncheck comes back to you. Big payments need two people. |
+| 4 | Blue lane | Some rules never switch off: no double payments, no crossing the reserve. |
+| 5 | Requests arrive | Requests arrive from everywhere: invoices, payroll, emails, forms. |
+| 6 | Read and verify | It reads each one, and keeps only what it can quote. |
+| 7 | Forecast | It forecasts the money coming in, and how sure it can be. |
+| 8 | Plan | Then it plans the next seventy-two hours, in milliseconds. |
+| 9 | Prove | Two independent engines check that plan against your mandate. Both must agree. |
+| 10 | Verdict | Every decision gets a verdict, and a reason. |
+| 11 | Blocked | Blocked means never paid, like an invoice sent twice. |
+| 12 | Approval | Anything outside your mandate waits for you, like changed bank details. |
+| 13 | Airwallex | Approved payments go to Airwallex: quote, convert, pay, confirm. |
+| 14 | Approval to Airwallex | Once you approve, it takes the same path, sent exactly once. |
+| 15 | Re-plan loop | Money coming in counts only when Airwallex confirms it. Then it re-plans. |
+| 16 | Reconcile | Every movement is matched to your ledger, to the cent. |
+| 17 | Control center | And your CFO sees all of it in the Control center. |
+| 18 | End card | This is VENTHORA alpha, live on Airwallex. Let's see it run. |
+
+**Staying under five minutes with the opening:** the opening adds about 1:15. Skip the first operations block
+(0:00 – 0:15, the opening already introduces VENTHORA) and Part 2 (the Control center, which step 17 now covers).
+Together that saves about 1:10, so the whole video stays at about 4:35.
+
+---
+
 ## Part 1 · Operations (0:00 – 3:25)
 
 **[0:00 – 0:15 · Operations page, nothing clicked]**
