@@ -82,11 +82,28 @@ svg#wires{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .card h2{margin:0 0 14px;font-size:64px;font-weight:800;letter-spacing:.5px}
 .card p{margin:0;font-size:26px;color:var(--ink2)}
 .card .badge{margin-top:28px;font-size:17px}
-#hint{position:fixed;right:14px;top:10px;font:12px system-ui;color:#8193b8;opacity:.9;transition:opacity 1s;z-index:9}
+#stage{cursor:pointer}
+#ctl{position:fixed;left:50%;top:12px;transform:translate(-50%,-8px);display:flex;gap:6px;align-items:center;padding:6px;border-radius:14px;z-index:10;
+ background:rgba(5,12,29,.88);border:1px solid rgba(255,255,255,.18);box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
+body.ctl-on #ctl,#ctl:hover{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#ctl button,#ctl select{font:600 13px system-ui,sans-serif;color:#eef3ff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+#ctl button:hover,#ctl select:hover{background:rgba(111,157,255,.28)}
+#ctl label{font:12px system-ui,sans-serif;color:#b9c6e3;display:flex;gap:6px;align-items:center;padding-left:4px}
+#ctl select option{background:#0b1836}
+body:not(.ctl-on) #stage{cursor:none}
+#hint{position:fixed;right:14px;bottom:8px;font:12px system-ui;color:#8193b8;opacity:.9;transition:opacity 1s;z-index:9}
 </style>
 </head>
 <body>
-<div id="hint">Space pause · ← → step · R restart</div>
+<div id="hint">Click anywhere for the next step · Space pause · ← → step · R restart · F full screen</div>
+<div id="ctl">
+  <button data-a="restart" title="Restart (R)">⟲ Restart</button>
+  <button data-a="prev" title="Previous step (←)">◀ Back</button>
+  <button data-a="play" id="playBtn" title="Pause or play (Space)">❚❚ Pause</button>
+  <button data-a="next" title="Next step (→ or click)">Next ▶</button>
+  <label>Speed <select id="spd"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="2.5">2.5×</option><option value="3">3×</option></select></label>
+  <button data-a="full" title="Full screen (F)">⛶ Full screen</button>
+</div>
 <div id="stage">
   <header>
     <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l8 14 8-14"/></svg></div>
@@ -291,8 +308,8 @@ const STEPS=[
  {all:1,cap:"VENTHORA alpha, live on the Airwallex sandbox. Now, the live product."},
 ];
 const q=new URLSearchParams(location.search);
-const SPEED=Math.max(.25,parseFloat(q.get("speed")||"1"));
-const STEP_MS=6200/SPEED, TITLE_MS=3600/SPEED;
+let SPEED=Math.max(.25,parseFloat(q.get("speed")||"1"));
+let STEP_MS=6200/SPEED, TITLE_MS=3600/SPEED;
 const stage=document.getElementById("stage"), $=id=>document.getElementById(id);
 const wires={};let cur=-1,paused=false,timer=null,stepStart=0,remaining=0,raf=0;
 
@@ -353,12 +370,26 @@ function restart(){clearTimeout(timer);cur=-1;resetAll();$("end").classList.add(
   $("capText").textContent="";$("capNum").textContent="·";$("stepChip").textContent="Ready";$("bar").style.width=0;
   timer=setTimeout(()=>go(0),TITLE_MS)}
 function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(${(innerWidth-1920*k)/2}px,${(innerHeight-1080*k)/2}px) scale(${k})`}
+function togglePause(){paused=!paused;$("playBtn").textContent=paused?"▶ Play":"❚❚ Pause";
+  if(paused){clearTimeout(timer);remaining-=performance.now()-stepStart}else if(cur>=0)schedule(Math.max(400,remaining))}
+function next(){if(cur<STEPS.length-1)go(cur+1,false)}
+function prev(){if(cur>0)go(cur-1,true)}
+function setSpeed(v){SPEED=v;STEP_MS=6200/SPEED;TITLE_MS=3600/SPEED;if(cur>=0&&!paused)schedule(STEP_MS)}
+function fullscreen(){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen().catch(()=>{})}
 addEventListener("keydown",e=>{
-  if(e.code==="Space"){e.preventDefault();paused=!paused;if(paused){clearTimeout(timer);remaining-=performance.now()-stepStart}else if(cur>=0)schedule(Math.max(400,remaining))}
-  else if(e.key==="ArrowRight")go(cur+1,true);else if(e.key==="ArrowLeft")go(cur-1,true);else if(e.key==="r"||e.key==="R")restart()});
+  if(e.code==="Space"){e.preventDefault();togglePause()}
+  else if(e.key==="ArrowRight")next();else if(e.key==="ArrowLeft")prev();else if(e.key==="r"||e.key==="R")restart();
+  else if(e.key==="f"||e.key==="F")fullscreen()});
+// click anywhere on the stage = next step; the control bar appears while the mouse moves and hides when it rests
+stage.addEventListener("click",()=>next());
+document.querySelectorAll("#ctl [data-a]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();
+  ({restart,prev,next,play:togglePause,full:fullscreen})[b.dataset.a]();b.blur()}));
+$("spd").value=String(SPEED);$("spd").addEventListener("change",e=>{setSpeed(parseFloat(e.target.value));e.target.blur()});
+let idle=null;addEventListener("mousemove",()=>{document.body.classList.add("ctl-on");clearTimeout(idle);
+  idle=setTimeout(()=>{if(!$("ctl").matches(":hover"))document.body.classList.remove("ctl-on")},2200)});
 addEventListener("resize",fit);
 stage.style.transform="none";build();fit();requestAnimationFrame(tick);
-setTimeout(()=>$("hint").style.opacity=0,4000);
+document.body.classList.add("ctl-on");setTimeout(()=>{document.body.classList.remove("ctl-on");$("hint").style.opacity=0},4500);
 const startAt=parseInt(q.get("step")||"0",10);
 if(startAt>0)go(startAt-1,true);else restart();
 </script>
