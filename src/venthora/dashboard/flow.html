@@ -54,7 +54,7 @@ header .right{margin-left:auto;display:flex;gap:14px;align-items:center}
 .pill.g{color:#0b2a1c;background:var(--good)}.pill.a{color:#2b1c00;background:var(--warn)}.pill.r{color:#2e0909;background:var(--crit)}
 
 /* Airwallex inner flow */
-.rail{display:flex;align-items:stretch;gap:0;margin:6px 0 10px}
+.rail{display:flex;align-items:stretch;gap:0;margin:4px 0 8px}
 .rail li{flex:1;padding:10px 8px;margin:0;border-radius:12px;background:rgba(180,140,255,.12);border:1px solid rgba(180,140,255,.35);text-align:center;font-size:14px;color:var(--ink)}
 .rail li::before{display:none}
 .rail li small{display:block;color:var(--ink2);font-size:12.5px}
@@ -83,6 +83,8 @@ svg#wires{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .card p{margin:0;font-size:26px;color:var(--ink2)}
 .card .badge{margin-top:28px;font-size:17px}
 #stage{cursor:pointer}
+.late{opacity:0;transform:translateY(6px);transition:opacity .8s .3s,transform .8s .3s}.late.on{opacity:1;transform:none}
+.inc{font-size:13.5px;color:var(--ink2);padding:5px 12px;border-radius:10px;background:rgba(255,107,107,.10);border:1px solid rgba(255,107,107,.40)}.inc b{color:#ffb4b4}
 #ctl{position:fixed;left:50%;top:12px;transform:translate(-50%,-8px);display:flex;gap:6px;align-items:center;padding:6px;border-radius:14px;z-index:10;
  background:rgba(5,12,29,.88);border:1px solid rgba(255,255,255,.18);box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
 body.ctl-on #ctl,#ctl:hover{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
@@ -209,12 +211,12 @@ body:not(.ctl-on) #stage{cursor:none}
   <div class="node" id="verdict" style="left:1580px;top:460px;width:280px;height:230px">
     <div class="k">Verdict</div>
     <h3>One of three</h3>
-    <ul><li>Every decision carries its reason</li></ul>
+    <ul><li>Every decision carries its reason</li><li>AI and human suggestions judged the same way</li></ul>
     <div class="pills"><span class="pill g" id="pG">APPROVED</span><span class="pill a" id="pA">APPROVAL</span><span class="pill r" id="pR">BLOCKED</span></div>
   </div>
 
   <!-- row 3: outcomes -->
-  <div class="node o" id="control" style="left:60px;top:770px;width:330px;height:170px">
+  <div class="node o" id="control" style="left:60px;top:750px;width:330px;height:196px">
     <div class="k">CFO monitors</div>
     <h3><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>Control center</h3>
     <ul>
@@ -223,7 +225,7 @@ body:not(.ctl-on) #stage{cursor:none}
       <li>Reporting periods and checks</li>
     </ul>
   </div>
-  <div class="node g" id="recon" style="left:430px;top:770px;width:320px;height:170px">
+  <div class="node g" id="recon" style="left:430px;top:750px;width:320px;height:196px">
     <div class="k">Reconcile and close</div>
     <h3>To the cent</h3>
     <ul>
@@ -232,7 +234,7 @@ body:not(.ctl-on) #stage{cursor:none}
       <li>Mismatch: book locked, case opened</li>
     </ul>
   </div>
-  <div class="node x" id="awx" style="left:790px;top:770px;width:560px;height:170px">
+  <div class="node x" id="awx" style="left:790px;top:750px;width:560px;height:196px">
     <div class="k">Airwallex moves the money</div>
     <h3>Your wallet: USD · EUR · GBP</h3>
     <ul class="rail">
@@ -241,8 +243,9 @@ body:not(.ctl-on) #stage{cursor:none}
       <li>Payout<small>LOCAL · SWIFT</small></li><li class="sep">→</li>
       <li>Status<small>PAID</small></li>
     </ul>
+    <div class="late inc" id="incLine"><b>Payout failed?</b> Wait, replace it under the same invoice lock, or escalate. Wrong bank details: never replaced automatically.</div>
   </div>
-  <div class="node a" id="approve" style="left:1390px;top:770px;width:250px;height:170px">
+  <div class="node a" id="approve" style="left:1390px;top:750px;width:250px;height:196px">
     <div class="k">Waits for a person</div>
     <h3>Approval</h3>
     <ul>
@@ -251,7 +254,7 @@ body:not(.ctl-on) #stage{cursor:none}
       <li>Sent once approved</li>
     </ul>
   </div>
-  <div class="node r" id="blocked" style="left:1680px;top:770px;width:180px;height:170px">
+  <div class="node r" id="blocked" style="left:1680px;top:750px;width:180px;height:196px">
     <div class="k">Blocked</div>
     <h3>Never paid</h3>
     <ul>
@@ -297,11 +300,12 @@ const STEPS=[
  {show:["forecast"],wires:["s2"],cap:"It forecasts the money coming in, with a confidence based on each customer's track record."},
  {show:["plan"],wires:["s3"],cap:"It plans the next 72 hours: pay, convert and pay, wait, send to a person, or reject. The demo book plans in under 0.1 seconds."},
  {show:["prove"],wires:["s4","rules"],cap:"Before any money moves, two independent policy engines check the plan against your mandate. Both must agree."},
- {show:["verdict"],wires:["s5"],cap:"Every decision gets one of three verdicts, and every verdict carries its reason."},
+ {show:["verdict"],wires:["s5"],cap:"Every decision gets one of three verdicts with its reason. A suggestion from an AI or a person is judged exactly the same way."},
  {show:["blocked"],wires:["vR"],cap:"Blocked payments are never sent. In the demo book, an invoice sent a second time is rejected as a duplicate."},
  {show:["approve"],wires:["vA"],cap:"Decisions outside the mandate wait for a person. In the demo book, a contractor who emailed new bank details."},
  {show:["awx"],wires:["vG"],cap:"Approved payments go to Airwallex: an FX quote, the conversion, the payout, then a status VENTHORA checks."},
  {focus:["approve","awx"],wires:["aX"],cap:"Once a person approves, the payment follows the same path, and it is sent exactly once."},
+ {focus:["awx"],reveal:["incLine"],cap:"If a payout fails after it leaves, the same agent handles the incident: wait, replace it under the same invoice lock, or escalate."},
  {focus:["awx","forecast"],wires:["loop"],cap:"New information changes the plan. A customer payment counts only when Airwallex confirms it SETTLED, then VENTHORA re-plans."},
  {show:["recon"],wires:["xR"],cap:"Every movement on the wallet is matched to the book's ledger, to the cent. A mismatch locks the book and opens a case."},
  {show:["control"],wires:["rC"],cap:"The CFO monitors everything in the Control center: the audit trail, budget against plan, and every book's ledger."},
@@ -345,7 +349,7 @@ function drawWire(id,instant){const w=wires[id];if(!w||w.on)return;w.on=true;w.t
   if(w.lbl){if(instant)w.lbl.classList.add("on");else setTimeout(()=>{if(w.on)w.lbl.classList.add("on")},900)}}
 function resetAll(){for(const w of Object.values(wires)){w.on=false;clearTimeout(w.headT);w.p.removeAttribute("marker-end");w.p.style.transition="none";
     if(w.dash)w.p.style.opacity=0;else w.p.style.strokeDashoffset=w.len;w.dot.style.opacity=0;if(w.lbl)w.lbl.classList.remove("on")}
-  document.querySelectorAll(".node").forEach(n=>n.classList.remove("on","focus"))}
+  document.querySelectorAll(".node,.late").forEach(n=>n.classList.remove("on","focus"))}
 function tick(now){
   for(const w of Object.values(wires)){if(!w.on){continue}
     const age=now-w.t0;if(age<1300){w.dot.style.opacity=0;continue}
@@ -354,7 +358,7 @@ function tick(now){
   raf=requestAnimationFrame(tick)}
 function render(i,instant){
   resetAll();
-  for(let s=0;s<=i;s++){const st=STEPS[s];(st.show||[]).forEach(id=>$(id).classList.add("on"));(st.wires||[]).forEach(id=>drawWire(id,instant||s<i))}
+  for(let s=0;s<=i;s++){const st=STEPS[s];(st.show||[]).forEach(id=>$(id).classList.add("on"));(st.reveal||[]).forEach(id=>$(id).classList.add("on"));(st.wires||[]).forEach(id=>drawWire(id,instant||s<i))}
   const st=STEPS[i];
   const focus=st.all?[...document.querySelectorAll(".node")].map(n=>n.id):(st.focus||st.show||[]);
   focus.forEach(id=>$(id).classList.add("focus"));
