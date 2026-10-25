@@ -1,9 +1,9 @@
-# Demo voice-over: the final script, about four and a half minutes
+# Demo voice-over: VENTHORA alpha, about four and a half minutes
 
-Built around what the organizers ask a demo to show: **the user's goal, the agent's initial plan, new information, the
-revised decision, and the resulting financial state**, with amounts, limits, reserves, validation, duplicate protection
-and state changes controlled by code. The video must be **under five minutes**; this one runs about 4:30 including the
-real waits on Airwallex.
+Written as a product walkthrough for people who would use VENTHORA, built around what the organizers ask a demo to show:
+**the user's goal, the agent's initial plan, new information, the revised decision, and the resulting financial state**,
+with amounts, limits, reserves, validation, duplicate protection and state changes controlled by code. The video must be
+**under five minutes**; this one runs about 4:30 including the real waits on Airwallex.
 
 **Before recording:** `python scripts/demo_server.py --reset`, open `http://localhost:8001/live`, browser at 100 % zoom
 and at least 1,500 px wide. Each run moves real sandbox money, so reset between takes. Click **Next** right after the
@@ -14,72 +14,73 @@ Stage directions are in brackets and are not read aloud.
 
 ---
 
-## Part 1 · The operations page (0:00 – 3:25)
+## Part 1 · Operations (0:00 – 3:25)
 
 **[0:00 – 0:15 · Operations page, nothing clicked]**
-Software agents are starting to move real money. The hard part isn't making them act. It's making sure they can't act
-wrongly. This is VENTHORA: an AI treasury agent that must prove a payment is safe before it's allowed to make it, live on
-Airwallex.
+This is VENTHORA, an AI treasury agent for finance teams that pay suppliers in more than one currency. It plans your
+payments, moves the money through Airwallex, and closes the books. And it never pays anything it can't prove is safe.
+This is the alpha, running live on Airwallex.
 
 **[0:15 – 0:45 · Step 1, the mandate form, scroll slowly]**
-It starts with the user's goal: pay every bill due in the next seventy-two hours, in dollars, euros and pounds, without
-the wallet ever dropping below a ten-thousand-dollar reserve.
-The finance manager gives VENTHORA thirty thousand dollars and a mandate. Every permission has a limit, and unticking one
-sends that action back to a person. Some rules can never be switched off: no invoice is paid twice, and a changed bank
-account is never paid until someone calls the supplier back.
+You start by telling it what you want: every bill due in the next seventy-two hours paid on time, in dollars, euros and
+pounds, with at least ten thousand dollars always left in the wallet.
+Then you set its mandate. Each permission has a limit you choose. Uncheck one, and that action always comes back to you
+for approval. A few rules can't be turned off: an invoice is never paid twice, and a supplier who changes bank details is
+never paid until you've confirmed it on the number you already have.
 
-**[0:45 – 0:55 · Requests received, then click Grant]**
-Invoices arrive from our systems, emails from suppliers and a customer. She grants the mandate, and the book opens on the
-live Airwallex wallet.
+**[0:45 – 0:55 · Requests received, then click Save the mandate and start]**
+Here's what's waiting: invoices from your accounts-payable and payroll systems, and emails from suppliers and customers.
+Save the mandate, and VENTHORA opens the book on your Airwallex wallet.
 
-**[0:55 – 1:30 · Step 2, the initial plan]**
-VENTHORA builds its plan. Payroll, UK shipping and the German supplier are paid, converting exactly the currency they
-need. Two payments it refuses on its own: a duplicate of the German invoice, sent again by email, and Lumen Design's
-payment, because Lumen emailed new bank details. VENTHORA quotes that email word for word and hands it to a person.
-The software bill can wait: a customer has promised ten thousand dollars tomorrow.
+**[0:55 – 1:30 · Step 2, the plan]**
+In under a second it has a plan. Payroll, the UK freight bill and the German supplier get paid, buying exactly the euros
+and pounds they need. It refuses two payments on its own: a duplicate of the German invoice that came in again by email,
+and a contractor who emailed new bank details. That one it sends to you, with the email quoted word for word. The
+software subscription can wait, because a customer's ten-thousand-dollar payment is due tomorrow.
 
 **[1:30 – 1:50 · Step 3, new information]**
-Then the customer writes again: the payment is five days late. VENTHORA weighs their track record, and its confidence in
-that money falls from ninety to seventy percent.
+Then the customer writes: their payment will be five days late. VENTHORA checks how reliable that customer has been, and
+its confidence in the money drops from ninety to seventy percent.
 
-**[1:50 – 2:15 · Step 4, the revised decision; point at the flashing row]**
-So it revises the plan, and only what's affected changes. Its authority to convert currency alone is halved, so the
-conversion now needs a person, and the software bill is escalated. Everything else stays exactly as it was.
+**[1:50 – 2:15 · Step 4, the updated plan; point at the highlighted row]**
+It updates the plan, and changes only what the news affects. It halves how much currency it may convert on its own, so
+that conversion now waits for you. The subscription can't wait for money that may arrive too late, so it comes to you
+too. Everything else stays exactly as planned.
 
-**[2:15 – 2:40 · Payment received]**
-Now the customer's money lands on Airwallex. VENTHORA counts it only once it's settled, re-reads the balance, and revises
-again on its own. The software bill is paid, and its budget line passes the alert threshold.
+**[2:15 – 2:40 · Incoming payment confirmed]**
+The customer's money lands. VENTHORA counts it only once Airwallex confirms it, re-reads the balance, and updates the plan
+on its own. The subscription is paid, and you're told that budget line has passed its alert level.
 
-**[2:40 – 3:25 · Step 5, the resulting state; point at the table, then the wallet panel]**
-Then it executes, live. Both conversions settle, and all four transfers come back paid, each with its Airwallex
-reference. The wallet moved by about twenty-one thousand dollars, and every cent matches this book's ledger. Euro and
-pound balances land at exactly zero, and the reserve was never touched.
-What wasn't paid? The duplicate, and the changed bank account. Stopped by rules, not by luck.
+**[2:40 – 3:25 · Step 5, the result; point at the table, then the wallet panel]**
+Then it pays, on Airwallex. Both conversions settle, and all four payments come back paid, each with its Airwallex
+reference. The wallet moved about twenty-one thousand dollars, and every cent matches the book's ledger. Euro and pound
+balances end at exactly zero, and your reserve was never touched.
+The duplicate and the changed bank account were never paid. Your rules stopped them.
 
-## Part 2 · The Control center (3:25 – 4:20)
+## Part 2 · Control center (3:25 – 4:20)
 
 **[3:25 – 3:40 · Click Control center; header, Plan & proof and Platform]**
-Everything stays accountable in the Control center. Any plan can be proven again, the payment policy runs in two
-independent engines that must agree, and every event is chained into a tamper-evident audit trail.
+Everything VENTHORA does stays on the record. You can re-check any plan, your payment policy is enforced by two
+independent engines that must agree, and every event is written to an audit trail that can't be altered.
 
 **[3:40 – 3:55 · Budget, then Books · ledger]**
-The budget shows what this run spent, line by line, against the month's plan. Each book keeps its own double-entry
-ledger: the wallet is shared, but no book can spend another book's money.
+You see what was spent against each budget line this month, and every book keeps its own double-entry ledger, so one
+team's money is never spent by another.
 
 **[3:55 – 4:05 · Reporting periods]**
-At the month's cut-off, all four payments land in the right period, consolidated into rupiah, and every invoice is
-settled.
+At your month-end cut-off, every payment lands in the right period, consolidated into your reporting currency, and every
+invoice is marked settled.
 
 **[4:05 – 4:20 · Ground-truth checks, then Resilience test matrix]**
-And you don't have to take our word for it. Anyone can run one of three hundred twenty-three hand-checked cases, and
-across a hundred and thirty-six stress scenarios, every safety rule held.
+And you can test it yourself: three hundred twenty-three checked cases you can run from this page, and a hundred and
+thirty-six stress scenarios, every one passed.
 
 ## Close (4:20 – 4:30)
 
 **[Scroll back to the top]**
-The AI proposes. The engines verify. Airwallex executes. That's VENTHORA.
+VENTHORA alpha. Connect your Airwallex sandbox, set your rules, and let it run your payments.
 
 ---
 
-Spoken text: about 520 words, about 3.5 minutes at 150 words a minute; with the clicks and the waits on Airwallex, about 4:30. If a take
-runs long, drop the Reporting periods block (3:55 – 4:05) first.
+Spoken text: about 560 words, about 3.7 minutes at 150 words a minute; with the clicks and the waits on Airwallex, about
+4:30. If a take runs long, drop the Reporting periods block (3:55 – 4:05) first.

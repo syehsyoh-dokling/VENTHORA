@@ -161,13 +161,13 @@ async function api(u,o){const r=await fetch(u,o);const b=await r.json().catch(()
 const table=(cols,rows,cls)=>`<div class="scroll"><table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map((r,i)=>`<tr class="${cls?cls(r):""}">${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r,i)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 let S=null,D=null,timer=null,editing=false,lastFresh=null;
 const GUIDE={goal:"1 · Goal and mandate",plan:"2 · Initial plan",news:"3 · New information",revise:"4 · Revised decision",deposit:"3+4 · Payment received",execute:"5 · Resulting state"};
-const NEXT={plan:"Read the requests received and plan",news:"Receive new information",revise:"Revise the decision",deposit:"Confirm the incoming payment on Airwallex",execute:"Execute on Airwallex and reconcile"};
-const SAY={goal:"The finance manager's goal and the mandate granted to VENTHORA. Every number is a rule the engines enforce; a permission that is revoked goes to a person instead.",
- plan:"VENTHORA reads every request received, plans the horizon and proves the plan before anything moves.",
- news:"An email changes the picture. The claim counts only because it can be quoted verbatim from a dated message.",
- revise:"Only the decisions the news touches are reconsidered; the rest stay locked.",
- deposit:"Airwallex confirms the incoming payment as SETTLED; VENTHORA re-reads the balance and revises again, on its own.",
- execute:"Money moves on Airwallex, and the books are reconciled to the cent."};
+const NEXT={plan:"Plan the next 72 hours",news:"Check for new information",revise:"Update the plan",deposit:"Confirm the incoming payment on Airwallex",execute:"Pay on Airwallex and reconcile"};
+const SAY={goal:"Your goal and the mandate you gave VENTHORA. Every limit here is enforced; anything outside it comes back to you.",
+ plan:"VENTHORA read every request, planned the next 72 hours and proved the plan before any money moved.",
+ news:"A new email changed the picture. VENTHORA used it only because it could quote it word for word.",
+ revise:"VENTHORA changed only the decisions the news affected. Everything else stayed as planned.",
+ deposit:"Airwallex confirmed the incoming payment. VENTHORA re-read the balance and updated the plan on its own.",
+ execute:"The payments went out on Airwallex, and the books were reconciled to the cent."};
 const UNIT={usd:"USD",pct:"%",days:"days",hours:"hours",level:"level"};
 const toInput=(u,v)=>v==null?"":u==="usd"?(v/100):u==="pct"?(v/100):v;
 const fromInput=(u,v)=>u==="usd"?Math.round(Number(v)*100):u==="pct"?Math.round(Number(v)*100):Math.round(Number(v));
@@ -179,8 +179,8 @@ function mrow(m){const locked=m.kind==="locked";return `<tr class="${m.enabled||
  <td class="num" style="white-space:nowrap">${m.unit?`<input class="n" data-mv="${m.i}" value="${esc(toInput(m.unit,m.value))}"> <span class="small muted">${UNIT[m.unit]}</span>`:""}</td></tr>`}
 function renderForm(){const d=D;const per=d.periods;
  const tiers=d.approval_matrix;const roles=["finance_manager","cfo","controller"];
- $("#cards").innerHTML=`<section id="c-form"><h2><span>1 · Goal and mandate</span><span class="tag">set by the finance manager</span></h2>
- <p class="say">Grant VENTHORA its mandate. Checked permissions are VENTHORA's to use on its own; an unchecked permission is revoked and that action always waits for an approver. Nothing outside this mandate can happen.</p>
+ $("#cards").innerHTML=`<section id="c-form"><h2><span>1 · Goal and mandate</span><span class="tag">your rules</span></h2>
+ <p class="say">Tell VENTHORA what it may do with your money. Everything you check, it handles on its own within the limit you set. Anything you uncheck always comes back to you for approval. It never acts outside this mandate.</p>
  <h3>Goal</h3><textarea id="f-goal">${esc(d.goal)}</textarea>
  <h3>Book and allocation</h3><div class="fields">
   <label>Book<input id="f-book" value="${esc(d.book_name)}"></label><label>Organisation<input id="f-tenant" value="${esc(d.tenant_name)}"></label>
@@ -212,7 +212,7 @@ function renderForm(){const d=D;const per=d.periods;
   <label>Reporting currency<input id="f-rccy" class="n" value="${esc(d.reporting.reporting_currency)}" ${d.reporting.editable?"":"disabled"}></label></div>
  ${d.reporting.editable?"":`<p class="help">Set by the admin in the Control center.</p>`}
  <h3>Requests received</h3>${incomingTable(d.incoming)}
- <p style="margin-top:14px"><button class="primary" id="grantBtn">Grant the mandate and open the book</button> <span id="formErr" class="small err"></span></p></section>`;
+ <p style="margin-top:14px"><button class="primary" id="grantBtn">Save the mandate and start</button> <span id="formErr" class="small err"></span></p></section>`;
  $("#addApprover").onclick=e=>{e.preventDefault();collect();D.approvers.push({name:"",role:"finance_manager"});renderForm()};
  $("#grantBtn").onclick=grant;
  document.querySelectorAll("input[data-m]").forEach(cb=>cb.onchange=()=>cb.closest("tr").classList.toggle("off",!cb.checked))}
@@ -240,7 +240,7 @@ async function grant(){const b=$("#grantBtn");b.disabled=true;$("#formErr").text
 // ---- the run ---------------------------------------------------------------------------------------------
 function renderSteps(){const names=["goal","plan","news","revise","deposit","execute"];const st=S?S.steps:names.map(n=>({name:n,title:"",done:false}));
  $("#steps").innerHTML=st.map(s=>{const [num,label]=GUIDE[s.name].split(" · ");const active=(S&&S.next===s.name)||(!S&&s.name==="goal");
-  return `<button class="step ${s.done?"done":""} ${active?"next":""}" data-step="${s.name}"><span class="ic">${s.done?"✓":esc(num)}</span><span><div class="n">${esc(label)}</div><div class="t">${esc(s.title||{goal:"Grant the mandate"}[s.name]||label)}</div></span></button>`}).join("");
+  return `<button class="step ${s.done?"done":""} ${active?"next":""}" data-step="${s.name}"><span class="ic">${s.done?"✓":esc(num)}</span><span><div class="n">${esc(label)}</div><div class="t">${esc(s.title||{goal:"Set your rules"}[s.name]||label)}</div></span></button>`}).join("");
  document.querySelectorAll(".step").forEach(b=>b.onclick=()=>{const el=$(`#c-${b.dataset.step}`)||(b.dataset.step==="goal"&&$("#c-form"));if(el)el.scrollIntoView({behavior:"smooth",block:"start"})})}
 function renderNext(){if(!S||editing){$("#nextbar").innerHTML="";return}const n=S.next;
  if(!n){$("#nextbar").innerHTML=`<span class="pill good">run complete</span><span class="small muted">every step is in the event log and the audit chain</span>`;return}
