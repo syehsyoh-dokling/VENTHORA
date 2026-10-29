@@ -9,9 +9,10 @@ import json
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated
+from urllib.parse import parse_qsl, urlencode
 
 from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
 from . import __version__
 from .audit import AuditStore
@@ -21,7 +22,7 @@ load_env()
 
 from pydantic import BaseModel, Field  # noqa: E402
 
-from . import ai_settings, webhooks  # noqa: E402
+from . import ai_settings, apiaccess, webhooks  # noqa: E402
 from . import live as live_session  # noqa: E402
 from .aging import evaluate as aging_evaluate  # noqa: E402
 from .ai_settings import active_model  # noqa: E402
@@ -78,6 +79,7 @@ async def lifespan(app: FastAPI):
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
     app.state.org = OrgStore()
+    app.state.keys = apiaccess.KeyStore()
     app.state.intake = Intake(org=app.state.org, payments=app.state.executor.store)  # staff claims and POs use the org settings
     app.state.webhooks = webhooks.WebhookStore()
     app.state.hub = webhooks.Hub()
@@ -111,6 +113,37 @@ def _bank():
 app = FastAPI(title="VENTHORA", version=__version__, lifespan=lifespan,
               description="Evidence-gated autonomous treasury agent on Airwallex. "
                           "AI proposes, independent engines verify, Airwallex executes.")
+
+
+@app.middleware("http")
+async def api_keys(request: Request, call_next):
+    """Requests carrying an API key (Settings → API access) are held to its scopes and act with its role.
+
+    Requests without a key are the local dashboard; the gateway forwards the API to the internet only for
+    requests that carry one (scripts/webhook_gateway.py --api)."""
+    token = apiaccess.token_of(request.headers)
+    if token is None:
+        return await call_next(request)
+    path, method = request.url.path, request.method
+    if path.startswith(apiaccess.NO_KEY):
+        return await call_next(request)  # the webhooks authenticate themselves
+    key = await asyncio.to_thread(request.app.state.keys.verify, token)
+    if key is None:
+        return JSONResponse({"detail": "invalid, expired or revoked API key"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    if path.startswith(apiaccess.NEVER_BY_KEY):
+        return JSONResponse({"detail": "API keys are managed only from VENTHORA itself"}, status_code=403)
+    if not path.startswith(apiaccess.OPEN_WITH_KEY):
+        need = apiaccess.scope_for(method, path)
+        if need is None:
+            return JSONResponse({"detail": "this endpoint is not available to API keys"}, status_code=403)
+        if need not in key["scopes"]:
+            return JSONResponse({"detail": f"the key lacks the scope {need}"}, status_code=403)
+    # the key's role and name replace whatever the caller sent
+    q = [(k, v) for k, v in parse_qsl(request.scope.get("query_string", b"").decode()) if k not in ("role", "by")]
+    q += [("role", key["role"]), ("by", f"api:{key['name']}")]
+    request.scope["query_string"] = urlencode(q).encode()
+    request.state.api_key = key["key_id"]
+    return await call_next(request)
 
 
 def _scenario_file(scenario_id: str):
@@ -1624,3 +1657,39 @@ async def org_delete(collection: str, record_id: str, role: str = "finance_manag
     await asyncio.to_thread(app.state.audit.append, f"org_{kind}_deleted", {"id": record_id, "by": who})
     return {"deleted": record_id}
 
+
+# ---- Settings → API access: keys for other applications, and the catalogue of what they can call ----
+@app.get("/v1/developer/catalog")
+async def developer_catalog(request: Request):
+    """Every endpoint, grouped by area, with the scope an API key needs to call it."""
+    areas = [{"area": a, "label": lbl, "covers": cov, "scopes": [f"{a}:read", f"{a}:write"]} for a, (lbl, cov, _) in apiaccess.AREAS.items()]
+    return {"areas": areas, "roles": list(apiaccess.ROLES), "endpoints": apiaccess.catalog(app.openapi()),
+            "auth": {"header": "Authorization: Bearer <key>", "alternative": "X-API-Key: <key>",
+                     "read": "GET and .../eval calls", "write": "every other call",
+                     "role": "the key's role and name replace the role and by query parameters"},
+            "openapi": "/openapi.json", "docs": "/docs",
+            "gateway": {"command": "python scripts/webhook_gateway.py --api", "note": "forwards the API only for requests carrying a key"}}
+
+
+@app.get("/v1/developer/keys")
+async def developer_keys():
+    return await asyncio.to_thread(app.state.keys.list)
+
+
+@app.post("/v1/developer/keys")
+async def developer_key_create(req: apiaccess.KeyRequest, role: str = "finance_manager", by: str = "dashboard"):
+    """Create a key. The key is in this response only; VENTHORA keeps its hash."""
+    who = _writer(role, by)
+    rec, token = await asyncio.to_thread(app.state.keys.create, req, who)
+    await asyncio.to_thread(app.state.audit.append, "api_key_created", {"key_id": rec["key_id"], "name": rec["name"], "scopes": rec["scopes"], "role": rec["role"], "by": who})
+    return rec | {"key": token}
+
+
+@app.post("/v1/developer/keys/{key_id}/revoke")
+async def developer_key_revoke(key_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    who = _writer(role, by)
+    rec = await asyncio.to_thread(app.state.keys.revoke, key_id)
+    if rec is None:
+        raise HTTPException(404, "no such key")
+    await asyncio.to_thread(app.state.audit.append, "api_key_revoked", {"key_id": key_id, "by": who})
+    return rec

@@ -203,6 +203,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/sources-sync" data-nav="sources-sync"><i>⇅</i>Sync API</a>
   <a href="#/sources-upload" data-nav="sources-upload"><i>⇪</i>Upload dataset</a>
   <a href="#/sources-email" data-nav="sources-email"><i>✉</i>Email sources</a>
+  <a href="#/api-access" data-nav="api-access"><i>⌘</i>API access</a>
   <a href="#/allocation" data-nav="allocation"><i>◔</i>Budget allocation</a>
   <a href="#/offices" data-nav="offices"><i>⚑</i>Country offices</a>
   <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
@@ -358,6 +359,19 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
  <section class="span4" data-view="sources-email">
   <h2>Connect the mail service</h2><div id="boxHow" class="small"></div>
+ </section>
+
+ <section class="span8" data-view="api-access">
+  <h2><span>API keys</span><span class="row"><span class="small muted">one key per application that calls VENTHORA</span><button class="primary" id="addKey">Create key</button></span></h2>
+  <div id="newKey"></div>
+  <div id="keyTable" class="empty">loading…</div>
+ </section>
+ <section class="span4" data-view="api-access">
+  <h2>How another app connects</h2><div id="apiHow" class="small"></div>
+ </section>
+ <section class="span12" data-view="api-access">
+  <h2><span>Endpoints</span><span class="row"><select id="epArea"><option value="">All areas</option></select><input id="epFilter" placeholder="filter: path or words" style="min-width:200px"><span class="small muted" id="epCount"></span></span></h2>
+  <div id="epList" class="empty">loading…</div>
  </section>
 
  <section class="span8" data-view="ai">
@@ -627,9 +641,9 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+ standards:"Finance standards",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
@@ -1026,6 +1040,53 @@ async function emailView(){try{const [b,st]=await Promise.all([api("/v1/org/mail
   <li>Forward or point each address above to the Postmark inbound address.</li><li>Mail to an address not listed is still read, and flagged; an invoice sent to the claims address waits for a person.</li></ol>`}
  catch(e){$("#boxTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#addBox").onclick=()=>openForm("Add mailbox",BOX_FIELDS(),{purpose:"invoices",provider:"postmark",active:true},"mailboxes",emailView);
+
+// ---- Settings → API access ------------------------------------------------------------------------------------------
+let CAT=null;
+const METHOD_TONE={GET:"good",POST:"warn",PUT:"warn",PATCH:"warn",DELETE:"critical"};
+const curlOf=e=>{const url=location.origin+e.path;const auth=e.scope===null?"":' -H "Authorization: Bearer $VENTHORA_KEY"';
+ return e.method==="GET"?`curl${auth} "${url}"`:`curl -X ${e.method}${auth} -H "content-type: application/json" -d '{}' "${url}"`};
+async function apiView(){try{const [keys,cat]=await Promise.all([api("/v1/developer/keys"),CAT?Promise.resolve(CAT):api("/v1/developer/catalog")]);CAT=cat;
+ $("#keyTable").innerHTML=table([{h:"Application",f:k=>`<b>${esc(k.name)}</b><div class="mono small muted">${esc(k.hint)}</div>`},
+  {h:"Scopes",f:k=>k.scopes.map(s=>`<span class="chip">${esc(s)}</span>`).join(" ")},{h:"Role",f:k=>esc(k.role)},
+  {h:"Status",f:k=>`<span class="pill ${k.status==="active"?"good":"critical"}">${esc(k.status.toUpperCase())}</span>${k.expires_at?`<div class="small muted">until ${esc(k.expires_at.slice(0,10))}</div>`:""}`},
+  {h:"Used",f:k=>`${k.calls} call(s)<div class="small muted">${k.last_used_at?esc(k.last_used_at.slice(0,16).replace("T"," "))+" UTC":"never"}</div>`},
+  {h:"",f:k=>k.status==="active"?`<button data-revoke="${esc(k.key_id)}">Revoke</button>`:""}],keys,"no key yet: only this dashboard can call VENTHORA");
+ $("#keyTable").querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{if(!confirm("Revoke this key? The application using it stops working at once."))return;
+  try{await api(`/v1/developer/keys/${b.dataset.revoke}/revoke?${who()}`,{method:"POST"});toast("Key revoked","good");apiView()}catch(e){toast(e.message,"critical")}});
+ $("#apiHow").innerHTML=`<dl class="kv"><dt>Base URL</dt><dd><code>${esc(location.origin)}</code> here; from outside, the gateway's tunnel host</dd>
+  <dt>Header</dt><dd><code>Authorization: Bearer vth_…</code> or <code>X-API-Key</code></dd><dt>Read</dt><dd>GET and …/eval calls</dd><dt>Write</dt><dd>every other call</dd>
+  <dt>Role</dt><dd>the key's role and name replace <code>role</code> and <code>by</code>; the audit log shows <code>api:&lt;name&gt;</code></dd></dl>
+  <ol style="padding-left:18px;line-height:1.7;margin:12px 0 0"><li>Create a key with only the areas the app needs.</li><li>Expose the API with <code>${esc(cat.gateway.command)}</code> and a tunnel; it forwards only requests that carry a key.</li>
+  <li>Give the app the key and <a href="/openapi.json" target="_blank">openapi.json</a> (or the <a href="/docs" target="_blank">interactive docs</a>).</li></ol>`;
+ if($("#epArea").options.length===1)$("#epArea").innerHTML+=cat.areas.map(a=>`<option value="${esc(a.area)}">${esc(a.label)}</option>`).join("")+'<option value="developer">API access</option><option value="inbound">Inbound webhooks</option>';
+ epView()}catch(e){$("#keyTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function epView(){if(!CAT)return;const area=$("#epArea").value,q=$("#epFilter").value.trim().toLowerCase();
+ const label={...Object.fromEntries(CAT.areas.map(a=>[a.area,a.label])),developer:"API access",inbound:"Inbound webhooks (their own authentication)"};
+ const eps=CAT.endpoints.filter(e=>(!area||e.area===area)&&(!q||(e.path+" "+e.summary+" "+e.description).toLowerCase().includes(q)));
+ $("#epCount").textContent=`${eps.length} of ${CAT.endpoints.length}`;const groups={};eps.forEach(e=>(groups[e.area]=groups[e.area]||[]).push(e));
+ $("#epList").innerHTML=Object.entries(groups).map(([g,es])=>`<h3 class="small muted" style="margin:14px 0 6px">${esc(label[g]||g)}${CAT.areas.find(a=>a.area===g)?` · <span class="small">${esc(CAT.areas.find(a=>a.area===g).covers)}</span>`:""}</h3>`+
+  table([{h:"Method",f:e=>`<span class="pill ${METHOD_TONE[e.method]}">${e.method}</span>`},{h:"Path",f:e=>`<span class="mono">${esc(e.path)}</span>${e.params.length?`<div class="small muted">${e.params.map(p=>esc(p.name)+(p.required?"*":"")).join(", ")}</div>`:""}`},
+   {h:"What it does",f:e=>`${esc(e.summary)}${e.description?`<div class="small muted">${esc(e.description)}</div>`:""}`},
+   {h:"Key needs",f:e=>e.scope?`<span class="chip">${esc(e.scope)}</span>`:'<span class="small muted">no key</span>'},
+   {h:"",f:e=>`<button data-curl="${esc(curlOf(e))}" style="white-space:nowrap">curl</button>`}],es)).join("")||'<div class="empty">nothing matches</div>';
+ $("#epList").querySelectorAll("[data-curl]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.curl);toast("curl copied","good")}catch(e){prompt("Copy:",b.dataset.curl)}})}
+$("#epArea").onchange=epView;$("#epFilter").oninput=epView;
+$("#addKey").onclick=async()=>{CAT=CAT||await api("/v1/developer/catalog");$("#dlgTitle").textContent="Create API key";$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=`<label>Application<input id="k-name" required maxlength="80" placeholder="e.g. erp-bridge"></label>
+  <label>Acts with role<select id="k-role">${CAT.roles.map(r=>`<option ${r==="auditor"?"selected":""}>${esc(r)}</option>`).join("")}</select></label>
+  <label>Expires after (days, blank = never)<input id="k-exp" type="number" min="1" max="730" value="90"></label>
+  <div style="grid-column:1/-1"><div class="small muted" style="margin-bottom:6px">Areas the key may reach</div>${table([{h:"Area",f:a=>`<b>${esc(a.label)}</b><div class="small muted">${esc(a.covers)}</div>`},
+   {h:"Read",f:a=>`<input type="checkbox" data-scope="${esc(a.area)}:read">`},{h:"Write",f:a=>`<input type="checkbox" data-scope="${esc(a.area)}:write">`}],CAT.areas)}</div>`;
+ $("#dlg").showModal();
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
+  const scopes=[...$("#dlgBody").querySelectorAll("[data-scope]:checked")].map(c=>c.dataset.scope);if(!scopes.length){$("#dlgErr").textContent="choose at least one area";return}
+  const exp=$("#k-exp").value;const body={name:$("#k-name").value.trim(),role:$("#k-role").value,scopes,expires_days:exp?+exp:null};
+  try{const k=await api(`/v1/developer/keys?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();
+   $("#newKey").innerHTML=`<div class="tile" style="margin-bottom:12px;border-color:var(--warn,#c80)"><b>Key for ${esc(k.name)}</b>: copy it now; VENTHORA keeps only its hash and cannot show it again.
+    <div class="row" style="margin-top:8px"><code class="mono" id="newKeyVal" style="word-break:break-all">${esc(k.key)}</code><button id="copyKey">Copy</button><button id="hideKey">Done</button></div></div>`;
+   $("#copyKey").onclick=async()=>{try{await navigator.clipboard.writeText(k.key);toast("Key copied","good")}catch(e){}};$("#hideKey").onclick=()=>{$("#newKey").innerHTML=""};apiView()}
+  catch(e){$("#dlgErr").textContent=e.message}}};
 
 // ---- Settings → AI model -----------------------------------------------------------------------------------------
 let AI=null;

@@ -436,6 +436,26 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 
 ## API
 
+Every endpoint (97 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
+an API key needs, and in `/openapi.json` and the interactive `/docs`.
+
+**Other applications** call VENTHORA with an API key created on that page:
+
+```bash
+curl -H "Authorization: Bearer $VENTHORA_KEY" https://<host>/v1/treasury/position
+```
+
+* **Scopes** `<area>:read` and `<area>:write` for treasury, payables, receivables, budget, organisation,
+  sources, settings and system. GET and the side-effect-free `.../eval` calls need read; the rest need write.
+* **Role**: the key's role and name replace the `role` and `by` query parameters, so a key cannot claim more
+  than it was given; the audit log records `api:<name>`.
+* Only a SHA-256 of the key is stored; the key is shown once. Keys expire or are revoked, and a key can never
+  create or revoke keys. The inbound webhooks keep their own authentication.
+* `python scripts/webhook_gateway.py --api` exposes the API through the gateway (and its tunnel) for requests
+  that carry a key; without `--api` the gateway still forwards the two webhooks only.
+
+The main endpoints:
+
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/scenarios` | List demo scenarios |
@@ -460,6 +480,8 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 | `GET` `POST` `DELETE` | `/v1/org/{units,users,allocations,prices}` | Organisation master data: HQ → country → branch offices and project finance, people and roles, budget allocations, unit prices (writes need `role=admin`, `cfo` or `finance_manager`) |
 | `GET` `PUT` | `/v1/org/standards` · `GET /v1/org/allocation-tree` | Finance standards; what each unit received against what it passed down |
 | `GET` | `/` · `/api/runs` · `/api/matrix` · `/v1/executions` | Dashboard and its data |
+| `GET` `PUT` `POST` | `/v1/sources/*` | Data sources: connectors and sync, uploads, master data, readiness |
+| `GET` `POST` | `/v1/developer/catalog` · `/v1/developer/keys` | The endpoint catalogue; API keys for other applications (dashboard only) |
 
 ## Tests
 
