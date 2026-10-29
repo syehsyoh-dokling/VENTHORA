@@ -199,6 +199,10 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="grp">Organisation</div>
   <a href="#/users" data-nav="users"><i>⌂</i>User management</a>
   <div class="grp">Settings</div>
+  <a href="#/readiness" data-nav="readiness"><i>☑</i>Data readiness<span class="cnt" id="cnt-ready"></span></a>
+  <a href="#/sources-sync" data-nav="sources-sync"><i>⇅</i>Sync API</a>
+  <a href="#/sources-upload" data-nav="sources-upload"><i>⇪</i>Upload dataset</a>
+  <a href="#/sources-email" data-nav="sources-email"><i>✉</i>Email sources</a>
   <a href="#/allocation" data-nav="allocation"><i>◔</i>Budget allocation</a>
   <a href="#/offices" data-nav="offices"><i>⚑</i>Country offices</a>
   <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
@@ -324,6 +328,36 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
  <section class="span4" data-view="standards">
   <h2>Reporting cut-off</h2><div id="stdRep" class="small"></div>
+ </section>
+
+ <section class="span12" data-view="readiness">
+  <h2><span>Data readiness</span><span class="small muted" id="readyMeta">what VENTHORA needs to run on real data instead of placeholders</span></h2>
+  <div id="readyList" class="empty">loading…</div>
+ </section>
+
+ <section class="span12" data-view="sources-sync">
+  <h2><span>Sync API</span><span class="small muted">read master data from the old application: REST/JSON, field by field</span></h2>
+  <div id="connList" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="sources-sync">
+  <h2><span>Master data</span><span class="row"><select id="mdEntity"><option value="vendor">Vendors</option><option value="customer">Customers</option><option value="bill">Open bills (AP)</option><option value="receivable">Receivables (AR)</option><option value="budget_line">Budget lines</option><option value="tenant_book">Tenant books</option></select><span class="small muted">bank accounts are shown masked</span></span></h2>
+  <div id="mdTable" class="empty">loading…</div>
+ </section>
+
+ <section class="span12" data-view="sources-upload">
+  <h2><span>Upload dataset</span><span class="small muted">CSV, Excel or PDF when the old application has no API</span></h2>
+  <div class="row"><select id="upEntity"><option value="vendor">Vendors and bank details</option><option value="customer">Customers</option><option value="po">Purchase orders</option><option value="bill">Open bills (AP)</option><option value="receivable">Receivables (AR)</option><option value="budget_line">Budget lines</option><option value="tenant_book">Tenant books</option></select>
+   <input type="file" id="upFile" accept=".csv,.txt,.xlsx,.xlsm,.pdf"><button class="primary" id="upGo">Read the file</button><span class="small" id="upMsg"></span></div>
+  <div id="upMap" style="margin-top:14px"></div>
+  <div id="upResult" style="margin-top:14px"></div>
+ </section>
+
+ <section class="span8" data-view="sources-email">
+  <h2><span>Email sources</span><span class="row"><span class="small muted">the inbound addresses VENTHORA reads, and what each takes</span><button class="primary" id="addBox">Add mailbox</button></span></h2>
+  <div id="boxTable" class="empty">loading…</div>
+ </section>
+ <section class="span4" data-view="sources-email">
+  <h2>Connect the mail service</h2><div id="boxHow" class="small"></div>
  </section>
 
  <section class="span8" data-view="ai">
@@ -593,10 +627,10 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",ai:"AI model",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+ standards:"Finance standards",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
-function route(){const v=(location.hash.match(/^#\/(\w+)/)||[])[1];const view=TITLES[v]?v:"overview";
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
  $("#pageTitle").textContent=TITLES[view];document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
@@ -914,6 +948,84 @@ $("#addAccount").onclick=async()=>{await loadOrg();openForm("Add account",ACCOUN
 $("#codeCheckBtn").onclick=async()=>{try{const r=await api(`/v1/org/account-code?code=${encodeURIComponent($("#codeCheck").value)}`);
  $("#codeCheckOut").innerHTML=`<span class="pill good">VALID</span> ${esc(r.code)}: ${esc(r.unit)} · ${esc(r.project)} · ${esc(r.account)} (${esc(r.category)}) · agent pays alone up to ${r.payment_limit_minor!=null?esc(usd(r.payment_limit_minor))+" (set by "+esc(r.limit_set_by)+")":"no unit limit"}`}
  catch(e){$("#codeCheckOut").innerHTML=`<span class="pill critical">INVALID</span> ${esc(e.message.replace(/^422 /,""))}`}};
+
+// ---- Settings → data sources ---------------------------------------------------------------------------------------
+const READY_TONE={ok:"good",placeholder:"warn",missing:"critical"};
+async function readinessView(){try{const r=await api("/v1/sources/readiness");const groups={};r.items.forEach(i=>(groups[i.group]=groups[i.group]||[]).push(i));
+ $("#readyMeta").innerHTML=`<span class="pill good">${r.summary.ok} real</span> <span class="pill warn">${r.summary.placeholder} placeholder</span> <span class="pill critical">${r.summary.missing} missing</span>`;
+ $("#cnt-ready").textContent=(r.summary.missing+r.summary.placeholder)||"";
+ $("#readyList").innerHTML=Object.entries(groups).map(([g,its])=>`<h3 class="small muted" style="margin:14px 0 6px">${esc(g)}</h3>`+table([{h:"Status",f:i=>`<span class="pill ${READY_TONE[i.status]}">${esc(i.status==="ok"?"REAL":i.status.toUpperCase())}</span>`},
+  {h:"What",f:i=>`<b>${esc(i.name)}</b>`},{h:"Where it comes from",f:i=>`<span class="small">${esc(i.detail)}</span>`},{h:"",f:i=>`<a href="${esc(i.fix)}">Fix ›</a>`}],its)).join("")}
+ catch(e){$("#readyList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+
+const ENT_LABEL={vendor:"Vendors",customer:"Customers",po:"Purchase orders",bill:"Open bills",receivable:"Receivables",budget_line:"Budget lines",tenant_book:"Tenant books"};
+const rep1=r=>r.error?`<span class="err">${esc(r.error)}</span>`:`<span class="pill good">${r.created.length} new</span> <span class="pill">${r.updated.length} updated</span> <span class="pill">${r.unchanged.length} unchanged</span> ${r.rejected.length?`<span class="pill critical">${r.rejected.length} rejected</span>`:""}`
+ +(r.rejected.length?`<div class="small err">${r.rejected.slice(0,4).map(x=>`row ${x.row}${x.external_id?` (${esc(x.external_id)})`:""}: ${esc(x.error)}`).join("<br>")}</div>`:"")
+ +((r.followed||[]).length?`<div class="small muted">${r.followed.slice(0,6).map(esc).join("<br>")}</div>`:"");
+async function syncView(){try{const cs=await api("/v1/sources/connectors");
+ $("#connList").innerHTML=cs.map(c=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><div><b>${esc(c.name)}</b> <span class="mono small muted">${esc(c.base_url)}</span>
+  <div class="small muted">auth ${esc(c.auth.type)}${c.auth.secret_set?` · secret ${esc(c.auth.secret_hint)}`:""} · ${c.last_sync_at?`last sync ${esc(c.last_sync_at.slice(0,16).replace("T"," "))} UTC`:"never synced"} · ${Object.keys(c.entities).length} entities</div></div>
+  <div class="row"><button data-cedit="${esc(c.connector_id)}">Edit mapping</button><button data-csync="${esc(c.connector_id)}" data-dry="1">Dry run</button><button class="primary" data-csync="${esc(c.connector_id)}">Sync now</button></div></div>
+  <div id="cres-${esc(c.connector_id)}" style="margin-top:8px">${c.last_report?table([{h:"Entity",f:([e])=>esc(ENT_LABEL[e]||e)},{h:"Last sync",f:([,r])=>rep1(r)}],Object.entries(c.last_report)):""}</div></div>`).join("")||'<div class="empty">no connector</div>';
+ $("#connList").querySelectorAll("[data-csync]").forEach(b=>b.onclick=async()=>{const id=b.dataset.csync,dry=!!b.dataset.dry;$(`#cres-${id}`).innerHTML='<div class="empty">reading the old system…</div>';
+  try{const r=await api(`/v1/sources/connectors/${id}/sync?dry_run=${dry}&${who()}`,{method:"POST"});
+   $(`#cres-${id}`).innerHTML=(dry?'<div class="small muted">dry run: nothing written</div>':"")+table([{h:"Entity",f:([e])=>esc(ENT_LABEL[e]||e)},{h:dry?"Would":"Result",f:([,x])=>rep1(x)}],Object.entries(r.reports));
+   if(!dry){toast("Sync finished","good");mdView();readinessView()}}catch(e){$(`#cres-${id}`).innerHTML=`<div class="err">${esc(e.message)}</div>`}});
+ $("#connList").querySelectorAll("[data-cedit]").forEach(b=>b.onclick=()=>connForm(cs.find(c=>c.connector_id===b.dataset.cedit)));
+ mdView()}catch(e){$("#connList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function connForm(c){$("#dlgTitle").textContent=`Connector · ${c.name}`;$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=`<label>Name<input id="cn-name" value="${esc(c.name)}"></label><label>Base URL<input id="cn-url" value="${esc(c.base_url)}"></label>
+  <label>Auth<select id="cn-auth">${["none","bearer","basic","header"].map(t=>`<option ${t===c.auth.type?"selected":""}>${t}</option>`).join("")}</select></label>
+  <label>Header name (for header auth)<input id="cn-hdr" value="${esc(c.auth.header_name||"")}"></label><label>Username (basic)<input id="cn-user" value="${esc(c.auth.username||"")}"></label>
+  <label>Token / password<input id="cn-secret" type="password" autocomplete="off" placeholder="${c.auth.secret_set?`saved (${esc(c.auth.secret_hint)}); blank keeps it`:"none"}"></label>
+  <label style="grid-column:1/-1">Entities and field mapping (JSON: path, items_path, mapping target → "source|transform")<textarea id="cn-ent" spellcheck="false" style="min-height:240px;font:12px ui-monospace,Consolas,monospace">${esc(JSON.stringify(c.entities,null,1))}</textarea></label>`;
+ $("#dlg").showModal();
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();let ents;try{ents=JSON.parse($("#cn-ent").value)}catch(e){$("#dlgErr").textContent="the mapping is not valid JSON: "+e.message;return}
+  const body={name:$("#cn-name").value,base_url:$("#cn-url").value,entities:ents,auth:{type:$("#cn-auth").value,header_name:$("#cn-hdr").value,username:$("#cn-user").value,secret:$("#cn-secret").value||null}};
+  try{await api(`/v1/sources/connectors/${c.connector_id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Connector saved","good");syncView()}catch(e){$("#dlgErr").textContent=e.message}}}
+const MD_COLS={vendor:[["vendor_id","Vendor"],["name","Name"],["currency","Ccy"],["contacts","Mailboxes"],["bank","Bank account"],["_source","Source"]],
+ customer:[["customer_id","Customer"],["name","Name"],["contacts","Mailboxes"],["promises_kept","Kept"],["promises_missed","Missed"],["_source","Source"]],
+ bill:[["invoice_no","Invoice"],["vendor_id","Vendor"],["amount_minor","Amount"],["due_date","Due"],["po_number","PO"],["_source","Source"]],
+ receivable:[["invoice_no","Invoice"],["customer_id","Customer"],["amount_minor","Amount"],["due_date","Due"],["_source","Source"]],
+ budget_line:[["period","Period"],["line","Line"],["amount_minor","Amount"],["auto_share_bp","Auto %"],["alert_share_bp","Alert %"],["_source","Source"]],
+ tenant_book:[["tenant","Tenant"],["book","Book"],["allowed_payees","Payees"],["_source","Source"]]};
+const mdCell=(r,k)=>{const v=r[k];if(k==="bank")return v?`<span class="mono small">${esc(v.iban||v.account_number||"")} · ${esc(v.bank_name||v.bank_country_code)}</span>`:'<span class="err small">none</span>';
+ if(k==="amount_minor")return fmt(v,r.currency||"USD");if(k.endsWith("_bp"))return v!=null?`${v/100}%`:"-";if(Array.isArray(v))return esc(v.join(", "));if(k==="_source")return `<span class="chip">${esc(v)}</span>`;return esc(v??"-")};
+async function mdView(){try{const e=$("#mdEntity").value;const rows=await api(`/v1/sources/master/${e}`);
+ $("#mdTable").innerHTML=table(MD_COLS[e].map(([k,h])=>({h,f:r=>mdCell(r,k),num:k==="amount_minor"})),rows,"nothing synced or uploaded yet: VENTHORA uses the data/*.json placeholders")}catch(e){$("#mdTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#mdEntity").onchange=mdView;
+
+let UP=null,UPFIELDS=null;
+$("#upGo").onclick=async()=>{const f=$("#upFile").files[0];if(!f){$("#upMsg").textContent="choose a file first";return}$("#upMsg").textContent="reading…";$("#upMap").innerHTML=$("#upResult").innerHTML="";
+ try{UPFIELDS=UPFIELDS||await api("/v1/sources/fields");const ent=$("#upEntity").value;
+  const r=await fetch(`/v1/sources/uploads?entity=${ent}&filename=${encodeURIComponent(f.name)}&${who()}`,{method:"POST",body:await f.arrayBuffer()});const j=await r.json();if(!r.ok)throw new Error(j.detail||r.status);UP=j;
+  $("#upMsg").innerHTML=`<span class="pill good">${esc(j.kind.toUpperCase())}</span> ${j.rows} row(s) · columns matched by <b>${esc(j.reader)}</b>`;
+  const opts=["",...j.headers];
+  $("#upMap").innerHTML=`<h3 class="small muted" style="margin:0 0 6px">Which column feeds which field</h3><div class="form">${UPFIELDS[ent].map(fd=>`<label>${esc(fd.field)} <span class="muted">(${esc(fd.kind)})</span><select data-fld="${esc(fd.field)}">${opts.map(o=>`<option value="${esc(o)}" ${j.mapping[fd.field]===o?"selected":""}>${o?esc(o):"— not in the file —"}</option>`).join("")}</select><input data-const="${esc(fd.field)}" placeholder="or one value for every row"></label>`).join("")}</div>
+   <h3 class="small muted" style="margin:14px 0 6px">First rows as read</h3><div style="overflow-x:auto">${table(j.headers.slice(0,10).map(h=>({h:esc(h),f:r=>esc(r[h]??"")})),j.sample)}</div>
+   <div class="row" style="margin-top:12px"><button id="upPrev">Preview</button><button class="primary" id="upCommit" disabled>Commit</button><span class="small muted">nothing is written until Commit</span></div>`;
+  const mapping=()=>Object.fromEntries([...$("#upMap").querySelectorAll("[data-fld]")].map(s=>{const c=$("#upMap").querySelector(`[data-const="${s.dataset.fld}"]`).value.trim();
+   return [s.dataset.fld,s.value||(c?"="+c:"")]}).filter(([,v])=>v));
+  $("#upPrev").onclick=async()=>{try{const pv=await api(`/v1/sources/uploads/${UP.upload_id}/preview`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mapping:mapping()})});
+   $("#upResult").innerHTML=`<div class="small muted">preview: nothing written</div>${rep1(pv)}<h3 class="small muted" style="margin:12px 0 6px">Cleaned</h3><pre class="mono small" style="white-space:pre-wrap;max-height:220px;overflow:auto">${esc(JSON.stringify(pv.cleaned_sample.slice(0,4),null,1))}</pre>`;$("#upCommit").disabled=false}
+   catch(e){$("#upResult").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
+  $("#upCommit").onclick=async()=>{try{const done=await api(`/v1/sources/uploads/${UP.upload_id}/commit?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mapping:mapping()})});
+   $("#upResult").innerHTML=`<div class="small"><b>Committed</b></div>${rep1(done)}`;$("#upCommit").disabled=true;toast("Upload committed","good");readinessView()}catch(e){$("#upResult").innerHTML=`<div class="err">${esc(e.message)}</div>`}}}
+ catch(e){$("#upMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+
+const BOX_FIELDS=()=>[{k:"address",l:"Inbound address",req:1},{k:"purpose",l:"Takes",opts:[["invoices","Supplier invoices"],["claims","Staff expense claims"],["remittances","Customer remittances"],["any","Anything"]]},
+ {k:"provider",l:"Mail service",opts:[["postmark","Postmark inbound (JSON)"],["raw","Raw RFC 822 (any service)"]]},{k:"note",l:"Note"},{k:"active",l:"Active",check:1}];
+let BOXES=[];
+async function emailView(){try{const [b,st]=await Promise.all([api("/v1/org/mailboxes"),api("/v1/webhooks/status")]);BOXES=b;
+ $("#boxTable").innerHTML=table([{h:"Address",f:m=>`<b class="mono">${esc(m.address)}</b>${m.active?"":' <span class="small muted">inactive</span>'}`},{h:"Takes",f:m=>`<span class="chip">${esc(m.purpose)}</span>`},
+  {h:"Service",f:m=>esc(m.provider)},{h:"Note",f:m=>`<span class="small">${esc(m.note||"")}</span>`},{h:"",f:m=>rowActs("mailboxes",m.mailbox_id)}],b,"no mailbox yet: every inbound email is read, and none is checked against an address");
+ wireActs($("#boxTable"),"mailboxes",()=>BOXES,"mailbox_id",BOX_FIELDS,emailView);
+ const ok=st.inbound_email.secret_configured;
+ $("#boxHow").innerHTML=`<dl class="kv"><dt>Endpoint</dt><dd><code>POST /webhooks/email</code></dd><dt>Secret</dt><dd>${ok?"set (VENTHORA_INBOUND_EMAIL_SECRET)":'<span class="err">not set: mail is refused</span>'}</dd><dt>Reader</dt><dd>${esc(st.inbound_email.reader||"rules")}</dd></dl>
+  <ol style="padding-left:18px;line-height:1.7;margin:12px 0 0"><li>Run the gateway and a tunnel (see Webhooks &amp; integrations).</li><li>In Postmark, Server → Inbound → webhook URL: <code>https://postmark:&lt;secret&gt;@&lt;tunnel-host&gt;/webhooks/email</code></li>
+  <li>Forward or point each address above to the Postmark inbound address.</li><li>Mail to an address not listed is still read, and flagged; an invoice sent to the claims address waits for a person.</li></ol>`}
+ catch(e){$("#boxTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#addBox").onclick=()=>openForm("Add mailbox",BOX_FIELDS(),{purpose:"invoices",provider:"postmark",active:true},"mailboxes",emailView);
 
 // ---- Settings → AI model -----------------------------------------------------------------------------------------
 let AI=null;

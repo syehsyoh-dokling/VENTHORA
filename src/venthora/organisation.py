@@ -105,6 +105,20 @@ class PurchaseOrder(BaseModel):
         return _ccy(v)
 
 
+class Mailbox(BaseModel):
+    """An inbound address the mail service posts to /webhooks/email, and what may arrive there."""
+    mailbox_id: str | None = Field(default=None, max_length=40)
+    address: str = Field(min_length=3, max_length=200, pattern=r"^[^@\s]+@[^@\s]+$")
+    purpose: Literal["invoices", "claims", "remittances", "any"] = "any"
+    provider: Literal["postmark", "raw"] = "postmark"
+    note: str = Field(default="", max_length=200)
+    active: bool = True
+
+
+PURPOSE_KINDS = {"invoices": {"supplier_invoice", "contractor_claim", "bank_change"}, "claims": {"expense_claim"},
+                 "remittances": {"remittance_notice"}}
+
+
 class User(BaseModel):
     user_id: str | None = Field(default=None, max_length=40)
     name: str = Field(min_length=1, max_length=120)
@@ -170,10 +184,10 @@ CREATE TABLE IF NOT EXISTS records (
     kind TEXT NOT NULL, record_id TEXT NOT NULL, record_json TEXT NOT NULL, updated_at TEXT NOT NULL,
     updated_by TEXT NOT NULL, PRIMARY KEY (kind, record_id));
 """
-MODELS = {"unit": Unit, "user": User, "allocation": Allocation, "price": Price, "project": Project, "account": Account,
+MODELS = {"unit": Unit, "user": User, "allocation": Allocation, "price": Price, "project": Project, "account": Account, "mailbox": Mailbox,
           "po": PurchaseOrder}
 ID_FIELD = {"unit": "unit_id", "user": "user_id", "allocation": "alloc_id", "price": "price_id", "project": "project_id",
-            "account": "account_id", "po": "po_id"}
+            "account": "account_id", "po": "po_id", "mailbox": "mailbox_id"}
 SEED_VERSION = 2
 UNIT_LIMITS = {"hq": 2_500_000, "co-us": 1_000_000, "co-uk": 800_000, "co-de": 800_000, "br-us-west": 300_000,
                "br-uk-manchester": 300_000, "pf-eu-rollout": 500_000}
@@ -364,14 +378,19 @@ class OrgStore:
         if any(x["code"] == d["code"] and x["project_id"] != d["project_id"] for x in self.list("project")):
             raise OrgError(f"project code {d['code']} is already used")
 
+    def _check_mailbox(self, d: dict) -> None:
+        d["address"] = d["address"].strip().lower()
+        if any(m["address"] == d["address"] and m["mailbox_id"] != d["mailbox_id"] for m in self.list("mailbox")):
+            raise OrgError(f"{d['address']} is already a mailbox")
+
     def _check_account(self, d: dict) -> None:
         if any(x["code"] == d["code"] and x["account_id"] != d["account_id"] for x in self.list("account")):
             raise OrgError(f"account {d['code']} is already in the chart of accounts")
 
     def _check_po(self, d: dict) -> None:
-        from .intake.pipeline import PAYEES_FILE
+        from .intake.pipeline import Registry
 
-        payees = json.loads(PAYEES_FILE.read_text(encoding="utf-8"))["payees"]
+        payees = Registry().payees  # the file's payees and the synced or uploaded vendors
         if d["supplier_id"] not in payees:
             raise OrgError(f"unknown supplier {d['supplier_id']!r}: a PO is placed with a registered payee")
         if payees[d["supplier_id"]].get("currency") and payees[d["supplier_id"]]["currency"] != d["currency"]:

@@ -18,6 +18,7 @@ dependencies = [
   "pandas>=2.2",
   "pyarrow>=17",
   "pypdf>=5,<7",
+  "openpyxl>=3.1,<4",
 ]
 
 [project.scripts]

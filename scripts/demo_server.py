@@ -37,6 +37,7 @@ def main() -> int:
     os.environ["VENTHORA_AUDIT_DB"] = str(demo / "audit.db")
     os.environ["VENTHORA_ORG_DB"] = str(demo / "org.db")
     os.environ["VENTHORA_WEBHOOK_DB"] = str(demo / "webhooks.db")
+    os.environ["VENTHORA_MASTER_DB"] = str(demo / "master.db")  # synced / uploaded master data belongs to the demo
     os.environ["VENTHORA_REPORTING_CONFIG"] = str(demo / "reporting.json")  # the mandate form may change the cut-off
     sys.path.insert(0, str(ROOT / "src"))
     import uvicorn

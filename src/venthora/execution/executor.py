@@ -56,13 +56,25 @@ def load_beneficiaries(path: Path = BENEFICIARIES) -> dict:
 
 
 class Executor:
+    @property
+    def beneficiaries(self) -> dict:
+        if self._beneficiaries is not None:
+            return self._beneficiaries
+        from ..masterdata import MasterStore, beneficiaries
+
+        return load_beneficiaries() | beneficiaries(MasterStore())
+
+    @beneficiaries.setter
+    def beneficiaries(self, value: dict | None) -> None:
+        self._beneficiaries = value
+
     def __init__(self, agent: Orchestrator, store: ExecutionStore, audit: AuditStore,
                  beneficiaries: dict | None = None, poll_attempts: int = 5, poll_interval_s: float = 1.0):
         self.agent = agent
         self.bank: Airwallex = agent.proof.airwallex
         self.store = store
         self.audit = audit
-        self.beneficiaries = beneficiaries if beneficiaries is not None else load_beneficiaries()
+        self._beneficiaries = beneficiaries  # None: data/beneficiaries.json with the master data's vendors on top
         # Payee lifecycle: the registry's onboarding records seed the store once; live records are never overwritten.
         with contextlib.suppress(OSError, KeyError, ValueError):
             self.store.seed_payees(onboarding_records())

@@ -44,6 +44,7 @@ from .organisation import (  # noqa: E402
     WRITE_ROLES,
     Account,
     Allocation,
+    Mailbox,
     OrgError,
     OrgStore,
     Price,
@@ -871,7 +872,37 @@ async def inbound_email(request: Request):
     except (ValueError, TypeError) as exc:
         raise HTTPException(422, f"not an email: {type(exc).__name__}") from exc
     req = await _ingest(raw, None, False, channel="inbound-email")
+    req = await asyncio.to_thread(_route_mailbox, req, raw)
     return {"intake_id": req.intake_id, "kind": req.kind, "status": req.status}
+
+
+def _route_mailbox(req: IntakeRequest, raw: bytes) -> IntakeRequest:
+    """Settings → Email sources: which inbound address the email was sent to, and whether it belongs there
+    (an invoice sent to the claims address waits for a person). No configured mailboxes: nothing changes."""
+    from email import policy
+    from email.parser import BytesParser
+    from email.utils import getaddresses
+
+    from .organisation import PURPOSE_KINDS
+
+    boxes = [m for m in app.state.org.list("mailbox") if m.get("active", True)]
+    if not boxes:
+        return req
+    msg = BytesParser(policy=policy.default).parsebytes(raw, headersonly=True)
+    to = {a.lower() for _, a in getaddresses(msg.get_all("To", []) + msg.get_all("Cc", []) + msg.get_all("Delivered-To", []))}
+    box = next((m for m in boxes if m["address"] in to), None)
+    flags, reasons, status = list(req.flags), list(req.reasons), req.status
+    if box is None:
+        flags.append("unknown_mailbox")
+        reasons.append("sent to an address that is not one of the configured mailboxes: " + ", ".join(sorted(to)[:3]))
+    elif box["purpose"] != "any" and req.kind != "unknown" and req.kind not in PURPOSE_KINDS[box["purpose"]]:
+        flags.append("wrong_mailbox")
+        reasons.append(f"a {req.kind.replace('_', ' ')} sent to {box['address']}, which takes {box['purpose']}")
+        if status == "VERIFIED":
+            status = "NEEDS_REVIEW"
+    out = req.model_copy(update={"mailbox": box["address"] if box else None, "flags": flags, "reasons": reasons, "status": status})
+    app.state.intake.store.save(out)
+    return out
 
 
 # -- ground truth ------------------------------------------------------------------------------
@@ -1148,7 +1179,7 @@ async def event_stream(request: Request):
 
 
 # ---- organisation: units, people, budget allocations, unit prices and finance standards ---------------------
-ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price),
+ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price), "mailboxes": ("mailbox", Mailbox),
              "projects": ("project", Project), "accounts": ("account", Account), "purchase-orders": ("po", PurchaseOrder)}
 
 
@@ -1246,6 +1277,271 @@ async def set_org_standards(s: Standards, role: str = "finance_manager", by: str
     out = await asyncio.to_thread(app.state.org.save_standards, s, who)
     await asyncio.to_thread(app.state.audit.append, "org_standards", {"by": who})
     return out
+
+
+# ---- Settings → Data sources: master data from the old application (Sync API) or from files (Upload) -----------------
+def _ingest_ctx() -> dict:
+    from .masterdata import MasterStore
+
+    return {"master": MasterStore(), "org": app.state.org, "intake": app.state.intake, "payees": app.state.executor.store}
+
+
+@app.get("/demo/legacy-erp/{entity}", include_in_schema=False)
+async def demo_legacy_erp(entity: str, request: Request):
+    """A stand-in for the company's old ERP (fictional data in data/demo_legacy_erp.json), behind a fake API key."""
+    from .connectors import DEMO_KEY
+
+    if request.headers.get("x-legacy-key") != DEMO_KEY:
+        raise HTTPException(401, "bad API key")
+    data = json.loads((ROOT / "data" / "demo_legacy_erp.json").read_text(encoding="utf-8"))
+    if entity not in data or entity.startswith("_"):
+        raise HTTPException(404, "unknown entity")
+    items = data[entity]
+    if entity == "budget":  # the demo budget is always for the current month, so the sync replaces a live placeholder
+        period = datetime.now(UTC).strftime("%Y-%m")
+        items = [r | {"Period": period} if r.get("Period") == "CURRENT" else r for r in items]
+    return {"items": items, "count": len(items)}
+
+
+@app.get("/v1/sources/connectors")
+async def connectors_list(request: Request):
+    from .connectors import ConnectorStore, demo_connector
+
+    store = ConnectorStore()
+    if not store.list():  # a fresh install shows the demo connector to the stand-in ERP, ready to sync
+        store.save(demo_connector(str(request.base_url).rstrip("/")))
+    return store.list()
+
+
+@app.put("/v1/sources/connectors/{connector_id}")
+async def connectors_save(connector_id: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    from .connectors import Connector, ConnectorStore
+
+    who = _writer(role, by)
+    try:
+        c = Connector.model_validate(body | {"connector_id": connector_id})
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    out = ConnectorStore().save(c)
+    await asyncio.to_thread(app.state.audit.append, "connector_saved", {"id": connector_id, "by": who, "base_url": c.base_url})
+    return out
+
+
+@app.delete("/v1/sources/connectors/{connector_id}")
+async def connectors_delete(connector_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    from .connectors import ConnectorStore
+
+    _writer(role, by)
+    if not ConnectorStore().delete(connector_id):
+        raise HTTPException(404, "no such connector")
+    return {"deleted": connector_id}
+
+
+@app.post("/v1/sources/connectors/{connector_id}/sync")
+async def connectors_sync(connector_id: str, dry_run: bool = False, entity: str | None = None, role: str = "finance_manager",
+                          by: str = "dashboard"):
+    """Read every enabled entity from the old system and write it (dry_run=true only reports what would change).
+    Entities run in dependency order: vendors before their POs and bills, customers before receivables."""
+    from . import ingestion
+    from .connectors import ORDER, ConnectorStore, fetch
+
+    who = _writer(role, by)
+    store = ConnectorStore()
+    raw = store.get_raw(connector_id)
+    if raw is None:
+        raise HTTPException(404, "no such connector")
+    ctx, reports = _ingest_ctx(), {}
+    for ent in ORDER:
+        em = raw["entities"].get(ent)
+        if not em or not em.get("enabled", True) or (entity and ent != entity):
+            continue
+        try:
+            rows, ids = await fetch(raw, ent)
+        except Exception as exc:  # noqa: BLE001 - the old system's answer, shown on the page
+            reports[ent] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            continue
+        reports[ent] = await asyncio.to_thread(ingestion.apply, ent, rows, ids, source=f"sync:{connector_id}", dry_run=dry_run, **ctx)
+    if not dry_run:
+        store.record_sync(connector_id, reports)
+        app.state.position_cache = None
+        await asyncio.to_thread(app.state.audit.append, "connector_synced", {"id": connector_id, "by": who, "summary": {
+            e: {k: len(v) for k, v in r.items() if isinstance(v, list)} if "error" not in r else r for e, r in reports.items()}})
+    return {"connector_id": connector_id, "dry_run": dry_run, "reports": reports}
+
+
+@app.get("/v1/sources/master/{entity}")
+async def master_list(entity: str):
+    from .masterdata import ENTITIES, MasterStore
+
+    if entity not in ENTITIES:
+        raise HTTPException(404, "unknown entity")
+    rows = MasterStore().list(entity)
+    for r in rows:  # bank account numbers are shown masked
+        b = r.get("bank") or {}
+        for k in ("account_number", "iban"):
+            if b.get(k):
+                b[k] = "•••• " + b[k][-4:]
+    return rows
+
+
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024
+
+
+@app.get("/v1/sources/fields")
+async def upload_fields():
+    """The fields each entity takes, with the kind that decides how a cell is cleaned."""
+    from .imports import FIELDS
+
+    return {e: [{"field": f, "kind": k} for f, (k, _) in fs.items()] for e, fs in FIELDS.items()}
+
+
+@app.post("/v1/sources/uploads")
+async def upload_start(request: Request, entity: str, filename: str, role: str = "finance_manager"):
+    """Upload a CSV, Excel or PDF file (the raw bytes as the body). The reply proposes which column feeds which field;
+    nothing is written until the preview is committed."""
+    import uuid
+
+    from . import imports
+
+    _writer(role, "upload")
+    if entity not in imports.FIELDS:
+        raise HTTPException(404, "unknown entity")
+    data = await request.body()
+    if not data or len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "the file is empty or larger than 15 MB")
+    try:
+        parsed = await asyncio.to_thread(imports.parse, data, filename)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    model = active_model()
+    reader = "rules"
+    if parsed["kind"] == "pdf" and model.configured:
+        rows = await imports.pdf_rows_with_model(entity, parsed.get("text", ""), model)
+        if rows:  # the model read the report; keys are already VENTHORA's fields
+            parsed |= {"rows": rows, "headers": sorted({k for r in rows for k in r})}
+            reader = "model"
+    mapping = imports.suggest(entity, parsed["headers"])
+    if reader == "model":
+        mapping = {h: h for h in parsed["headers"]}
+    elif model.configured:
+        extra = await imports.suggest_with_model(entity, parsed["headers"], parsed["rows"], mapping, model)
+        mapping |= extra
+        reader = "rules+model" if extra else "rules"
+    uid = uuid.uuid4().hex[:12]
+    app.state.__dict__.setdefault("uploads", {})[uid] = {"filename": filename, "entity": entity, **parsed}
+    return {"upload_id": uid, "filename": filename, "entity": entity, "kind": parsed["kind"], "headers": parsed["headers"],
+            "rows": len(parsed["rows"]), "sample": parsed["rows"][:5], "mapping": mapping, "reader": reader,
+            "unmapped_fields": [f for f in imports.FIELDS[entity] if f not in mapping]}
+
+
+class UploadMapping(BaseModel):
+    mapping: dict[str, str]
+
+
+async def _upload_apply(upload_id: str, req: UploadMapping, dry_run: bool):
+    from . import imports, ingestion
+
+    up = getattr(app.state, "uploads", {}).get(upload_id)
+    if up is None:
+        raise HTTPException(404, "unknown upload; upload the file again")
+    bad = [f for f in req.mapping if f not in imports.FIELDS[up["entity"]]]
+    if bad:
+        raise HTTPException(422, f"unknown field {bad[0]}")
+    rows = imports.clean(up["entity"], up["rows"], req.mapping)
+    report = await asyncio.to_thread(ingestion.apply, up["entity"], rows, [None] * len(rows), source=f"upload:{up['filename']}",
+                                     dry_run=dry_run, **_ingest_ctx())
+    return report | {"cleaned_sample": [r for r in rows[:10]]}
+
+
+@app.post("/v1/sources/uploads/{upload_id}/preview")
+async def upload_preview(upload_id: str, req: UploadMapping):
+    """The full pipeline as a dry run: what would be created, updated or rejected, and the first rows as cleaned."""
+    return await _upload_apply(upload_id, req, dry_run=True)
+
+
+@app.post("/v1/sources/uploads/{upload_id}/commit")
+async def upload_commit(upload_id: str, req: UploadMapping, role: str = "finance_manager", by: str = "dashboard"):
+    who = _writer(role, by)
+    report = await _upload_apply(upload_id, req, dry_run=False)
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "upload_committed", {"upload_id": upload_id, "by": who, "entity": report["entity"],
+                                                                         "created": len(report["created"]), "updated": len(report["updated"]),
+                                                                         "rejected": len(report["rejected"])})
+    getattr(app.state, "uploads", {}).pop(upload_id, None)
+    return report
+
+
+@app.get("/v1/sources/readiness")
+async def readiness():
+    """Every setting and data set VENTHORA needs, and whether it is real (from the company: sync, upload or a person),
+    still a placeholder (the demo seed or the data/*.json files), or missing; with where to fix it."""
+    from .masterdata import MasterStore
+    from .reporting import load_config
+
+    master, org, store = MasterStore(), app.state.org, app.state.executor.store
+    counts, reg = master.counts(), app.state.intake.registry
+
+    def real(entity: str) -> int:
+        return sum(n for src, n in counts.get(entity, {}).items() if not src.startswith("seed"))
+
+    def org_real(kind: str) -> tuple[int, int]:
+        recs = org.list(kind)
+        with org._connect() as c:  # who last wrote each record
+            by = {r["record_id"]: r["updated_by"] for r in c.execute("SELECT record_id, updated_by FROM records WHERE kind = ?", (kind,))}
+        return sum(1 for r in recs if by.get(r.get(ID_FIELD[kind])) != "seed"), len(recs)
+
+    items = []
+
+    def add(group, name, status, detail, fix):
+        items.append({"group": group, "name": name, "status": status, "detail": detail, "fix": fix})
+
+    bank = app.state.agent.proof.airwallex
+    add("Connections", "Airwallex sandbox credentials", "ok" if bank.configured else "missing",
+        "AWX_CLIENT_ID / AWX_API_KEY in .env" if bank.configured else "set AWX_CLIENT_ID and AWX_API_KEY in .env", "#/integrations")
+    add("Connections", "Airwallex webhooks", "ok" if webhooks.secret() else "missing",
+        "secret set; subscribe with scripts/register_webhook.py" if webhooks.secret() else "run scripts/register_webhook.py with the tunnel URL", "#/integrations")
+    boxes = [m for m in org.list("mailbox") if m.get("active", True)]
+    inbound = bool(env("VENTHORA_INBOUND_EMAIL_SECRET"))
+    add("Connections", "Inbound email", "ok" if inbound and boxes else ("placeholder" if inbound else "missing"),
+        (f"{len(boxes)} mailbox(es): " + ", ".join(m["address"] for m in boxes[:3])) if boxes else
+        ("secret set, no mailbox configured yet" if inbound else "set VENTHORA_INBOUND_EMAIL_SECRET and add a mailbox"), "#/sources-email")
+    m = active_model()
+    add("Connections", "AI model (optional)", "ok", ai_settings.describe(m) if m.configured else "rules only: the deterministic readers decide", "#/ai")
+    n_vendor_real, n_payees = real("vendor"), len(reg.payees)
+    payable = sum(1 for p in store.list_payees() if p["status"] in ("VERIFIED", "ACTIVE"))
+    add("Master data", "Vendors and bank details", "ok" if n_vendor_real else "placeholder",
+        f"{n_payees} vendors ({n_vendor_real} from the company's data, {n_payees - n_vendor_real} from data/payees.json); {payable} verified and payable",
+        "#/sources-sync")
+    add("Master data", "Customers", "ok" if real("customer") else "placeholder",
+        f"{len(reg.payers)} customers ({real('customer')} from the company's data)", "#/sources-sync")
+    po_real, po_all = org_real("po")
+    add("Master data", "Purchase orders", "ok" if po_real else "placeholder", f"{po_all} POs ({po_real} not from the demo seed)", "#/pos")
+    add("Master data", "Open bills (AP)", "ok" if real("bill") else "placeholder",
+        f"{real('bill')} from the company's system; the rest arrive by email", "#/sources-sync")
+    add("Master data", "Receivables (AR)", "ok" if real("receivable") else "placeholder",
+        f"{real('receivable')} open customer invoices from the company's system", "#/sources-sync")
+    period = datetime.now(UTC).strftime("%Y-%m")
+    lines = [ln for ln in master.list("budget_line") if ln["period"] == period]
+    add("Plan and policy", f"Budget for {period}", "ok" if lines else "placeholder",
+        f"{len(lines)} lines synced or uploaded" if lines else "data/budgets.json (demo lines)", "#/sources-upload")
+    add("Plan and policy", "Tenant books", "ok" if real("tenant_book") else "placeholder",
+        f"{real('tenant_book')} books from the company's data; the rest from data/tenants.json", "#/mandate")
+    rep = load_config()
+    add("Plan and policy", "Reporting cut-off", "ok" if getattr(rep, "set_by", None) not in (None, "", "seed") else "placeholder",
+        f"day {rep.cutoff_day} {rep.cutoff_time} {rep.timezone}, reporting in {rep.reporting_currency}", "#/standards")
+    for kind, label, fix in (("unit", "Organisation units", "#/users"), ("user", "People and approval limits", "#/users"),
+                             ("project", "Projects", "#/codes"), ("account", "Chart of accounts", "#/codes")):
+        r, a = org_real(kind)
+        add("Organisation", label, "ok" if r else "placeholder", f"{a} records ({r} entered or changed by a person)", fix)
+    summary = {s: sum(1 for i in items if i["status"] == s) for s in ("ok", "placeholder", "missing")}
+    return {"summary": summary, "items": items}
+
+
+@app.get("/v1/sources/runs")
+async def master_runs(limit: int = Query(30, ge=1, le=200)):
+    from .masterdata import MasterStore
+
+    return MasterStore().runs(limit)
 
 
 @app.get("/v1/org/account-code")

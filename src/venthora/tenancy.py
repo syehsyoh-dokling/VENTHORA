@@ -30,7 +30,10 @@ class TenancyError(ValueError):
 
 
 def load_registry(path: Path | None = None) -> dict:
-    return json.loads((path or TENANTS_FILE).read_text(encoding="utf-8"))
+    """data/tenants.json with the tenant books synced or uploaded into the master data on top."""
+    from .masterdata import MasterStore, tenant_overlay
+
+    return tenant_overlay(MasterStore(), json.loads((path or TENANTS_FILE).read_text(encoding="utf-8")))
 
 
 def _config(tenant: str, book_id: str, raw: dict) -> BookConfig:

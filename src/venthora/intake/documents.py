@@ -97,6 +97,8 @@ def postmark_to_eml(payload: dict) -> bytes:
         if payload.get(field):
             msg[key] = str(payload[field])
     msg["Message-ID"] = str(payload.get("MessageID") and f"<{payload['MessageID']}@inbound.postmarkapp.com>" or "")
+    if payload.get("OriginalRecipient"):  # the inbound address it really reached (Settings → Email sources)
+        msg["Delivered-To"] = str(payload["OriginalRecipient"])
     for h in payload.get("Headers") or []:
         if h.get("Name") in ("Authentication-Results", "Received-SPF", "X-Spam-Status"):
             msg[h["Name"]] = str(h.get("Value", ""))[:2000]

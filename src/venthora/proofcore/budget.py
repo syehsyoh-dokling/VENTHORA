@@ -27,6 +27,14 @@ OWED = ("DEFER", "ESCALATE")  # still a liability after this plan
 
 
 def load_budget(period: str | None = None, path: Path = BUDGETS_FILE) -> Budget | None:
+    """The period's budget: the lines synced or uploaded into the master data for that period when there are any,
+    otherwise data/budgets.json."""
+    if period:
+        from ..masterdata import MasterStore, budget_for
+
+        synced = budget_for(MasterStore(), period)
+        if synced:
+            return Budget.model_validate(synced)
     if not path.is_file():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))

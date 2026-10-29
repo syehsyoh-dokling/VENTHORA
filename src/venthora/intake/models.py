@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 Kind = Literal["supplier_invoice", "contractor_claim", "expense_claim", "bank_change", "remittance_notice", "unknown"]
-Trust = Literal["registered", "staff", "unknown_sender", "reply_to_mismatch", "failed_authentication"]
+Trust = Literal["registered", "staff", "system_of_record", "unknown_sender", "reply_to_mismatch", "failed_authentication"]
 Status = Literal["VERIFIED", "NEEDS_REVIEW", "QUARANTINED", "REJECTED", "DUPLICATE"]
 
 
@@ -63,6 +63,7 @@ class IntakeRequest(BaseModel):
     authentication: dict[str, str] = Field(default_factory=dict, description="receiving server's SPF / DKIM / DMARC verdicts")
     reader: Literal["rules", "model+rules"] = "rules"
     # supplier invoices against a purchase order: which PO, which term, which account code
+    mailbox: str | None = Field(default=None, description="the inbound address it was sent to")
     po_number: str | None = None
     installment: str | None = Field(default=None, description="the PO term it pays (T1, T2...), or 'partial'")
     account_code: str | None = None

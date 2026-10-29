@@ -410,6 +410,30 @@ If a response is lost, the operation is recovered by its `request_id` and never 
 
 Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": true`.
 
+
+## Data sources: real data instead of placeholders
+
+Out of the box VENTHORA reads its master data from `data/*.json` (demo placeholders). Settings has four pages
+that replace them with the company's own records; every record keeps its source (`sync:<connector>`,
+`upload:<file>`), and records from a sync or upload take precedence over the files.
+
+| Page | What it does |
+|---|---|
+| **Data readiness** | Lists everything VENTHORA needs (credentials, vendors and bank details, POs, open bills, customers and receivables, budget, tenant books, mailboxes, AI model) and marks each one *real*, *placeholder* or *missing*, with a link to fix it |
+| **Sync API** | A generic REST/JSON connector to the old application: base URL, auth (none, bearer, basic, custom header; the secret is write-only), and per entity a path, the list inside the response and a field mapping (`"target": "source.path\|transform"`, transforms `major`, `int`, `upper`, `lower`, `nospace`, `date`, `split`, constants as `=VALUE`). *Dry run* reports what would change; *Sync now* writes it |
+| **Upload dataset** | When there is no API: CSV, Excel or PDF. Columns are matched to fields by synonyms (or by the configured model, which may only pick real column names); PDF tables are read from the text layer, and rows a model extracts are kept only where each value occurs in the PDF. Preview shows cleaned and rejected rows; nothing is written until Commit |
+| **Email sources** | The inbound addresses VENTHORA reads and what each takes (supplier invoices, staff claims, remittances). Mail that reaches the wrong address, or one not listed, is flagged and waits for a person |
+
+Sync and upload share one validation pipeline, with the same safeguards as manual entry:
+
+* bank details arrive **unverified**: a new vendor is registered `NEW`, a changed account makes it `CHANGED`, and no payment goes out until the call-back is recorded;
+* purchase orders go through the PO checks (account codes, terms);
+* open bills enter the intake queue, matched to their PO and checked for duplicates;
+* receivables and customer payment history feed collections; budget lines and tenant books replace the file versions for their period or tenant.
+
+The demo server includes a stand-in ERP (`/demo/legacy-erp/*`, fake data in [`data/demo_legacy_erp.json`](data/demo_legacy_erp.json))
+and a connector already pointed at it, so **Settings → Sync API → Sync now** shows the whole flow.
+
 ## API
 
 | Method | Path | Purpose |

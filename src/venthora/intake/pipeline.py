@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Email intake: parse -> verify the sender -> extract grounded fields -> classify -> queue -> state.
 
 Trust is decided by code, from the counterparty registry (data/payees.json):
@@ -83,10 +84,35 @@ def _now() -> str:
 # -- registry ----------------------------------------------------------------------------------
 
 class Registry:
-    def __init__(self, path: Path = PAYEES_FILE):
+    """data/payees.json, with the vendors and customers synced or uploaded into the master data on top (masterdata.py):
+    a master record wins over the file record with the same id; re-read whenever the master data changes."""
+
+    def __init__(self, path: Path = PAYEES_FILE, master=None):
         data = json.loads(path.read_text(encoding="utf-8"))
-        self.payees: dict[str, dict] = data["payees"]
-        self.payers: dict[str, dict] = data["payers"]
+        self._file_payees: dict[str, dict] = data["payees"]
+        self._file_payers: dict[str, dict] = data["payers"]
+        if master is None:
+            from ..masterdata import MasterStore
+
+            master = MasterStore()
+        self._master, self._seen, self._merged = master, None, (self._file_payees, self._file_payers)
+
+    def _sync(self) -> tuple[dict, dict]:
+        v = self._master.version()
+        if v != self._seen:
+            from ..masterdata import registry_entries
+
+            payees, payers = registry_entries(self._master)
+            self._merged, self._seen = (self._file_payees | payees, self._file_payers | payers), v
+        return self._merged
+
+    @property
+    def payees(self) -> dict[str, dict]:
+        return self._sync()[0]
+
+    @property
+    def payers(self) -> dict[str, dict]:
+        return self._sync()[1]
 
     def by_contact(self, address: str) -> tuple[str, dict, str] | None:
         address = address.lower()
@@ -498,6 +524,51 @@ class Intake:
                 extra["installment"] = m["installment"]
         return not m["ok"]
 
+    def ingest_record(self, bill: dict, *, source: str) -> IntakeRequest:
+        """An open bill from the company's own system (sync or upload) into the same queue as emailed invoices, through
+        the same checks: the vendor must be known, the PO must match, and an invoice that also arrived by email (or by
+        an earlier sync) is a duplicate, so it is paid once. The source system is the evidence; each field is quoted
+        as the record it came from."""
+        message_id = f"<{source}:{bill['bill_id']}>"
+        existing = self.store.by_message(message_id)
+        if existing:
+            return existing
+        reg = self.registry
+        rec = reg.payees.get(bill["vendor_id"])
+        cite = f"{source} record {bill['bill_id']}"
+        quotes = [Quote(field=k, value=str(bill[k]), quote=f"{cite}: {k}={bill[k]}", start=-1, end=-1)
+                  for k in ("invoice_no", "amount_minor", "currency", "due_date", "po_number") if bill.get(k)]
+        flags: list[str] = []
+        reasons: list[str] = [f"from the company's own system ({source})"]
+        extra: dict = {}
+        if rec is None:
+            reasons.append(f"vendor {bill['vendor_id']} is not in the vendor list; sync or upload the vendor first")
+        amount = (Quote(field="amount", value=f"{bill['currency']} {bill['amount_minor']}", quote=f"{cite}", start=-1, end=-1),
+                  bill["amount_minor"], bill["currency"])
+        po_hold = False
+        if rec is not None and self.org is not None:
+            text = f"PO {bill['po_number']}" if bill.get("po_number") else ""
+            po_hold = self._purchase_order(text, "", bill["vendor_id"], amount, [], flags, reasons, extra)
+        fingerprint = _fingerprint(rec, bill["invoice_no"].upper(), bill["vendor_id"])
+        duplicate_of = self.store.fingerprints().get(fingerprint)
+        if duplicate_of:
+            status = "DUPLICATE"
+            reasons.append(f"invoice {bill['invoice_no']} is already in the queue ({duplicate_of}); never paid twice")
+        elif rec is None or po_hold:
+            status = "NEEDS_REVIEW"
+        else:
+            status = "VERIFIED"
+        req = IntakeRequest(
+            intake_id=str(uuid4()), message_id=message_id, received_at=_now(), sender=source, sender_domain=source.split(":")[0],
+            display_name=source, reply_to=None, subject=f"Open bill {bill['invoice_no']}", kind="supplier_invoice",
+            trust="system_of_record", counterparty_id=bill["vendor_id"] if rec else None, counterparty_name=rec["name"] if rec else None,
+            claimed_name=None, amount_minor=bill["amount_minor"], currency=bill["currency"], invoice_no=bill["invoice_no"].upper(),
+            invoice_fingerprint=fingerprint, due_date=bill["due_date"], flags=flags, quotes=quotes, status=status, reasons=reasons,
+            duplicate_of=duplicate_of, text_sha256=hashlib.sha256(json.dumps(bill, sort_keys=True).encode()).hexdigest(),
+            text=json.dumps(bill, sort_keys=True), **extra)
+        self.store.save(req)
+        return req
+
     def _po_terms(self, r: IntakeRequest) -> dict:
         """What the plan needs from the PO: its total and what it already paid (the three-way match), the term, the
         account code, and the unit's payment limit with the people who may approve above it."""
@@ -660,5 +731,20 @@ class Intake:
                 "due_date": r.due_date, "dunning_level": r.dunning_level} | self._po_terms(r))
             data["evidence"].append({"ref": ref, "subject_id": oid, "source": f"intake:email:{r.sender}",
                                      "status": "verified" if r.status == "VERIFIED" else "pending", "summary": summary})
+        # Receivables the company's own system holds (synced or uploaded): expected receipts, calibrated by the payer's
+        # history of keeping payment promises; never cash until Airwallex reports the deposit settled.
+        known = {x["receivable_id"] for x in data["receivables"]}
+        for ar in self.registry._master.list("receivable"):
+            rid = f"AR-{ar['receivable_id']}"[:80]
+            payer = self.registry.payers.get(ar["customer_id"])
+            if rid in known or payer is None or ar["currency"] not in ("USD", "EUR", "GBP"):
+                continue
+            hours = max(0, min(2160, int((dt.date.fromisoformat(ar["due_date"]) - as_of).days * 24)))
+            ref = f"master:{ar['_source']}:{ar['receivable_id']}"
+            data["receivables"].append({"receivable_id": rid, "payer": payer["name"], "amount_minor": ar["amount_minor"],
+                                        "currency": ar["currency"], "expected_in_hours": hours, "confidence_bp": 8000,
+                                        "evidence_ref": ref, "payer_history": payer.get("history")})
+            data["evidence"].append({"ref": ref, "subject_id": rid, "source": ar["_source"], "status": "verified",
+                                     "summary": f"open customer invoice {ar['invoice_no']} in the company's system, due {ar['due_date']}"})
         data["obligations"] = data["obligations"][:12]
         return TreasuryState.model_validate(data)
