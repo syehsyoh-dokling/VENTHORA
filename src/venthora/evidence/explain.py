@@ -23,7 +23,10 @@ def _facts(state: TreasuryState, plan: PlanResult, obligation_id: str) -> str:
 
 
 async def explain_exceptions(state: TreasuryState, plan: PlanResult, model: ChatModel | None = None) -> list[dict]:
-    model = model if model is not None else ChatModel()
+    if model is None:
+        from ..ai_settings import active_model  # Settings → AI model, else .env
+
+        model = active_model()
     out = []
     for d in plan.obligations:
         if d.action != "ESCALATE":

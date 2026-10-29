@@ -160,11 +160,16 @@ dialog::backdrop{background:rgba(9,16,30,.45)}dialog h3{margin:0 0 14px;font-siz
 .form label{display:grid;gap:5px;font-size:12px;color:var(--ink2);font-weight:600}
 .form label.check{display:flex;align-items:center;gap:8px;align-self:end;padding-bottom:8px}
 .form input,.form select,.form textarea{width:100%;font-weight:500}
+.form label.check input{width:auto;flex:0 0 auto}
 .chip{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:var(--brandlt);color:var(--brand)}
 .chip.HQ{background:#1d3f8f;color:#fff}.chip.COUNTRY_OFFICE{background:var(--brandlt);color:var(--brand)}
 .chip.BRANCH_OFFICE{background:var(--surface2);color:var(--ink2);border:1px solid var(--line)}.chip.PROJECT_FINANCE{background:var(--warnlt);color:var(--warn)}
 .tree{display:inline-block;color:var(--muted);font-family:ui-monospace,Consolas,monospace}
 .acts{display:flex;gap:6px;justify-content:flex-end}.acts button{padding:4px 9px;font-size:12px}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.mode{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;background:var(--surface2)}
+.mode:has(input:checked){border-color:var(--brand2);box-shadow:0 0 0 3px var(--brandlt);background:var(--surface)}
+.mode input{margin-top:3px}.mode b{display:block;font-size:13.5px}.mode small{display:block;color:var(--ink2);font-size:12px;margin-top:2px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:600}
 code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
 </style>
@@ -194,6 +199,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/offices" data-nav="offices"><i>⚑</i>Country offices</a>
   <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
   <a href="#/standards" data-nav="standards"><i>✎</i>Finance standards</a>
+  <a href="#/ai" data-nav="ai"><i>✦</i>AI model</a>
   <a href="#/mandate" data-nav="mandate"><i>⚖</i>Mandate &amp; policy</a>
   <a href="#/integrations" data-nav="integrations"><i>⚡</i>Webhooks &amp; integrations</a>
   <div class="grp">Assurance</div>
@@ -287,6 +293,39 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
  <section class="span4" data-view="standards">
   <h2>Reporting cut-off</h2><div id="stdRep" class="small"></div>
+ </section>
+
+ <section class="span8" data-view="ai">
+  <h2><span>AI model</span><span class="small muted" id="aiActive"></span></h2>
+  <div class="modes" id="aiModes">
+   <label class="mode"><input type="radio" name="aiMode" value="rules"><span><b>Rules only</b><small>No model. The deterministic readers decide alone.</small></span></label>
+   <label class="mode"><input type="radio" name="aiMode" value="self_hosted"><span><b>Self-hosted model</b><small>Qwen or any OpenAI-compatible server: this laptop, a GPU machine, vLLM, Ollama, LM Studio.</small></span></label>
+   <label class="mode"><input type="radio" name="aiMode" value="provider"><span><b>Hosted provider</b><small>OpenAI, Anthropic, Groq, Gemini, Mistral or OpenRouter, with your own API key.</small></span></label>
+  </div>
+  <div class="form" id="aiSelf" style="margin-top:14px">
+   <label style="grid-column:1/-1">Server address<input id="ai-endpoint" placeholder="http://127.0.0.1:8003/v1  or  http://gpu-server:8000/v1"></label>
+   <label>Model name<input id="ai-self-model" list="aiModelList" placeholder="Qwen/Qwen2.5-0.5B-Instruct"></label>
+   <label>Access token (optional)<input id="ai-token" type="password" autocomplete="off" placeholder="only if the server asks for one"></label>
+  </div>
+  <div class="form" id="aiProv" style="margin-top:14px">
+   <label>Provider<select id="ai-provider"></select></label>
+   <label>API key<input id="ai-key" type="password" autocomplete="off"></label>
+   <label style="grid-column:1/-1">Model<input id="ai-prov-model" list="aiModelList" placeholder="press List models, or type the model id"></label>
+   <label class="check" style="grid-column:1/-1"><input type="checkbox" id="ai-consent"> <span id="ai-consent-text"></span></label>
+  </div>
+  <datalist id="aiModelList"></datalist>
+  <div class="row" style="margin-top:14px"><button id="aiList">List models</button><button id="aiTest">Test connection</button><button class="primary" id="aiSave">Save</button><span class="small" id="aiMsg"></span></div>
+ </section>
+ <section class="span4" data-view="ai">
+  <h2>How the model is used</h2>
+  <ul class="small" style="padding-left:18px;margin:0;line-height:1.7">
+   <li>It reads emails, PDFs and the inbox, and <b>proposes</b> values with the words it read them from.</li>
+   <li>Code keeps a value only if that quote is in the source and the value is inside it; otherwise it is dropped.</li>
+   <li>When the model and the rules disagree, a person decides. It never sets an amount or moves money.</li>
+   <li>A hosted provider receives the email and PDF text, so it needs your confirmation first.</li>
+   <li>Keys are kept on this machine (git-ignored) and never shown again: only their last four characters.</li>
+   <li>Nothing saved here: <code>MODEL_ENDPOINT</code> / <code>MODEL_NAME</code> in <code>.env</code> apply.</li>
+  </ul>
  </section>
 
  <section class="span12" data-view="mandate">
@@ -523,9 +562,9 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+ standards:"Finance standards",ai:"AI model",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+ standards:()=>standardsView(),ai:()=>aiView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/(\w+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
@@ -745,6 +784,39 @@ $("#saveStd").onclick=async()=>{const g=k=>$(`#sd-${k}`).value;
   document_retention_years:+g("document_retention_years"),fx_rate_source:g("fx_rate_source"),expense_categories:g("expense_categories").split(",").map(x=>x.trim()).filter(Boolean)};
  try{await api(`/v1/org/standards?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#stdMeta").textContent=`saved by ${actor().name}`;toast("Finance standards saved","good")}
  catch(e){$("#stdMeta").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+
+// ---- Settings → AI model -----------------------------------------------------------------------------------------
+let AI=null;
+const aiMode=()=>(document.querySelector('input[name="aiMode"]:checked')||{}).value||"rules";
+function aiShow(){const m=aiMode();$("#aiSelf").style.display=m==="self_hosted"?"":"none";$("#aiProv").style.display=m==="provider"?"":"none";
+ const pv=$("#ai-provider").value,lab=(AI&&AI.providers[pv]||{}).label||pv;
+ $("#ai-consent-text").textContent=`Email and PDF text will be sent to ${lab} to be read. I am allowed to share it.`;
+ $("#aiList").style.display=$("#aiTest").style.display=m==="rules"?"none":""}
+function aiBody(){const m=aiMode();return {mode:m,consent_external:$("#ai-consent").checked,
+ self_hosted:{endpoint:$("#ai-endpoint").value.trim(),model:$("#ai-self-model").value.trim(),token:$("#ai-token").value||null},
+ provider:{name:$("#ai-provider").value,model:$("#ai-prov-model").value.trim(),api_key:$("#ai-key").value||null}}}
+async function aiView(){try{AI=await api("/v1/settings/ai");
+ $("#ai-provider").innerHTML=Object.entries(AI.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join("");
+ document.querySelectorAll('input[name="aiMode"]').forEach(r=>{r.checked=r.value===AI.mode;r.onchange=()=>{$("#aiMsg").textContent="";aiShow()}});
+ $("#ai-endpoint").value=AI.self_hosted.endpoint||"";$("#ai-self-model").value=AI.self_hosted.model||"";$("#ai-token").value="";
+ $("#ai-token").placeholder=AI.self_hosted.token_set?`saved (${AI.self_hosted.token_hint||"set"}); leave blank to keep`:"only if the server asks for one";
+ $("#ai-provider").value=AI.provider.name;$("#ai-prov-model").value=AI.provider.model||"";$("#ai-key").value="";
+ $("#ai-key").placeholder=AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";
+ $("#ai-consent").checked=!!AI.consent_external;
+ $("#ai-provider").onchange=()=>{$("#ai-key").placeholder=$("#ai-provider").value===AI.provider.name&&AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";
+  $("#aiModelList").innerHTML=((AI.providers[$("#ai-provider").value]||{}).suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");aiShow()};
+ $("#aiModelList").innerHTML=((AI.providers[AI.provider.name]||{}).suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");
+ $("#aiActive").textContent=`now reading with: ${AI.active}${AI.source==="env"?" (from .env)":""}${AI.updated_by?` · saved by ${AI.updated_by}`:""}`;
+ $("#aiMsg").textContent="";aiShow()}catch(e){$("#aiActive").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+const aiPost=(path,method="POST")=>api(`${path}?${who()}`,{method,headers:{"content-type":"application/json"},body:JSON.stringify(aiBody())});
+$("#aiList").onclick=async()=>{$("#aiMsg").textContent="asking for the model list…";try{const r=await aiPost("/v1/settings/ai/models");
+ $("#aiModelList").innerHTML=r.models.map(m=>`<option value="${esc(m)}">`).join("");$("#aiMsg").textContent=`${r.models.length} model(s) offered; pick one in the model field`}
+ catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#aiTest").onclick=async()=>{$("#aiMsg").textContent="testing…";try{const r=await aiPost("/v1/settings/ai/test");
+ $("#aiMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> ${esc(r.model)} answered “${esc(r.reply)}” in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}
+ catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#aiSave").onclick=async()=>{try{await aiPost("/v1/settings/ai","PUT");toast("AI model saved","good");await aiView();$("#aiMsg").innerHTML='<span class="pill good">SAVED</span>'}
+ catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 const mval=m=>m.value==null?"per line":m.unit==="usd"?usd(m.value):m.unit==="pct"?`${(m.value/100).toFixed(m.value%100?1:0)}%`:m.unit==="days"?`${m.value} days`:String(m.value);
 async function mandateView(){try{const d=await api("/api/live/setup");

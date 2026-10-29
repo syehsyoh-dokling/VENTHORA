@@ -322,7 +322,9 @@ async def run(args) -> int:
             parts = args.incident.split(":")
             args.incident = ":".join([fresh_id(parts[0], state), *parts[1:]])
         print(f"  fresh book {state.book_id}: new obligation ids and invoice fingerprints, same amounts and evidence")
-    model = ChatModel()
+    from .ai_settings import active_model
+
+    model = active_model()  # Settings → AI model, else .env
 
     line("VENTHORA · engines")
     for rel, ok in originals_status().items():

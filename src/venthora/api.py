@@ -21,12 +21,12 @@ load_env()
 
 from pydantic import BaseModel, Field  # noqa: E402
 
+from . import ai_settings, webhooks  # noqa: E402
 from . import live as live_session  # noqa: E402
-from . import webhooks  # noqa: E402
 from .aging import evaluate as aging_evaluate  # noqa: E402
+from .ai_settings import active_model  # noqa: E402
 from .domain.models import PlanResult, TreasuryState  # noqa: E402
 from .engines.llm_planner import llm_proposal  # noqa: E402
-from .evidence.llm import ChatModel  # noqa: E402
 from .execution.executor import Executor  # noqa: E402
 from .execution.facts import apply_operational_facts  # noqa: E402
 from .execution.incidents import IncidentCommander, IncidentRequest, IncidentResult  # noqa: E402
@@ -671,7 +671,7 @@ class ChallengeRequest(BaseModel):
 async def challenge(req: ChallengeRequest):
     """Run an outside recommendation (yours, or the LLM's) through Verity, Horizon and ProofCore."""
     if req.proposal is None:
-        proposal, source = await llm_proposal(req.state, ChatModel())
+        proposal, source = await llm_proposal(req.state, active_model())
     else:
         proposal, source = req.proposal, req.source
     result = await app.state.agent.challenge(req.state, proposal, source)
@@ -802,8 +802,9 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
     from .intake.pipeline import parse_eml
 
     parsed = await asyncio.to_thread(parse_eml, raw)
-    proposals = await reader.read(parsed["text"], parsed["subject"],
-                                  datetime.fromisoformat(parsed["received_at"]).date()) if reader.ChatModel().configured else {}
+    model = active_model()  # Settings → AI model, else .env; rules only when neither names a model
+    proposals = await reader.read(parsed["text"], parsed["subject"], datetime.fromisoformat(parsed["received_at"]).date(),
+                                  model) if model.configured else {}
     req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals)
     if not dry_run:
         app.state.hub.publish("intake", {"channel": channel} | req.model_dump(include={
@@ -1063,7 +1064,7 @@ async def webhook_status():
             "counts": app.state.webhooks.counts(), "last_received_at": rows[0]["received_at"] if rows else None,
             "listeners": app.state.hub.listeners, "subscriptions": subscriptions,
             "inbound_email": {"endpoint": "/webhooks/email", "secret_configured": bool(env("VENTHORA_INBOUND_EMAIL_SECRET")),
-                              "model_reader": ChatModel().configured}}
+                              "model_reader": active_model().configured, "reader": ai_settings.describe(active_model())}}
 
 
 @app.get("/v1/webhooks/events")
@@ -1106,6 +1107,77 @@ def _writer(role: str, by: str) -> str:
     if role not in WRITE_ROLES:
         raise HTTPException(403, f"role '{role}' may read the organisation but not change it")
     return f"{by} ({role})"
+
+
+# ---- Settings → AI model: rules only, a self-hosted model (any URL), or a provider with the user's own key ----
+@app.get("/v1/settings/ai")
+async def ai_settings_get():
+    """The current choice; secrets are never returned, only whether one is set and its last four characters."""
+    out = ai_settings.public(ai_settings.AIStore())
+    return out | {"active": ai_settings.describe(active_model())}
+
+
+@app.put("/v1/settings/ai")
+async def ai_settings_put(s: ai_settings.AISettings, role: str = "finance_manager", by: str = "dashboard"):
+    who = _writer(role, by)
+    try:
+        out = await asyncio.to_thread(ai_settings.AIStore().save, s, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "ai_settings_saved", {  # never the key itself
+        "by": who, "mode": out["mode"], "provider": out["provider"]["name"] if out["mode"] == "provider" else None,
+        "model": out["provider"]["model"] if out["mode"] == "provider" else out["self_hosted"]["model"]})
+    return out | {"active": ai_settings.describe(active_model())}
+
+
+def _draft_model(s: ai_settings.AISettings | None):
+    """The client for a draft from the form (its blank secrets filled from what is saved), or the active one."""
+    if s is None:
+        return active_model()
+    store = ai_settings.AIStore()
+    rec = store.merged(s)
+    ai_settings.check(rec | {"consent_external": True})  # testing a key is not yet sending mail out
+    return ai_settings.model_for(rec)
+
+
+@app.post("/v1/settings/ai/test")
+async def ai_settings_test(s: ai_settings.AISettings | None = None, role: str = "finance_manager"):
+    """One short request to the chosen model, to prove the address, key and model name work before mail goes to it."""
+    _writer(role, "test")
+    from time import perf_counter
+
+    from .evidence.llm import LLMUnavailable
+
+    try:
+        model = _draft_model(s)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if not model.configured:
+        return {"ok": False, "error": "rules only: no model to test"}
+    t0 = perf_counter()
+    try:
+        reply = await model.complete([{"role": "system", "content": "Reply with the single word OK."},
+                                      {"role": "user", "content": "Connection test from VENTHORA."}], max_tokens=20)
+    except LLMUnavailable as exc:
+        return {"ok": False, "error": str(exc), "model": ai_settings.describe(model)}
+    return {"ok": True, "latency_ms": round((perf_counter() - t0) * 1000), "reply": reply.strip()[:80],
+            "model": ai_settings.describe(model)}
+
+
+@app.post("/v1/settings/ai/models")
+async def ai_settings_models(s: ai_settings.AISettings | None = None, role: str = "finance_manager"):
+    """The model ids the server or provider offers, to pick from instead of typing."""
+    _writer(role, "list")
+    try:
+        model = _draft_model(s)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if not getattr(model, "endpoint", None) and not getattr(model, "api_key", None):
+        raise HTTPException(422, "enter the server address or the API key first")
+    try:
+        return {"models": (await ai_settings.list_models(model))[:300]}
+    except Exception as exc:  # noqa: BLE001 - the provider's reason, shown on the form
+        raise HTTPException(502, f"could not list models: {type(exc).__name__}: {str(exc)[:200]}") from exc
 
 
 @app.get("/v1/org/standards")

@@ -27,6 +27,7 @@ def isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("VENTHORA_EXECUTION_DB", str(tmp_path / "execution.db"))
     monkeypatch.setenv("VENTHORA_WEBHOOK_DB", str(tmp_path / "webhooks.db"))
     monkeypatch.setenv("VENTHORA_ORG_DB", str(tmp_path / "org.db"))
+    monkeypatch.setenv("VENTHORA_AI_DB", str(tmp_path / "ai.db"))
     monkeypatch.setenv("VENTHORA_ECB_CSV", str(tmp_path / "missing-ecb.csv"))
 
 

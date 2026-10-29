@@ -27,6 +27,7 @@ venthora-intake = "venthora.intake.cli:main"
 [project.optional-dependencies]
 solver = ["ortools>=9.10,<10"]
 ledger = ["tigerbeetle>=0.16"]
+anthropic = ["anthropic>=1,<2"]  # only for Settings → AI model → Anthropic
 dev = ["pytest>=8,<10", "ruff>=0.6"]
 
 [tool.setuptools.packages.find]

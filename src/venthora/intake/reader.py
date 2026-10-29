@@ -92,7 +92,10 @@ def ground(reply: dict, text: str, received: dt.date) -> dict[str, Quote]:
 
 async def read(text: str, subject: str, received: dt.date, model: ChatModel | None = None) -> dict[str, Quote]:
     """The model's grounded proposals, or {} when no model is configured or it fails."""
-    model = model or ChatModel()
+    if model is None:
+        from ..ai_settings import active_model  # Settings → AI model, else .env
+
+        model = active_model()
     if not model.configured:
         return {}
     doc = f"Subject: {subject}\n\n{text}"[:6000]

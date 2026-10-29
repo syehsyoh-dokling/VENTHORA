@@ -139,6 +139,28 @@ venthora-intake --as-of 2026-10-24 --fake --execute --receipt --approve "Dana"
 Run on the real sandbox on 23 Oct 2026 (cycle 6 in [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md)): the two
 registered requests were paid and reconciled; the lookalike, the duplicate and the flagged contractor were not.
 
+#### Choosing the model: Settings → AI model
+
+The reader's model is chosen on the dashboard, not in code:
+
+- **Rules only.** No model is used, and the deterministic readers decide alone. This is the default.
+- **Self-hosted model.** Any OpenAI-compatible server at any address: Qwen on this laptop
+  (`python scripts/local_llm_server.py --port 8003`), a GPU machine elsewhere, vLLM, Ollama or LM Studio. You enter
+  the server address, the model name and an optional token.
+- **Hosted provider.** OpenAI, Anthropic, Groq, Google Gemini, Mistral or OpenRouter, with your own API key. Anthropic
+  is called through the official SDK (`pip install "anthropic>=1,<2"`). The others are called through their
+  OpenAI-compatible endpoints.
+
+Every mode works the same way:
+- *List models* asks the server or provider which models it offers, and *Test connection* sends one short request
+  before any mail goes to the model.
+- A hosted provider receives the email and PDF text, so saving one requires an explicit confirmation on the form.
+- Keys are stored on this machine (`data/venthora_ai.db`, git-ignored, like `.env`) and are write-only: the API shows
+  only whether a key is set and its last four characters, and the audit log records the provider and model, never
+  the key.
+- When nothing is saved, `MODEL_ENDPOINT` / `MODEL_NAME` / `MODEL_TOKEN` in `.env` apply as before.
+- Whatever model is chosen, it only proposes, and the quote rules below still decide what is kept.
+
 #### Invoices and claims as they really arrive
 
 - **The inbound address, real-time.** The mail service posts each email to `POST /webhooks/email` the moment it

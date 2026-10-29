@@ -120,7 +120,9 @@ class LiveSession:
 
 def _model() -> ChatModel:
     # Deterministic lexicon reader by default (every claim is still Verity-verified); the local LLM on request.
-    return ChatModel() if env("VENTHORA_LIVE_LLM") else ChatModel(endpoint="", model="")
+    from .ai_settings import active_model
+
+    return active_model() if env("VENTHORA_LIVE_LLM") else ChatModel(endpoint="", model="")
 
 
 def _scenario(scenario: str) -> tuple[dict, dict]:

@@ -54,6 +54,60 @@ class ChatModel:
             raise LLMUnavailable(f"{type(exc).__name__}: {exc}") from exc
 
 
+class AnthropicModel:
+    """Claude through the official Anthropic SDK (optional dependency: pip install "anthropic>=1,<2").
+    Same surface as ChatModel: `configured` and `complete(messages)`, so every reader works with either."""
+
+    def __init__(self, api_key: str, model: str, timeout_s: float = 60.0):
+        self.api_key, self.model, self.timeout_s = api_key, model, timeout_s
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.api_key and self.model)
+
+    async def complete(self, messages: list[dict], max_tokens: int = 300) -> str:
+        if not self.configured:
+            raise LLMUnavailable("Anthropic API key or model not set")
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise LLMUnavailable('the Anthropic SDK is not installed: pip install "anthropic>=1,<2"') from exc
+        system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+        turns = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
+        client = anthropic.AsyncAnthropic(api_key=self.api_key, timeout=self.timeout_s, max_retries=1)
+        try:
+            # Thinking counts against max_tokens, so the reader's short answers get room; effort low suits a short
+            # extraction. fallbacks="default": a declined request is re-run on a fallback model in the same call.
+            kwargs = {"system": system} if system else {}
+            res = await client.beta.messages.create(
+                model=self.model, max_tokens=max(4000, max_tokens), messages=turns, output_config={"effort": "low"},
+                betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kwargs)
+        except anthropic.AuthenticationError as exc:
+            raise LLMUnavailable("Anthropic rejected the API key") from exc
+        except anthropic.NotFoundError as exc:
+            raise LLMUnavailable(f"Anthropic does not know the model {self.model!r}") from exc
+        except anthropic.RateLimitError as exc:
+            raise LLMUnavailable("Anthropic rate limit reached") from exc
+        except anthropic.APIStatusError as exc:
+            raise LLMUnavailable(f"Anthropic HTTP {exc.status_code}: {exc.message}") from exc
+        except anthropic.APIConnectionError as exc:
+            raise LLMUnavailable(f"cannot reach Anthropic: {type(exc).__name__}") from exc
+        finally:
+            await client.close()
+        if res.stop_reason == "refusal":
+            raise LLMUnavailable("the model declined the request")
+        return "".join(b.text for b in res.content if b.type == "text")
+
+    async def list_models(self) -> list[str]:
+        import anthropic
+
+        client = anthropic.AsyncAnthropic(api_key=self.api_key, timeout=self.timeout_s, max_retries=1)
+        try:
+            return [m.id async for m in client.models.list()]
+        finally:
+            await client.close()
+
+
 def first_json_object(text: str) -> dict:
     """The first {...} block in a model reply (models wrap JSON in prose or code fences)."""
     for match in re.finditer(r"\{", text):

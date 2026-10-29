@@ -259,7 +259,10 @@ async def _model_claim(model, ask, notes, label):
 async def read_inbox(state: TreasuryState, messages: list[InboxMessage], *, as_of: dt.date,
                      model: ChatModel | None = None) -> EvidenceReading:
     started = perf_counter()
-    model = model if model is not None else ChatModel()
+    if model is None:
+        from ..ai_settings import active_model  # Settings → AI model, else .env
+
+        model = active_model()
     docs = [vcorpus.Document(doc_id=m.doc_id, doc_date=dt.date.fromisoformat(m.date[:10]), ticker=None,
                              title=f"{m.subject} from {m.sender}", text=m.text) for m in messages]
     admissible = [d for d in docs if d.doc_date is None or d.doc_date <= as_of]
