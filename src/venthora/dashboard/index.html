@@ -363,16 +363,20 @@ $("#plan").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">plannin
 $("#planIntake").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">adding the intake queue to the book and planning…</div>';
  try{renderPlan(await api("/v1/intake/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario_id:$("#scenario").value,as_of:"2026-10-24"})}))}catch(e){$("#planOut").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
 
-async function intake(){try{const rows=await api("/v1/intake");const c={};rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+let INTAKE_PEOPLE={};
+async function intake(){try{const rows=await api("/v1/intake");try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
  $("#intakeMeta").textContent=Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · ");
  $("#intake").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
   {h:"Trust",f:r=>`<span class="small">${esc(r.trust)}${r.counterparty_name?` · ${esc(r.counterparty_name)}`:r.claimed_name?` · claims ${esc(r.claimed_name)}`:""}</span>`},
-  {h:"Kind",f:r=>esc(r.kind)},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>esc(r.invoice_no||"-")},{h:"Due",f:r=>esc(r.due_date||"-")},
-  {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}</details>`},
+  {h:"Kind",f:r=>`${esc(r.kind.replaceAll("_"," "))}${r.category?`<div class="small muted">${esc(r.category)}${r.expense_date?` · spent ${esc(r.expense_date)}`:""}</div>`:""}`},
+  {h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>esc(r.invoice_no||"-")},{h:"Due",f:r=>esc(r.due_date||"-")},
+  {h:"Read from",f:r=>`<span class="small">${(r.attachments||[]).map(a=>`<div title="${esc(a.problem||`${a.pages} page(s) read`)}">${a.read?"📄":"⚠"} ${esc(a.name)}</div>`).join("")||"email body"}
+   <div class="muted">${r.reader==="model+rules"?"model + rules":"rules"}${Object.keys(r.authentication||{}).length?` · ${Object.entries(r.authentication).map(([k,v])=>`${k} ${v}`).join(", ")}`:""}</div></span>`},
+  {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}${(r.approvers||[]).length?`<div class="small">approvers: ${r.approvers.map(id=>esc((INTAKE_PEOPLE[id]||{}).name||id)).join(", ")}</div>`:""}</details>`},
   {h:"",f:r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`:""}],
-  rows,"No requests waiting. Emails from registered suppliers and customers appear here as they arrive.");
- $("#intake").querySelectorAll("button").forEach(b=>b.onclick=async()=>{const note=prompt(`${b.dataset.d} as finance manager — note (e.g. call-back done on the registered phone number):`);if(note===null)return;
-  try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:"finance manager",role:"finance_manager",note})});intake()}catch(e){alert(e.message)}})}
+  rows,"No requests waiting. Invoices and claims emailed to the inbound address appear here the moment they arrive.");
+ $("#intake").querySelectorAll("button").forEach(b=>b.onclick=async()=>{const a=actor();const note=prompt(`${b.dataset.d} as ${a.label} — note (e.g. call-back done on the registered phone number, receipt checked):`);if(note===null)return;
+  try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:a.name,role:a.role,note})});intake();notifications()}catch(e){alert(e.message)}})}
  catch(e){$("#intake").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 
 async function executions(){try{const rows=await api("/v1/executions?limit=15");const cases=await api("/v1/recon-cases");const open=cases.filter(c=>c.status==="OPEN");
@@ -614,7 +618,7 @@ async function notifications(){const [wh,rc,inc,ink,pay,bud,tree]=await Promise.
  if(inc.ok)inc.v.filter(i=>i.status!=="RESOLVED").forEach(i=>n.push({tone:"serious",ic:"⚠",t:`Payment incident · ${i.obligation_id}`,x:`${i.decision||"open"}${i.failure_type?` · ${i.failure_type.toLowerCase().replaceAll("_"," ")}`:""}`,w:i.updated_at,href:"#/executions"}));
  if(pay.ok)pay.v.filter(p=>p.status==="CHANGED"||p.status==="SUSPENDED").forEach(p=>n.push({tone:"serious",ic:"⚑",t:`Payee ${p.beneficiary_id} ${p.status.toLowerCase()}`,x:p.status==="CHANGED"?"Bank details changed: never paid until a call-back on the registered number.":"Suspended: no payments.",w:p.changed_at,href:"#/payees"}));
  if(ink.ok){const q=ink.v.filter(r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status));$("#cnt-intake").textContent=q.length||"";
-  q.slice(0,4).forEach(r=>n.push({tone:r.status==="QUARANTINED"?"serious":"warn",ic:"✉",t:`${r.status==="QUARANTINED"?"Quarantined":"Review"}: ${r.display_name||r.sender}`,x:`${r.kind.replaceAll("_"," ")} · ${fmt(r.amount_minor,r.currency||"")}`,w:r.received_at,href:"#/intake"}))}
+  q.slice(0,4).forEach(r=>n.push({tone:r.status==="QUARANTINED"?"serious":"warn",ic:r.kind==="expense_claim"?"🧾":"✉",t:`${r.status==="QUARANTINED"?"Quarantined":r.kind==="expense_claim"?"Claim to approve":"Review"}: ${r.counterparty_name||r.display_name||r.sender}`,x:`${r.kind.replaceAll("_"," ")} · ${fmt(r.amount_minor,r.currency||"")}`,w:r.received_at,href:"#/intake"}))}
  if(bud.ok){bud.v.requests.forEach(q=>n.push({tone:"serious",ic:"▤",t:"Budget request",x:q.message,href:"#/budget"}));bud.v.alerts.forEach(a=>n.push({tone:"warn",ic:"▤",t:"Budget alert",x:a.message,href:"#/budget"}))}
  if(tree.ok)tree.v.filter(r=>Object.keys(r.over_allocated).length).forEach(r=>n.push({tone:"warn",ic:"◔",t:`${r.name} over-allocated`,x:`Passed down ${Object.entries(r.over_allocated).map(([c,v])=>fmt(v,c)).join(", ")} more than it received.`,href:"#/allocation"}));
  if(wh.ok)wh.v.forEach(e=>n.push({tone:WH_TONE[e.state]||"",ic:"⚡",t:whTitle(e),x:whDetail(e),w:e.received_at,href:"#/integrations",id:e.event_id}));
@@ -631,7 +635,10 @@ function stream(){if(!window.EventSource){$("#streamState").textContent="polling
  es.onerror=()=>{$("#streamState").textContent="reconnecting…";$("#streamState").classList.remove("on")};
  es.addEventListener("webhook",ev=>{const e=JSON.parse(ev.data);LAST.fresh=e.event_id;
   if(e.state!=="RECEIVED")toast(`<b>${esc(whTitle(e))}</b><div class="small muted">${whDetail(e)}</div>`,WH_TONE[e.state]||"");
-  notifications();kpis();if(!$('section[data-view="integrations"]').hidden)webhookView()})}
+  notifications();kpis();if(!$('section[data-view="integrations"]').hidden)webhookView()});
+ es.addEventListener("intake",ev=>{const r=JSON.parse(ev.data);const t={VERIFIED:"good",QUARANTINED:"serious",DUPLICATE:"serious"}[r.status]||"warn";
+  toast(`<b>${esc(r.kind.replaceAll("_"," "))} ${esc(r.status.toLowerCase().replace("_"," "))}</b><div class="small muted">${esc(r.counterparty_name||r.sender)} · ${fmt(r.amount_minor,r.currency||"")}${r.invoice_no?` · ${esc(r.invoice_no)}`:""}</div>`,t);
+  intake();notifications()})}
 
 // =============================== organisation: units and people ===============================
 const KIND={HQ:"Head Quarter",COUNTRY_OFFICE:"Country office",BRANCH_OFFICE:"Branch office",PROJECT_FINANCE:"Project finance"};
@@ -761,7 +768,9 @@ async function webhookView(){try{const [s,ev]=await Promise.all([api("/v1/webhoo
    <dt>Signing secret</dt><dd>${s.secret_configured?"configured (AWX_WEBHOOK_SECRET)":'<span class="err">not set: every event is refused</span>'}</dd>
    <dt>Re-read from</dt><dd>${s.airwallex_configured?"Airwallex sandbox API":'<span class="err">Airwallex not configured: events stay unconfirmed</span>'}</dd>
    <dt>Replay window</dt><dd>${s.replay_window_s} s</dd><dt>Events</dt><dd>${total} ${Object.entries(s.counts).map(([k,v])=>`· ${v} ${k.toLowerCase()}`).join(" ")}</dd>
-   <dt>Dashboards listening</dt><dd>${s.listeners}</dd></dl>
+   <dt>Dashboards listening</dt><dd>${s.listeners}</dd>
+   <dt>Inbound email</dt><dd>${s.inbound_email.secret_configured?`<code>POST ${esc(s.inbound_email.endpoint)}</code> ready`:'<span class="err">VENTHORA_INBOUND_EMAIL_SECRET not set: mail is refused</span>'}
+    <span class="small muted">· reader: ${s.inbound_email.model_reader?"model + rules":"rules only (no MODEL_ENDPOINT)"}</span></dd></dl>
   <h3 class="small muted" style="margin:16px 0 6px">Set up (no web-app login needed)</h3>
   <ol class="small" style="padding-left:18px;margin:0;line-height:1.7"><li>Start the webhook-only gateway: <code>python scripts/webhook_gateway.py --port 8002</code>. It forwards <code>POST /webhooks/airwallex</code> and answers 404 to everything else.</li>
    <li>Point a tunnel at the gateway, never at this API: <code>cloudflared tunnel --url http://localhost:8002</code>.</li>

@@ -6,9 +6,9 @@ HF cache available there, so evidence reading runs fully offline on the laptop G
 
 Run with a Python that has torch + transformers (it does not need VENTHORA's venv):
 
-    python scripts/local_llm_server.py --model Qwen/Qwen2.5-0.5B-Instruct --port 8001
+    python scripts/local_llm_server.py --model Qwen/Qwen2.5-0.5B-Instruct --port 8003
 
-then set MODEL_ENDPOINT=http://127.0.0.1:8001 and MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct.
+then set MODEL_ENDPOINT=http://127.0.0.1:8003 (8001 is the demo server) and MODEL_NAME=Qwen/Qwen2.5-0.5B-Instruct.
 Binds to 127.0.0.1 only.
 """
 from __future__ import annotations
@@ -85,7 +85,7 @@ def make_handler(model_id, tok, model, device):
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
-    ap.add_argument("--port", type=int, default=8001)
+    ap.add_argument("--port", type=int, default=8003)
     ap.add_argument("--allow-download", action="store_true", help="fetch the model if it is not cached")
     args = ap.parse_args()
     tok, model, device = load(args.model, offline=not args.allow_download)

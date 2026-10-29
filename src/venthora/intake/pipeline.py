@@ -28,6 +28,7 @@ from uuid import uuid4
 
 from ..config import ROOT, data_path
 from ..domain.models import TreasuryState
+from . import claims, documents
 from .models import IntakeRequest, Quote, ReviewRequest
 
 PAYEES_FILE = ROOT / "data" / "payees.json"
@@ -56,6 +57,7 @@ REMITTANCE = ("remittance", "will transfer", "will pay", "we will settle", "paym
               "will be released", "has been released", "released the payment", "we are paying")
 CLAIM = ("please pay", "kindly pay", "payment for", "please settle", "please find attached", "invoice", "amount due",
          "please remit", "please transfer", "hours worked", "timesheet", "please process")
+EXPENSE = ("expense claim", "reimbursement", "reimburse", "expenses", "out of pocket", "receipt attached", "per diem")
 # Dunning: a payee reminding us. Level 3 = final notice, 2 = second reminder, 1 = reminder; the highest phrase found wins.
 DUNNING = {3: ("final notice", "final reminder", "last reminder", "legal action", "debt collection", "collections agency",
                "suspend your account", "suspend service", "suspend deliveries"),
@@ -119,7 +121,11 @@ def parse_eml(raw: bytes) -> dict:
     text = body.get_content() if body is not None else ""
     if body is not None and body.get_content_type() == "text/html":
         text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"[ \t]+", " ", text).strip()
+    text = re.sub(r"[ \t]+", " ", text).strip()[:20_000]
+    files = documents.attachments_of(msg)
+    for f in files:  # a read PDF joins the document, so every value it supplies is quoted from it like the body
+        if f["read"]:
+            text += f"\n\n[Attachment: {f['name']}]\n{f['text']}"
     try:
         received = parsedate_to_datetime(msg.get("Date")).astimezone(dt.UTC).isoformat() if msg.get("Date") else _now()
     except (TypeError, ValueError):
@@ -127,7 +133,9 @@ def parse_eml(raw: bytes) -> dict:
     return {"message_id": (msg.get("Message-ID") or f"<{hashlib.sha256(raw).hexdigest()[:24]}@local>").strip(),
             "received_at": received, "sender": addr.lower(), "display_name": display.strip(),
             "reply_to": reply[0][1].lower() if reply and reply[0][1] else None,
-            "subject": (msg.get("Subject") or "").strip(), "text": text[:20_000]}
+            "subject": (msg.get("Subject") or "").strip(), "text": text[:40_000],
+            "attachments": [{k: v for k, v in f.items() if k != "text"} for f in files],
+            "authentication": documents.authentication(msg)}
 
 
 def _amount(text: str) -> tuple[Quote, int, str] | None:
@@ -146,6 +154,25 @@ def _amount(text: str) -> tuple[Quote, int, str] | None:
         return None
     # the largest amount in the message is the amount due (totals exceed line items and hourly rates)
     return max(hits, key=lambda h: h[1])
+
+
+def _labelled_amount(sums: dict, text: str) -> tuple[Quote, int, str] | None:
+    """The amount the document labels as its total or amount due (not merely the largest number on it)."""
+    total = sums.get("total")
+    if not total:
+        return None
+    cur = None
+    m = AMOUNT_RE.search(total["quote"])
+    if m:
+        sym = m.group("cur") or m.group("cur2")
+        cur = CURRENCIES[sym.upper() if sym not in ("$", "€", "£") else sym]
+    if cur is None:  # "Total 1,250.00" with the currency stated elsewhere in the document
+        anywhere = _amount(text)
+        cur = anywhere[2] if anywhere else None
+    if cur is None:
+        return None
+    q = Quote(field="amount", value=f"{cur} {total['minor']}", quote=total["quote"], start=total["start"], end=total["end"])
+    return q, total["minor"], cur
 
 
 def _invoice(text: str, subject: str) -> Quote | None:
@@ -265,13 +292,16 @@ class IntakeStore:
 
 class Intake:
     def __init__(self, store: IntakeStore | None = None, registry: Registry | None = None,
-                 reviewer_roles: tuple[str, ...] = ("finance_manager", "ap_clerk")):
+                 reviewer_roles: tuple[str, ...] = ("finance_manager", "ap_clerk"), org=None):
         self.store = store or IntakeStore()
         self.registry = registry or Registry()
         self.reviewer_roles = reviewer_roles
+        self.org = org  # User management, Finance standards and Unit prices; None = no staff claims
 
-    def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None, save: bool = True) -> IntakeRequest:
-        """Triage one raw email. save=False (dry run) triages without touching the queue."""
+    def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None, save: bool = True,
+               proposals: dict[str, Quote] | None = None) -> IntakeRequest:
+        """Triage one raw email. save=False (dry run) triages without touching the queue. `proposals` are fields
+        the model read and the reader already matched verbatim to the text (see intake/reader.py)."""
         parsed = parse_eml(raw)
         existing = self.store.by_message(parsed["message_id"]) if save else None
         if existing:
@@ -282,14 +312,25 @@ class Intake:
         quotes: list[Quote] = []
         flags: list[str] = []
         reasons: list[str] = []
+        auth = parsed["authentication"]
 
         hit = reg.by_contact(parsed["sender"])
+        staff = claims.employee(self.org, parsed["sender"]) if not hit else None
         claimed = reg.claimed(parsed["display_name"], subject, text)
-        if hit and parsed["reply_to"] and parsed["reply_to"] != parsed["sender"] and not reg.by_contact(parsed["reply_to"]):
+        if (hit or staff) and documents.spoofed(auth):
+            trust = "failed_authentication"
+            reasons.append("the receiving server could not authenticate the sender ("
+                           + ", ".join(f"{k} {v}" for k, v in sorted(auth.items())) + "); the From address may be forged")
+        elif hit and parsed["reply_to"] and parsed["reply_to"] != parsed["sender"] and not reg.by_contact(parsed["reply_to"]):
             trust = "reply_to_mismatch"
             reasons.append(f"Reply-To {parsed['reply_to']} is not a registered mailbox of {hit[1]['name']}")
+        elif staff and parsed["reply_to"] and parsed["reply_to"] != parsed["sender"]:
+            trust = "reply_to_mismatch"
+            reasons.append(f"Reply-To {parsed['reply_to']} is not {staff['name']}'s mailbox")
         elif hit:
             trust = "registered"
+        elif staff:
+            trust = "staff"
         else:
             trust = "unknown_sender"
             reasons.append(f"{parsed['sender']} is not a registered mailbox" + (f" of {claimed[1]['name']}, which the message "
@@ -299,17 +340,38 @@ class Intake:
         bank = _phrases(text, BANK_CHANGE, "bank_change")
         urgency = _phrases(text + " " + subject, URGENCY, "urgency")
         remit = _phrases(text, REMITTANCE, "remittance")
-        claim = _phrases(text + " " + subject, CLAIM, "claim")
-        amount = _amount(text)
+        claim = _phrases(text + " " + subject, CLAIM + EXPENSE, "claim")
+        sums = documents.totals(text)
+        amount = _labelled_amount(sums, text) or _amount(text)
         inv = _invoice(text, subject)
         due = _due(text, received)
+        if sums.get("adds_up") is False:
+            flags.append("totals_do_not_add_up")
+            reasons.append("the subtotal and tax do not add up to the total: " + "; ".join(
+                f"{k} {sums[k]['minor'] / 100:,.2f}" for k in ("subtotal", "tax", "total") if k in sums))
+
+        # The model's reading fills what the rules missed; when both read a field and disagree, a person decides.
+        reader = "rules"
+        for field, mine in (("amount", amount[0] if amount else None), ("invoice_no", inv), ("due_date", due)):
+            theirs = (proposals or {}).get(field)
+            if theirs is None:
+                continue
+            reader = "model+rules"
+            if mine is None:
+                if field == "amount":
+                    cur, minor = theirs.value.split(" ")
+                    amount = (theirs, int(minor), cur)
+                elif field == "invoice_no":
+                    inv = theirs
+                else:
+                    due = theirs
+            elif mine.value != theirs.value:
+                flags.append("reader_disagreement")
+                reasons.append(f"the rules read {field} as {mine.value!r}, the model as {theirs.value!r} (\"{theirs.quote}\")")
         quotes += bank + urgency + remit + claim[:2]
-        if amount:
-            quotes.append(amount[0])
-        if inv:
-            quotes.append(inv)
-        if due:
-            quotes.append(due)
+        for q in (amount[0] if amount else None, inv, due):
+            if q:
+                quotes.append(q)
         if bank:
             flags.append("payee_bank_details_changed")
         if urgency:
@@ -326,6 +388,8 @@ class Intake:
         is_payer = role == "payer" or (claimed and claimed[2] == "payer" and not hit)
         if bank:
             kind = "bank_change"
+        elif staff and amount:
+            kind = "expense_claim"
         elif is_payer and remit:
             kind = "remittance_notice"
         elif amount and (claim or inv):
@@ -334,25 +398,38 @@ class Intake:
         else:
             kind = "unknown"
 
-        counterparty_rec = rec or (claimed[1] if claimed else None)
-        fingerprint = _fingerprint(rec, inv.value if inv else None, cid) if kind != "remittance_notice" else None
+        extra: dict = {}
+        if kind == "expense_claim":
+            extra = self._expense(staff, text, subject, received, amount, quotes, flags, reasons, inv)
+            cid, fingerprint = f"staff:{staff['user_id']}", extra.pop("fingerprint")
+        else:
+            fingerprint = _fingerprint(rec, inv.value if inv else None, cid) if kind != "remittance_notice" else None
         known = dict(book_fingerprints or {}) | self.store.fingerprints()
         duplicate_of = known.get(fingerprint) if fingerprint else None
 
-        if duplicate_of:
+        if trust == "failed_authentication":
+            # a forged sender is the alarm even when it copies an invoice already in the book (seen live: a spoofed
+            # resend of a real invoice number was filed as a mere duplicate)
+            status = "QUARANTINED"
+            if duplicate_of:
+                reasons.append(f"it also copies a request already in the book or the queue ({duplicate_of})")
+        elif duplicate_of:
             status = "DUPLICATE"
-            reasons.append(f"invoice {inv.value} is already in the book or the queue ({duplicate_of}); never paid twice")
-        elif trust != "registered" and (kind in ("supplier_invoice", "contractor_claim", "bank_change") or amount):
+            reasons.append(f"{'claim' if kind == 'expense_claim' else 'invoice ' + inv.value if inv else 'claim'} is already "
+                           f"in the book or the queue ({duplicate_of}); never paid twice")
+        elif trust not in ("registered", "staff") and (kind in ("supplier_invoice", "contractor_claim", "bank_change") or amount):
             status = "QUARANTINED"
             if bank:
                 reasons.append("asks to redirect a payment to new bank details from an unverified mailbox")
             if urgency:
                 reasons.append("pressure language: " + ", ".join(q.value for q in urgency))
-        elif trust != "registered":
+        elif trust not in ("registered", "staff"):
             status = "NEEDS_REVIEW"
         elif kind == "bank_change":
             status = "NEEDS_REVIEW"
             reasons.append("registered sender, but bank details may only change after an out-of-band call-back")
+        elif kind == "expense_claim":
+            status = "NEEDS_REVIEW"  # always: a person approves spending; the agent never approves its own
         elif kind == "remittance_notice":
             status = "VERIFIED" if amount else "NEEDS_REVIEW"
         elif kind in ("supplier_invoice", "contractor_claim") and amount and inv:
@@ -361,6 +438,8 @@ class Intake:
             if urgency:
                 status = "NEEDS_REVIEW"
                 reasons.append("pressure language from a registered sender; a person confirms before it is payable")
+            if "totals_do_not_add_up" in flags or "reader_disagreement" in flags:
+                status = "NEEDS_REVIEW"
         else:
             status = "NEEDS_REVIEW"
             reasons.append("could not read an amount and an invoice reference from the text")
@@ -369,16 +448,58 @@ class Intake:
             intake_id=str(uuid4()), message_id=parsed["message_id"], received_at=parsed["received_at"],
             sender=parsed["sender"], sender_domain=parsed["sender"].rsplit("@", 1)[-1], display_name=parsed["display_name"],
             reply_to=parsed["reply_to"], subject=subject, kind=kind, trust=trust, counterparty_id=cid,
-            counterparty_name=rec["name"] if rec else None, claimed_name=claimed[1]["name"] if claimed else None,
+            counterparty_name=rec["name"] if rec else (staff["name"] if staff else None),
+            claimed_name=claimed[1]["name"] if claimed else None,
             amount_minor=amount[1] if amount else None, currency=amount[2] if amount else None,
             invoice_no=inv.value if inv else None, invoice_fingerprint=fingerprint,
             due_date=due.value if due else None, flags=flags, quotes=quotes, status=status, reasons=reasons,
-            dunning_level=dunning_level,
-            duplicate_of=duplicate_of, text_sha256=hashlib.sha256(text.encode()).hexdigest(), text=text)
-        _ = counterparty_rec
+            dunning_level=dunning_level, attachments=parsed["attachments"], authentication=auth, reader=reader,
+            duplicate_of=duplicate_of, text_sha256=hashlib.sha256(text.encode()).hexdigest(), text=text, **extra)
         if save:
             self.store.save(req)
         return req
+
+    def _expense(self, staff, text, subject, received, amount, quotes, flags, reasons, inv) -> dict:
+        """Check a staff claim against Finance standards and Unit prices, and name its approvers."""
+        std = self.org.standards()
+        _, minor, cur = amount
+        chain = claims.unit_chain(self.org, staff["unit_id"])
+        cat = claims.category(text, subject, std["expense_categories"])
+        spent = claims.expense_date(text, received, ANY_DATE_RE, _parse_date)
+        for q in (cat, spent):
+            if q:
+                quotes.append(q)
+        if cat is None:
+            flags.append("category_unknown")
+            reasons.append("no expense category from the finance standards is named: " + ", ".join(std["expense_categories"]))
+        if spent is None:
+            flags.append("expense_date_missing")
+            reasons.append("no date of the expense was found")
+        elif (received - dt.date.fromisoformat(spent.value)).days > std["expense_claim_deadline_days"]:
+            flags.append("claim_past_deadline")
+            reasons.append(f"spent {spent.value}, claimed {received.isoformat()}: more than the "
+                           f"{std['expense_claim_deadline_days']} days the finance standards allow")
+        if cat is not None:
+            cap = claims.unit_price_cap(self.org, chain, cat.value, cur, text)
+            if cap:
+                limit, why, qty = cap
+                quotes.append(qty)
+                if minor > limit:
+                    flags.append("above_unit_price")
+                    reasons.append(f"{cur} {minor / 100:,.2f} claimed, unit prices allow {cur} {limit / 100:,.2f} ({why})")
+        people, note = claims.approvers(self.org, staff, chain, minor, cur, std["base_currency"])
+        if people:
+            reasons.append("route to " + ", ".join(f"{p['name']} ({p['role'].replace('_', ' ')})" for p in people[:3])
+                           + "; the claimant never approves their own claim")
+        else:
+            flags.append("no_approver")
+            reasons.append("no active approver in the claimant's unit chain has a limit that covers this amount")
+        if note:
+            reasons.append(note)
+        ref = inv.value if inv else f"{cur}{minor}-{spent.value if spent else received.isoformat()}"
+        return {"unit_id": staff["unit_id"], "category": cat.value if cat else None,
+                "expense_date": spent.value if spent else None, "approvers": [p["user_id"] for p in people],
+                "fingerprint": f"staff:{staff['user_id']}:{ref}"}
 
     def ingest_dir(self, folder: Path, *, book_fingerprints: dict[str, str] | None = None) -> list[IntakeRequest]:
         return [self.ingest(p.read_bytes(), book_fingerprints=book_fingerprints)
@@ -388,7 +509,14 @@ class Intake:
         req = self.store.get(intake_id)
         if req is None:
             raise KeyError(intake_id)
-        if review.role not in self.reviewer_roles:
+        if req.kind == "expense_claim":
+            # a staff claim is approved by a finance role, never by the person who spent the money
+            if review.decision == "verify" and review.role not in claims.APPROVER_ROLES:
+                allowed = ", ".join(claims.APPROVER_ROLES)
+                raise PermissionError(f"role {review.role} may not approve expense claims; allowed: {allowed}")
+            if review.reviewer.strip().lower() == (req.counterparty_name or "").strip().lower():
+                raise PermissionError("the claimant cannot review their own claim")
+        elif review.role not in self.reviewer_roles:
             raise PermissionError(f"role {review.role} may not review intake; allowed: {', '.join(self.reviewer_roles)}")
         if req.status == "DUPLICATE":
             raise PermissionError("a duplicate invoice cannot be verified; the original is already in the book")
@@ -427,6 +555,13 @@ class Intake:
                                                 "payer_history": payer.get("history")})
                     data["evidence"].append({"ref": ref, "subject_id": rid, "source": f"intake:email:{r.sender}",
                                              "status": "verified", "summary": summary})
+                continue
+            if r.kind == "expense_claim":
+                # recorded, never paid by the agent yet: a reimbursement needs the employee's bank details registered
+                # as a verified payee first, and that registration is a person's job
+                status = {"VERIFIED": "verified", "NEEDS_REVIEW": "pending"}.get(r.status, "rejected")
+                data["evidence"].append({"ref": ref, "subject_id": r.intake_id, "source": f"intake:email:{r.sender}",
+                                         "status": status, "summary": summary})
                 continue
             if r.status in ("DUPLICATE", "REJECTED") or r.kind in ("unknown", "remittance_notice"):
                 data["evidence"].append({"ref": ref, "subject_id": r.duplicate_of or r.intake_id,

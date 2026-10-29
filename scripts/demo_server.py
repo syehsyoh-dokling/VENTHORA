@@ -17,6 +17,10 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+# One BLAS thread: the server's numpy work is small, and a pool per core reserves memory up front (observed: on a
+# laptop with little RAM free, OpenBLAS could not allocate it and the server exited before serving anything).
+for _var in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_var, "1")
 
 
 def main() -> int:

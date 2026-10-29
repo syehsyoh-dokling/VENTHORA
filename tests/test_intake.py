@@ -48,7 +48,8 @@ def test_five_external_mailboxes_three_providers_are_triaged_by_code(intake):
     legit = reqs["lumen.design.studio.billing@gmail.com"]
     assert (legit.status, legit.trust, legit.kind, legit.amount_minor, legit.currency, legit.invoice_no, legit.due_date) == \
         ("VERIFIED", "registered", "supplier_invoice", 180_000, "USD", "LD-78", "2026-10-31")
-    assert any(q.field == "amount" and q.quote == "USD 1,800.00" for q in legit.quotes)
+    # the labelled amount due is the amount, quoted with its label
+    assert any(q.field == "amount" and q.quote == "Amount due: USD 1,800.00" for q in legit.quotes)
     bec = reqs["ld.studio.payments2026@gmail.com"]
     assert bec.status == "QUARANTINED" and bec.trust == "unknown_sender" and bec.kind == "bank_change"
     assert bec.claimed_name == "Lumen Design Studio" and bec.counterparty_id is None

@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from . import __version__
 from .audit import AuditStore
-from .config import ROOT, load_env
+from .config import ROOT, env, load_env
 
 load_env()
 
@@ -63,8 +63,8 @@ async def lifespan(app: FastAPI):
     app.state.agent = Orchestrator()
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
-    app.state.intake = Intake()
     app.state.org = OrgStore()
+    app.state.intake = Intake(org=app.state.org)  # staff claims are checked against the organisation's settings
     app.state.webhooks = webhooks.WebhookStore()
     app.state.hub = webhooks.Hub()
     await asyncio.to_thread(_warm_horizon)
@@ -785,13 +785,30 @@ async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822"), dry_
     field is tied to a verbatim quote, and the request is queued as VERIFIED / NEEDS_REVIEW / QUARANTINED
     / DUPLICATE. Nothing in the email text can change that outcome. dry_run=true triages without queueing;
     book=<scenario id> checks duplicates against that book's invoices."""
-    if len(raw) > 200_000:
+    if len(raw) > MAX_EMAIL_BYTES:
         raise HTTPException(413, "email too large")
     fps = book_fingerprints(book) if book else None
     if book and not fps and not _scenario_file(book):
         raise HTTPException(404, "unknown scenario")
-    req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run)
+    return await _ingest(raw, fps, dry_run, channel="api")
+
+
+MAX_EMAIL_BYTES = 12 * 1024 * 1024  # an invoice PDF or two; Postmark caps inbound mail at 35 MB
+
+
+async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) -> IntakeRequest:
+    """One email through the model reader (when configured) and the rules; queued, audited and pushed to the dashboards."""
+    from .intake import reader
+    from .intake.pipeline import parse_eml
+
+    parsed = await asyncio.to_thread(parse_eml, raw)
+    proposals = await reader.read(parsed["text"], parsed["subject"],
+                                  datetime.fromisoformat(parsed["received_at"]).date()) if reader.ChatModel().configured else {}
+    req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals)
     if not dry_run:
+        app.state.hub.publish("intake", {"channel": channel} | req.model_dump(include={
+            "intake_id", "kind", "status", "trust", "sender", "counterparty_name", "amount_minor", "currency", "invoice_no",
+            "reader", "flags"}))
         await asyncio.to_thread(app.state.audit.append, "intake", req.model_dump(exclude={"text"}))
         # Payee lifecycle: a registered counterparty announcing new bank details moves to CHANGED at once (no payment
         # until a call-back on the registered number), whatever the email says about urgency.
@@ -804,6 +821,42 @@ async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822"), dry_
                     store.payee_event(req.counterparty_id, {"kind": "bank_change", "bank_fingerprint": fp,
                                                             "source": f"intake:{req.intake_id}", "quote": quoted[:300]})
     return req
+
+
+@app.post("/webhooks/email")
+async def inbound_email(request: Request):
+    """Invoices and claims emailed to the company's inbound address, pushed by the mail service the moment they
+    arrive: Postmark's inbound JSON or a raw RFC 822 message. The service authenticates with HTTP Basic auth whose
+    password is VENTHORA_INBOUND_EMAIL_SECRET; the email itself then goes through the same intake as any other."""
+    import base64
+    import hmac
+
+    secret = env("VENTHORA_INBOUND_EMAIL_SECRET")
+    if not secret:
+        raise HTTPException(503, "inbound email secret not configured")
+    auth = request.headers.get("authorization", "")
+    try:
+        password = base64.b64decode(auth[6:]).decode().split(":", 1)[1] if auth.lower().startswith("basic ") else ""
+    except (ValueError, IndexError):
+        password = ""
+    if not hmac.compare_digest(password.encode(), secret.encode()):
+        await asyncio.to_thread(app.state.audit.append, "inbound_email_refused", {"reason": "bad credentials"})
+        raise HTTPException(401, "bad credentials", headers={"WWW-Authenticate": "Basic"})
+    body = await request.body()
+    if len(body) > MAX_EMAIL_BYTES * 2:  # base64 inside JSON is a third larger than the message
+        raise HTTPException(413, "email too large")
+    ctype = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    try:
+        if ctype == "application/json":
+            from .intake.documents import postmark_to_eml
+
+            raw = postmark_to_eml(json.loads(body))
+        else:
+            raw = body
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(422, f"not an email: {type(exc).__name__}") from exc
+    req = await _ingest(raw, None, False, channel="inbound-email")
+    return {"intake_id": req.intake_id, "kind": req.kind, "status": req.status}
 
 
 # -- ground truth ------------------------------------------------------------------------------
@@ -1008,7 +1061,9 @@ async def webhook_status():
     return {"endpoint": "/webhooks/airwallex", "secret_configured": bool(webhooks.secret()),
             "airwallex_configured": bank.configured, "replay_window_s": webhooks.TOLERANCE_S,
             "counts": app.state.webhooks.counts(), "last_received_at": rows[0]["received_at"] if rows else None,
-            "listeners": app.state.hub.listeners, "subscriptions": subscriptions}
+            "listeners": app.state.hub.listeners, "subscriptions": subscriptions,
+            "inbound_email": {"endpoint": "/webhooks/email", "secret_configured": bool(env("VENTHORA_INBOUND_EMAIL_SECRET")),
+                              "model_reader": ChatModel().configured}}
 
 
 @app.get("/v1/webhooks/events")

@@ -4,9 +4,21 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Kind = Literal["supplier_invoice", "contractor_claim", "bank_change", "remittance_notice", "unknown"]
-Trust = Literal["registered", "unknown_sender", "reply_to_mismatch"]
+Kind = Literal["supplier_invoice", "contractor_claim", "expense_claim", "bank_change", "remittance_notice", "unknown"]
+Trust = Literal["registered", "staff", "unknown_sender", "reply_to_mismatch", "failed_authentication"]
 Status = Literal["VERIFIED", "NEEDS_REVIEW", "QUARANTINED", "REJECTED", "DUPLICATE"]
+
+
+class Attachment(BaseModel):
+    """A file that came with the email; only a text-based PDF is read, and its text joins the quoted document."""
+    model_config = ConfigDict(extra="forbid")
+    name: str
+    content_type: str
+    bytes: int
+    sha256: str
+    pages: int = 0
+    read: bool = False
+    problem: str | None = None
 
 
 class Quote(BaseModel):
@@ -47,8 +59,16 @@ class IntakeRequest(BaseModel):
     duplicate_of: str | None = None
     reviewer: str | None = None
     review_note: str | None = None
+    attachments: list[Attachment] = Field(default_factory=list)
+    authentication: dict[str, str] = Field(default_factory=dict, description="receiving server's SPF / DKIM / DMARC verdicts")
+    reader: Literal["rules", "model+rules"] = "rules"
+    # expense claims from staff: who claims, from which unit, what for, and who may approve it
+    unit_id: str | None = None
+    category: str | None = None
+    expense_date: str | None = None
+    approvers: list[str] = Field(default_factory=list, description="eligible approvers, nearest unit first; never the claimant")
     text_sha256: str
-    text: str = Field(max_length=20_000)
+    text: str = Field(max_length=40_000)
 
 
 class ReviewRequest(BaseModel):

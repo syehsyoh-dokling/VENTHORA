@@ -37,6 +37,19 @@ def test_webhook_is_forwarded_raw_with_signature_headers_only():
         assert "cookie" not in req.headers and "authorization" not in req.headers
 
 
+def test_inbound_email_is_forwarded_with_its_basic_auth_only():
+    seen = []
+    with _gateway(seen) as gw:
+        r = gw.post("/webhooks/email", content=b'{"Subject":"x"}', headers={"content-type": "application/json",
+                                                                          "authorization": "Basic abc", "cookie": "s=1",
+                                                                          "x-signature": "nope"})
+        assert r.status_code == 200
+        (req,) = seen
+        assert req.url.path == "/webhooks/email" and req.headers["authorization"] == "Basic abc"
+        assert "cookie" not in req.headers and "x-signature" not in req.headers
+        assert gw.get("/webhooks/email").status_code == 404
+
+
 def test_large_body_refused_and_api_down_is_502():
     seen = []
     with _gateway(seen) as gw:

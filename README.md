@@ -139,11 +139,52 @@ venthora-intake --as-of 2026-10-24 --fake --execute --receipt --approve "Dana"
 Run on the real sandbox on 23 Oct 2026 (cycle 6 in [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md)): the two
 registered requests were paid and reconciled; the lookalike, the duplicate and the flagged contractor were not.
 
+#### Invoices and claims as they really arrive
+
+- **The inbound address, real-time.** The mail service posts each email to `POST /webhooks/email` the moment it
+  arrives. It can send Postmark's inbound JSON or a raw RFC 822 message, and it authenticates with HTTP Basic auth
+  whose password is `VENTHORA_INBOUND_EMAIL_SECRET`. Postmark needs no domain of your own, because every server has an
+  inbound address. Its inbound webhook URL is `https://postmark:<secret>@<tunnel-host>/webhooks/email`. The
+  webhook-only gateway forwards this route with its `Authorization` header and nothing else.
+- **PDF attachments.** A text-based PDF, such as an invoice exported from an accounting system, is read and joins the
+  quoted document. Every value it supplies points at its exact place in the text. A scan without a text layer, or an
+  encrypted or oversized file, is listed with the reason and never guessed.
+- **The invoice's own arithmetic.** The labelled total or amount due is the amount, not the largest number on the
+  page. When the subtotal and tax do not add up to the total, a person checks the invoice.
+- **Sender authentication.** The receiving server's `Authentication-Results` are read. A registered mailbox whose mail
+  fails both SPF and DKIM (or fails DMARC) is `QUARANTINED` as forged, even when it copies a real invoice number. An
+  uploaded `.eml` without verdicts is judged as before.
+- **Staff expense claims.** A claim is staff's only when it comes from the exact, active mailbox of a person in User
+  management. Mail from someone else at the company domain is not staff. Code then checks the claim:
+  - the category is one of the finance standards' expense categories;
+  - the expense date is within the claim deadline;
+  - a per-day unit price in the claimant's unit chain caps days × price;
+  - the approvers are finance roles in the claimant's unit or above, whose limit covers the amount, nearest unit
+    first and never the claimant.
+
+  A claim always waits for one of those approvers, and an approver who is the claimant is refused. An approved claim
+  is recorded as evidence and is not paid yet, because the agent can pay only a registered, verified payee.
+- **The model reads, code decides.** With `MODEL_ENDPOINT` set (the local Qwen server runs on port 8003, because 8001
+  is the demo server), the model proposes the amount due, the invoice number and the due date, each with the words it
+  read them from ([`src/venthora/intake/reader.py`](src/venthora/intake/reader.py)). A field is kept only if its quote
+  occurs verbatim in the email or PDF and the value is inside the quote. The model fills only what the rules missed.
+  When the model and the rules read a field differently, a person decides.
+
+Checked live on 29 Oct 2026, through the Cloudflare tunnel and the gateway:
+- A Postmark-format email with a PDF invoice was `VERIFIED` at the PDF's labelled total of USD 2,200.
+- A staff travel claim was routed to the CFO and flagged above the US per diem.
+- The same claim resent under a new message id was a `DUPLICATE`.
+- A forged resend of the invoice number (SPF and DKIM failing) was `QUARANTINED`.
+- A wrong password got `401`, and a redelivery was not queued twice.
+
+The model reader was tested with a stubbed model only. The local Qwen server could not start because the laptop's
+memory was in use.
+
 ### Run the whole agent loop: `venthora-sandbox`
 
 ```bash
 python scripts/import_ecb.py                                   # real FX history for Horizon (once)
-python scripts/local_llm_server.py --port 8001                 # optional: local LLM (needs torch + transformers)
+python scripts/local_llm_server.py --port 8003                 # optional: local LLM (needs torch + transformers)
 venthora-sandbox --fake --approve "Dana"                       # offline, in-process fake sandbox
 venthora-sandbox --deposit 1000000 --approve "Dana"            # real Airwallex sandbox (.env credentials)
 ```
