@@ -222,6 +222,24 @@ class Airwallex:
         return {r["currency"]: to_minor(r.get("available_amount", 0))
                 for r in rows if r.get("account_type", "cash") == "cash"}
 
+    async def balances_detail(self) -> dict[str, dict[str, int]]:
+        """Per currency, in minor units: available (spendable now), pending (arrived, not yet settled), reserved (held
+        for payouts in progress) and total, as Airwallex reports them."""
+        rows = await self._request("GET", "/api/v1/balances/current")
+        return {r["currency"]: {k: to_minor(r.get(f"{k}_amount", 0)) for k in ("available", "pending", "reserved", "total")}
+                for r in rows if r.get("account_type", "cash") == "cash"}
+
+    async def list_transfers(self, pages: int = 2, page_size: int = 100) -> list[dict]:
+        """The most recent transfers with their Airwallex status (newest first, as the API returns them)."""
+        out: list[dict] = []
+        for page in range(pages):
+            body = await self._request("GET", "/api/v1/transfers", params={"page_num": page, "page_size": page_size})
+            items = body.get("items", []) if isinstance(body, dict) else body
+            out += items
+            if len(items) < page_size or not (isinstance(body, dict) and body.get("has_more", True)):
+                break
+        return out
+
     async def rate_to_base(self, currency: str, base: str) -> Decimal:
         """Indicative base units per 1 unit of `currency` (not a quote)."""
         body = await self._request("GET", "/api/v1/fx/rates/current",

@@ -53,6 +53,20 @@ The original engines are vendored unmodified, with SHA-256 provenance and a test
 - execution outcomes and payee status,
 - a feed of what needs a person, pushed live from Airwallex webhooks.
 
+The top row is the treasury position (`GET /v1/treasury/position`). Each tile has its own source:
+
+| Tile | Source |
+|---|---|
+| **Available balance** | Airwallex `available_amount` per currency: the old balance, plus settled deposits, plus received payments. Transfers Airwallex has not finished show in brackets (`−… processing`). |
+| **Bills to pay** | Invoices in the queue that are not paid yet, split into ready to pay and waiting for a person. They will reduce the balance. |
+| **Pending deposits** | Deposits Airwallex holds as `PENDING` from anyone who is not a registered customer, such as a top-up from the company's own bank. |
+| **Incoming payments, not cleared** | `PENDING` deposits from registered customers, plus customer remittances that were announced but have not arrived. |
+| **Outlook** | Available − processing − bills + deposits + incoming. This is an outlook, not spendable money. |
+
+Amounts are converted to the base currency at Airwallex's indicative rates, and a currency without a rate is named,
+not guessed. Airwallex is read at most every 20 s, and a webhook or new email clears that cache, so the row updates the
+moment a status changes.
+
 The vertical menu holds everything else:
 - Treasury pages: plan & proof, budget, books, reporting.
 - Payment pages: intake, payees, executions & incidents, run reports.

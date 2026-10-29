@@ -422,6 +422,11 @@ class ExecutionStore:
                        row["amount_minor"], row["base_cost_minor"], row["paid_at"], row["reporting_period"], _now(),
                        row.get("beneficiary_id"), row.get("po_number"), row.get("account_code")))
 
+    def paid_fingerprints(self) -> set[str]:
+        """Invoice fingerprints of every booked (PAID) payment, PO or not."""
+        with self._lock, self._connect() as c:
+            return {r[0] for r in c.execute("SELECT invoice_fingerprint FROM spend_ledger WHERE invoice_fingerprint IS NOT NULL")}
+
     def po_payments(self, po_number: str | None = None) -> list[dict]:
         """Payments booked against purchase orders (one row per PAID transfer)."""
         q = ("SELECT transfer_id, po_number, installment, currency, amount_minor, base_cost_minor, paid_at, obligation_id, invoice_fingerprint,"

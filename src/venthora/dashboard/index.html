@@ -114,13 +114,15 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
  .nav.open{transform:none}.menu{display:inline-block}header.top{padding:12px 16px}header.top .go,#status{display:none}main{padding:0 16px 32px}}
 
 /* KPI cards */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
 .kpi::after{content:"";position:absolute;inset:auto 0 0 0;height:3px;background:var(--seq);opacity:.85}
 .kpi.good::after{background:var(--good)}.kpi.warn::after{background:var(--warn)}.kpi.critical::after{background:var(--critical)}
 .kpi .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600}
 .kpi .v{font-size:24px;font-weight:700;margin-top:4px;letter-spacing:-.4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .d{color:var(--ink2);font-size:12px;margin-top:2px}
+.kpi[data-href]{cursor:pointer}.kpi[data-href]:hover{border-color:var(--brand2)}
+.kpi .br{display:block;font-size:12.5px;font-weight:600;color:var(--warn);letter-spacing:0;margin-top:1px}
 
 /* charts */
 .chart{min-height:60px}
@@ -636,14 +638,31 @@ function stacked(parts){const total=parts.reduce((s,p)=>s+p.n,0)||1;
 const settle=p=>p.then(v=>({ok:true,v}),e=>({ok:false,e}));
 let LAST={};
 async function overview(){await Promise.all([kpis(),charts(),notifications()])}
-async function kpis(){const [bal,ex,wh]=await Promise.all([settle(api("/api/airwallex/balances")),settle(api("/v1/executions?limit=50")),settle(api("/v1/webhooks/status"))]);
- const tiles=[];
- if(bal.ok){const b=bal.v.balances_minor;["USD","EUR","GBP"].filter(c=>b[c]!=null).forEach(c=>tiles.push({k:`Wallet · ${c}`,v:`${c} ${short(b[c])}`,full:fmt(b[c],c),d:"live Airwallex balance, sandbox"}))}
- else tiles.push({k:"Airwallex wallet",v:"not connected",d:"set the sandbox credentials",tone:"warn"});
- if(ex.ok){const done=ex.v.filter(r=>r.status==="COMPLETED").length;tiles.push({k:"Executions completed",v:`${done} / ${ex.v.length}`,d:"last 50 runs",tone:done===ex.v.length?"good":"warn"})}
- tiles.push({id:"kpiAttn",k:"Needs attention",v:"…",d:"serious or critical notifications"});
- if(wh.ok){const n=Object.values(wh.v.counts).reduce((s,x)=>s+x,0);tiles.push({k:"Webhook events",v:String(n),d:wh.v.secret_configured?(wh.v.last_received_at?`last ${wh.v.last_received_at.slice(11,16)} UTC`:"waiting for the first event"):"secret not configured",tone:wh.v.secret_configured?"":"warn"})}
- $("#kpis").innerHTML=tiles.map(t=>`<div class="kpi ${t.tone||""}" ${t.id?`id="${t.id}"`:""}><div class="k">${esc(t.k)}</div><div class="v" title="${esc(t.full||t.v)}">${esc(t.v)}</div><div class="d">${esc(t.d)}</div></div>`).join("");attention()}
+async function kpis(){const pos=await settle(api("/v1/treasury/position"));const tiles=[];
+ if(pos.ok){const P=pos.v,B=P.base_currency,b=m=>`${B} ${short(m)}`,full=m=>fmt(m,B);
+  const cc=o=>Object.entries(o||{}).map(([c,v])=>fmt(v,c)).join(" · ");
+  const out=P.processing_out,bill=P.bills_unpaid,dep=P.deposits_pending,inc=P.incoming_uncleared;
+  tiles.push({k:"Available balance · Airwallex",v:b(P.available.base_minor),bracket:out.count?`(−${short(out.base_minor)} processing)`:"",
+   full:full(P.available.base_minor),tone:"good",href:"#/ledger",
+   d:P.available.wallet.filter(w=>w.available).map(w=>`${w.currency} ${short(w.available)}`).join(" · ")||"empty",
+   tip:`Spendable now at Airwallex (old balance + settled deposits + received payments): ${P.available.wallet.map(w=>`${fmt(w.available,w.currency)}${w.pending?`, ${fmt(w.pending,w.currency)} pending`:""}${w.reserved?`, ${fmt(w.reserved,w.currency)} reserved`:""}`).join("; ")}.`
+    +(out.count?` ${out.count} transfer(s) still processing: ${cc(out.by_currency)}.`:" No transfer is processing.")});
+  tiles.push({k:"Bills to pay · not yet paid",v:b(bill.base_minor),full:full(bill.base_minor),tone:bill.base_minor?"warn":"good",href:"#/intake",
+   d:`${bill.approved_count} ready to pay · ${bill.waiting_count} waiting for a person`,
+   tip:`Will reduce the balance when paid: ${[...bill.approved,...bill.waiting].map(x=>`${x.who} ${fmt(x.amount_minor,x.currency)}${x.po_number?` (${x.po_number})`:""}`).join("; ")||"none"}`});
+  tiles.push({k:"Pending deposits",v:b(dep.base_minor),full:full(dep.base_minor),tone:dep.count?"warn":"",href:"#/integrations",
+   d:dep.count?`${dep.count} deposit(s) not yet in the balance`:"none waiting",
+   tip:dep.count?`Arrived at Airwallex, not settled: ${dep.items.map(x=>`${x.payer||"unknown payer"} ${fmt(x.amount_minor,x.currency)}`).join("; ")}`:"No deposit is pending at Airwallex."});
+  tiles.push({k:"Incoming payments · not cleared",v:b(inc.base_minor),full:full(inc.base_minor),tone:inc.base_minor?"warn":"",href:"#/intake",
+   d:`${inc.arrived_count} arrived, not settled · ${inc.announced_count} announced`,
+   tip:`Not in the balance yet: ${[...inc.arrived_pending.map(x=>`${x.payer} ${fmt(x.amount_minor,x.currency)} (arrived, pending)`),...inc.announced.map(x=>`${x.payer} ${fmt(x.amount_minor,x.currency)} (announced${x.expected?` for ${x.expected}`:""})`)].join("; ")||"none"}`});
+  tiles.push({k:"Outlook · after all of these",v:b(P.after_all_base_minor),full:full(P.after_all_base_minor),href:"#/budget",
+   d:"available − processing − bills + deposits + incoming",
+   tip:`An outlook, not spendable money. At Airwallex's indicative rates${Object.keys(P.rates).length?` (${Object.entries(P.rates).map(([c,r])=>`${c} ${Number(r).toFixed(4)}`).join(", ")})`:""}${P.missing_rates.length?`; no rate for ${P.missing_rates.join(", ")}`:""}. As of ${P.as_of.slice(11,19)} UTC.`});
+ }else tiles.push({k:"Airwallex wallet",v:"not connected",d:pos.e.message.replace(/^\d+ /,""),tone:"warn"});
+ tiles.push({id:"kpiAttn",k:"Needs attention",v:"…",d:"serious or critical notifications",href:"#/overview"});
+ $("#kpis").innerHTML=tiles.map(t=>`<div class="kpi ${t.tone||""}" ${t.id?`id="${t.id}"`:""} ${t.href?`data-href="${t.href}"`:""} ${t.tip?`data-tip="${esc(t.tip)}"`:""}><div class="k">${esc(t.k)}</div><div class="v" title="${esc(t.full||t.v)}">${esc(t.v)}${t.bracket?` <span class="br">${esc(t.bracket)}</span>`:""}</div><div class="d">${esc(t.d)}</div></div>`).join("");
+ $("#kpis").querySelectorAll("[data-href]").forEach(el=>el.onclick=()=>{if(el.dataset.href!=="#/overview")location.hash=el.dataset.href});attention()}
 function attention(){const el=$("#kpiAttn");if(!el||!LAST.notifs)return;const n=LAST.notifs.filter(x=>x.tone==="critical"||x.tone==="serious").length;
  el.className=`kpi ${n?"critical":"good"}`;el.querySelector(".v").textContent=String(n)}
 

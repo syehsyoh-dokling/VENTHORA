@@ -140,9 +140,10 @@ class WebhookStore:
             return {r["state"]: r["n"] for r in c.execute("SELECT state, COUNT(*) AS n FROM webhook_events GROUP BY state")}
 
     def pending(self) -> list[dict]:
-        """Events acknowledged but never re-read (the server stopped in between)."""
+        """Events acknowledged but never re-read (the server stopped in between), and mismatches, which a later read
+        may resolve (the API catches up, or the event turns out to be an earlier step arriving late)."""
         with self._connect() as c:
-            return [dict(r) for r in c.execute("SELECT * FROM webhook_events WHERE state = 'RECEIVED' ORDER BY received_at")]
+            return [dict(r) for r in c.execute("SELECT * FROM webhook_events WHERE state IN ('RECEIVED', 'MISMATCH') ORDER BY received_at")]
 
 
 async def confirm_pending(store: WebhookStore, bank, publish=None) -> int:
@@ -177,6 +178,16 @@ async def authoritative_status(bank, kind: str, object_id: str) -> str | None:
 # before the deposit could be read back. A record that is missing or still behind the event is read again.
 RETRY_DELAYS_S = (2.0, 4.0, 8.0)
 
+# Events also arrive out of order: seen live, payout.transfer.sent / .processing landed after the transfer was already
+# PAID. A record that has moved past the event to a final status is the event overtaken, not a contradiction.
+FINAL = {"transfer": {"PAID", "FAILED", "CANCELLED"}, "deposit": {"SETTLED", "REJECTED", "REVERSED"},
+         "conversion": {"SETTLED", "CANCELLED"}}
+
+
+def overtaken(kind: str, claimed: str, status: str) -> bool:
+    final = FINAL.get(kind, set())
+    return bool(claimed) and claimed not in final and status.upper() in final
+
 
 async def confirm_event(store: WebhookStore, bank, ev: dict) -> dict:
     """Re-read the object from Airwallex and store what the API says, not what the event said."""
@@ -196,13 +207,16 @@ async def confirm_event(store: WebhookStore, bank, ev: dict) -> dict:
             status, error = await authoritative_status(bank, ev["kind"], ev["object_id"]), None
         except Exception as exc:  # noqa: BLE001 - any failure leaves the event unconfirmed; polling still catches the change
             status, error = None, exc
-        if status is not None and (not claimed or claimed == status.upper()):
+        if status is not None and (not claimed or claimed == status.upper() or overtaken(ev["kind"], claimed, status)):
             break
     after = f" (after {reads} reads)" if reads > 1 else ""
     if error is not None:
         return store.confirm(ev["event_id"], state="UNCONFIRMED", confirmed_status=None, note=f"re-read failed{after}: {error}")
     if status is None:
         return store.confirm(ev["event_id"], state="UNCONFIRMED", confirmed_status=None, note=f"Airwallex has no such record{after}")
+    if claimed and claimed != status.upper() and overtaken(ev["kind"], claimed, status):
+        return store.confirm(ev["event_id"], state="CONFIRMED", confirmed_status=status,
+                             note=f"an earlier step ({claimed}) arriving late: Airwallex is already at {status}")
     if claimed and claimed != status.upper():
         return store.confirm(ev["event_id"], state="MISMATCH", confirmed_status=status,
                              note=f"event said {claimed}, the API says {status}{after}: the API wins")

@@ -820,6 +820,7 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
                                   model) if model.configured else {}
     req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals)
     if not dry_run:
+        app.state.position_cache = None  # a new bill or remittance changes the position
         app.state.hub.publish("intake", {"channel": channel} | req.model_dump(include={
             "intake_id", "kind", "status", "trust", "sender", "counterparty_name", "amount_minor", "currency", "invoice_no",
             "reader", "flags"}))
@@ -994,6 +995,34 @@ async def list_executions(limit: int = Query(30, ge=1, le=200)):
     return app.state.executor.store.list_executions(limit)
 
 
+POSITION_TTL_S = 20.0
+
+
+@app.get("/v1/treasury/position")
+async def treasury_position(fresh: bool = False):
+    """The wallet now and what is about to change it: available (with what is processing out), bills not yet paid,
+    pending deposits, and incoming payments not yet cleared, per currency and in the base currency. Read from
+    Airwallex at most every 20 s (a webhook clears the cache, so a status change shows at once)."""
+    import time
+
+    from . import position
+
+    cache = getattr(app.state, "position_cache", None)
+    if cache and not fresh and time.monotonic() - cache["at"] < POSITION_TTL_S:
+        return cache["value"]
+    reg = app.state.intake.registry
+    customers = {n for p in reg.payers.values() for n in [p["name"], *p.get("aliases", [])]}
+    try:
+        value = await position.fetch(_bank(), intake=app.state.intake, store=app.state.executor.store, customers=customers,
+                                     base=app.state.org.standards()["base_currency"],
+                                     rate_cache=app.state.__dict__.setdefault("rate_cache", {}))
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+    value["as_of"] = datetime.now(UTC).isoformat(timespec="seconds")
+    app.state.position_cache = {"at": time.monotonic(), "value": value}
+    return value
+
+
 @app.get("/api/airwallex/balances")
 async def airwallex_balances():
     try:
@@ -1060,6 +1089,7 @@ async def airwallex_webhook(request: Request, background: BackgroundTasks):
 
 async def _confirm_webhook(ev: dict) -> None:
     row = await webhooks.confirm_event(app.state.webhooks, app.state.agent.proof.airwallex, ev)
+    app.state.position_cache = None  # the wallet may have changed: the next read goes to Airwallex
     app.state.hub.publish("webhook", row)
 
 

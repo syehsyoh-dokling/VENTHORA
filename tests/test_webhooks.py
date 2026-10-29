@@ -104,6 +104,14 @@ def test_api_wins_over_the_event(tmp_path):
     assert "the API wins" in row["note"]
 
 
+def test_a_late_earlier_step_is_not_a_mismatch(tmp_path):
+    # seen live: payout.transfer.sent arrived after the transfer was already PAID
+    bank = _Bank(transfer_status="PAID")
+    row = _confirm(tmp_path, _event(name="payout.transfer.sent", obj={"id": "tr_9", "status": "SENT"}), bank)
+    assert row["state"] == "CONFIRMED" and row["confirmed_status"] == "PAID" and "arriving late" in row["note"]
+    assert "after" not in row["note"]  # accepted on the first read, no retries
+
+
 def test_confirmed_deposit_and_unknown_record(tmp_path):
     body = _event(eid="evt_d", name="deposit.settled", obj={"id": "dep_9", "status": "SETTLED", "amount": 10000})
     row = _confirm(tmp_path, body, _Bank(deposits=[{"id": "dep_9", "status": "SETTLED"}]))
