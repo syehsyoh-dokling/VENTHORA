@@ -221,6 +221,26 @@ python scripts/register_webhook.py https://<public-host>   # subscribe via the A
 new host when the tunnel URL changes. It writes the returned secret to `AWX_WEBHOOK_SECRET` in `.env` without printing
 it, so restart the API afterwards. Webhooks created through the API do not appear in the web app; list them with
 `--show`.
+
+**Live on the sandbox (29 Oct 2026), through a Cloudflare quick tunnel and the gateway.** A real sandbox deposit of
+USD 3,456 was created at 06:21:51 UTC. Airwallex delivered `deposit.settled` through the tunnel at 06:22:23. The
+signature was valid, and the API confirmed `SETTLED` 0.2 s later. The dashboard's stream showed `RECEIVED`, then
+`CONFIRMED`.
+
+From the public URL, `/`, `/live`, `/docs`, `/v1/org/users`, `/api/stream`, `/api/airwallex/balances` and
+`POST /v1/executions` all returned `404`.
+
+The first real deliveries showed two things the code now handles:
+- For API version 2025-02-14, the deposit is the event's `data` itself, not `data.object`.
+- A push can arrive 2 s after the deposit is created, before `GET /api/v1/deposits/{id}` can see it. The re-read is
+  therefore repeated after 2, 4 and 8 s before an event is left `UNCONFIRMED`.
+
+Re-run with both fixes on a USD 1,111 deposit made through `POST /api/sandbox/deposits`. The push arrived 1.7 s after
+the deposit was created. The first read did not find the deposit yet; the second read, 2 s later, confirmed it
+`SETTLED`.
+
+A quick tunnel's URL changes on every start. Run `register_webhook.py` again with the new URL, and it moves the same
+subscription.
 Checked on the real sandbox (29 Oct 2026):
 - A signed `deposit.settled` for a real deposit was acknowledged in 20 ms and confirmed `SETTLED` by the API.
 - An unknown transfer stayed `UNCONFIRMED` because Airwallex answered "Transfer not found".

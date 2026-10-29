@@ -1,9 +1,14 @@
 import asyncio
 import copy
 import json
+import os
 from pathlib import Path
 
 import pytest
+
+# Set before any test imports venthora.api, whose import reads .env: the suite must never see the developer's
+# credentials or webhook secret, whichever test happens to import the API first.
+os.environ["VENTHORA_NO_DOTENV"] = "1"
 
 SCENARIOS = Path(__file__).resolve().parents[1] / "data" / "scenarios"
 ISOLATED_ENV = ["AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "AIRWALLEX_BASE_URL", "AIRWALLEX_GLOBAL_ACCOUNT_ID",

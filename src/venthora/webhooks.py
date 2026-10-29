@@ -34,7 +34,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS webhook_events (
     event_id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, object_id TEXT,
     claimed_status TEXT, confirmed_status TEXT, state TEXT NOT NULL, note TEXT,
-    amount TEXT, currency TEXT, created_at TEXT, received_at TEXT NOT NULL, confirmed_at TEXT);
+    amount TEXT, currency TEXT, created_at TEXT, received_at TEXT NOT NULL, confirmed_at TEXT, data_json TEXT);
 """
 
 
@@ -83,13 +83,15 @@ def parse(body: bytes) -> dict:
     event = json.loads(body)
     if not isinstance(event, dict) or not event.get("id") or not event.get("name"):
         raise ValueError("an event needs an id and a name")
-    obj = ((event.get("data") or {}).get("object") or {}) if isinstance(event.get("data"), dict) else {}
+    data = event.get("data") if isinstance(event.get("data"), dict) else {}
+    # The resource sits in data.object in the documented envelope; some API versions send it as data itself.
+    obj = data["object"] if isinstance(data.get("object"), dict) else data
     amount = obj.get("amount", obj.get("buy_amount", obj.get("transfer_amount")))
     return {"event_id": str(event["id"]), "name": str(event["name"]), "kind": kind_of(str(event["name"])),
             "object_id": str(obj.get("id") or obj.get("transfer_id") or obj.get("conversion_id") or "") or None,
             "claimed_status": obj.get("status"), "amount": None if amount is None else str(amount),
             "currency": obj.get("currency") or obj.get("transfer_currency") or obj.get("buy_currency"),
-            "created_at": event.get("created_at")}
+            "created_at": event.get("created_at"), "data_json": json.dumps(data, sort_keys=True)[:20_000]}
 
 
 class WebhookStore:
@@ -99,6 +101,8 @@ class WebhookStore:
         self._lock = threading.RLock()
         with self._connect() as c:
             c.executescript(SCHEMA)
+            if "data_json" not in {r[1] for r in c.execute("PRAGMA table_info(webhook_events)")}:
+                c.execute("ALTER TABLE webhook_events ADD COLUMN data_json TEXT")  # stores made before the column
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)
@@ -106,13 +110,13 @@ class WebhookStore:
         return conn
 
     def record(self, ev: dict) -> bool:
-        """Store a new event; False when the event id was already received (a retry or a duplicate)."""
+        """Store a new event, with its business data as received; False when the event id was already received."""
         with self._lock, self._connect() as c:
             cur = c.execute("INSERT OR IGNORE INTO webhook_events (event_id, name, kind, object_id, claimed_status, state, "
-                            "amount, currency, created_at, received_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                            "amount, currency, created_at, received_at, data_json) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                             (ev["event_id"], ev["name"], ev["kind"], ev["object_id"], ev["claimed_status"],
                              "RECEIVED" if ev["kind"] != "other" else "IGNORED", ev["amount"], ev["currency"],
-                             ev["created_at"], _now()))
+                             ev["created_at"], _now(), ev.get("data_json")))
             return cur.rowcount == 1
 
     def confirm(self, event_id: str, *, state: str, confirmed_status: str | None, note: str) -> dict:
@@ -153,13 +157,25 @@ async def confirm_pending(store: WebhookStore, bank, publish=None) -> int:
 
 async def authoritative_status(bank, kind: str, object_id: str) -> str | None:
     """The status Airwallex's own API reports for the object (None when it cannot be found)."""
-    if kind == "transfer":
-        return (await bank.get_transfer(object_id)).status
-    if kind == "conversion":
-        return (await bank.get_conversion(object_id)).status
-    if kind == "deposit":
-        return next((d.get("status") for d in await bank.list_deposits() if str(d.get("id")) == object_id), None)
+    from .gateways.airwallex import AirwallexError
+
+    try:
+        if kind == "transfer":
+            return (await bank.get_transfer(object_id)).status
+        if kind == "conversion":
+            return (await bank.get_conversion(object_id)).status
+        if kind == "deposit":
+            return (await bank.get_deposit(object_id)).get("status")
+    except AirwallexError as exc:
+        if exc.status == 404:
+            return None
+        raise
     return None
+
+
+# The push can outrun the API: on the real sandbox a deposit.settled arrived 2 s after the deposit was created,
+# before the deposit could be read back. A record that is missing or still behind the event is read again.
+RETRY_DELAYS_S = (2.0, 4.0, 8.0)
 
 
 async def confirm_event(store: WebhookStore, bank, ev: dict) -> dict:
@@ -171,17 +187,26 @@ async def confirm_event(store: WebhookStore, bank, ev: dict) -> dict:
     if not bank.configured:
         return store.confirm(ev["event_id"], state="UNCONFIRMED", confirmed_status=None,
                              note="Airwallex credentials not configured: the claim was not checked")
-    try:
-        status = await authoritative_status(bank, ev["kind"], ev["object_id"])
-    except Exception as exc:  # noqa: BLE001 - any failure leaves the event unconfirmed; polling still catches the change
-        return store.confirm(ev["event_id"], state="UNCONFIRMED", confirmed_status=None, note=f"re-read failed: {exc}")
-    if status is None:
-        return store.confirm(ev["event_id"], state="UNCONFIRMED", confirmed_status=None, note="Airwallex has no such record")
     claimed = (ev["claimed_status"] or "").upper()
+    status, error, reads = None, None, 0
+    for delay in (0.0, *RETRY_DELAYS_S):
+        await asyncio.sleep(delay)
+        reads += 1
+        try:
+            status, error = await authoritative_status(bank, ev["kind"], ev["object_id"]), None
+        except Exception as exc:  # noqa: BLE001 - any failure leaves the event unconfirmed; polling still catches the change
+            status, error = None, exc
+        if status is not None and (not claimed or claimed == status.upper()):
+            break
+    after = f" (after {reads} reads)" if reads > 1 else ""
+    if error is not None:
+        return store.confirm(ev["event_id"], state="UNCONFIRMED", confirmed_status=None, note=f"re-read failed{after}: {error}")
+    if status is None:
+        return store.confirm(ev["event_id"], state="UNCONFIRMED", confirmed_status=None, note=f"Airwallex has no such record{after}")
     if claimed and claimed != status.upper():
         return store.confirm(ev["event_id"], state="MISMATCH", confirmed_status=status,
-                             note=f"event said {claimed}, the API says {status}: the API wins")
-    return store.confirm(ev["event_id"], state="CONFIRMED", confirmed_status=status, note="confirmed by the Airwallex API")
+                             note=f"event said {claimed}, the API says {status}{after}: the API wins")
+    return store.confirm(ev["event_id"], state="CONFIRMED", confirmed_status=status, note=f"confirmed by the Airwallex API{after}")
 
 
 class Hub:

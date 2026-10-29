@@ -255,6 +255,9 @@ class Airwallex:
         body = await self._request("GET", "/api/v1/deposits")
         return body.get("items", body) if isinstance(body, dict) else body
 
+    async def get_deposit(self, deposit_id: str) -> dict:
+        return await self._request("GET", f"/api/v1/deposits/{deposit_id}")
+
     async def list_global_accounts(self) -> list[dict]:
         body = await self._request("GET", "/api/v1/global_accounts")
         return body.get("items", body) if isinstance(body, dict) else body

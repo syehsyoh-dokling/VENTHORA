@@ -27,7 +27,7 @@ def test_execution_api_refuses_without_sandbox_credentials():
         plan = client.post("/v1/plans", json=state).json()
         res = client.post("/v1/executions", json={"state": state, "plan_hash": plan["plan_hash"]})
         assert res.status_code == 200 and res.json()["status"] == "REFUSED"
-        assert client.post("/api/sandbox/deposits", json={"amount_minor": 100}).status_code == 400
+        assert client.post("/api/sandbox/deposits", json={"amount_minor": 100}).status_code == 503
         assert client.get("/v1/executions/unknown").status_code == 404
 
 

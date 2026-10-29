@@ -4,9 +4,11 @@ import json
 import time
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
 from venthora import webhooks
+from venthora.gateways.airwallex import AirwallexError
 
 SECRET = "whsec_test_only"
 
@@ -64,11 +66,16 @@ def test_endpoint_refuses_and_dedupes(monkeypatch):
         assert SECRET not in json.dumps(status)
 
 
+@pytest.fixture(autouse=True)
+def no_wait(monkeypatch):
+    monkeypatch.setattr(webhooks, "RETRY_DELAYS_S", (0.0, 0.0, 0.0))
+
+
 class _Bank:
     configured = True
 
-    def __init__(self, transfer_status="PROCESSING", deposits=()):
-        self.transfer_status, self.deposits = transfer_status, list(deposits)
+    def __init__(self, transfer_status="PROCESSING", deposits=(), visible_after=1):
+        self.transfer_status, self.deposits, self.visible_after, self.reads = transfer_status, list(deposits), visible_after, 0
 
     async def get_transfer(self, tid):
         return SimpleNamespace(status=self.transfer_status)
@@ -76,8 +83,12 @@ class _Bank:
     async def get_conversion(self, cid):
         return SimpleNamespace(status="SETTLED")
 
-    async def list_deposits(self):
-        return self.deposits
+    async def get_deposit(self, did):
+        self.reads += 1
+        found = next((d for d in self.deposits if d["id"] == did), None)
+        if found is None or self.reads < self.visible_after:
+            raise AirwallexError("Deposit not found", status=404)
+        return found
 
 
 def _confirm(tmp_path, body, bank):
@@ -99,7 +110,25 @@ def test_confirmed_deposit_and_unknown_record(tmp_path):
     assert row["state"] == "CONFIRMED" and row["confirmed_status"] == "SETTLED"
     body = _event(eid="evt_x", name="deposit.settled", obj={"id": "dep_404", "status": "SETTLED"})
     row = _confirm(tmp_path / "x", body, _Bank(deposits=[]))
-    assert row["state"] == "UNCONFIRMED" and row["note"] == "Airwallex has no such record"
+    assert row["state"] == "UNCONFIRMED" and row["note"] == "Airwallex has no such record (after 4 reads)"
+
+
+def test_push_that_outruns_the_api_is_read_again(tmp_path):
+    # observed on the real sandbox: deposit.settled arrived 2 s after creation, before GET could see the deposit
+    body = _event(eid="evt_r", name="deposit.settled", obj={"id": "dep_7", "status": "SETTLED"})
+    bank = _Bank(deposits=[{"id": "dep_7", "status": "SETTLED"}], visible_after=3)
+    row = _confirm(tmp_path, body, bank)
+    assert row["state"] == "CONFIRMED" and row["note"] == "confirmed by the Airwallex API (after 3 reads)" and bank.reads == 3
+
+
+def test_real_sandbox_envelope_has_the_deposit_as_data():
+    # shape received from the sandbox for API version 2025-02-14: no data.object wrapper
+    body = json.dumps({"id": "evt_s", "name": "deposit.settled", "data": {
+        "amount": 2500, "currency": "USD", "id": "5dc96d22", "status": "SETTLED", "type": "BANK_TRANSFER",
+        "payer": {"name": "Webhook test payer"}, "global_account_id": "ga"}}).encode()
+    ev = webhooks.parse(body)
+    assert (ev["object_id"], ev["claimed_status"], ev["amount"], ev["currency"]) == ("5dc96d22", "SETTLED", "2500", "USD")
+    assert json.loads(ev["data_json"])["type"] == "BANK_TRANSFER"
 
 
 def test_hub_fans_out():

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def load_env(path: Path | None = None) -> None:
     path = path or ROOT / ".env"
-    if not path.is_file():
+    if os.getenv("VENTHORA_NO_DOTENV") or not path.is_file():  # the test suite never reads the developer's .env
         return
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()

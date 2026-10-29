@@ -609,7 +609,7 @@ const whTitle=e=>`${e.kind==="deposit"?"Incoming payment":e.kind==="transfer"?"T
 const whDetail=e=>`${e.amount?`${esc(e.currency||"")} ${esc(e.amount)} · `:""}${esc(e.note||"waiting for the Airwallex API")}`;
 async function notifications(){const [wh,rc,inc,ink,pay,bud,tree]=await Promise.all([settle(api("/v1/webhooks/events?limit=10")),settle(api("/v1/recon-cases")),settle(api("/v1/incidents")),
   settle(api("/v1/intake")),settle(api("/v1/payees")),settle(budgetSnapshot()),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`))]);
- const n=[];const rank={critical:0,serious:1,warn:2,good:3,"":4};
+ const n=[];const rank={critical:0,serious:1,warn:2,good:2,"":2};  // what needs a person is pinned; the rest is newest first
  if(rc.ok)rc.v.filter(c=>c.status==="OPEN").forEach(c=>n.push({tone:"critical",ic:"⛔",t:`Book ${c.book_id} locked`,x:"Reconciliation found a difference with Airwallex; a person must close the case.",w:c.opened_at,href:"#/executions"}));
  if(inc.ok)inc.v.filter(i=>i.status!=="RESOLVED").forEach(i=>n.push({tone:"serious",ic:"⚠",t:`Payment incident · ${i.obligation_id}`,x:`${i.decision||"open"}${i.failure_type?` · ${i.failure_type.toLowerCase().replaceAll("_"," ")}`:""}`,w:i.updated_at,href:"#/executions"}));
  if(pay.ok)pay.v.filter(p=>p.status==="CHANGED"||p.status==="SUSPENDED").forEach(p=>n.push({tone:"serious",ic:"⚑",t:`Payee ${p.beneficiary_id} ${p.status.toLowerCase()}`,x:p.status==="CHANGED"?"Bank details changed: never paid until a call-back on the registered number.":"Suspended: no payments.",w:p.changed_at,href:"#/payees"}));
@@ -755,16 +755,19 @@ const WH_EVENTS=["deposit.pending","deposit.settled","deposit.rejected","deposit
 async function webhookView(){try{const [s,ev]=await Promise.all([api("/v1/webhooks/status"),api("/v1/webhooks/events?limit=50")]);
  $("#whBadge").innerHTML=s.secret_configured?'<span class="pill good">ENABLED</span>':`<span class="pill warn">SECRET NOT SET</span>`;
  const total=Object.values(s.counts).reduce((a,b)=>a+b,0);
- $("#whStatus").innerHTML=`<dl class="kv"><dt>Endpoint</dt><dd><code>${esc(location.origin)}${esc(s.endpoint)}</code></dd>
+ const subs=s.subscriptions;
+ $("#whStatus").innerHTML=`<dl class="kv"><dt>Airwallex calls</dt><dd>${subs==null?'<span class="muted">not readable (Airwallex not configured)</span>':subs.length?subs.map(x=>`<code>${esc(x.url)}</code> <span class="small muted">${x.events} events</span>`).join("<br>"):'<span class="err">no subscription yet</span>'}</dd>
+   <dt>Private API</dt><dd><code>${esc(location.origin)}${esc(s.endpoint)}</code> <span class="small muted">never exposed</span></dd>
    <dt>Signing secret</dt><dd>${s.secret_configured?"configured (AWX_WEBHOOK_SECRET)":'<span class="err">not set: every event is refused</span>'}</dd>
    <dt>Re-read from</dt><dd>${s.airwallex_configured?"Airwallex sandbox API":'<span class="err">Airwallex not configured: events stay unconfirmed</span>'}</dd>
    <dt>Replay window</dt><dd>${s.replay_window_s} s</dd><dt>Events</dt><dd>${total} ${Object.entries(s.counts).map(([k,v])=>`· ${v} ${k.toLowerCase()}`).join(" ")}</dd>
    <dt>Dashboards listening</dt><dd>${s.listeners}</dd></dl>
-  <h3 class="small muted" style="margin:16px 0 6px">Set up in the Airwallex web app</h3>
-  <ol class="small" style="padding-left:18px;margin:0;line-height:1.7"><li>Expose this server on a public HTTPS address (a deployed host, or a tunnel such as ngrok for testing).</li>
-   <li>Developer → Webhooks → add the public URL ending in <code>/webhooks/airwallex</code>.</li><li>Copy the endpoint's secret into <code>AWX_WEBHOOK_SECRET</code> in <code>.env</code> and restart.</li>
-   <li>Subscribe to: ${WH_EVENTS.map(e=>`<code>${e}</code>`).join(" ")}</li></ol>
-  <p class="muted small">Each event is checked (signature, freshness, once only), then the record is read again from the Airwallex API. Polling remains the fallback, and no event moves money or changes a book.</p>`;
+  <h3 class="small muted" style="margin:16px 0 6px">Set up (no web-app login needed)</h3>
+  <ol class="small" style="padding-left:18px;margin:0;line-height:1.7"><li>Start the webhook-only gateway: <code>python scripts/webhook_gateway.py --port 8002</code>. It forwards <code>POST /webhooks/airwallex</code> and answers 404 to everything else.</li>
+   <li>Point a tunnel at the gateway, never at this API: <code>cloudflared tunnel --url http://localhost:8002</code>.</li>
+   <li>Subscribe through the Airwallex API: <code>python scripts/register_webhook.py https://&lt;tunnel-host&gt;</code>. It writes the secret to <code>.env</code> without showing it; then restart the API.</li>
+   <li>Events subscribed: ${WH_EVENTS.map(e=>`<code>${e}</code>`).join(" ")}</li></ol>
+  <p class="muted small">Each event is checked (signature, freshness, once only), then the record is read again from the Airwallex API, again after 2, 4 and 8 s when the push outruns it. Polling remains the fallback, and no event moves money or changes a book.</p>`;
  $("#whEvents").innerHTML=table([{h:"Received",f:e=>`<span class="small">${esc(e.received_at.slice(0,19).replace("T"," "))}</span>`},{h:"Event",f:e=>`<span class="mono">${esc(e.name)}</span>`},
   {h:"Object",f:e=>`<span class="mono small">${esc((e.object_id||"-").slice(0,14))}</span>`},{h:"Event said",f:e=>esc(e.claimed_status||"-")},{h:"Airwallex API",f:e=>e.confirmed_status?`<b>${esc(e.confirmed_status)}</b>`:"-"},
   {h:"Result",f:e=>`<span class="pill ${WH_TONE[e.state]||""}">${esc(e.state)}</span>`},{h:"Note",f:e=>`<span class="small">${esc(e.note||"")}</span>`}],ev,"No events yet. They appear here, and on the overview, the moment Airwallex sends them.")}

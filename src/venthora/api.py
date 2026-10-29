@@ -24,7 +24,6 @@ from pydantic import BaseModel, Field  # noqa: E402
 from . import live as live_session  # noqa: E402
 from . import webhooks  # noqa: E402
 from .aging import evaluate as aging_evaluate  # noqa: E402
-from .config import env  # noqa: E402
 from .domain.models import PlanResult, TreasuryState  # noqa: E402
 from .engines.llm_planner import llm_proposal  # noqa: E402
 from .evidence.llm import ChatModel  # noqa: E402
@@ -953,10 +952,12 @@ class DepositRequest(BaseModel):
 @app.post("/api/sandbox/deposits")
 async def simulate_deposit(req: DepositRequest):
     """Sandbox: simulate an incoming customer payment (Kit 01 'simulate the deposit')."""
-    account = req.global_account_id or env("AIRWALLEX_GLOBAL_ACCOUNT_ID")
-    if not account:
-        raise HTTPException(400, "set AWX_GLOBAL_ACCOUNT_ID or pass global_account_id")
+    from .cli import usd_global_account
+
     try:
+        # The same choice as the demo: a configured id is used only when it is a primary-USD Global Account
+        # (observed: a stale AWX_GLOBAL_ACCOUNT_ID made every simulated deposit fail with "could not be processed").
+        account = req.global_account_id or await usd_global_account(_bank(), fake=False)
         result = await _bank().simulate_deposit(global_account_id=account, amount_minor=req.amount_minor,
                                                 payer_name=req.payer_name)
     except AirwallexError as exc:
@@ -998,10 +999,16 @@ async def _confirm_webhook(ev: dict) -> None:
 @app.get("/v1/webhooks/status")
 async def webhook_status():
     rows = app.state.webhooks.list(1)
+    bank = app.state.agent.proof.airwallex
+    subscriptions = None  # what Airwallex will call; API-created webhooks are not shown in its web app
+    if bank.configured:
+        with contextlib.suppress(Exception):  # best effort: the page still shows the local state
+            subscriptions = [{"url": h.get("url"), "events": len(h.get("events") or []), "version": h.get("version")}
+                             for h in await bank.list_webhooks() if str(h.get("url", "")).endswith("/webhooks/airwallex")]
     return {"endpoint": "/webhooks/airwallex", "secret_configured": bool(webhooks.secret()),
-            "airwallex_configured": app.state.agent.proof.airwallex.configured, "replay_window_s": webhooks.TOLERANCE_S,
+            "airwallex_configured": bank.configured, "replay_window_s": webhooks.TOLERANCE_S,
             "counts": app.state.webhooks.counts(), "last_received_at": rows[0]["received_at"] if rows else None,
-            "listeners": app.state.hub.listeners}
+            "listeners": app.state.hub.listeners, "subscriptions": subscriptions}
 
 
 @app.get("/v1/webhooks/events")
