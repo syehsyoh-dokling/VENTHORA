@@ -948,11 +948,22 @@ async def plan_with_intake(req: IntakePlanRequest):
 
 
 @app.get("/v1/intake/state/{scenario_id}", response_model=TreasuryState)
-async def intake_state(scenario_id: str, as_of: str | None = None):
+async def intake_state(scenario_id: str, as_of: str | None = None, live: bool = False):
+    """The book with the intake queue added. live=true grounds it in the sandbox's live balances (ring-fenced to the
+    book's allocation), today's indicative rates and what earlier runs taught (fees), as the CLI does before it pays:
+    a plan on a scenario's stored rates is refused at execution by the slippage check (seen in the demo cases)."""
     data = json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
     base = TreasuryState.model_validate(data["state"])
     day = datetime.fromisoformat(as_of).date() if as_of else datetime.now(UTC).date()
-    return app.state.intake.to_state(base, as_of=day)
+    state = app.state.intake.to_state(base, as_of=day)
+    if not live:
+        return state
+    try:
+        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+    state, _ = apply_operational_facts(state, app.state.executor.store)
+    return state
 
 
 # -- dashboard data ----------------------------------------------------------------------------
@@ -1259,7 +1270,7 @@ async def purchase_orders():
     paid_fp = {r["invoice_fingerprint"] for r in pay.po_payments()}
     pending: dict[str, dict[str, int]] = {}
     for r in intake.store.list(1000):
-        if r.po_number and r.status in ("VERIFIED", "NEEDS_REVIEW") and r.invoice_fingerprint not in paid_fp and r.amount_minor:
+        if r.po_number and procurement.holds(r, paid_fp):
             key = r.installment or r.intake_id
             pending.setdefault(r.po_number, {})[key] = pending.get(r.po_number, {}).get(key, 0) + r.amount_minor
     out = []

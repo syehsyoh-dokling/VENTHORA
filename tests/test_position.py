@@ -41,8 +41,23 @@ def test_position_from_wallet_transfers_deposits_and_queue():
     assert p["deposits_pending"]["count"] == 1 and p["deposits_pending"]["base_minor"] == 500_000
     inc = p["incoming_uncleared"]
     assert (inc["arrived_count"], inc["announced_count"]) == (1, 1) and inc["base_minor"] == 100_000 + 220_000
-    assert p["after_all_base_minor"] == 2_550_000 - 41_000 - 310_000 + 500_000 + 320_000
+    assert p["after_all_base_minor"] == 2_550_000 - 310_000 + 500_000 + 320_000  # processing is already out of available
     assert p["missing_rates"] == []
+
+
+def test_an_older_deposit_does_not_hide_a_new_announcement():
+    # seen live: Acme had paid USD 6,500 on 23 Oct; a new USD 6,500 remittance announced on 29 Oct must still show
+    old = {"status": "SETTLED", "currency": "USD", "amount": 6500.0, "payer": {"name": "Acme Retail Ltd"}, "id": "d-old",
+           "created_at": "2026-10-23T01:30:34+0000"}
+    new_notice = req("remittance_notice", "VERIFIED", 650_000, "USD", "Acme Retail Ltd")
+    new_notice.received_at = "2026-10-29T14:00:00+00:00"
+    p = compose(balances={}, rates={}, base="USD", transfers=[], deposits=[old], requests=[new_notice],
+                paid_fingerprints=set(), customers={"Acme Retail Ltd"})
+    assert p["incoming_uncleared"]["announced_count"] == 1 and p["incoming_uncleared"]["base_minor"] == 650_000
+    later = old | {"id": "d-new", "created_at": 1793283000000}  # epoch ms, as webhook data carries it: after the notice
+    p = compose(balances={}, rates={}, base="USD", transfers=[], deposits=[old, later], requests=[new_notice],
+                paid_fingerprints=set(), customers={"Acme Retail Ltd"})
+    assert p["incoming_uncleared"]["announced_count"] == 0
 
 
 def test_missing_rate_is_reported_not_guessed():
@@ -51,6 +66,28 @@ def test_missing_rate_is_reported_not_guessed():
                 transfers=[], deposits=[], requests=[], paid_fingerprints=set(), customers=set())
     assert p["available"]["base_minor"] == 100 and p["available"]["wallet"][0]["available_base_minor"] is None
     assert p["missing_rates"] == ["SGD"]
+
+
+def test_transfer_list_counts_each_transfer_once(monkeypatch):
+    # seen on the sandbox: page_num 0 and 1 return the same page, which counted every processing transfer twice
+    import asyncio
+
+    import httpx
+
+    from venthora.gateways.airwallex import Airwallex
+
+    monkeypatch.setenv("AWX_CLIENT_ID", "c")
+    monkeypatch.setenv("AWX_API_KEY", "k")
+    page = {"items": [{"id": f"t{i}", "status": "PROCESSING"} for i in range(100)], "has_more": True}
+
+    def handler(request):
+        if request.url.path.endswith("/authentication/login"):
+            return httpx.Response(200, json={"token": "x", "expires_at": "2099-01-01T00:00:00+0000"})
+        return httpx.Response(200, json=page)
+    bank = Airwallex(base_url="https://api-demo.airwallex.com",
+                     client=httpx.AsyncClient(base_url="https://api-demo.airwallex.com", transport=httpx.MockTransport(handler)))
+    got = asyncio.run(bank.list_transfers(pages=3))
+    assert len(got) == 100 and len({t["id"] for t in got}) == 100
 
 
 def test_endpoint_needs_airwallex():

@@ -57,11 +57,25 @@ The top row is the treasury position (`GET /v1/treasury/position`). Each tile ha
 
 | Tile | Source |
 |---|---|
-| **Available balance** | Airwallex `available_amount` per currency: the old balance, plus settled deposits, plus received payments. Transfers Airwallex has not finished show in brackets (`−… processing`). |
+| **Available balance** | Airwallex `available_amount` per currency: the old balance, plus settled deposits, plus received payments. Transfers Airwallex has not finished show in brackets (`… processing, already out`). Airwallex takes a transfer out of the available balance when it is created (checked on the sandbox), so it is shown, not subtracted again. |
 | **Bills to pay** | Invoices in the queue that are not paid yet, split into ready to pay and waiting for a person. They will reduce the balance. |
 | **Pending deposits** | Deposits Airwallex holds as `PENDING` from anyone who is not a registered customer, such as a top-up from the company's own bank. |
 | **Incoming payments, not cleared** | `PENDING` deposits from registered customers, plus customer remittances that were announced but have not arrived. |
-| **Outlook** | Available − processing − bills + deposits + incoming. This is an outlook, not spendable money. |
+| **Outlook** | Available − bills + pending deposits + incoming. This is an outlook, not spendable money. |
+
+`python scripts/demo_review_cases.py --to https://<tunnel-host> --processing --approve` fills every tile on the real
+sandbox. It sends eleven emails through the inbound mail webhook and judges each outcome against the tests'
+expectations (`tests/test_review_cases.py`). Of the eleven:
+- two clean invoices become bills ready to pay;
+- seven stop for a person, each for a reason quoted from the email or PDF: no PO, more than the PO has left, an amount
+  that is no term, totals that do not add up, new bank details, pressure to pay today, and a staff travel claim;
+- one customer announces a payment;
+- one forged email is quarantined.
+
+The runner then pays what is ready on the live-grounded intake-only book
+(`GET /v1/intake/state/intake_only?live=true`) and leaves the transfers in flight, so the tiles show processing.
+Last run (29 Oct 2026): 11 of 11 as expected; 4 transfers processing (USD 5,050 and GBP 450); 5 bills waiting for a
+person (USD 24,193.72); USD 6,500 announced, not yet arrived.
 
 Amounts are converted to the base currency at Airwallex's indicative rates, and a currency without a rate is named,
 not guessed. Airwallex is read at most every 20 s, and a webhook or new email clears that cache, so the row updates the

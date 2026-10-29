@@ -14,23 +14,7 @@ from venthora.intake import documents, reader
 from venthora.intake.models import ReviewRequest
 from venthora.intake.pipeline import Intake, IntakeStore
 from venthora.organisation import OrgStore
-
-
-def make_pdf(lines: list[str]) -> bytes:
-    """A minimal text-based PDF (one page, Helvetica), like an invoice exported from an accounting system."""
-    esc = [ln.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)") for ln in lines]
-    stream = "BT /F1 11 Tf 50 780 Td 14 TL " + " ".join(f"({t}) Tj T*" for t in esc) + " ET"
-    objs = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
-            f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
-    out, offsets = b"%PDF-1.4\n", []
-    for i, body in enumerate(objs, 1):
-        offsets.append(len(out))
-        out += f"{i} 0 obj\n{body}\nendobj\n".encode("latin-1")
-    xref = len(out)
-    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode() + b"".join(f"{o:010d} 00000 n \n".encode() for o in offsets)
-    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
-    return out
+from venthora.testing.pdfs import make_pdf
 
 
 def email(sender: str, subject: str, body: str, *, date="Fri, 24 Oct 2026 09:00:00 +0000", pdf: bytes | None = None,

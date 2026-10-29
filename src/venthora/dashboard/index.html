@@ -642,11 +642,11 @@ async function kpis(){const pos=await settle(api("/v1/treasury/position"));const
  if(pos.ok){const P=pos.v,B=P.base_currency,b=m=>`${B} ${short(m)}`,full=m=>fmt(m,B);
   const cc=o=>Object.entries(o||{}).map(([c,v])=>fmt(v,c)).join(" · ");
   const out=P.processing_out,bill=P.bills_unpaid,dep=P.deposits_pending,inc=P.incoming_uncleared;
-  tiles.push({k:"Available balance · Airwallex",v:b(P.available.base_minor),bracket:out.count?`(−${short(out.base_minor)} processing)`:"",
+  tiles.push({k:"Available balance · Airwallex",v:b(P.available.base_minor),bracket:out.count?`(${short(out.base_minor)} processing, already out)`:"",
    full:full(P.available.base_minor),tone:"good",href:"#/ledger",
    d:P.available.wallet.filter(w=>w.available).map(w=>`${w.currency} ${short(w.available)}`).join(" · ")||"empty",
    tip:`Spendable now at Airwallex (old balance + settled deposits + received payments): ${P.available.wallet.map(w=>`${fmt(w.available,w.currency)}${w.pending?`, ${fmt(w.pending,w.currency)} pending`:""}${w.reserved?`, ${fmt(w.reserved,w.currency)} reserved`:""}`).join("; ")}.`
-    +(out.count?` ${out.count} transfer(s) still processing: ${cc(out.by_currency)}.`:" No transfer is processing.")});
+    +(out.count?` ${out.count} transfer(s) still processing: ${cc(out.by_currency)}; Airwallex took them out of the available balance when they were created.`:" No transfer is processing.")});
   tiles.push({k:"Bills to pay · not yet paid",v:b(bill.base_minor),full:full(bill.base_minor),tone:bill.base_minor?"warn":"good",href:"#/intake",
    d:`${bill.approved_count} ready to pay · ${bill.waiting_count} waiting for a person`,
    tip:`Will reduce the balance when paid: ${[...bill.approved,...bill.waiting].map(x=>`${x.who} ${fmt(x.amount_minor,x.currency)}${x.po_number?` (${x.po_number})`:""}`).join("; ")||"none"}`});
@@ -657,7 +657,7 @@ async function kpis(){const pos=await settle(api("/v1/treasury/position"));const
    d:`${inc.arrived_count} arrived, not settled · ${inc.announced_count} announced`,
    tip:`Not in the balance yet: ${[...inc.arrived_pending.map(x=>`${x.payer} ${fmt(x.amount_minor,x.currency)} (arrived, pending)`),...inc.announced.map(x=>`${x.payer} ${fmt(x.amount_minor,x.currency)} (announced${x.expected?` for ${x.expected}`:""})`)].join("; ")||"none"}`});
   tiles.push({k:"Outlook · after all of these",v:b(P.after_all_base_minor),full:full(P.after_all_base_minor),href:"#/budget",
-   d:"available − processing − bills + deposits + incoming",
+   d:"available − bills + pending deposits + incoming",
    tip:`An outlook, not spendable money. At Airwallex's indicative rates${Object.keys(P.rates).length?` (${Object.entries(P.rates).map(([c,r])=>`${c} ${Number(r).toFixed(4)}`).join(", ")})`:""}${P.missing_rates.length?`; no rate for ${P.missing_rates.join(", ")}`:""}. As of ${P.as_of.slice(11,19)} UTC.`});
  }else tiles.push({k:"Airwallex wallet",v:"not connected",d:pos.e.message.replace(/^\d+ /,""),tone:"warn"});
  tiles.push({id:"kpiAttn",k:"Needs attention",v:"…",d:"serious or critical notifications",href:"#/overview"});

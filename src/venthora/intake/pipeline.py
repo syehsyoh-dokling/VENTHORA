@@ -485,9 +485,8 @@ class Intake:
         extra["po_number"] = po_id
         paid = {r["invoice_fingerprint"] for r in (self.payments.po_payments(po_id) if self.payments is not None else [])}
         pending: dict[str, int] = {}
-        for r in self.store.list(500):  # accepted or waiting, not yet paid: they already hold part of the PO
-            waiting = r.status in ("VERIFIED", "NEEDS_REVIEW") and r.invoice_fingerprint not in paid
-            if r.po_number == po_id and waiting and r.amount_minor:
+        for r in self.store.list(500):  # accepted or waiting, not yet paid, a valid draw: they hold part of the PO
+            if r.po_number == po_id and procurement.holds(r, paid):
                 pending[r.installment or r.intake_id] = pending.get(r.installment or r.intake_id, 0) + r.amount_minor
         m = procurement.match(self.org, self.payments, po_id, supplier_id=cid, currency=amount[2] if amount else None,
                               amount_minor=amount[1] if amount else None, pending=pending)

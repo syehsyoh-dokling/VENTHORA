@@ -25,6 +25,7 @@ def isolated(monkeypatch, tmp_path):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("VENTHORA_AUDIT_DB", str(tmp_path / "audit.db"))
     monkeypatch.setenv("VENTHORA_EXECUTION_DB", str(tmp_path / "execution.db"))
+    monkeypatch.setenv("VENTHORA_INTAKE_DB", str(tmp_path / "intake.db"))  # the API tests never touch the developer's queue
     monkeypatch.setenv("VENTHORA_WEBHOOK_DB", str(tmp_path / "webhooks.db"))
     monkeypatch.setenv("VENTHORA_ORG_DB", str(tmp_path / "org.db"))
     monkeypatch.setenv("VENTHORA_AI_DB", str(tmp_path / "ai.db"))

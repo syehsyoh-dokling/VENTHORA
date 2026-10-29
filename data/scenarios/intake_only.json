@@ -1,0 +1,71 @@
+{
+  "title": "Intake queue only: the bills and remittances that arrived by email",
+  "story": "The same wallet, policy and budget as the Kit 01 book, with nothing payable but the requests in the email intake (one earlier obligation is kept as already settled). Used to pay or hold exactly what arrived.",
+  "state": {
+    "case_id": "intake-only",
+    "book_id": "intake-queue",
+    "base_currency": "USD",
+    "balances": {
+      "USD": 2250000,
+      "EUR": 0,
+      "GBP": 0
+    },
+    "fx_to_base": {
+      "EUR": "1.0850",
+      "GBP": "1.2700"
+    },
+    "obligations": [
+      {
+        "obligation_id": "PAYROLL-NOV",
+        "amount_minor": 800000,
+        "currency": "USD",
+        "priority": 10,
+        "due_in_hours": 24,
+        "beneficiary_id": "payroll-group-us",
+        "budget_line": "payroll",
+        "payee_name": "Northwind Payroll Services",
+        "payout_method": "LOCAL",
+        "evidence_ref": "doc-payroll-nov",
+        "invoice_fingerprint": "northwind:PR-2026-11",
+        "record_kind": "settled",
+        "policy_flags": []
+      }
+    ],
+    "receivables": [],
+    "evidence": [
+      {
+        "ref": "doc-payroll-nov",
+        "subject_id": "PAYROLL-NOV",
+        "source": "hris:payroll-run-2026-11",
+        "status": "verified",
+        "summary": "Approved November payroll run"
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "unplanned_card_spend",
+        "unexpected_outflow_minor": 100000
+      }
+    ],
+    "policy": {
+      "reserve_floor_minor": 500000,
+      "min_receivable_confidence_bp": 8000,
+      "autonomous_conversion_limit_minor": 1000000,
+      "full_confidence_bp": 9000,
+      "zero_limit_below_bp": 5000,
+      "escalate_flags": [
+        "payee_bank_details_changed"
+      ],
+      "swift_fee_currency": "EUR",
+      "swift_fee_minor": 1285,
+      "payout_fees_minor": {},
+      "planning_horizon_hours": 72,
+      "approver_roles": [
+        "finance_manager"
+      ]
+    },
+    "actor_role": "treasury_agent",
+    "use_ecb_stress": false,
+    "fx_stress_model": "horizon_m0"
+  }
+}

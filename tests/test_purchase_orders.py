@@ -78,6 +78,15 @@ def test_partial_invoices_and_paid_money(env):
     assert (st["paid_minor"], st["remaining_minor"]) == (600_000, 400_000)
 
 
+def test_an_over_po_invoice_holds_nothing(env):
+    # seen in the demo cases: a GBP 12,000 invoice against a PO with GBP 10,000 left blocked an honest GBP 450 one
+    _, _, intake = env
+    big = intake.ingest(mail(THAMES, "Invoice TF-501", "Invoice TF-501, PO-2026-0103. Amount due: GBP 12,000.00, due 30 Nov 2026.", "o1"))
+    assert "po_exceeded" in big.flags
+    small = intake.ingest(mail(THAMES, "Invoice TF-502", "Invoice TF-502, PO-2026-0103. Amount due: GBP 450.00, due 30 Nov 2026.", "o2"))
+    assert small.status == "VERIFIED" and small.installment == "partial"
+
+
 def test_terms_only_po_and_every_mismatch(env):
     org, _, intake = env
     odd = intake.ingest(mail(RHEIN, "Rechnung RW-77", "Invoice RW-77, PO-2026-0102. Amount due: EUR 2,000.00, due 30 Nov 2026.", "f"))

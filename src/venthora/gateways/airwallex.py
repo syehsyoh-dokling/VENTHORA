@@ -232,10 +232,16 @@ class Airwallex:
     async def list_transfers(self, pages: int = 2, page_size: int = 100) -> list[dict]:
         """The most recent transfers with their Airwallex status (newest first, as the API returns them)."""
         out: list[dict] = []
+        seen: set = set()
         for page in range(pages):
             body = await self._request("GET", "/api/v1/transfers", params={"page_num": page, "page_size": page_size})
             items = body.get("items", []) if isinstance(body, dict) else body
-            out += items
+            new = [t for t in items if t.get("id") not in seen]
+            # seen on the sandbox: page_num 0 and 1 return the same page, which counted every transfer twice
+            if not new:
+                break
+            seen |= {t.get("id") for t in new}
+            out += new
             if len(items) < page_size or not (isinstance(body, dict) and body.get("has_more", True)):
                 break
         return out

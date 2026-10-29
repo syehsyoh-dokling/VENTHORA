@@ -33,6 +33,17 @@ def find_po(text: str, subject: str) -> tuple[str, str, int, int] | None:
     return None
 
 
+PO_FAILS = {"po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_exceeded", "po_term_mismatch"}
+
+
+def holds(r, paid_fingerprints: set[str]) -> bool:
+    """Whether a queued invoice holds part of its PO: accepted or waiting, not yet paid, and a valid draw on the PO.
+    An invoice that failed the PO match (seen in the demo cases: GBP 12,000 against a PO with 10,000 left) holds
+    nothing, or it would block the honest invoices behind it."""
+    return (r.status in ("VERIFIED", "NEEDS_REVIEW") and bool(r.amount_minor) and r.invoice_fingerprint not in paid_fingerprints
+            and not (PO_FAILS & set(r.flags)))
+
+
 def status(org, payments, po_id: str, *, pending: dict[str, int] | None = None) -> dict | None:
     """The PO with what is paid (by term), pending and still open."""
     po = org.get("po", po_id)
