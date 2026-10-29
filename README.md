@@ -45,6 +45,21 @@ The original engines are vendored unmodified, with SHA-256 provenance and a test
 
 **Live on the sandbox.** `python scripts/demo_server.py --reset`, then open `http://localhost:8001/live`: the finance manager grants the mandate on one form (every permission, safeguard, budget line, approver, payee and the reporting cut-off; unchecking a permission revokes it), then the builder guide's five demo elements run one button at a time on a USD 30,000 book with a USD 10,000 floor, with the Airwallex wallet polled live beside it. Every step really runs: the inbox is read, the plan is proven, a deposit settles on Airwallex, and the payments execute and reconcile to the cent.
 
+**The Control center** (`http://localhost:8001/`) opens on an overview that holds only charts and notifications:
+- the live Airwallex wallet,
+- payment activity,
+- budget used per line,
+- allocation per unit,
+- execution outcomes and payee status,
+- a feed of what needs a person, pushed live from Airwallex webhooks.
+
+The vertical menu holds everything else:
+- Treasury pages: plan & proof, budget, books, reporting.
+- Payment pages: intake, payees, executions & incidents, run reports.
+- User management: Head Quarter, country offices, branch offices and project finance units, with people and roles.
+- Settings: budget allocation, country offices, unit prices, finance standards, the read-only mandate & policy, and webhooks & integrations.
+- Assurance checks.
+
 **Recording the demo.** `http://localhost:8001/flow` is an animated map of the workflow for the video's opening.
 `python scripts/record_demo.py` records the dashboard part by itself: Microsoft Edge at 1920x1080 runs the operations
 page on the real sandbox and then the Control center, writes `demo_video/dashboard.webm` with a cue log, and rejects a
@@ -171,6 +186,31 @@ cp .env.example .env    # then fill AWX_CLIENT_ID and AWX_API_KEY (sandbox keys 
 
 With credentials set, ProofCore cross-checks every plan against live sandbox balances (`GET /api/v1/balances/current`). `GET /api/airwallex/balances` shows them.
 
+### Airwallex webhooks (status changes in seconds)
+
+Airwallex can push each status change (`deposit.settled`, `payout.transfer.paid`, `conversion.settled`, …) instead of
+waiting for the next poll. VENTHORA treats the push as a doorbell, never as the source of truth:
+
+1. **Authentic and fresh.** The signature is HMAC-SHA256 over `x-timestamp` plus the raw body, keyed with
+   `AWX_WEBHOOK_SECRET`. A wrong signature or a timestamp older than 5 minutes gets `400`. Without the secret, every
+   event is refused with `503`.
+2. **Once only.** The event id is stored. A retry or a duplicate is acknowledged with `200` and not processed again.
+3. **Re-read.** The deposit, transfer or conversion is fetched again from the Airwallex API. Only the API's answer is
+   stored as `CONFIRMED`. If the event disagrees with the API, the result is `MISMATCH` and the API wins. Events left
+   unread when the server stopped are re-read at start-up.
+4. **No money moves.** An event never moves money or changes a book. The executor and the deposit check still read
+   Airwallex themselves, and polling stays as the fallback.
+
+The dashboards subscribe to `GET /api/stream` (server-sent events), so each confirmed event appears on the Overview and
+as a toast the moment it is re-read. To receive real events, expose the server on a public HTTPS address (a deployed
+host, or a tunnel such as ngrok for testing). Then add `https://<host>/webhooks/airwallex` under Developer → Webhooks in
+the sandbox web app and put its secret in `.env`. The checklist is on the dashboard under *Webhooks & integrations*.
+Checked on the real sandbox (29 Oct 2026):
+- A signed `deposit.settled` for a real deposit was acknowledged in 20 ms and confirmed `SETTLED` by the API.
+- An unknown transfer stayed `UNCONFIRMED` because Airwallex answered "Transfer not found".
+- A duplicate was acknowledged once and not processed again.
+- A forged signature and a stale timestamp were both refused.
+
 ### Execute on the sandbox (Kit 01 end to end)
 
 1. `POST /api/sandbox/deposits` `{"amount_minor": 1000000}`: simulate the customer receipt landing (needs `AWX_GLOBAL_ACCOUNT_ID`; list accounts with `GET /api/airwallex/global-accounts`).
@@ -223,6 +263,10 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 | `POST` | `/v1/intake/emails` | Submit a raw email (RFC 822); verified sender, grounded fields, queued by code |
 | `GET` | `/v1/intake` · `POST /v1/intake/{id}/review` | The queue; a role-checked verify / reject |
 | `POST` | `/v1/intake/plan` | Add the queue to a book and run the whole loop |
+| `POST` | `/webhooks/airwallex` | Airwallex events: signed, once only, re-read from the API before they are shown |
+| `GET` | `/v1/webhooks/status` · `/v1/webhooks/events` · `/api/stream` | Webhook set-up, received events, live push to the dashboards |
+| `GET` `POST` `DELETE` | `/v1/org/{units,users,allocations,prices}` | Organisation master data: HQ → country → branch offices and project finance, people and roles, budget allocations, unit prices (writes need `role=admin`, `cfo` or `finance_manager`) |
+| `GET` `PUT` | `/v1/org/standards` · `GET /v1/org/allocation-tree` | Finance standards; what each unit received against what it passed down |
 | `GET` | `/` · `/api/runs` · `/api/matrix` · `/v1/executions` | Dashboard and its data |
 
 ## Tests

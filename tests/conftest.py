@@ -10,6 +10,7 @@ ISOLATED_ENV = ["AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "AIRWALLEX_BASE_URL"
                 "AWX_CLIENT_ID", "AWX_API_KEY", "AWX_BASE_URL", "AWX_GLOBAL_ACCOUNT_ID",
                 "MODEL_ENDPOINT", "MODEL_NAME", "MODEL_TOKEN", "MODEL_API_KEY",
                 "OPA_URL", "TB_ADDRESS", "TB_ACCOUNT_ID",
+                "AWX_WEBHOOK_SECRET",
                 "VENTHORA_VERITY_URL", "VENTHORA_HORIZON_URL", "VENTHORA_THEOREM_URL", "VENTHORA_NATIVE_LIB"]
 
 
@@ -19,6 +20,8 @@ def isolated(monkeypatch, tmp_path):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("VENTHORA_AUDIT_DB", str(tmp_path / "audit.db"))
     monkeypatch.setenv("VENTHORA_EXECUTION_DB", str(tmp_path / "execution.db"))
+    monkeypatch.setenv("VENTHORA_WEBHOOK_DB", str(tmp_path / "webhooks.db"))
+    monkeypatch.setenv("VENTHORA_ORG_DB", str(tmp_path / "org.db"))
     monkeypatch.setenv("VENTHORA_ECB_CSV", str(tmp_path / "missing-ecb.csv"))
 
 

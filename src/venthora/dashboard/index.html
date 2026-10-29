@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VENTHORA Control Center</title>
+<title>VENTHORA</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
 :root{--bg:#f3f5f9;--surface:#ffffff;--surface2:#f8fafc;--ink:#0f1b2d;--ink2:#46536a;--muted:#8792a6;--line:#e4e8ef;
@@ -80,49 +80,230 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600}
 #budget,#intake,#planOut{overflow-x:auto}
 .two{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-top:12px}.two>div{min-width:0;overflow-x:auto}
 ::selection{background:var(--brandlt)}
+/* app shell: vertical menu + content */
+.app{display:grid;grid-template-columns:252px minmax(0,1fr);min-height:100vh}
+.nav{position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;padding:16px 12px;color:var(--heroInk);
+ background:radial-gradient(500px 260px at 20% -10%,rgba(47,111,228,.45),transparent 60%),linear-gradient(180deg,var(--hero1),var(--hero2))}
+.nav .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 14px;color:#fff}.nav .brand:hover{text-decoration:none}
+.nav .brand b{display:block;font-size:16px;letter-spacing:.5px}.nav .brand small{display:block;color:var(--heroMuted);font-size:11.5px}
+.nav .logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(140deg,#4f8bff,#1d3f8f);box-shadow:0 6px 18px rgba(47,111,228,.45)}
+.nav nav a{display:flex;align-items:center;gap:10px;padding:7px 10px;margin:1px 0;border-radius:9px;color:var(--heroMuted);font-weight:500;font-size:13.5px}
+.nav nav a:hover{background:rgba(255,255,255,.07);color:#fff;text-decoration:none}
+.nav nav a.on{background:rgba(79,139,255,.24);color:#fff;box-shadow:inset 3px 0 0 #7fb0ff}
+.nav nav i{font-style:normal;width:18px;text-align:center;opacity:.9}
+.nav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:#8ea2cf;margin:14px 10px 3px;font-weight:700}
+.nav .cnt{margin-left:auto;background:#f5a524;color:#1b1300;font-size:11px;font-weight:700;border-radius:999px;padding:0 7px;line-height:18px}.nav .cnt:empty{display:none}
+.nav .ext{margin-left:auto;opacity:.55;font-size:11px}
+.nav .actor{margin-top:auto;padding:12px 8px 4px;border-top:1px solid rgba(255,255,255,.12);display:grid;gap:6px}
+.nav .actor label{color:var(--heroMuted)}.nav .actor select{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}.nav .actor option{color:#0f1b2d}
+.content{min-width:0}
+header.top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:14px 28px;margin:0 0 18px;flex-wrap:nowrap;color:var(--ink);
+ background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+header.top h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.2px;white-space:nowrap}
+header.top .right{margin-left:auto;display:flex;gap:12px;align-items:center}
+header.top #status{color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;border-radius:999px;padding:3px 11px;color:var(--warn);background:var(--warnlt)}
+.live::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.live.on{color:var(--good);background:var(--goodlt)}.live.on::before{animation:pulse 1.6s infinite}
+.menu{display:none}
+section[hidden]{display:none!important}
+section.plain{background:none;border:0;box-shadow:none;padding:0}
+.span5{grid-column:span 5}.span7{grid-column:span 7}
+@media (max-width:1100px){.span5,.span7{grid-column:span 12}}
+@media (max-width:900px){.app{grid-template-columns:1fr}.nav{position:fixed;left:0;top:0;width:264px;z-index:30;transform:translateX(-102%);transition:transform .2s;box-shadow:0 0 40px rgba(0,0,0,.35)}
+ .nav.open{transform:none}.menu{display:inline-block}header.top{padding:12px 16px}header.top .go,#status{display:none}main{padding:0 16px 32px}}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi::after{content:"";position:absolute;inset:auto 0 0 0;height:3px;background:var(--seq);opacity:.85}
+.kpi.good::after{background:var(--good)}.kpi.warn::after{background:var(--warn)}.kpi.critical::after{background:var(--critical)}
+.kpi .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.kpi .v{font-size:24px;font-weight:700;margin-top:4px;letter-spacing:-.4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .d{color:var(--ink2);font-size:12px;margin-top:2px}
+
+/* charts */
+.chart{min-height:60px}
+.hb{display:grid;grid-template-columns:minmax(110px,32%) 1fr auto;gap:12px;align-items:center;padding:6px 0}
+.hb .hl{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hb .hl small{display:block;color:var(--muted);font-size:11px}
+.hb .ht{height:12px;background:var(--surface2);border-radius:6px;position:relative}
+.hb .ht i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--seq);min-width:3px;transition:width .5s}
+.hb .ht b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink2);opacity:.45;border-radius:1px}
+.hb .hv{font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.stack{display:flex;height:18px;border-radius:9px;overflow:hidden;gap:2px;background:var(--surface)}
+.stack i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:12px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}.legend span::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--c)}
+.cols svg{width:100%;height:auto;display:block}.cols .axis{fill:var(--muted);font-size:11px}.cols .grid{stroke:var(--line)}
+.cols rect.bar{fill:var(--seq)}.cols rect.bar:hover,.cols rect.hit:hover+rect.bar{fill:var(--brand2)}
+
+/* notifications */
+.feed{display:grid;gap:8px;max-height:520px;overflow-y:auto;padding-right:2px}
+.nt{display:grid;grid-template-columns:30px 1fr;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:11px;background:var(--surface2);color:var(--ink)}
+a.nt:hover{text-decoration:none;border-color:var(--brand2)}
+.nt .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:14px;color:var(--ink2);background:var(--surface)}
+.nt.good .ic{color:var(--good);background:var(--goodlt)}.nt.warn .ic{color:var(--warn);background:var(--warnlt)}
+.nt.serious .ic{color:var(--serious);background:var(--seriouslt)}.nt.critical .ic{color:var(--critical);background:var(--critlt)}
+.nt .t{font-weight:600;font-size:13px;line-height:1.35}.nt .x{color:var(--ink2);font-size:12px;margin-top:1px}.nt .w{color:var(--muted);font-size:11px;margin-top:2px}
+.nt.fresh{animation:flash 1.6s ease-out}@keyframes flash{0%{box-shadow:0 0 0 3px var(--brand2)}100%{box-shadow:0 0 0 0 transparent}}
+
+/* tooltip, toasts, dialog, forms */
+.tip{position:fixed;z-index:50;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:7px;opacity:0;transition:opacity .1s;max-width:280px}
+.tip.on{opacity:.96}
+.toasts{position:fixed;right:18px;bottom:18px;z-index:60;display:grid;gap:8px}
+.toast{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brand2);box-shadow:var(--shadow);border-radius:10px;padding:10px 14px;font-size:13px;max-width:340px;animation:slide .25s ease-out}
+.toast.good{border-left-color:var(--good)}.toast.serious{border-left-color:var(--serious)}.toast.warn{border-left-color:var(--warn)}
+@keyframes slide{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+dialog{border:1px solid var(--line);border-radius:14px;padding:20px 22px;background:var(--surface);color:var(--ink);width:min(520px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(9,16,30,.45)}dialog h3{margin:0 0 14px;font-size:16px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 16px}
+.form label{display:grid;gap:5px;font-size:12px;color:var(--ink2);font-weight:600}
+.form label.check{display:flex;align-items:center;gap:8px;align-self:end;padding-bottom:8px}
+.form input,.form select,.form textarea{width:100%;font-weight:500}
+.chip{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:var(--brandlt);color:var(--brand)}
+.chip.HQ{background:#1d3f8f;color:#fff}.chip.COUNTRY_OFFICE{background:var(--brandlt);color:var(--brand)}
+.chip.BRANCH_OFFICE{background:var(--surface2);color:var(--ink2);border:1px solid var(--line)}.chip.PROJECT_FINANCE{background:var(--warnlt);color:var(--warn)}
+.tree{display:inline-block;color:var(--muted);font-family:ui-monospace,Consolas,monospace}
+.acts{display:flex;gap:6px;justify-content:flex-end}.acts button{padding:4px 9px;font-size:12px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:600}
+code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
 </style>
 </head>
 <body>
-<header><span class="brand"><span class="logo" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
- <span><h1>VENTHORA <span>Control Center</span></h1><span class="sub">Evidence-gated treasury on Airwallex · the AI proposes, the engines verify, Airwallex executes</span></span></span>
- <span class="badge">Airwallex · live</span>
- <span class="right"><span id="status"></span><a class="go" href="/live">Treasury Operations ▸</a></span></header>
+<div class="app">
+<aside class="nav" id="nav">
+ <a class="brand" href="#/overview"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>VENTHORA</b><small>Treasury on Airwallex</small></span></a>
+ <nav>
+  <a href="#/overview" data-nav="overview"><i>◧</i>Overview</a>
+  <div class="grp">Treasury</div>
+  <a href="/live"><i>▶</i>Operations run<span class="ext">↗</span></a>
+  <a href="/flow"><i>⇢</i>Workflow<span class="ext">↗</span></a>
+  <a href="#/plan" data-nav="plan"><i>◇</i>Plan &amp; proof</a>
+  <a href="#/budget" data-nav="budget"><i>▤</i>Budget &amp; mandate</a>
+  <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
+  <a href="#/reporting" data-nav="reporting"><i>◷</i>Reporting periods</a>
+  <div class="grp">Payments</div>
+  <a href="#/intake" data-nav="intake"><i>✉</i>Intake<span class="cnt" id="cnt-intake"></span></a>
+  <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
+  <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
+  <a href="#/runs" data-nav="runs"><i>☰</i>Run reports</a>
+  <div class="grp">Organisation</div>
+  <a href="#/users" data-nav="users"><i>⌂</i>User management</a>
+  <div class="grp">Settings</div>
+  <a href="#/allocation" data-nav="allocation"><i>◔</i>Budget allocation</a>
+  <a href="#/offices" data-nav="offices"><i>⚑</i>Country offices</a>
+  <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
+  <a href="#/standards" data-nav="standards"><i>✎</i>Finance standards</a>
+  <a href="#/mandate" data-nav="mandate"><i>⚖</i>Mandate &amp; policy</a>
+  <a href="#/integrations" data-nav="integrations"><i>⚡</i>Webhooks &amp; integrations</a>
+  <div class="grp">Assurance</div>
+  <a href="#/assurance" data-nav="assurance"><i>✓</i>Checks &amp; resilience</a>
+ </nav>
+ <div class="actor"><label class="small muted" for="actor">Acting as</label><select id="actor"></select></div>
+</aside>
+<div class="content">
+<header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><h1 id="pageTitle">Overview</h1>
+ <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><a class="go" href="/live">Operations run ▸</a></span></header>
 <main>
- <section class="span8">
+ <!-- ===== Overview: charts and notifications only ===== -->
+ <section class="span12 plain" data-view="overview"><div id="kpis" class="kpis"><div class="empty">loading…</div></div></section>
+ <section class="span8" data-view="overview"><h2><span>Payment activity</span><span class="small muted">executions per day, last 14 days</span></h2><div id="chActivity" class="chart"><div class="empty">loading…</div></div></section>
+ <section class="span4 notif" data-view="overview"><h2><span>Notifications</span><span class="small muted" id="notifMeta"></span></h2><div id="notifs" class="feed"><div class="empty">loading…</div></div></section>
+ <section class="span6" data-view="overview"><h2><span>Budget used by line</span><span class="small muted" id="chBudgetMeta"></span></h2><div id="chBudget" class="chart"><div class="empty">loading…</div></div></section>
+ <section class="span6" data-view="overview"><h2><span>Allocation by unit</span><span class="small muted" id="chAllocMeta"></span></h2><div id="chAlloc" class="chart"><div class="empty">loading…</div></div></section>
+ <section class="span6" data-view="overview"><h2><span>Execution outcomes</span><span class="small muted">last 50</span></h2><div id="chExec" class="chart"><div class="empty">loading…</div></div></section>
+ <section class="span6" data-view="overview"><h2><span>Payees by status</span><span class="small muted">lifecycle</span></h2><div id="chPayees" class="chart"><div class="empty">loading…</div></div></section>
+
+ <!-- ===== Treasury ===== -->
+ <section class="span12" data-view="plan">
   <h2><span>Plan &amp; proof</span>
    <span class="row"><select id="scenario"></select>
     <button id="plan" class="primary">Plan</button>
     <button id="planIntake" title="add the intake queue to this book, then plan">Plan with intake queue</button></span></h2>
   <div id="planOut" class="empty">Choose a book and press Plan.</div>
  </section>
- <section class="span4"><h2>Platform</h2><div id="platform" class="tiles"></div></section>
 
- <section class="span12">
+ <section class="span12" data-view="budget">
   <h2><span>Budget · mandate</span><span class="row"><select id="budgetBook"></select><span class="small muted" id="budgetMeta"></span></span></h2>
   <div id="budget" class="empty">loading…</div>
  </section>
 
- <section class="span12">
+ <section class="span12" data-view="ledger">
   <h2><span>Books · ledger</span><span class="small muted">double-entry per book; the wallet is shared, a book is not</span></h2>
   <div id="ledger" class="empty">loading…</div>
  </section>
 
- <section class="span12">
-  <h2><span>Tenants · books</span><span class="small muted" id="tenantMeta">whose book, which payees, whose signature, which policy; a book never spends another book's money</span></h2>
-  <div id="tenants" class="empty">loading…</div>
+ <section class="span12" data-view="reporting">
+  <h2><span>Reporting periods</span><span class="row"><input id="repPeriod" value="" placeholder="YYYY-MM" style="width:90px"><button id="repLoad">Load</button><button id="repRates" title="record the period's closing rates from Airwallex (admin)">Snapshot rates</button><span class="small muted" id="repMeta"></span></span></h2>
+  <div id="reporting" class="empty">loading…</div>
  </section>
 
- <section class="span12">
+ <!-- ===== Payments ===== -->
+ <section class="span12" data-view="intake">
+  <h2><span>Intake · payment requests from external users</span><span class="small muted" id="intakeMeta"></span></h2>
+  <div id="intake" class="empty">loading…</div>
+ </section>
+
+ <section class="span12" data-view="payees">
   <h2><span>Payees · lifecycle</span><span class="small muted">NEW → VERIFIED → ACTIVE; a bank change starts a cooling period; the call-back goes to the registered number only</span></h2>
   <div id="payees" class="empty">loading…</div>
  </section>
 
- <section class="span12">
-  <h2><span>Reporting periods</span><span class="row"><input id="repPeriod" value="" placeholder="YYYY-MM" style="width:90px;font:inherit;border:1px solid var(--line);border-radius:7px;padding:5px 8px;background:var(--surface);color:var(--ink)"><button id="repLoad">Load</button><button id="repRates" title="record the period's closing rates from Airwallex (admin)">Snapshot rates</button><span class="small muted" id="repMeta"></span></span></h2>
-  <div id="reporting" class="empty">loading…</div>
+ <section class="span6" data-view="executions"><h2>Executions</h2><div id="executions" class="empty">loading…</div></section>
+ <section class="span6" data-view="executions"><h2>Payment incidents</h2><div id="incidents" class="empty">loading…</div></section>
+
+ <section class="span12" data-view="runs"><h2><span>Run reports</span><span class="small muted">cycles recorded on Airwallex</span></h2><div id="runs" class="empty">loading…</div></section>
+
+ <!-- ===== Organisation ===== -->
+ <section class="span12" data-view="users">
+  <h2><span>Units</span><span class="row"><span class="small muted">Head Quarter → Country Office → Branch Office; Project Finance under any of them</span><button class="primary" id="addUnit">Add unit</button></span></h2>
+  <div id="unitsTree" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="users">
+  <h2><span>People</span><span class="row"><select id="userUnit"><option value="">All units</option></select><button class="primary" id="addUser">Add person</button></span></h2>
+  <div id="usersTable" class="empty">loading…</div>
  </section>
 
- <section class="span12">
+ <!-- ===== Settings ===== -->
+ <section class="span12" data-view="allocation">
+  <h2><span>Budget allocation</span><span class="row"><select id="allocPeriod"></select><button class="primary" id="addAlloc">Add allocation</button></span></h2>
+  <div id="allocChart" class="chart"></div>
+  <div id="allocTable" style="margin-top:14px"></div>
+ </section>
+
+ <section class="span12" data-view="offices">
+  <h2><span>Country and branch offices</span><span class="row"><span class="small muted">local currency, time zone and cost centre per office</span><button class="primary" id="addOffice">Add office</button></span></h2>
+  <div id="officesTable" class="empty">loading…</div>
+ </section>
+
+ <section class="span12" data-view="prices">
+  <h2><span>Unit prices</span><span class="row"><select id="priceCat"><option value="">All categories</option></select><button class="primary" id="addPrice">Add price</button></span></h2>
+  <div id="pricesTable" class="empty">loading…</div>
+ </section>
+
+ <section class="span8" data-view="standards">
+  <h2><span>Finance standards</span><span class="row"><button class="primary" id="saveStd">Save</button><span class="small muted" id="stdMeta"></span></span></h2>
+  <div id="stdForm" class="form"></div>
+ </section>
+ <section class="span4" data-view="standards">
+  <h2>Reporting cut-off</h2><div id="stdRep" class="small"></div>
+ </section>
+
+ <section class="span12" data-view="mandate">
+  <h2><span>Mandate &amp; policy</span><span class="small muted">thresholds live in policy code; the mandate is granted per run on the Operations page</span></h2>
+  <div id="mandateView" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="mandate">
+  <h2><span>Tenants · books</span><span class="small muted" id="tenantMeta">whose book, which payees, whose signature, which policy; a book never spends another book's money</span></h2>
+  <div id="tenants" class="empty">loading…</div>
+ </section>
+
+ <section class="span12" data-view="integrations"><h2>Platform</h2><div id="platform" class="tiles"></div></section>
+ <section class="span5" data-view="integrations"><h2><span>Airwallex webhooks</span><span id="whBadge"></span></h2><div id="whStatus" class="small"></div></section>
+ <section class="span7" data-view="integrations"><h2><span>Received events</span><span class="small muted">the API, not the event, decides the status</span></h2><div id="whEvents" class="empty">loading…</div></section>
+
+ <!-- ===== Assurance ===== -->
+ <section class="span12" data-view="assurance">
   <h2><span>Ground-truth checks</span>
    <span class="row"><select id="gtSuite"><option value="cases">rules</option><option value="anomalies">anomalies</option><option value="budget">budget</option><option value="controls">controls</option><option value="reporting">reporting</option><option value="ledger">ledger</option><option value="limits">limits</option><option value="payees">payees</option><option value="approvals">approvals</option><option value="fx">fx exposure</option><option value="aging">aging</option><option value="tenancy">tenancy</option></select>
     <select id="gtCase"><option value="">— free input —</option></select>
@@ -133,18 +314,14 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600}
   <div id="subOut" class="small muted" style="margin-top:8px">Pick a ground-truth case or paste your own input. The form measures the round trip in your browser and shows the server&#39;s own timing beside it.</div>
   <div id="subLog" class="small" style="margin-top:8px"></div>
  </section>
-
- <section class="span12">
-  <h2><span>Intake · payment requests from external users</span><span class="small muted" id="intakeMeta"></span></h2>
-  <div id="intake" class="empty">loading…</div>
- </section>
-
- <section class="span6"><h2>Executions</h2><div id="executions" class="empty">loading…</div></section>
- <section class="span6"><h2>Payment incidents</h2><div id="incidents" class="empty">loading…</div></section>
-
- <section class="span6"><h2><span>Run reports</span><span class="small muted">cycles recorded on Airwallex</span></h2><div id="runs" class="empty">loading…</div></section>
- <section class="span6"><h2><span>Resilience test matrix</span><span class="small muted" id="matrixMeta"></span></h2><div id="matrix" class="empty">loading…</div></section>
+ <section class="span12" data-view="assurance"><h2><span>Resilience test matrix</span><span class="small muted" id="matrixMeta"></span></h2><div id="matrix" class="empty">loading…</div></section>
 </main>
+</div>
+</div>
+<div id="tip" class="tip" role="tooltip"></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<dialog id="dlg"><form method="dialog" id="dlgForm"><h3 id="dlgTitle"></h3><div id="dlgBody" class="form"></div><div id="dlgErr" class="err small"></div>
+ <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="dlgSave" value="save">Save</button></div></form></dialog>
 <script>
 const $=s=>document.querySelector(s);
 const fmt=(m,c)=>{if(m==null)return"-";const s=m<0?"-":"",a=Math.abs(m);return`${s}${c} ${Math.floor(a/100).toLocaleString()}.${String(a%100).padStart(2,"0")}`};
@@ -339,8 +516,262 @@ async function submitCase(){const kind=$("#subKind").value,raw=$("#subInput").va
 $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<span class="err">${esc(e.message)}</span>`});
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
-platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();reporting();ledgerBooks();payees();tenants();
-setInterval(()=>{intake();executions();incidents()},15000);
+// =============================== app shell: menu, routing, acting person ===============================
+const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
+ executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
+ standards:"Finance standards",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:()=>standardsView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+function route(){const v=(location.hash.match(/^#\/(\w+)/)||[])[1];const view=TITLES[v]?v:"overview";
+ document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
+ document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
+ $("#pageTitle").textContent=TITLES[view];document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
+ if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
+window.addEventListener("hashchange",route);
+$("#menuBtn").onclick=()=>$("#nav").classList.toggle("open");
+
+const ACTORS=[{role:"finance_manager",name:"Dana Finch",label:"Dana Finch · Finance manager"},{role:"cfo",name:"Omar Reyes",label:"Omar Reyes · CFO"},
+ {role:"admin",name:"Platform admin",label:"Platform admin"},{role:"auditor",name:"Ines Duarte",label:"Ines Duarte · Auditor (read only)"}];
+$("#actor").innerHTML=ACTORS.map((a,i)=>`<option value="${i}">${esc(a.label)}</option>`).join("");
+try{const s=localStorage.getItem("venthora.actor");if(s!==null&&ACTORS[+s])$("#actor").value=s}catch(e){}
+$("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor",$("#actor").value)}catch(e){}};
+const actor=()=>ACTORS[+$("#actor").value]||ACTORS[0];
+const who=()=>`role=${encodeURIComponent(actor().role)}&by=${encodeURIComponent(actor().name)}`;
+
+// tooltip for any element with data-tip
+document.addEventListener("mouseover",e=>{const t=e.target.closest("[data-tip]");const tip=$("#tip");if(!t){tip.classList.remove("on");return}tip.textContent=t.dataset.tip;tip.classList.add("on")});
+document.addEventListener("mousemove",e=>{const tip=$("#tip");if(!tip.classList.contains("on"))return;const x=Math.min(e.clientX+14,innerWidth-tip.offsetWidth-8);tip.style.left=x+"px";tip.style.top=(e.clientY+16)+"px"});
+function toast(html,tone=""){const d=document.createElement("div");d.className=`toast ${tone}`;d.innerHTML=html;$("#toasts").appendChild(d);setTimeout(()=>d.remove(),6000)}
+
+// =============================== charts (plain HTML/SVG, theme tokens) ===============================
+const usd=m=>fmt(m,"USD").replace(/\.00$/,"");
+const short=m=>{const a=Math.abs(m/100);return a>=1e6?(m/1e8).toFixed(a>=1e7?0:1)+"M":a>=1e3?(m/1e5).toFixed(a>=1e4?0:1)+"k":(m/100).toFixed(0)};
+const toneVar={good:"var(--good)",warn:"var(--warn)",serious:"var(--serious)",critical:"var(--critical)"};
+function hbars(rows,max){max=max||Math.max(1,...rows.map(r=>r.value));
+ return rows.length?rows.map(r=>`<div class="hb"><div class="hl" title="${esc(r.label)}">${r.indent?`<span class="tree">${"&nbsp;&nbsp;".repeat(r.indent-1)}└ </span>`:""}${esc(r.label)}${r.sub?`<small>${esc(r.sub)}</small>`:""}</div>
+  <div class="ht"><i style="width:${Math.min(100,100*r.value/max).toFixed(1)}%;${r.tone?`background:${toneVar[r.tone]}`:""}" data-tip="${esc(r.tip||r.display)}"></i>${r.mark!=null?`<b style="left:${Math.min(100,100*r.mark/max).toFixed(1)}%" data-tip="${esc(r.markTip||"")}"></b>`:""}</div>
+  <div class="hv">${r.display}</div></div>`).join(""):`<div class="empty">nothing yet</div>`}
+function columns(days){const W=640,H=200,P={l:30,r:8,t:12,b:26};const max=Math.max(1,...days.map(d=>d.n));const step=(W-P.l-P.r)/days.length,bw=Math.max(6,step*.62);
+ const y=v=>H-P.b-(H-P.t-P.b)*v/max;const ticks=[0,Math.ceil(max/2),max].filter((v,i,a)=>a.indexOf(v)===i);
+ return `<div class="cols"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="executions per day">${ticks.map(t=>`<line class="grid" x1="${P.l}" x2="${W-P.r}" y1="${y(t)}" y2="${y(t)}"/><text class="axis" x="${P.l-6}" y="${y(t)+4}" text-anchor="end">${t}</text>`).join("")}
+  ${days.map((d,i)=>{const x=P.l+i*step+(step-bw)/2,h=Math.max(d.n?3:0,H-P.b-y(d.n));const tip=`${d.label}: ${d.n} execution${d.n===1?"":"s"}${d.n?` (${d.ok} completed)`:""}`;
+   return `<rect class="hit" x="${P.l+i*step}" y="${P.t}" width="${step}" height="${H-P.t-P.b}" fill="transparent" data-tip="${esc(tip)}"/><rect class="bar" x="${x}" y="${H-P.b-h}" width="${bw}" height="${h}" rx="4" data-tip="${esc(tip)}"/>${i%2===days.length%2?"":`<text class="axis" x="${x+bw/2}" y="${H-8}" text-anchor="middle">${d.tick}</text>`}`}).join("")}</svg></div>`}
+function stacked(parts){const total=parts.reduce((s,p)=>s+p.n,0)||1;
+ return `<div class="stack">${parts.filter(p=>p.n).map(p=>`<i style="width:${100*p.n/total}%;background:${p.c}" data-tip="${esc(`${p.label}: ${p.n}`)}"></i>`).join("")}</div>
+  <div class="legend">${parts.map(p=>`<span style="--c:${p.c}">${esc(p.label)} <b>${p.n}</b></span>`).join("")}</div>`}
+
+// =============================== overview: KPIs, charts, notifications ===============================
+const settle=p=>p.then(v=>({ok:true,v}),e=>({ok:false,e}));
+let LAST={};
+async function overview(){await Promise.all([kpis(),charts(),notifications()])}
+async function kpis(){const [bal,ex,wh]=await Promise.all([settle(api("/api/airwallex/balances")),settle(api("/v1/executions?limit=50")),settle(api("/v1/webhooks/status"))]);
+ const tiles=[];
+ if(bal.ok){const b=bal.v.balances_minor;["USD","EUR","GBP"].filter(c=>b[c]!=null).forEach(c=>tiles.push({k:`Wallet · ${c}`,v:`${c} ${short(b[c])}`,full:fmt(b[c],c),d:"live Airwallex balance, sandbox"}))}
+ else tiles.push({k:"Airwallex wallet",v:"not connected",d:"set the sandbox credentials",tone:"warn"});
+ if(ex.ok){const done=ex.v.filter(r=>r.status==="COMPLETED").length;tiles.push({k:"Executions completed",v:`${done} / ${ex.v.length}`,d:"last 50 runs",tone:done===ex.v.length?"good":"warn"})}
+ tiles.push({id:"kpiAttn",k:"Needs attention",v:"…",d:"serious or critical notifications"});
+ if(wh.ok){const n=Object.values(wh.v.counts).reduce((s,x)=>s+x,0);tiles.push({k:"Webhook events",v:String(n),d:wh.v.secret_configured?(wh.v.last_received_at?`last ${wh.v.last_received_at.slice(11,16)} UTC`:"waiting for the first event"):"secret not configured",tone:wh.v.secret_configured?"":"warn"})}
+ $("#kpis").innerHTML=tiles.map(t=>`<div class="kpi ${t.tone||""}" ${t.id?`id="${t.id}"`:""}><div class="k">${esc(t.k)}</div><div class="v" title="${esc(t.full||t.v)}">${esc(t.v)}</div><div class="d">${esc(t.d)}</div></div>`).join("");attention()}
+function attention(){const el=$("#kpiAttn");if(!el||!LAST.notifs)return;const n=LAST.notifs.filter(x=>x.tone==="critical"||x.tone==="serious").length;
+ el.className=`kpi ${n?"critical":"good"}`;el.querySelector(".v").textContent=String(n)}
+
+async function charts(){const [ex,bud,tree,pay]=await Promise.all([settle(api("/v1/executions?limit=50")),settle(budgetSnapshot()),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`)),settle(api("/v1/payees"))]);
+ // activity: executions per day, last 14 days
+ if(ex.ok){const days=[];const now=new Date();for(let i=13;i>=0;i--){const d=new Date(now);d.setDate(now.getDate()-i);const key=d.toISOString().slice(0,10);
+   const rows=ex.v.filter(r=>(r.created_at||"").slice(0,10)===key);days.push({key,n:rows.length,ok:rows.filter(r=>r.status==="COMPLETED").length,tick:String(d.getDate()),label:d.toLocaleDateString(undefined,{day:"numeric",month:"short"})})}
+  $("#chActivity").innerHTML=columns(days);
+  const c={};ex.v.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+  const col={COMPLETED:"var(--good)",IN_FLIGHT:"var(--warn)",RUNNING:"var(--warn)",REFUSED:"var(--serious)",FAILED:"var(--critical)",RECONCILIATION_MISMATCH:"var(--critical)"};
+  $("#chExec").innerHTML=ex.v.length?stacked(Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([s,n])=>({label:s.replaceAll("_"," ").toLowerCase(),n,c:col[s]||"var(--muted)"}))):'<div class="empty">no executions yet</div>'}
+ else{$("#chActivity").innerHTML=$("#chExec").innerHTML=`<div class="err small">${esc(ex.e.message)}</div>`}
+ // budget used per line, with the alert threshold marked
+ if(bud.ok){const b=bud.v;$("#chBudgetMeta").textContent=`${b.period} · ${b.label}`;
+  $("#chBudget").innerHTML=hbars(b.lines.map(r=>{const used=r.realized_minor+r.paying_now_minor+r.committed_minor,pct=r.utilisation_bp/100;
+   return {label:r.line,value:Math.min(r.utilisation_bp,12000),display:`${pct.toFixed(0)}%`,tone:r.utilisation_bp>=10000?"critical":r.utilisation_bp>=r.alert_share_bp?"warn":"",
+    tip:`${r.line}: ${usd(used)} used or owed of ${usd(r.mandate_minor)}`,mark:r.alert_share_bp,markTip:`alert at ${r.alert_share_bp/100}%`}}),12000)}
+ else $("#chBudget").innerHTML=`<div class="muted small">${esc(bud.e.message)}</div>`;
+ // allocation per unit, in tree order; a unit that passed down more than it received is flagged
+ if(tree.ok){const rows=treeRows(tree.v);$("#chAllocMeta").textContent=`${new Date().getFullYear()} · USD`;
+  $("#chAlloc").innerHTML=hbars(rows.map(r=>({label:r.name,indent:r.depth,value:(r.allocated.USD||0),display:usd(r.allocated.USD||0),tone:Object.keys(r.over_allocated).length?"critical":"",
+   tip:`${r.name}: ${usd(r.allocated.USD||0)} allocated, ${usd(r.passed_down.USD||0)} passed down${r.over_allocated.USD?`, over by ${usd(r.over_allocated.USD)}`:""}`})))}
+ else $("#chAlloc").innerHTML=`<div class="muted small">${esc(tree.e.message)}</div>`;
+ if(pay.ok){const c={};pay.v.forEach(p=>c[p.status]=(c[p.status]||0)+1);const order=["ACTIVE","VERIFIED","NEW","CHANGED","SUSPENDED"];
+  $("#chPayees").innerHTML=hbars(order.filter(s=>c[s]).map(s=>({label:s.toLowerCase(),value:c[s],display:String(c[s]),tone:tone[s]==="good"?"":tone[s],tip:`${c[s]} payee(s) ${s.toLowerCase()}`})))}
+ else $("#chPayees").innerHTML=`<div class="muted small">${esc(pay.e.message)}</div>`}
+async function budgetSnapshot(){let live=false;try{live=!!(await api("/api/live/latest")).sid}catch(e){}
+ const b=await api("/api/budget?scenario_id="+(live?"live":"kit01_initial"));return {...b,label:live?"latest operations run":"payables book"}}
+function treeRows(rows){const by={};rows.forEach(r=>(by[r.parent_id||""]=by[r.parent_id||""]||[]).push(r));const out=[];
+ const walk=(pid,depth)=>(by[pid]||[]).sort((a,b)=>a.name.localeCompare(b.name)).forEach(r=>{out.push({...r,depth});walk(r.unit_id,depth+1)});walk("",0);return out}
+
+const ago=t=>{if(!t)return"";const s=(Date.now()-new Date(t.replace(/\+0000$/,"Z")))/1000;return s<60?"just now":s<3600?`${Math.floor(s/60)} min ago`:s<86400?`${Math.floor(s/3600)} h ago`:`${Math.floor(s/86400)} d ago`};
+const WH_TONE={CONFIRMED:"good",MISMATCH:"serious",UNCONFIRMED:"warn",RECEIVED:"",IGNORED:""};
+const whTitle=e=>`${e.kind==="deposit"?"Incoming payment":e.kind==="transfer"?"Transfer":e.kind==="conversion"?"Conversion":"Event"} ${e.confirmed_status||e.claimed_status||e.name}`;
+const whDetail=e=>`${e.amount?`${esc(e.currency||"")} ${esc(e.amount)} · `:""}${esc(e.note||"waiting for the Airwallex API")}`;
+async function notifications(){const [wh,rc,inc,ink,pay,bud,tree]=await Promise.all([settle(api("/v1/webhooks/events?limit=10")),settle(api("/v1/recon-cases")),settle(api("/v1/incidents")),
+  settle(api("/v1/intake")),settle(api("/v1/payees")),settle(budgetSnapshot()),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`))]);
+ const n=[];const rank={critical:0,serious:1,warn:2,good:3,"":4};
+ if(rc.ok)rc.v.filter(c=>c.status==="OPEN").forEach(c=>n.push({tone:"critical",ic:"⛔",t:`Book ${c.book_id} locked`,x:"Reconciliation found a difference with Airwallex; a person must close the case.",w:c.opened_at,href:"#/executions"}));
+ if(inc.ok)inc.v.filter(i=>i.status!=="RESOLVED").forEach(i=>n.push({tone:"serious",ic:"⚠",t:`Payment incident · ${i.obligation_id}`,x:`${i.decision||"open"}${i.failure_type?` · ${i.failure_type.toLowerCase().replaceAll("_"," ")}`:""}`,w:i.updated_at,href:"#/executions"}));
+ if(pay.ok)pay.v.filter(p=>p.status==="CHANGED"||p.status==="SUSPENDED").forEach(p=>n.push({tone:"serious",ic:"⚑",t:`Payee ${p.beneficiary_id} ${p.status.toLowerCase()}`,x:p.status==="CHANGED"?"Bank details changed: never paid until a call-back on the registered number.":"Suspended: no payments.",w:p.changed_at,href:"#/payees"}));
+ if(ink.ok){const q=ink.v.filter(r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status));$("#cnt-intake").textContent=q.length||"";
+  q.slice(0,4).forEach(r=>n.push({tone:r.status==="QUARANTINED"?"serious":"warn",ic:"✉",t:`${r.status==="QUARANTINED"?"Quarantined":"Review"}: ${r.display_name||r.sender}`,x:`${r.kind.replaceAll("_"," ")} · ${fmt(r.amount_minor,r.currency||"")}`,w:r.received_at,href:"#/intake"}))}
+ if(bud.ok){bud.v.requests.forEach(q=>n.push({tone:"serious",ic:"▤",t:"Budget request",x:q.message,href:"#/budget"}));bud.v.alerts.forEach(a=>n.push({tone:"warn",ic:"▤",t:"Budget alert",x:a.message,href:"#/budget"}))}
+ if(tree.ok)tree.v.filter(r=>Object.keys(r.over_allocated).length).forEach(r=>n.push({tone:"warn",ic:"◔",t:`${r.name} over-allocated`,x:`Passed down ${Object.entries(r.over_allocated).map(([c,v])=>fmt(v,c)).join(", ")} more than it received.`,href:"#/allocation"}));
+ if(wh.ok)wh.v.forEach(e=>n.push({tone:WH_TONE[e.state]||"",ic:"⚡",t:whTitle(e),x:whDetail(e),w:e.received_at,href:"#/integrations",id:e.event_id}));
+ if(!n.length)n.push({tone:"good",ic:"✓",t:"All clear",x:"No open cases, incidents, reviews or alerts."});
+ n.sort((a,b)=>rank[a.tone]-rank[b.tone]||String(b.w||"").localeCompare(String(a.w||"")));LAST.notifs=n;
+ $("#cnt-exec").textContent=n.filter(x=>x.href==="#/executions").length||"";
+ $("#notifMeta").textContent=`${n.filter(x=>x.tone==="critical"||x.tone==="serious").length} need attention`;
+ attention();$("#notifs").innerHTML=n.slice(0,14).map(x=>`<a class="nt ${x.tone}${x.id&&x.id===LAST.fresh?" fresh":""}" href="${x.href||"#/overview"}"><span class="ic">${x.ic}</span><span><div class="t">${esc(x.t)}</div><div class="x">${x.x}</div>${x.w?`<div class="w">${esc(ago(x.w))}</div>`:""}</span></a>`).join("")}
+
+// =============================== live stream: Airwallex webhooks pushed to the page ===============================
+function stream(){if(!window.EventSource){$("#streamState").textContent="polling";return}
+ const es=new EventSource("/api/stream");
+ es.onopen=()=>{$("#streamState").textContent="Live · webhooks";$("#streamState").classList.add("on")};
+ es.onerror=()=>{$("#streamState").textContent="reconnecting…";$("#streamState").classList.remove("on")};
+ es.addEventListener("webhook",ev=>{const e=JSON.parse(ev.data);LAST.fresh=e.event_id;
+  if(e.state!=="RECEIVED")toast(`<b>${esc(whTitle(e))}</b><div class="small muted">${whDetail(e)}</div>`,WH_TONE[e.state]||"");
+  notifications();kpis();if(!$('section[data-view="integrations"]').hidden)webhookView()})}
+
+// =============================== organisation: units and people ===============================
+const KIND={HQ:"Head Quarter",COUNTRY_OFFICE:"Country office",BRANCH_OFFICE:"Branch office",PROJECT_FINANCE:"Project finance"};
+const ROLES={admin:"Admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",auditor:"Auditor"};
+let ORG={units:[],users:[],prices:[],allocations:[],standards:null};
+async function loadOrg(){const [u,p,pr,al,st]=await Promise.all([api("/v1/org/units"),api("/v1/org/users"),api("/v1/org/prices"),api("/v1/org/allocations"),api("/v1/org/standards")]);
+ ORG={units:u,users:p,prices:pr,allocations:al,standards:st};return ORG}
+const unitName=id=>(ORG.units.find(u=>u.unit_id===id)||{}).name||id||"All units";
+function unitTree(){const by={};ORG.units.forEach(u=>(by[u.parent_id||""]=by[u.parent_id||""]||[]).push(u));const out=[];
+ const walk=(pid,d)=>(by[pid]||[]).sort((a,b)=>a.name.localeCompare(b.name)).forEach(u=>{out.push({...u,depth:d});walk(u.unit_id,d+1)});walk("",0);return out}
+const unitOpts=(blank)=>[...(blank?[["",blank]]:[]),...unitTree().map(u=>[u.unit_id,`${"· ".repeat(u.depth)}${u.name}`])];
+const rowActs=(col,id)=>`<div class="acts"><button data-edit="${col}" data-id="${esc(id)}">Edit</button><button data-del="${col}" data-id="${esc(id)}">Delete</button></div>`;
+function wireActs(root,col,list,idf,fields,after){
+ root.querySelectorAll(`[data-edit="${col}"]`).forEach(b=>b.onclick=()=>openForm(`Edit`,fields(),list().find(r=>r[idf]===b.dataset.id),col,after));
+ root.querySelectorAll(`[data-del="${col}"]`).forEach(b=>b.onclick=async()=>{if(!confirm("Delete this record?"))return;
+  try{await api(`/v1/org/${col}/${encodeURIComponent(b.dataset.id)}?${who()}`,{method:"DELETE"});toast("Deleted","good");after()}catch(e){toast(esc(e.message),"serious")}})}
+
+const UNIT_FIELDS=()=>[{k:"name",l:"Name",req:1},{k:"kind",l:"Type",opts:Object.entries(KIND)},{k:"parent_id",l:"Parent unit",opts:unitOpts("— none (Head Quarter) —")},
+ {k:"country",l:"Country (ISO 2)",max:2},{k:"currency",l:"Local currency",max:3},{k:"timezone",l:"Time zone"},{k:"cost_centre",l:"Cost centre"},{k:"active",l:"Active",check:1}];
+const USER_FIELDS=()=>[{k:"name",l:"Full name",req:1},{k:"email",l:"Email",type:"email",req:1},{k:"role",l:"Role",opts:Object.entries(ROLES)},{k:"unit_id",l:"Unit",opts:unitOpts()},
+ {k:"approval_limit_minor",l:"Approval limit (USD)",money:1},{k:"active",l:"Active",check:1}];
+async function orgUsers(){try{await loadOrg();const units=unitTree();
+ $("#unitsTree").innerHTML=table([{h:"Unit",f:u=>`${u.depth?`<span class="tree">${"&nbsp;&nbsp;&nbsp;".repeat(u.depth-1)}└─ </span>`:""}<b>${esc(u.name)}</b>${u.active?"":' <span class="small muted">inactive</span>'}`},
+  {h:"Type",f:u=>`<span class="chip ${u.kind}">${KIND[u.kind]}</span>`},{h:"Country",f:u=>esc(u.country||"-")},{h:"Currency",f:u=>esc(u.currency)},{h:"Time zone",f:u=>`<span class="small">${esc(u.timezone)}</span>`},
+  {h:"Cost centre",f:u=>`<span class="mono">${esc(u.cost_centre||"-")}</span>`},{h:"People",num:1,f:u=>ORG.users.filter(p=>p.unit_id===u.unit_id).length},{h:"",f:u=>rowActs("units",u.unit_id)}],units);
+ wireActs($("#unitsTree"),"units",()=>ORG.units,"unit_id",UNIT_FIELDS,orgUsers);
+ const sel=$("#userUnit"),cur=sel.value;sel.innerHTML=unitOpts("All units").map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("");sel.value=cur;sel.onchange=orgUsers;
+ const people=ORG.users.filter(p=>!sel.value||p.unit_id===sel.value);
+ $("#usersTable").innerHTML=table([{h:"Name",f:p=>`<b>${esc(p.name)}</b>${p.active?"":' <span class="small muted">inactive</span>'}<div class="small muted">${esc(p.email)}</div>`},
+  {h:"Role",f:p=>`<span class="chip">${esc(ROLES[p.role]||p.role)}</span>`},{h:"Unit",f:p=>esc(unitName(p.unit_id))},
+  {h:"Approval limit",num:1,f:p=>p.approval_limit_minor?usd(p.approval_limit_minor):'<span class="muted">none</span>'},{h:"",f:p=>rowActs("users",p.user_id)}],people,"no people in this unit");
+ wireActs($("#usersTable"),"users",()=>ORG.users,"user_id",USER_FIELDS,orgUsers)}
+ catch(e){$("#unitsTree").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#addUnit").onclick=async()=>{await loadOrg();openForm("Add unit",UNIT_FIELDS(),{kind:"COUNTRY_OFFICE",parent_id:"hq",currency:"USD",timezone:"UTC",active:true},"units",orgUsers)};
+$("#addUser").onclick=async()=>{await loadOrg();openForm("Add person",USER_FIELDS(),{role:"treasury_analyst",unit_id:$("#userUnit").value||"hq",active:true},"users",orgUsers)};
+
+// generic record form in a dialog; the server checks every rule and its message is shown as is
+function openForm(title,fields,rec,col,after){rec={...(rec||{})};$("#dlgTitle").textContent=title;$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=fields.map(f=>{const v=rec[f.k];const id=`fld-${f.k}`;
+  if(f.check)return `<label class="check"><input type="checkbox" id="${id}" ${v!==false?"checked":""}> ${esc(f.l)}</label>`;
+  if(f.opts)return `<label>${esc(f.l)}<select id="${id}">${f.opts.map(([o,l])=>`<option value="${esc(o)}" ${String(v??"")===String(o)?"selected":""}>${esc(l)}</option>`).join("")}</select></label>`;
+  const val=f.money?(v!=null?(v/100).toFixed(2):""):(v??"");
+  return `<label>${esc(f.l)}<input id="${id}" type="${f.money?"number":f.type||"text"}" ${f.money?'step="0.01" min="0"':""} ${f.max?`maxlength="${f.max}"`:""} ${f.req?"required":""} ${f.list?`list="${f.list}"`:""} value="${esc(val)}"></label>`}).join("")
+  +(fields.some(f=>f.list==="catList")?`<datalist id="catList">${(ORG.standards?.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`:"");
+ const dlg=$("#dlg");dlg.showModal();
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
+  const body={...rec};fields.forEach(f=>{const el=$(`#fld-${f.k}`);body[f.k]=f.check?el.checked:f.money?Math.round(parseFloat(el.value||"0")*100):(el.value===""&&f.nullable?null:el.value)});
+  if(body.parent_id==="")body.parent_id=null;if(body.unit_id===""&&col==="prices")body.unit_id=null;
+  try{await api(`/v1/org/${col}?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});dlg.close();toast("Saved","good");after()}
+  catch(e){$("#dlgErr").textContent=e.message}}}
+
+// =============================== settings: allocation, offices, prices, standards, mandate ===============================
+const ALLOC_FIELDS=()=>[{k:"period",l:"Period (YYYY, YYYY-Qn or YYYY-MM)",req:1},{k:"unit_id",l:"Unit",opts:unitOpts()},{k:"line",l:"Budget line",req:1,list:"catList"},
+ {k:"amount_minor",l:"Amount",money:1},{k:"currency",l:"Currency",max:3}];
+async function allocView(){try{await loadOrg();const periods=[...new Set([String(new Date().getFullYear()),...ORG.allocations.map(a=>a.period)])].sort();
+ const sel=$("#allocPeriod"),cur=sel.value||String(new Date().getFullYear());sel.innerHTML=periods.map(p=>`<option>${esc(p)}</option>`).join("");sel.value=cur;sel.onchange=allocView;
+ const tree=treeRows(await api(`/v1/org/allocation-tree?period=${encodeURIComponent(sel.value)}`));
+ $("#allocChart").innerHTML=hbars(tree.map(r=>({label:r.name,indent:r.depth,sub:KIND[r.kind],value:r.allocated.USD||0,display:`${usd(r.allocated.USD||0)}${r.passed_down.USD?` <span class="muted">· ${short(r.passed_down.USD)} down</span>`:""}`,
+  tone:r.over_allocated.USD?"critical":"",mark:r.passed_down.USD||null,markTip:`passed down ${usd(r.passed_down.USD||0)}`,
+  tip:`${r.name}: ${usd(r.allocated.USD||0)} received${r.over_allocated.USD?`, passed down ${usd(r.over_allocated.USD)} too much`:""}`})))
+  +`<div class="legend"><span style="--c:var(--seq)">allocated to the unit</span><span style="--c:var(--ink2)">marker: passed down to its units</span><span style="--c:var(--critical)">passed down more than received</span></div>`;
+ const order=Object.fromEntries(tree.map((r,i)=>[r.unit_id,i]));const rows=ORG.allocations.filter(a=>a.period===sel.value).sort((a,b)=>(order[a.unit_id]??99)-(order[b.unit_id]??99));
+ $("#allocTable").innerHTML=table([{h:"Unit",f:a=>esc(unitName(a.unit_id))},{h:"Line",f:a=>esc(a.line)},{h:"Amount",num:1,f:a=>fmt(a.amount_minor,a.currency)},{h:"",f:a=>rowActs("allocations",a.alloc_id)}],rows,"no allocations in this period")
+  +`<datalist id="catList">${(ORG.standards.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`;
+ wireActs($("#allocTable"),"allocations",()=>ORG.allocations,"alloc_id",ALLOC_FIELDS,allocView)}
+ catch(e){$("#allocChart").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#addAlloc").onclick=async()=>{await loadOrg();openForm("Add allocation",ALLOC_FIELDS(),{period:$("#allocPeriod").value,unit_id:"hq",currency:ORG.standards.base_currency},"allocations",allocView)};
+
+async function officesView(){try{await loadOrg();const rows=unitTree().filter(u=>u.kind==="COUNTRY_OFFICE"||u.kind==="BRANCH_OFFICE");
+ $("#officesTable").innerHTML=table([{h:"Office",f:u=>`${u.kind==="BRANCH_OFFICE"?'<span class="tree">└─ </span>':""}<b>${esc(u.name)}</b>`},{h:"Type",f:u=>`<span class="chip ${u.kind}">${KIND[u.kind]}</span>`},
+  {h:"Reports to",f:u=>esc(unitName(u.parent_id))},{h:"Country",f:u=>esc(u.country)},{h:"Local currency",f:u=>esc(u.currency)},{h:"Time zone",f:u=>esc(u.timezone)},
+  {h:"Cost centre",f:u=>`<span class="mono">${esc(u.cost_centre||"-")}</span>`},{h:"People",num:1,f:u=>ORG.users.filter(p=>p.unit_id===u.unit_id).length},{h:"",f:u=>rowActs("units",u.unit_id)}],rows,"no offices yet");
+ wireActs($("#officesTable"),"units",()=>ORG.units,"unit_id",UNIT_FIELDS,officesView)}catch(e){$("#officesTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#addOffice").onclick=async()=>{await loadOrg();openForm("Add office",UNIT_FIELDS(),{kind:"COUNTRY_OFFICE",parent_id:"hq",currency:"USD",timezone:"UTC",active:true},"units",officesView)};
+
+const PRICE_FIELDS=()=>[{k:"item",l:"Item",req:1},{k:"category",l:"Category",req:1,list:"catList"},{k:"unit",l:"Per (unit of measure)",req:1},{k:"price_minor",l:"Price",money:1},
+ {k:"currency",l:"Currency",max:3},{k:"unit_id",l:"Applies to",opts:unitOpts("All units")},{k:"valid_from",l:"Valid from",type:"date"}];
+async function pricesView(){try{await loadOrg();const sel=$("#priceCat"),cur=sel.value;const cats=[...new Set(ORG.prices.map(p=>p.category))].sort();
+ sel.innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join("");sel.value=cur;sel.onchange=pricesView;
+ const rows=ORG.prices.filter(p=>!sel.value||p.category===sel.value).sort((a,b)=>a.category.localeCompare(b.category)||a.item.localeCompare(b.item));
+ $("#pricesTable").innerHTML=table([{h:"Item",f:p=>`<b>${esc(p.item)}</b>`},{h:"Category",f:p=>`<span class="chip">${esc(p.category)}</span>`},{h:"Price",num:1,f:p=>fmt(p.price_minor,p.currency)},
+  {h:"Per",f:p=>esc(p.unit)},{h:"Applies to",f:p=>esc(unitName(p.unit_id))},{h:"Valid from",f:p=>esc(p.valid_from)},{h:"",f:p=>rowActs("prices",p.price_id)}],rows,"no prices yet");
+ wireActs($("#pricesTable"),"prices",()=>ORG.prices,"price_id",PRICE_FIELDS,pricesView)}catch(e){$("#pricesTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#addPrice").onclick=async()=>{await loadOrg();openForm("Add unit price",PRICE_FIELDS(),{currency:ORG.standards.base_currency,valid_from:new Date().toISOString().slice(0,10)},"prices",pricesView)};
+
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+async function standardsView(){try{const [s,rep]=await Promise.all([api("/v1/org/standards"),api("/v1/reporting/config")]);
+ $("#stdForm").innerHTML=`<label>Company name<input id="sd-company_name" value="${esc(s.company_name)}"></label>
+  <label>Base currency<input id="sd-base_currency" maxlength="3" value="${esc(s.base_currency)}"></label>
+  <label>Fiscal year starts<select id="sd-fiscal_year_start_month">${MONTHS.map((m,i)=>`<option value="${i+1}" ${s.fiscal_year_start_month===i+1?"selected":""}>${m}</option>`).join("")}</select></label>
+  <label>Default payment terms (days)<input id="sd-default_payment_terms_days" type="number" min="0" max="365" value="${s.default_payment_terms_days}"></label>
+  <label>Invoice matching<select id="sd-invoice_matching"><option value="three_way" ${s.invoice_matching==="three_way"?"selected":""}>Three-way (order, receipt, invoice)</option><option value="two_way" ${s.invoice_matching==="two_way"?"selected":""}>Two-way (order, invoice)</option></select></label>
+  <label>Petty cash limit (base currency)<input id="sd-petty_cash_limit_minor" type="number" step="0.01" min="0" value="${(s.petty_cash_limit_minor/100).toFixed(2)}"></label>
+  <label>Expense claims within (days)<input id="sd-expense_claim_deadline_days" type="number" min="1" max="365" value="${s.expense_claim_deadline_days}"></label>
+  <label>Keep documents (years)<input id="sd-document_retention_years" type="number" min="1" max="30" value="${s.document_retention_years}"></label>
+  <label>FX rate source<select id="sd-fx_rate_source"><option value="airwallex" ${s.fx_rate_source==="airwallex"?"selected":""}>Airwallex live rates</option><option value="ecb" ${s.fx_rate_source==="ecb"?"selected":""}>ECB reference rates</option></select></label>
+  <label style="grid-column:1/-1">Expense categories (comma separated)<input id="sd-expense_categories" value="${esc(s.expense_categories.join(", "))}"></label>`;
+ $("#stdRep").innerHTML=`<dl class="kv"><dt>Time zone</dt><dd>${esc(rep.timezone)}</dd><dt>Cut-off</dt><dd>day ${esc(rep.cutoff_day)} at ${esc(rep.cutoff_time)}</dd><dt>Reporting in</dt><dd>${esc(rep.reporting_currency)}</dd></dl>
+  <p class="muted">Payments are booked to a period by their payment instant in this time zone. The cut-off is changed by an admin through the reporting API.</p>`}
+ catch(e){$("#stdForm").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#saveStd").onclick=async()=>{const g=k=>$(`#sd-${k}`).value;
+ const body={company_name:g("company_name"),base_currency:g("base_currency"),fiscal_year_start_month:+g("fiscal_year_start_month"),default_payment_terms_days:+g("default_payment_terms_days"),
+  invoice_matching:g("invoice_matching"),petty_cash_limit_minor:Math.round(parseFloat(g("petty_cash_limit_minor")||"0")*100),expense_claim_deadline_days:+g("expense_claim_deadline_days"),
+  document_retention_years:+g("document_retention_years"),fx_rate_source:g("fx_rate_source"),expense_categories:g("expense_categories").split(",").map(x=>x.trim()).filter(Boolean)};
+ try{await api(`/v1/org/standards?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#stdMeta").textContent=`saved by ${actor().name}`;toast("Finance standards saved","good")}
+ catch(e){$("#stdMeta").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+
+const mval=m=>m.value==null?"per line":m.unit==="usd"?usd(m.value):m.unit==="pct"?`${(m.value/100).toFixed(m.value%100?1:0)}%`:m.unit==="days"?`${m.value} days`:String(m.value);
+async function mandateView(){try{const d=await api("/api/live/setup");
+ const kinds={grant:"Agent may, on its own",guard:"Safeguard: a person is called",locked:"Always locked"};
+ const group=k=>d.mandates.filter(m=>m.kind===k);
+ $("#mandateView").innerHTML=`<div class="tiles">${[["Allocation",usd(d.allocation_minor),"ring-fenced from the wallet"],["Reserve floor",usd(d.reserve_floor_minor),"never spent"],["Horizon",`${d.horizon_hours} h`,"planning window"],
+   ["FX limit at full confidence",`${d.full_confidence_bp/100}%`,`zero below ${d.zero_limit_below_bp/100}%`]].map(([k,v,x])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:18px">${esc(v)}</div><div class="d">${esc(x)}</div></div>`).join("")}</div>
+  ${Object.entries(kinds).filter(([k])=>group(k).length).map(([k,l])=>`<h3 class="small muted" style="margin:16px 0 6px">${l}</h3>${table([{h:"Rule",f:m=>`${esc(m.label)}<div class="small muted">${esc(m.help||"")}</div>`},{h:"Value",num:1,f:m=>`<b>${esc(mval(m))}</b>`}],group(k))}`).join("")}
+  <div class="two"><div><h3 class="small muted" style="margin:0 0 6px">Approval matrix</h3>${table([{h:"Tier",f:t=>esc(t.name)},{h:"From",num:1,f:t=>usd(t.min_total_minor)},{h:"Approvals",num:1,f:t=>t.approvals_required},{h:"Roles",f:t=>esc(t.roles.map(r=>ROLES[r]||r).join(", "))}],d.approval_matrix)}
+   <div class="small muted" style="margin-top:6px">Two approvals come from two different people; the requester never approves their own request.</div></div>
+   <div><h3 class="small muted" style="margin:0 0 6px">Approvers</h3>${table([{h:"Name",f:a=>esc(a.name)},{h:"Role",f:a=>esc(ROLES[a.role]||a.role)}],d.approvers)}</div></div>`}
+ catch(e){$("#mandateView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+
+const WH_EVENTS=["deposit.pending","deposit.settled","deposit.rejected","deposit.reversed","payout.transfer.processing","payout.transfer.sent","payout.transfer.paid","payout.transfer.failed","conversion.settled","conversion.cancelled"];
+async function webhookView(){try{const [s,ev]=await Promise.all([api("/v1/webhooks/status"),api("/v1/webhooks/events?limit=50")]);
+ $("#whBadge").innerHTML=s.secret_configured?'<span class="pill good">ENABLED</span>':`<span class="pill warn">SECRET NOT SET</span>`;
+ const total=Object.values(s.counts).reduce((a,b)=>a+b,0);
+ $("#whStatus").innerHTML=`<dl class="kv"><dt>Endpoint</dt><dd><code>${esc(location.origin)}${esc(s.endpoint)}</code></dd>
+   <dt>Signing secret</dt><dd>${s.secret_configured?"configured (AWX_WEBHOOK_SECRET)":'<span class="err">not set: every event is refused</span>'}</dd>
+   <dt>Re-read from</dt><dd>${s.airwallex_configured?"Airwallex sandbox API":'<span class="err">Airwallex not configured: events stay unconfirmed</span>'}</dd>
+   <dt>Replay window</dt><dd>${s.replay_window_s} s</dd><dt>Events</dt><dd>${total} ${Object.entries(s.counts).map(([k,v])=>`· ${v} ${k.toLowerCase()}`).join(" ")}</dd>
+   <dt>Dashboards listening</dt><dd>${s.listeners}</dd></dl>
+  <h3 class="small muted" style="margin:16px 0 6px">Set up in the Airwallex web app</h3>
+  <ol class="small" style="padding-left:18px;margin:0;line-height:1.7"><li>Expose this server on a public HTTPS address (a deployed host, or a tunnel such as ngrok for testing).</li>
+   <li>Developer → Webhooks → add the public URL ending in <code>/webhooks/airwallex</code>.</li><li>Copy the endpoint's secret into <code>AWX_WEBHOOK_SECRET</code> in <code>.env</code> and restart.</li>
+   <li>Subscribe to: ${WH_EVENTS.map(e=>`<code>${e}</code>`).join(" ")}</li></ol>
+  <p class="muted small">Each event is checked (signature, freshness, once only), then the record is read again from the Airwallex API. Polling remains the fallback, and no event moves money or changes a book.</p>`;
+ $("#whEvents").innerHTML=table([{h:"Received",f:e=>`<span class="small">${esc(e.received_at.slice(0,19).replace("T"," "))}</span>`},{h:"Event",f:e=>`<span class="mono">${esc(e.name)}</span>`},
+  {h:"Object",f:e=>`<span class="mono small">${esc((e.object_id||"-").slice(0,14))}</span>`},{h:"Event said",f:e=>esc(e.claimed_status||"-")},{h:"Airwallex API",f:e=>e.confirmed_status?`<b>${esc(e.confirmed_status)}</b>`:"-"},
+  {h:"Result",f:e=>`<span class="pill ${WH_TONE[e.state]||""}">${esc(e.state)}</span>`},{h:"Note",f:e=>`<span class="small">${esc(e.note||"")}</span>`}],ev,"No events yet. They appear here, and on the overview, the moment Airwallex sends them.")}
+ catch(e){$("#whStatus").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+
+route();stream();platform();scenarios();intake();executions();incidents();runs();matrix();gtCases();budget();reporting();ledgerBooks();payees();tenants();
+setInterval(()=>{intake();executions();incidents();if(!$('section[data-view="overview"]').hidden)notifications()},15000);
 </script>
 </body>
 </html>

@@ -10,8 +10,8 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import Body, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, Response
+from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from . import __version__
 from .audit import AuditStore
@@ -22,6 +22,7 @@ load_env()
 from pydantic import BaseModel, Field  # noqa: E402
 
 from . import live as live_session  # noqa: E402
+from . import webhooks  # noqa: E402
 from .aging import evaluate as aging_evaluate  # noqa: E402
 from .config import env  # noqa: E402
 from .domain.models import PlanResult, TreasuryState  # noqa: E402
@@ -39,6 +40,7 @@ from .intake.pipeline import Intake  # noqa: E402
 from .ledger import adjust as ledger_adjust_entry  # noqa: E402
 from .ledger import evaluate as ledger_evaluate  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
+from .organisation import ID_FIELD, WRITE_ROLES, Allocation, OrgError, OrgStore, Price, Standards, Unit, User  # noqa: E402
 from .payees import PayeeError  # noqa: E402
 from .payees import evaluate as payees_evaluate  # noqa: E402
 from .proofcore.approvals import evaluate as approvals_evaluate  # noqa: E402
@@ -63,8 +65,15 @@ async def lifespan(app: FastAPI):
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
     app.state.intake = Intake()
+    app.state.org = OrgStore()
+    app.state.webhooks = webhooks.WebhookStore()
+    app.state.hub = webhooks.Hub()
     await asyncio.to_thread(_warm_horizon)
+    pending = asyncio.create_task(webhooks.confirm_pending(app.state.webhooks, app.state.agent.proof.airwallex, app.state.hub.publish))
     yield
+    pending.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await pending
     await app.state.agent.close()
 
 
@@ -955,3 +964,136 @@ async def simulate_deposit(req: DepositRequest):
     await asyncio.to_thread(app.state.audit.append, "sandbox_deposit", {"amount_minor": req.amount_minor,
                                                                          "payer_name": req.payer_name})
     return result
+
+
+# ---- Airwallex webhooks: authenticated, once only, re-read from the API before anything is shown ----------
+@app.post("/webhooks/airwallex", include_in_schema=True)
+async def airwallex_webhook(request: Request, background: BackgroundTasks):
+    """Airwallex pushes deposit, transfer and conversion status changes here. The event is a hint: it is stored
+    once, acknowledged at once (Airwallex retries anything but 200), then re-read from the Airwallex API."""
+    body = await request.body()
+    reason = webhooks.verify(webhooks.secret(), request.headers.get("x-timestamp"), body, request.headers.get("x-signature"))
+    if reason == "webhook secret not configured":
+        raise HTTPException(503, reason)
+    if reason:
+        await asyncio.to_thread(app.state.audit.append, "webhook_refused", {"reason": reason})
+        raise HTTPException(400, reason)
+    try:
+        ev = webhooks.parse(body)
+    except ValueError as exc:
+        raise HTTPException(400, f"not an Airwallex event: {exc}") from exc
+    if not await asyncio.to_thread(app.state.webhooks.record, ev):
+        return {"received": True, "duplicate": True}
+    await asyncio.to_thread(app.state.audit.append, "webhook_received", {k: ev[k] for k in ("event_id", "name", "object_id")})
+    app.state.hub.publish("webhook", app.state.webhooks.get(ev["event_id"]) or ev)
+    background.add_task(_confirm_webhook, ev)
+    return {"received": True, "duplicate": False}
+
+
+async def _confirm_webhook(ev: dict) -> None:
+    row = await webhooks.confirm_event(app.state.webhooks, app.state.agent.proof.airwallex, ev)
+    app.state.hub.publish("webhook", row)
+
+
+@app.get("/v1/webhooks/status")
+async def webhook_status():
+    rows = app.state.webhooks.list(1)
+    return {"endpoint": "/webhooks/airwallex", "secret_configured": bool(webhooks.secret()),
+            "airwallex_configured": app.state.agent.proof.airwallex.configured, "replay_window_s": webhooks.TOLERANCE_S,
+            "counts": app.state.webhooks.counts(), "last_received_at": rows[0]["received_at"] if rows else None,
+            "listeners": app.state.hub.listeners}
+
+
+@app.get("/v1/webhooks/events")
+async def webhook_events(limit: int = Query(30, ge=1, le=200)):
+    return app.state.webhooks.list(limit)
+
+
+@app.get("/api/stream", include_in_schema=False)
+async def event_stream(request: Request):
+    """Server-sent events for the dashboards: each webhook as it arrives and again once confirmed."""
+    q = app.state.hub.subscribe()
+
+    async def gen():
+        try:
+            yield "retry: 5000\n\n"
+            while not await request.is_disconnected():
+                try:
+                    msg = await asyncio.wait_for(q.get(), timeout=15)
+                except TimeoutError:
+                    yield ": keep-alive\n\n"
+                    continue
+                yield f"event: {msg['kind']}\ndata: {json.dumps(msg['data'], default=str)}\n\n"
+        finally:
+            app.state.hub.unsubscribe(q)
+
+    return StreamingResponse(gen(), media_type="text/event-stream", headers={"cache-control": "no-cache"})
+
+
+# ---- organisation: units, people, budget allocations, unit prices and finance standards ---------------------
+ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price)}
+
+
+def _org_kind(collection: str):
+    if collection not in ORG_KINDS:
+        raise HTTPException(404, "unknown collection")
+    return ORG_KINDS[collection]
+
+
+def _writer(role: str, by: str) -> str:
+    if role not in WRITE_ROLES:
+        raise HTTPException(403, f"role '{role}' may read the organisation but not change it")
+    return f"{by} ({role})"
+
+
+@app.get("/v1/org/standards")
+async def org_standards():
+    return app.state.org.standards()
+
+
+@app.put("/v1/org/standards")
+async def set_org_standards(s: Standards, role: str = "finance_manager", by: str = "dashboard"):
+    who = _writer(role, by)
+    out = await asyncio.to_thread(app.state.org.save_standards, s, who)
+    await asyncio.to_thread(app.state.audit.append, "org_standards", {"by": who})
+    return out
+
+
+@app.get("/v1/org/allocation-tree")
+async def org_allocation_tree(period: str = "2026"):
+    return app.state.org.allocation_tree(period)
+
+
+@app.get("/v1/org/{collection}")
+async def org_list(collection: str):
+    kind, _ = _org_kind(collection)
+    return app.state.org.list(kind)
+
+
+@app.post("/v1/org/{collection}")
+async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    kind, model = _org_kind(collection)
+    who = _writer(role, by)
+    try:
+        rec = await asyncio.to_thread(app.state.org.save, kind, model.model_validate(body), who)
+    except OrgError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:  # pydantic validation
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, f"org_{kind}_saved", {"id": rec[ID_FIELD[kind]], "by": who})
+    return rec
+
+
+@app.delete("/v1/org/{collection}/{record_id}")
+async def org_delete(collection: str, record_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    kind, _ = _org_kind(collection)
+    who = _writer(role, by)
+    try:
+        await asyncio.to_thread(app.state.org.delete, kind, record_id, who)
+    except KeyError as exc:
+        raise HTTPException(404, "no such record") from exc
+    except OrgError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, f"org_{kind}_deleted", {"id": record_id, "by": who})
+    return {"deleted": record_id}
+

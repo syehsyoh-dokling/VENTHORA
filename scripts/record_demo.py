@@ -146,6 +146,12 @@ class Recorder:
         if hold:
             time.sleep(hold)
 
+    def view(self, name: str) -> None:
+        """Open a page of the Control center's menu (each page is a hash route on the same document)."""
+        self.clear()
+        self.page.evaluate("([n]) => { location.hash = '#/' + n }", [name])
+        time.sleep(0.9)
+
     def clear(self) -> None:
         self.js("() => window.__rec.clearSpots()")
 
@@ -291,15 +297,19 @@ def run(base: str, out: Path, headed: bool) -> None:
         page.wait_for_load_state("networkidle")
         r.js("() => window.scrollTo(0, 0)")
         r.at(base + 16, "Platform: two policy engines, hash-chained audit, production refused")
+        r.view("integrations")
         r.block("h2", "Platform", scroll=False)
         r.at(base + 20, "Budget against plan for the latest run")
+        r.view("budget")
         r.block("h2", "Budget · mandate", offset=90)
         r.at(base + 25, "Books, ledgers and tenants")
+        r.view("ledger")
         r.block("h2", "Books · ledger", offset=90)
         time.sleep(2.5)
+        r.view("mandate")
         r.block("h2", "Tenants · books", offset=90)
         r.at(base + 31, "Ground-truth checks: a payout the bank returned (Kit 03)")
-        r.clear()
+        r.view("assurance")
         r.scroll_to("h2", "Ground-truth checks", ms=1000, offset=90)
         page.select_option("#gtSuite", "anomalies")
         time.sleep(1.0)
@@ -311,9 +321,8 @@ def run(base: str, out: Path, headed: bool) -> None:
         r.spot("#subOut")
         r.at(base + 41, "Resilience test matrix: 136 of 136")
         r.block("h2", "Resilience test matrix", offset=200)
-        r.at(base + 46, "Close: back to the top")
-        r.clear()
-        r.scroll_y(0, ms=1500)
+        r.at(base + 46, "Close: the overview, charts and notifications")
+        r.view("overview")
         r.at(base + 50, "End")
         time.sleep(1.0)
 

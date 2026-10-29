@@ -12,6 +12,9 @@ def test_pages_favicon_and_latest_run(monkeypatch, tmp_path):
             r = client.get(path)
             assert r.status_code == 200, path
             assert 'rel="icon" href="/favicon.svg"' in r.text, path
+        home = client.get("/").text
+        for view in ("overview", "users", "allocation", "offices", "prices", "standards", "mandate", "integrations"):
+            assert f'data-view="{view}"' in home and f'href="#/{view}"' in home, view
         for path in ("/favicon.svg", "/favicon.ico"):
             r = client.get(path)
             assert r.status_code == 200 and r.headers["content-type"].startswith("image/svg+xml"), path
