@@ -9,6 +9,7 @@ import pytest
 # Set before any test imports venthora.api, whose import reads .env: the suite must never see the developer's
 # credentials or webhook secret, whichever test happens to import the API first.
 os.environ["VENTHORA_NO_DOTENV"] = "1"
+os.environ["VENTHORA_BUDGET_SCHEDULER"] = "0"  # the daily / monthly budget sync never runs on its own in a test
 
 SCENARIOS = Path(__file__).resolve().parents[1] / "data" / "scenarios"
 ISOLATED_ENV = ["AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "AIRWALLEX_BASE_URL", "AIRWALLEX_GLOBAL_ACCOUNT_ID",
@@ -30,6 +31,7 @@ def isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("VENTHORA_ORG_DB", str(tmp_path / "org.db"))
     monkeypatch.setenv("VENTHORA_AI_DB", str(tmp_path / "ai.db"))
     monkeypatch.setenv("VENTHORA_MASTER_DB", str(tmp_path / "master.db"))
+    monkeypatch.setenv("VENTHORA_REPORTING_CONFIG", str(tmp_path / "reporting.json"))  # starts from the shipped copy
     monkeypatch.setenv("VENTHORA_ECB_CSV", str(tmp_path / "missing-ecb.csv"))
 
 

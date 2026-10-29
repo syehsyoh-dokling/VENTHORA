@@ -81,6 +81,7 @@ class Executor:
         self.poll_attempts = poll_attempts
         self.poll_interval_s = poll_interval_s
         self._run_lock = asyncio.Lock()
+        self.org = None  # the organisation store; set, every payment with a charge code is held to its budget allocation
 
     async def audit_async(self, kind: str, payload: dict) -> None:
         await asyncio.to_thread(self.audit.append, kind, payload)
@@ -149,6 +150,7 @@ class Executor:
                 if rec is not None and rec["status"] not in ("VERIFIED", "ACTIVE"):
                     refuse(f"payee {rec['beneficiary_id']} is {rec['status']}: a person must verify it by call-back on the "
                            "registered number before any payment")
+        self._budget_gate(plan, by_id, steps, refuse)
         if plan.decision == "BLOCKED":
             refuse("ProofCore blocked this plan")
         approvals = [a.model_dump() for a in ([req.approval] if req.approval else []) + list(req.approvals)]
@@ -182,6 +184,26 @@ class Executor:
             "decision": plan.decision, "approved_by": approved_by or "policy (autonomous)",
             "tier": (plan.approval_requirement or {}).get("tier") if approved_by else None}))
         return plan
+
+    def _budget_gate(self, plan: PlanResult, by_id: dict, steps: list[Step], refuse) -> None:
+        """Budget allocation, read fresh at execution: every payment with a charge code must fit the allocation that
+        governs it in the budget period it is paid in (Settings → Budget allocation), whatever the plan assumed."""
+        if self.org is None:
+            return
+        items = [{"obligation_id": d.obligation_id, "account_code": by_id[d.obligation_id].account_code, "currency": d.currency,
+                  "amount_minor": d.amount_minor, "base_cost_minor": d.base_cost_minor}
+                 for d in plan.obligations
+                 if d.action in PAYING_ACTIONS and d.obligation_id in by_id and by_id[d.obligation_id].account_code]
+        if not items:
+            return
+        from ..budget_allocation import Budget
+        from ..reporting import load_config, reporting_period
+
+        verdicts = Budget(self.org, self.store).check(items, reporting_period(datetime.now(UTC), load_config()))
+        bad = [v for v in verdicts if not v["ok"]]
+        if bad:
+            refuse("budget allocation: " + "; ".join(f"{v['obligation_id']}: {v['reason']}" for v in bad))
+        steps.append(Step(kind="preflight", key="budget_allocation", status="OK", detail={"checked": verdicts}))
 
     async def _run(self, eid: str, state: TreasuryState, plan: PlanResult, before: dict[str, int],
                    req: ExecutionRequest, steps: list[Step]) -> ExecutionResult:

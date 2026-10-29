@@ -59,7 +59,11 @@ from .payees import PayeeError  # noqa: E402
 from .payees import evaluate as payees_evaluate  # noqa: E402
 from .proofcore.approvals import evaluate as approvals_evaluate  # noqa: E402
 from .proofcore.budget import attach_budget, cutoff_report, load_budget  # noqa: E402
-from .reporting import ReportingConfig, period_report  # noqa: E402
+from .reporting import (  # noqa: E402
+    ReportingConfig,
+    period_report,
+    reporting_period,  # noqa: E402
+)
 from .reporting import evaluate as reporting_evaluate  # noqa: E402
 from .reporting import load_config as load_reporting_config  # noqa: E402
 from .reporting import save_config as save_reporting_config  # noqa: E402
@@ -79,16 +83,20 @@ async def lifespan(app: FastAPI):
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
     app.state.org = OrgStore()
+    app.state.executor.org = app.state.org  # payments with a charge code are held to their budget allocation
     app.state.keys = apiaccess.KeyStore()
     app.state.intake = Intake(org=app.state.org, payments=app.state.executor.store)  # staff claims and POs use the org settings
     app.state.webhooks = webhooks.WebhookStore()
     app.state.hub = webhooks.Hub()
     await asyncio.to_thread(_warm_horizon)
     pending = asyncio.create_task(webhooks.confirm_pending(app.state.webhooks, app.state.agent.proof.airwallex, app.state.hub.publish))
+    scheduler = asyncio.create_task(_budget_scheduler()) if env("VENTHORA_BUDGET_SCHEDULER", "1") != "0" else None
     yield
-    pending.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
-        await pending
+    for task in (pending, scheduler):
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
     await app.state.agent.close()
 
 
@@ -1375,14 +1383,21 @@ async def connectors_sync(connector_id: str, dry_run: bool = False, entity: str 
                           by: str = "dashboard"):
     """Read every enabled entity from the old system and write it (dry_run=true only reports what would change).
     Entities run in dependency order: vendors before their POs and bills, customers before receivables."""
+    from .connectors import ConnectorStore
+
+    who = _writer(role, by)
+    if ConnectorStore().get_raw(connector_id) is None:
+        raise HTTPException(404, "no such connector")
+    reports = await _sync_connector(connector_id, dry_run, entity, who)
+    return {"connector_id": connector_id, "dry_run": dry_run, "reports": reports}
+
+
+async def _sync_connector(connector_id: str, dry_run: bool, entity: str | None, who: str) -> dict:
     from . import ingestion
     from .connectors import ORDER, ConnectorStore, fetch
 
-    who = _writer(role, by)
     store = ConnectorStore()
     raw = store.get_raw(connector_id)
-    if raw is None:
-        raise HTTPException(404, "no such connector")
     ctx, reports = _ingest_ctx(), {}
     for ent in ORDER:
         em = raw["entities"].get(ent)
@@ -1399,7 +1414,7 @@ async def connectors_sync(connector_id: str, dry_run: bool = False, entity: str 
         app.state.position_cache = None
         await asyncio.to_thread(app.state.audit.append, "connector_synced", {"id": connector_id, "by": who, "summary": {
             e: {k: len(v) for k, v in r.items() if isinstance(v, list)} if "error" not in r else r for e, r in reports.items()}})
-    return {"connector_id": connector_id, "dry_run": dry_run, "reports": reports}
+    return reports
 
 
 @app.get("/v1/sources/master/{entity}")
@@ -1693,3 +1708,143 @@ async def developer_key_revoke(key_id: str, role: str = "finance_manager", by: s
         raise HTTPException(404, "no such key")
     await asyncio.to_thread(app.state.audit.append, "api_key_revoked", {"key_id": key_id, "by": who})
     return rec
+
+
+# ---- Settings → Budget allocation: the policy, the allocations' usage, the gate a payment passes, the sync ----
+class BudgetPolicyIn(BaseModel):
+    enforcement: str = "per_allocation"
+    period_type: str = "annual"
+    daily_sync_time: str = "23:59"
+    monthly_sync_day: int = Field(1, ge=1, le=31)
+    sync_enabled: bool = True
+    fiscal_year_start_month: int = Field(1, ge=1, le=12)
+    cutoff_day: int = Field(25, ge=1, le=31)
+    cutoff_time: str = Field("23:59", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    timezone: str = Field("Asia/Jakarta", max_length=60)
+
+
+def _budget_policy_view() -> dict:
+    from . import budget_allocation as ba
+
+    org, cfg = app.state.org, load_reporting_config()
+    pol, std = org.budget_policy(), org.standards()
+    now = datetime.now(UTC)
+    month = reporting_period(now, cfg)
+    start = int(std.get("fiscal_year_start_month", 1))
+    nxt = {k: ba.next_scheduled(k, pol, now, cfg.timezone).isoformat() for k in ("daily", "monthly")} if pol["sync_enabled"] else None
+    return pol | {"fiscal_year_start_month": start, "cutoff_day": cfg.cutoff_day, "cutoff_time": cfg.cutoff_time,
+                  "timezone": cfg.timezone, "base_currency": std["base_currency"], "quarters": ba.quarters(start),
+                  "period_types": ba.PERIOD_LABEL, "current_month": month,
+                  "active_period": ba.period_of(month, pol["period_type"], start), "next_sync": nxt,
+                  "period_options": ba.period_options(pol["period_type"], start, month)}
+
+
+@app.get("/v1/budget-allocation/policy")
+async def budget_policy_get():
+    """Enforcement, the active period type, fiscal-year start (Q1), cut-off and the daily / monthly sync times."""
+    return await asyncio.to_thread(_budget_policy_view)
+
+
+@app.put("/v1/budget-allocation/policy")
+async def budget_policy_put(body: BudgetPolicyIn, role: str = "finance_manager", by: str = "dashboard"):
+    from zoneinfo import ZoneInfo
+
+    from .budget_allocation import BudgetPolicy
+    from .organisation import Standards
+
+    who = _writer(role, by)
+    try:
+        ZoneInfo(body.timezone)
+        cur = app.state.org.budget_policy()
+        pol = BudgetPolicy.model_validate(cur | body.model_dump(include={"enforcement", "period_type", "daily_sync_time", "monthly_sync_day", "sync_enabled"}))
+    except Exception as exc:  # noqa: BLE001 - a bad time zone or value is the caller's to fix
+        raise HTTPException(422, str(exc)) from exc
+    org = app.state.org
+    await asyncio.to_thread(org.save_budget_policy, pol, who)
+    std = org.standards() | {"fiscal_year_start_month": body.fiscal_year_start_month}
+    await asyncio.to_thread(org.save_standards, Standards.model_validate(std), who)
+    cfg = load_reporting_config().model_copy(update={"cutoff_day": body.cutoff_day, "cutoff_time": body.cutoff_time,
+                                                     "timezone": body.timezone, "set_by": who})
+    save_reporting_config(cfg)
+    await asyncio.to_thread(app.state.audit.append, "budget_policy", body.model_dump() | {"by": who})
+    return await asyncio.to_thread(_budget_policy_view)
+
+
+@app.get("/v1/budget-allocation/status")
+async def budget_allocation_status(period: str | None = None):
+    """Every allocation of a budget period with what was spent against it and what is left."""
+    from .budget_allocation import Budget
+
+    view = await asyncio.to_thread(_budget_policy_view)
+    period = period or view["active_period"]
+    b = Budget(app.state.org, app.state.executor.store)
+    periods = sorted({a["period"] for a in b.allocs} | {view["active_period"]})
+    return {"period": period, "active_period": view["active_period"], "periods": periods, "enforcement": view["enforcement"],
+            "allocations": await asyncio.to_thread(b.usage, period)}
+
+
+class BudgetCheckIn(BaseModel):
+    account_code: str = Field(min_length=5, max_length=60)
+    amount_minor: int = Field(gt=0, le=10**13)
+    currency: str = Field("USD", min_length=3, max_length=3)
+    base_cost_minor: int | None = Field(None, gt=0, le=10**13, description="the cost in the base currency; default = amount")
+
+
+@app.post("/v1/budget-allocation/check")
+async def budget_allocation_check(body: BudgetCheckIn):
+    """What the execution gate would say about one payment now (nothing is booked)."""
+    from .budget_allocation import Budget
+
+    item = {"obligation_id": "check", "account_code": body.account_code.upper(), "currency": body.currency.upper(),
+            "amount_minor": body.amount_minor, "base_cost_minor": body.base_cost_minor or body.amount_minor}
+    month = reporting_period(datetime.now(UTC), load_reporting_config())
+    return (await asyncio.to_thread(Budget(app.state.org, app.state.executor.store).check, [item], month))[0]
+
+
+async def _budget_sync(kind: str, who: str) -> dict:
+    """Re-read every connected source, then record each allocation's usage in the active period."""
+    from .budget_allocation import Budget, BudgetPolicy
+    from .connectors import ConnectorStore
+
+    sources = {}
+    for c in ConnectorStore().list():
+        try:
+            reps = await _sync_connector(c["connector_id"], False, None, who)
+            sources[c["connector_id"]] = {e: (r.get("error") or {k: len(v) for k, v in r.items() if isinstance(v, list)}) for e, r in reps.items()}
+        except Exception as exc:  # noqa: BLE001 - one source failing does not stop the others
+            sources[c["connector_id"]] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+    view = await asyncio.to_thread(_budget_policy_view)
+    usage = await asyncio.to_thread(Budget(app.state.org, app.state.executor.store).usage, view["active_period"])
+    over = [a["alloc_id"] for a in usage if a["remaining_minor"] is not None and a["remaining_minor"] < 0]
+    summary = {"kind": kind, "at": datetime.now(UTC).isoformat(timespec="seconds"), "period": view["active_period"],
+               "allocations": len(usage), "over_allocation": over, "sources": sources}
+    pol = app.state.org.budget_policy() | {f"last_{kind}_sync_at": summary["at"], "last_sync_summary": summary}
+    await asyncio.to_thread(app.state.org.save_budget_policy, BudgetPolicy.model_validate(pol), who)
+    await asyncio.to_thread(app.state.audit.append, f"budget_{kind}_sync", summary | {"by": who})
+    return summary
+
+
+@app.post("/v1/budget-allocation/sync")
+async def budget_allocation_sync(kind: str = Query("daily", pattern="^(daily|monthly)$"), role: str = "finance_manager", by: str = "dashboard"):
+    """Run the daily or monthly sync now."""
+    return await _budget_sync(kind, _writer(role, by))
+
+
+async def _budget_scheduler(every_s: float = 30.0) -> None:
+    """Runs the daily and monthly syncs at the times Settings → Budget allocation sets."""
+    from .budget_allocation import BudgetPolicy, due
+
+    while True:
+        with contextlib.suppress(Exception):  # a failed run is retried on the next tick; the audit log has the rest
+            pol = app.state.org.budget_policy()
+            tz = load_reporting_config().timezone
+            now = datetime.now(UTC)
+            fresh = {f"last_{k}_sync_at": now.isoformat(timespec="seconds") for k in ("daily", "monthly") if not pol.get(f"last_{k}_sync_at")}
+            if fresh:  # the first scheduled run is the next one, not one at start-up
+                await asyncio.to_thread(app.state.org.save_budget_policy, BudgetPolicy.model_validate(pol | fresh), "scheduler")
+            else:
+                for kind in ("monthly", "daily"):
+                    if due(kind, pol, now, tz):
+                        await _budget_sync(kind, "scheduler (budget allocation)")
+                        break
+        await asyncio.sleep(every_s)

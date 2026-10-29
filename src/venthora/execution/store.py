@@ -444,6 +444,17 @@ class ExecutionStore:
         with self._lock, self._connect() as c:
             return [dict(r) for r in c.execute(q + " ORDER BY paid_at", args).fetchall()]
 
+    def spend_rows(self, periods: list[str] | None = None) -> list[dict]:
+        """Paid spend per account code, reporting month and currency; periods None = every month."""
+        q = ("SELECT account_code, reporting_period, currency, SUM(amount_minor) AS amount_minor,"
+             " SUM(base_cost_minor) AS base_cost_minor FROM spend_ledger WHERE account_code IS NOT NULL")
+        args: tuple = ()
+        if periods is not None:
+            q += f" AND reporting_period IN ({','.join('?' * len(periods))})"
+            args = tuple(periods)
+        with self._lock, self._connect() as c:
+            return [dict(r) for r in c.execute(q + " GROUP BY account_code, reporting_period, currency", args).fetchall()]
+
     def spend_by_account(self, period_prefix: str | None = None) -> list[dict]:
         """Paid spend per account code and currency (base-currency cost alongside), optionally for one period."""
         q = ("SELECT account_code, currency, SUM(amount_minor) AS amount_minor, SUM(base_cost_minor) AS base_cost_minor,"

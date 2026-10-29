@@ -411,6 +411,27 @@ If a response is lost, the operation is recovered by its `request_id` and never 
 Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": true`.
 
 
+
+## Budget allocation: checked again when money moves
+
+**Settings → Budget allocation** has three pages:
+
+| Page | What it sets |
+|---|---|
+| **Regular based** | Budget for a charge-code scope. Every payment carries `OFFICE.PROJECT.ACCOUNT`; pick a country office (or HQ), optionally a branch or unit under it, optionally one project, and give an amount or **No limit**. *Also the units under it* lets an office's allocation cover its branches that have none of their own |
+| **Project based** | Budget for one project (name / code), wherever it is charged |
+| **Period, cut-off & sync** | *Limited* (each scope only its own allocation) or *No limit* (every unit pays from the available balance); the active period: monthly, quarterly, half-yearly, annually (fiscal year) or no period (until used); the month Q1 starts in (Q2 is the next three months, and so on); the cut-off day and time; the daily sync time and the monthly sync day |
+
+Which allocation governs a payment: a project-based allocation of its project, else the unit's own allocation
+(with the project, then without), else the nearest office above it that includes the units under it. One
+allocation governs a scope in a period, and spend counts against the allocation that governed it.
+
+The cut-off places each payment in a reporting month (after the cut-off it counts in the next month), and the
+month places it in the budget period. **The executor checks every payment with a charge code again at execution**,
+on the spend already booked and the other payments in the same plan: no allocation, an exhausted one, or a
+currency it cannot be compared in, and nothing is paid. The daily and monthly syncs re-read every connected
+source (Settings → Sync API) and record each allocation's usage. *Check a payment* shows what the gate would say.
+
 ## Data sources: real data instead of placeholders
 
 Out of the box VENTHORA reads its master data from `data/*.json` (demo placeholders). Settings has four pages
@@ -436,7 +457,7 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 
 ## API
 
-Every endpoint (97 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
+Every endpoint (102 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
 an API key needs, and in `/openapi.json` and the interactive `/docs`.
 
 **Other applications** call VENTHORA with an API key created on that page:

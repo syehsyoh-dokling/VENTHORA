@@ -204,7 +204,10 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/sources-upload" data-nav="sources-upload"><i>⇪</i>Upload dataset</a>
   <a href="#/sources-email" data-nav="sources-email"><i>✉</i>Email sources</a>
   <a href="#/api-access" data-nav="api-access"><i>⌘</i>API access</a>
-  <a href="#/allocation" data-nav="allocation"><i>◔</i>Budget allocation</a>
+  <a href="#/allocation" data-nav="budget-group"><i>◔</i>Budget allocation</a>
+  <a href="#/allocation" data-nav="allocation" style="padding-left:34px;font-size:12.5px">Regular based</a>
+  <a href="#/allocation-project" data-nav="allocation-project" style="padding-left:34px;font-size:12.5px">Project based</a>
+  <a href="#/budget-policy" data-nav="budget-policy" style="padding-left:34px;font-size:12.5px">Period, cut-off &amp; sync</a>
   <a href="#/offices" data-nav="offices"><i>⚑</i>Country offices</a>
   <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
   <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
@@ -297,9 +300,63 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 
  <!-- ===== Settings ===== -->
  <section class="span12" data-view="allocation">
-  <h2><span>Budget allocation</span><span class="row"><select id="allocPeriod"></select><button class="primary" id="addAlloc">Add allocation</button></span></h2>
-  <div id="allocChart" class="chart"></div>
+  <h2><span>Budget allocation · Regular based</span><span class="row"><span class="small muted">period</span><select id="allocPeriod"></select></span></h2>
+  <div class="small" id="allocBanner"></div>
+  <h3 class="small muted" style="margin:14px 0 6px">Allocate to a charge-code scope <span class="muted">(every payment carries OFFICE.PROJECT.ACCOUNT)</span></h3>
+  <div class="form" id="regForm">
+   <label>Country office<select id="rg-office"></select></label>
+   <label>Branch / unit<select id="rg-unit"></select></label>
+   <label>Project<select id="rg-project"></select></label>
+   <label>Budget line<input id="rg-line" list="catList" value="Operations"></label>
+   <label>Amount<input id="rg-amount" type="number" step="0.01" min="0"></label>
+   <label>Currency<input id="rg-ccy" maxlength="3"></label>
+   <label>Period<select id="rg-period"></select></label>
+   <label class="check"><input type="checkbox" id="rg-children" checked> also the units under it</label>
+   <label class="check"><input type="checkbox" id="rg-nolimit"> No limit (pay from the balance)</label>
+  </div>
+  <div class="row" style="margin-top:10px"><button class="primary" id="rgSave">Save allocation</button><button id="rgNew">New</button><span class="small" id="rgMsg"></span></div>
+  <div id="allocChart" class="chart" style="margin-top:16px"></div>
   <div id="allocTable" style="margin-top:14px"></div>
+ </section>
+
+ <section class="span12" data-view="allocation-project">
+  <h2><span>Budget allocation · Project based</span><span class="row"><span class="small muted">period</span><select id="pjPeriod"></select></span></h2>
+  <div class="small" id="pjBanner"></div>
+  <h3 class="small muted" style="margin:14px 0 6px">Allocate to a project, wherever it is charged</h3>
+  <div class="form">
+   <label>Project (name / code)<select id="pj-project"></select></label>
+   <label>Budget line<input id="pj-line" list="catList" value="Project"></label>
+   <label>Amount<input id="pj-amount" type="number" step="0.01" min="0"></label>
+   <label>Currency<input id="pj-ccy" maxlength="3"></label>
+   <label>Period<select id="pj-period"></select></label>
+   <label class="check"><input type="checkbox" id="pj-nolimit"> No limit (pay from the balance)</label>
+  </div>
+  <div class="row" style="margin-top:10px"><button class="primary" id="pjSave">Save allocation</button><button id="pjNew">New</button><span class="small" id="pjMsg"></span></div>
+  <div id="pjTable" style="margin-top:16px"></div>
+ </section>
+
+ <section class="span8" data-view="budget-policy">
+  <h2><span>Period, cut-off &amp; sync</span><span class="small muted">the rules every payment is checked against at execution</span></h2>
+  <div class="form">
+   <label>Allocations<select id="bp-enforcement"><option value="per_allocation">Limited: each scope only its own allocation</option><option value="no_limit">No limit: every unit pays from the balance</option></select></label>
+   <label>Active budget period<select id="bp-period_type"></select></label>
+   <label>Fiscal year (Q1) starts in<select id="bp-fy"></select></label>
+   <label>Cut-off day of the month<select id="bp-cutoff_day"></select></label>
+   <label>Cut-off time<input id="bp-cutoff_time" type="time"></label>
+   <label>Time zone<input id="bp-timezone" placeholder="e.g. Asia/Jakarta"></label>
+   <label>Daily sync at<input id="bp-daily" type="time"></label>
+   <label>Monthly sync on day<select id="bp-monthly"></select></label>
+   <label class="check"><input type="checkbox" id="bp-sync"> run the syncs on schedule</label>
+  </div>
+  <div id="bpQuarters" style="margin-top:12px"></div>
+  <div class="row" style="margin-top:12px"><button class="primary" id="bpSave">Save</button><span class="small" id="bpMsg"></span></div>
+ </section>
+ <section class="span4" data-view="budget-policy">
+  <h2>Now</h2><div id="bpNow" class="small"></div>
+  <div class="row" style="margin-top:10px"><button data-bsync="daily">Run daily sync</button><button data-bsync="monthly">Run monthly sync</button></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Check a payment against its budget</h3>
+  <div class="form"><label>Charge code<input id="bc-code" placeholder="US-200.OPS.6700"></label><label>Amount<input id="bc-amount" type="number" step="0.01" min="0.01"></label><label>Currency<input id="bc-ccy" value="USD" maxlength="3"></label></div>
+  <div class="row" style="margin-top:8px"><button id="bcGo">Check</button></div><div id="bcOut" class="small" style="margin-top:8px"></div>
  </section>
 
  <section class="span12" data-view="offices">
@@ -641,8 +698,8 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:"Finance standards","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
@@ -833,21 +890,96 @@ function openForm(title,fields,rec,col,after){rec={...(rec||{})};$("#dlgTitle").
   catch(e){$("#dlgErr").textContent=e.message}}}
 
 // =============================== settings: allocation, offices, prices, standards, mandate ===============================
-const ALLOC_FIELDS=()=>[{k:"period",l:"Period (YYYY, YYYY-Qn or YYYY-MM)",req:1},{k:"unit_id",l:"Unit",opts:unitOpts()},{k:"line",l:"Budget line",req:1,list:"catList"},
- {k:"amount_minor",l:"Amount",money:1},{k:"currency",l:"Currency",max:3}];
-async function allocView(){try{await loadOrg();const periods=[...new Set([String(new Date().getFullYear()),...ORG.allocations.map(a=>a.period)])].sort();
- const sel=$("#allocPeriod"),cur=sel.value||String(new Date().getFullYear());sel.innerHTML=periods.map(p=>`<option>${esc(p)}</option>`).join("");sel.value=cur;sel.onchange=allocView;
- const tree=treeRows(await api(`/v1/org/allocation-tree?period=${encodeURIComponent(sel.value)}`));
+// ---- Budget allocation: regular (charge code) and project based, period, cut-off and sync ----------------------------
+let BP=null,PROJ=[];
+const OFFICE_KINDS=new Set(["HQ","COUNTRY_OFFICE"]);
+const below=id=>{const out=[];const walk=p=>ORG.units.filter(u=>u.parent_id===p).forEach(u=>{out.push(u);walk(u.unit_id)});walk(id);return out};
+const chainOf=id=>{const out=[];let u=ORG.units.find(x=>x.unit_id===id);while(u){out.push(u);u=ORG.units.find(x=>x.unit_id===u.parent_id)}return out};
+const allocMoney=(v,c)=>v==null?'<span class="pill good">NO LIMIT</span>':fmt(v,c);
+async function allocBase(sel){const [pol,,pj]=await Promise.all([api("/v1/budget-allocation/policy"),loadOrg(),api("/v1/org/projects")]);BP=pol;PROJ=pj;
+ const cur=sel.value||BP.active_period;const st=await api(`/v1/budget-allocation/status?period=${encodeURIComponent(cur)}`);
+ const opts=[...new Set([...BP.period_options,...st.periods])].sort();sel.innerHTML=opts.map(p=>`<option ${p===cur?"selected":""}>${esc(p)}${p===BP.active_period?" (active)":""}</option>`).join("");
+ [...sel.options].forEach(o=>o.value=o.textContent.replace(" (active)",""));sel.value=cur;
+ const banner=BP.enforcement==="no_limit"?'<span class="pill warn">NO LIMIT</span> allocations are not enforced: every unit pays from the available balance':
+  `<span class="pill good">LIMITED</span> each payment must fit the allocation that governs its charge code · active period <b>${esc(BP.active_period)}</b> (${esc(BP.period_types[BP.period_type])}) · cut-off day ${BP.cutoff_day} ${esc(BP.cutoff_time)} ${esc(BP.timezone)} · <a href="#/budget-policy">change</a>`;
+ return {st,banner,cur}}
+const periodSelect=(el,val)=>{el.innerHTML=BP.period_options.map(p=>`<option ${p===val?"selected":""}>${esc(p)}</option>`).join("");if(val&&!BP.period_options.includes(val))el.innerHTML+=`<option selected>${esc(val)}</option>`};
+const usageCols=scope=>[{h:"Scope",f:scope},{h:"Line",f:a=>esc(a.line)},{h:"Allocated",num:1,f:a=>a.no_limit?allocMoney(null):fmt(a.amount_minor,a.currency)},
+ {h:"Spent",num:1,f:a=>fmt(a.spent_minor,a.currency)},{h:"Left",num:1,f:a=>a.no_limit?"—":`<span class="${a.remaining_minor<0?"err":""}">${fmt(a.remaining_minor,a.currency)}</span>`},
+ {h:"",f:a=>`<div class="acts"><button data-aedit="${esc(a.alloc_id)}">Edit</button><button data-adel="${esc(a.alloc_id)}">Delete</button></div>`}];
+function wireAlloc(root,rows,edit,after){root.querySelectorAll("[data-aedit]").forEach(b=>b.onclick=()=>edit(rows.find(a=>a.alloc_id===b.dataset.aedit)));
+ root.querySelectorAll("[data-adel]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete this allocation?"))return;try{await api(`/v1/org/allocations/${b.dataset.adel}?${who()}`,{method:"DELETE"});toast("Deleted","good");after()}catch(e){toast(e.message,"critical")}})}
+async function saveAlloc(body,msg,after){try{await api(`/v1/org/allocations?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$(msg).innerHTML='<span class="pill good">saved</span>';toast("Allocation saved","good");after()}
+ catch(e){$(msg).innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+
+let RG_EDIT=null;
+function rgFill(rec){RG_EDIT=rec?rec.alloc_id:null;const offices=ORG.units.filter(u=>OFFICE_KINDS.has(u.kind)).sort((a,b)=>(a.kind==="HQ"?0:1)-(b.kind==="HQ"?0:1)||a.name.localeCompare(b.name));
+ let office=offices[0]?.unit_id,unit="";if(rec){const ch=chainOf(rec.unit_id);const o=ch.find(u=>OFFICE_KINDS.has(u.kind));office=o?o.unit_id:rec.unit_id;unit=o&&o.unit_id===rec.unit_id?"":rec.unit_id}
+ $("#rg-office").innerHTML=offices.map(u=>`<option value="${esc(u.unit_id)}" ${u.unit_id===office?"selected":""}>${esc(u.name)}${u.cost_centre?` · ${esc(u.cost_centre)}`:""}</option>`).join("");
+ rgUnits(unit);rgProjects(rec?.project_code||"");$("#rg-line").value=rec?.line||"Operations";$("#rg-amount").value=rec&&!rec.no_limit?(rec.amount_minor/100).toFixed(2):"";
+ $("#rg-ccy").value=rec?.currency||ORG.standards.base_currency;$("#rg-nolimit").checked=!!rec?.no_limit;$("#rg-children").checked=rec?rec.include_children!==false:true;
+ periodSelect($("#rg-period"),rec?.period||$("#allocPeriod").value||BP.active_period);$("#rgMsg").innerHTML=rec?`editing <b>${esc(rec.alloc_id)}</b>`:"";$("#rg-amount").disabled=$("#rg-nolimit").checked}
+function rgUnits(val){const office=$("#rg-office").value;$("#rg-unit").innerHTML=`<option value="">— the whole office —</option>`+below(office).map(u=>`<option value="${esc(u.unit_id)}" ${u.unit_id===val?"selected":""}>${esc(u.name)} · ${esc(KIND[u.kind])}${u.cost_centre?` · ${esc(u.cost_centre)}`:""}</option>`).join("")}
+function rgProjects(val){const uid=$("#rg-unit").value||$("#rg-office").value;
+ const ok=PROJ.filter(x=>x.active!==false&&(!x.unit_id||chainOf(x.unit_id).some(u=>u.unit_id===uid)));
+ $("#rg-project").innerHTML='<option value="">— every project —</option>'+ok.map(x=>`<option value="${esc(x.code)}" ${x.code===val?"selected":""}>${esc(x.code)} · ${esc(x.name)}</option>`).join("")}
+$("#rg-office").onchange=()=>{rgUnits("");rgProjects("")};$("#rg-unit").onchange=()=>rgProjects("");$("#rg-nolimit").onchange=()=>{$("#rg-amount").disabled=$("#rg-nolimit").checked};
+$("#rgNew").onclick=()=>rgFill(null);
+$("#rgSave").onclick=()=>saveAlloc({alloc_id:RG_EDIT,basis:"regular",unit_id:$("#rg-unit").value||$("#rg-office").value,include_children:$("#rg-children").checked,
+ project_code:$("#rg-project").value||null,line:$("#rg-line").value.trim()||"Operations",no_limit:$("#rg-nolimit").checked,
+ amount_minor:Math.round(parseFloat($("#rg-amount").value||"0")*100),currency:$("#rg-ccy").value.trim().toUpperCase(),period:$("#rg-period").value},"#rgMsg",()=>{RG_EDIT=null;allocView()});
+async function allocView(){try{const {st,banner,cur}=await allocBase($("#allocPeriod"));$("#allocBanner").innerHTML=banner;$("#allocPeriod").onchange=allocView;
+ if(!$("#rg-office").options.length||!RG_EDIT)rgFill(null);
+ const tree=treeRows(await api(`/v1/org/allocation-tree?period=${encodeURIComponent(cur)}`));
  $("#allocChart").innerHTML=hbars(tree.map(r=>({label:r.name,indent:r.depth,sub:KIND[r.kind],value:r.allocated.USD||0,display:`${usd(r.allocated.USD||0)}${r.passed_down.USD?` <span class="muted">· ${short(r.passed_down.USD)} down</span>`:""}`,
   tone:r.over_allocated.USD?"critical":"",mark:r.passed_down.USD||null,markTip:`passed down ${usd(r.passed_down.USD||0)}`,
   tip:`${r.name}: ${usd(r.allocated.USD||0)} received${r.over_allocated.USD?`, passed down ${usd(r.over_allocated.USD)} too much`:""}`})))
-  +`<div class="legend"><span style="--c:var(--seq)">allocated to the unit</span><span style="--c:var(--ink2)">marker: passed down to its units</span><span style="--c:var(--critical)">passed down more than received</span></div>`;
- const order=Object.fromEntries(tree.map((r,i)=>[r.unit_id,i]));const rows=ORG.allocations.filter(a=>a.period===sel.value).sort((a,b)=>(order[a.unit_id]??99)-(order[b.unit_id]??99));
- $("#allocTable").innerHTML=table([{h:"Unit",f:a=>esc(unitName(a.unit_id))},{h:"Line",f:a=>esc(a.line)},{h:"Amount",num:1,f:a=>fmt(a.amount_minor,a.currency)},{h:"",f:a=>rowActs("allocations",a.alloc_id)}],rows,"no allocations in this period")
+  +`<div class="legend"><span style="--c:var(--seq)">allocated to the unit (USD)</span><span style="--c:var(--ink2)">marker: passed down to its units</span><span style="--c:var(--critical)">passed down more than received</span></div>`;
+ const rows=st.allocations.filter(a=>(a.basis||"regular")==="regular");
+ $("#allocTable").innerHTML=table(usageCols(a=>`<b>${esc(unitName(a.unit_id))}</b>${a.include_children!==false?' <span class="small muted">+ units under it</span>':""}${a.project_code?` · <span class="chip">${esc(a.project_code)}</span>`:""}`),rows,"no regular allocation in this period")
   +`<datalist id="catList">${(ORG.standards.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`;
- wireActs($("#allocTable"),"allocations",()=>ORG.allocations,"alloc_id",ALLOC_FIELDS,allocView)}
+ wireAlloc($("#allocTable"),rows,r=>{rgFill(r);window.scrollTo(0,0)},allocView)}
  catch(e){$("#allocChart").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-$("#addAlloc").onclick=async()=>{await loadOrg();openForm("Add allocation",ALLOC_FIELDS(),{period:$("#allocPeriod").value,unit_id:"hq",currency:ORG.standards.base_currency},"allocations",allocView)};
+
+let PJ_EDIT=null;
+function pjFill(rec){PJ_EDIT=rec?rec.alloc_id:null;
+ $("#pj-project").innerHTML=PROJ.filter(x=>x.active!==false).map(x=>`<option value="${esc(x.code)}" ${rec&&rec.project_code===x.code?"selected":""}>${esc(x.name)} · ${esc(x.code)}${x.unit_id?` (${esc(unitName(x.unit_id))})`:""}</option>`).join("");
+ $("#pj-line").value=rec?.line||"Project";$("#pj-amount").value=rec&&!rec.no_limit?(rec.amount_minor/100).toFixed(2):"";$("#pj-ccy").value=rec?.currency||ORG.standards.base_currency;
+ $("#pj-nolimit").checked=!!rec?.no_limit;$("#pj-amount").disabled=$("#pj-nolimit").checked;periodSelect($("#pj-period"),rec?.period||$("#pjPeriod").value||BP.active_period);$("#pjMsg").innerHTML=rec?`editing <b>${esc(rec.alloc_id)}</b>`:""}
+$("#pj-nolimit").onchange=()=>{$("#pj-amount").disabled=$("#pj-nolimit").checked};$("#pjNew").onclick=()=>pjFill(null);
+$("#pjSave").onclick=()=>saveAlloc({alloc_id:PJ_EDIT,basis:"project",project_code:$("#pj-project").value,line:$("#pj-line").value.trim()||"Project",no_limit:$("#pj-nolimit").checked,
+ amount_minor:Math.round(parseFloat($("#pj-amount").value||"0")*100),currency:$("#pj-ccy").value.trim().toUpperCase(),period:$("#pj-period").value},"#pjMsg",()=>{PJ_EDIT=null;projectAllocView()});
+async function projectAllocView(){try{const {st,banner}=await allocBase($("#pjPeriod"));$("#pjBanner").innerHTML=banner;$("#pjPeriod").onchange=projectAllocView;if(!PJ_EDIT)pjFill(null);
+ const rows=st.allocations.filter(a=>a.basis==="project");const pn=c=>(PROJ.find(x=>x.code===c)||{}).name||c;
+ $("#pjTable").innerHTML=table(usageCols(a=>`<b>${esc(pn(a.project_code))}</b> <span class="chip">${esc(a.project_code)}</span>`),rows,"no project-based allocation in this period");
+ wireAlloc($("#pjTable"),rows,r=>{pjFill(r);window.scrollTo(0,0)},projectAllocView)}catch(e){$("#pjTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+
+function bpQuarters(){const start=+$("#bp-fy").value;const q=[0,1,2,3].map(i=>[0,1,2].map(j=>MONTHS[(start-1+i*3+j)%12].slice(0,3)));
+ $("#bpQuarters").innerHTML=`<div class="small muted" style="margin-bottom:6px">Fiscal quarters (Q2 follows the months after Q1)</div>`+table([{h:"Quarter",f:r=>`<b>${r[0]}</b>`},{h:"Months",f:r=>esc(r[1].join(" – "))}],q.map((m,i)=>[`Q${i+1}`,[m[0],m[2]]]))}
+async function policyView(){try{BP=await api("/v1/budget-allocation/policy");
+ $("#bp-enforcement").value=BP.enforcement;$("#bp-period_type").innerHTML=Object.entries(BP.period_types).map(([k,l])=>`<option value="${k}" ${k===BP.period_type?"selected":""}>${esc(l)}</option>`).join("");
+ $("#bp-fy").innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}" ${i+1===BP.fiscal_year_start_month?"selected":""}>${m}</option>`).join("");$("#bp-fy").onchange=bpQuarters;bpQuarters();
+ const days=n=>Array.from({length:31},(_,i)=>`<option value="${i+1}" ${i+1===n?"selected":""}>${i+1}${i+1>=29?" (or the month's last day)":""}</option>`).join("");
+ $("#bp-cutoff_day").innerHTML=days(BP.cutoff_day);$("#bp-monthly").innerHTML=days(BP.monthly_sync_day);
+ $("#bp-cutoff_time").value=BP.cutoff_time;$("#bp-timezone").value=BP.timezone;$("#bp-daily").value=BP.daily_sync_time;$("#bp-sync").checked=BP.sync_enabled;
+ const t=x=>x?esc(new Date(x).toLocaleString()):"never";const sm=BP.last_sync_summary;
+ $("#bpNow").innerHTML=`<dl class="kv"><dt>Reporting month</dt><dd>${esc(BP.current_month)}</dd><dt>Active period</dt><dd><b>${esc(BP.active_period)}</b></dd>
+  <dt>Allocations</dt><dd>${BP.enforcement==="no_limit"?'<span class="pill warn">NO LIMIT</span>':'<span class="pill good">LIMITED</span>'}</dd>
+  <dt>Next daily sync</dt><dd>${BP.next_sync?t(BP.next_sync.daily):"off"}</dd><dt>Next monthly sync</dt><dd>${BP.next_sync?t(BP.next_sync.monthly):"off"}</dd>
+  <dt>Last daily</dt><dd>${t(BP.last_daily_sync_at)}</dd><dt>Last monthly</dt><dd>${t(BP.last_monthly_sync_at)}</dd></dl>`
+  +(sm?`<div class="small muted" style="margin-top:6px">last sync (${esc(sm.kind)}): ${sm.allocations} allocation(s) in ${esc(sm.period)}, ${sm.over_allocation.length} over; ${Object.keys(sm.sources).length} source(s) re-read</div>`:"")}
+ catch(e){$("#bpNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#bpSave").onclick=async()=>{const body={enforcement:$("#bp-enforcement").value,period_type:$("#bp-period_type").value,fiscal_year_start_month:+$("#bp-fy").value,
+ cutoff_day:+$("#bp-cutoff_day").value,cutoff_time:$("#bp-cutoff_time").value,timezone:$("#bp-timezone").value.trim(),daily_sync_time:$("#bp-daily").value,
+ monthly_sync_day:+$("#bp-monthly").value,sync_enabled:$("#bp-sync").checked};
+ try{await api(`/v1/budget-allocation/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#bpMsg").innerHTML='<span class="pill good">saved</span>';toast("Budget policy saved","good");policyView()}
+ catch(e){$("#bpMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+document.querySelectorAll("[data-bsync]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/v1/budget-allocation/sync?kind=${b.dataset.bsync}&${who()}`,{method:"POST"});
+ toast(`${r.kind} sync done: ${r.allocations} allocation(s), ${r.over_allocation.length} over`,"good");policyView()}catch(e){toast(e.message,"critical")}finally{b.disabled=false}});
+$("#bcGo").onclick=async()=>{try{const r=await api("/v1/budget-allocation/check",{method:"POST",headers:{"content-type":"application/json"},
+ body:JSON.stringify({account_code:$("#bc-code").value.trim(),amount_minor:Math.round(parseFloat($("#bc-amount").value||"0")*100),currency:$("#bc-ccy").value.trim().toUpperCase()})});
+ $("#bcOut").innerHTML=`<span class="pill ${r.ok?"good":"critical"}">${r.ok?"WOULD PAY":"WOULD REFUSE"}</span> ${esc(r.reason)}${r.remaining_after_minor!=null?`<div class="muted">left after it: ${fmt(r.remaining_after_minor,r.currency)}</div>`:""}`}
+ catch(e){$("#bcOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 async function officesView(){try{await loadOrg();const rows=unitTree().filter(u=>u.kind==="COUNTRY_OFFICE"||u.kind==="BRANCH_OFFICE");
  $("#officesTable").innerHTML=table([{h:"Office",f:u=>`${u.kind==="BRANCH_OFFICE"?'<span class="tree">└─ </span>':""}<b>${esc(u.name)}</b>`},{h:"Type",f:u=>`<span class="chip ${u.kind}">${KIND[u.kind]}</span>`},

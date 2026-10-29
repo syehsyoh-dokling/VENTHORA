@@ -37,6 +37,9 @@ def test_users_allocations_prices_and_roles():
         r = client.post("/v1/org/users?role=auditor", json={"name": "New", "email": "new@acme.example", "role": "auditor", "unit_id": "hq"})
         assert r.status_code == 403
         r = client.post("/v1/org/allocations", json={"period": "2026", "unit_id": "co-uk", "line": "Extra", "amount_minor": 500_000_000})
+        assert r.status_code == 409  # one allocation governs a scope in a period: a top-up edits it
+        uk = next(a for a in client.get("/v1/org/allocations").json() if a["alloc_id"] == "a-uk")
+        r = client.post("/v1/org/allocations", json=uk | {"amount_minor": uk["amount_minor"] + 500_000_000})
         assert r.status_code == 200
         tree = {x["unit_id"]: x for x in client.get("/v1/org/allocation-tree?period=2026").json()}
         assert tree["hq"]["over_allocated"] == {"USD": 410_000_000}

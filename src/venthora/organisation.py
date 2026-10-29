@@ -130,11 +130,23 @@ class User(BaseModel):
 
 
 class Allocation(BaseModel):
+    """Budget given to a charge-code scope for one budget period (src/venthora/budget_allocation.py enforces it).
+
+    * regular  every payment carries a charge code OFFICE.PROJECT.ACCOUNT. The allocation names a unit (a country
+               office, a branch or a project-finance unit); include_children also covers the units under it, and
+               project_code narrows it to one project of that unit.
+    * project  the allocation follows one project wherever it is charged.
+    period: YYYY-MM (monthly), YYYY-Qn (quarterly), YYYY-Hn (half-year), YYYY (annual: the fiscal year starting in
+    that year) or ALL (no period: until it is used). no_limit: the scope may spend whatever the balance allows."""
     alloc_id: str | None = Field(default=None, max_length=40)
-    period: str = Field(pattern=r"^\d{4}(-(0[1-9]|1[0-2])|-Q[1-4])?$")
-    unit_id: str
-    line: str = Field(min_length=1, max_length=60)
-    amount_minor: int = Field(ge=0, le=10**14)
+    basis: Literal["regular", "project"] = "regular"
+    period: str = Field(pattern=r"^(\d{4}(-(0[1-9]|1[0-2])|-Q[1-4]|-H[12])?|ALL)$")
+    unit_id: str | None = None
+    include_children: bool = True
+    project_code: str | None = Field(default=None, max_length=12)
+    line: str = Field(default="Operations", min_length=1, max_length=60)
+    amount_minor: int = Field(default=0, ge=0, le=10**14)
+    no_limit: bool = False
     currency: str = "USD"
 
     @field_validator("currency")
@@ -219,6 +231,8 @@ def _seed() -> dict[str, list[dict]]:
         {"alloc_id": "a-usw", "period": "2026", "unit_id": "br-us-west", "line": "Operations", "amount_minor": 60_000_000},
         {"alloc_id": "a-man", "period": "2026", "unit_id": "br-uk-manchester", "line": "Operations", "amount_minor": 40_000_000},
         {"alloc_id": "a-prj", "period": "2026", "unit_id": "pf-eu-rollout", "line": "Capital project", "amount_minor": 80_000_000},
+        {"alloc_id": "a-brand26", "basis": "project", "period": "2026", "project_code": "BRAND26", "unit_id": "co-us",
+         "line": "Brand refresh", "amount_minor": 600_000},
     ]
     prices = [
         {"price_id": "p-freight", "item": "Freight container UK to US", "category": "Logistics", "unit": "container", "price_minor": 250_000, "currency": "GBP"},
@@ -366,7 +380,35 @@ class OrgStore:
             raise OrgError("another person already uses that email")
 
     def _check_allocation(self, d: dict) -> None:
-        self._unit(d["unit_id"])
+        d["project_code"] = (d.get("project_code") or "").strip().upper() or None
+        project = None
+        if d["project_code"]:
+            project = next((x for x in self.list("project") if x["code"] == d["project_code"]), None)
+            if project is None:
+                raise OrgError(f"unknown project {d['project_code']}")
+        if d["basis"] == "project":
+            if project is None:
+                raise OrgError("a project-based allocation names its project")
+            d["unit_id"] = d.get("unit_id") or project.get("unit_id")
+            if d["unit_id"]:
+                self._unit(d["unit_id"])
+        else:
+            if not d.get("unit_id"):
+                raise OrgError("a regular allocation names its unit (country office, branch or project-finance unit)")
+            self._unit(d["unit_id"])
+            if project is not None and project.get("unit_id"):
+                ids = {u["unit_id"] for u in self.chain(project["unit_id"])}
+                below = {u["unit_id"] for u in self.list("unit") if d["unit_id"] in {c["unit_id"] for c in self.chain(u["unit_id"])}}
+                if d["unit_id"] not in ids and project["unit_id"] not in below:
+                    raise OrgError(f"project {project['code']} is not run by {self._unit(d['unit_id'])['name']} or a unit under it")
+        if not d["no_limit"] and d["amount_minor"] <= 0:
+            raise OrgError("give an amount, or choose No limit")
+        if d["no_limit"]:
+            d["amount_minor"] = 0
+        if any(a["alloc_id"] != d["alloc_id"] and a.get("basis", "regular") == d["basis"] and a["period"] == d["period"]
+               and (d["basis"] == "project" or a.get("unit_id") == d.get("unit_id")) and a.get("project_code") == d["project_code"]
+               for a in self.list("allocation")):
+            raise OrgError("this scope already has an allocation for that period; edit it instead (one allocation governs a scope)")
 
     def _check_price(self, d: dict) -> None:
         if d.get("unit_id"):
@@ -457,6 +499,16 @@ class OrgStore:
         rec = self.get("standards", "standards") or Standards().model_dump()
         return {k: v for k, v in rec.items() if k != "_id"}
 
+    def budget_policy(self) -> dict:
+        from .budget_allocation import BudgetPolicy
+
+        rec = self.get("budget_policy", "budget_policy") or BudgetPolicy().model_dump()
+        return {k: v for k, v in rec.items() if k != "_id"}
+
+    def save_budget_policy(self, p, by: str) -> dict:
+        self._put("budget_policy", p.model_dump() | {"_id": "budget_policy"}, by)
+        return self.budget_policy()
+
     def save_standards(self, s: Standards, by: str) -> dict:
         self._put("standards", s.model_dump() | {"_id": "standards"}, by)
         return self.standards()
@@ -466,7 +518,7 @@ class OrgStore:
         units = {u["unit_id"]: u for u in self.list("unit")}
         own: dict[str, dict[str, int]] = {}
         for a in self.list("allocation"):
-            if a["period"] == period:
+            if a["period"] == period and a.get("basis", "regular") == "regular" and a.get("unit_id") and not a.get("no_limit"):
                 own.setdefault(a["unit_id"], {}).setdefault(a["currency"], 0)
                 own[a["unit_id"]][a["currency"]] += a["amount_minor"]
         rows = []
