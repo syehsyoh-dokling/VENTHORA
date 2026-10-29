@@ -187,8 +187,10 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/budget" data-nav="budget"><i>▤</i>Budget &amp; mandate</a>
   <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
   <a href="#/reporting" data-nav="reporting"><i>◷</i>Reporting periods</a>
+  <a href="#/spending" data-nav="spending"><i>▦</i>Spending</a>
   <div class="grp">Payments</div>
   <a href="#/intake" data-nav="intake"><i>✉</i>Intake<span class="cnt" id="cnt-intake"></span></a>
+  <a href="#/pos" data-nav="pos"><i>▣</i>Purchase orders</a>
   <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
   <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
   <a href="#/runs" data-nav="runs"><i>☰</i>Run reports</a>
@@ -197,6 +199,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="grp">Settings</div>
   <a href="#/allocation" data-nav="allocation"><i>◔</i>Budget allocation</a>
   <a href="#/offices" data-nav="offices"><i>⚑</i>Country offices</a>
+  <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
   <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
   <a href="#/standards" data-nav="standards"><i>✎</i>Finance standards</a>
   <a href="#/ai" data-nav="ai"><i>✦</i>AI model</a>
@@ -218,6 +221,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span6" data-view="overview"><h2><span>Budget used by line</span><span class="small muted" id="chBudgetMeta"></span></h2><div id="chBudget" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span6" data-view="overview"><h2><span>Allocation by unit</span><span class="small muted" id="chAllocMeta"></span></h2><div id="chAlloc" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span6" data-view="overview"><h2><span>Execution outcomes</span><span class="small muted">last 50</span></h2><div id="chExec" class="chart"><div class="empty">loading…</div></div></section>
+ <section class="span6" data-view="overview"><h2><span>Spending by project</span><span class="small muted">paid, base currency</span></h2><div id="chProjects" class="chart"><div class="empty">loading…</div></div></section>
+ <section class="span6" data-view="overview"><h2><span>Purchase orders</span><span class="small muted">paid · pending · open</span></h2><div id="chPOs" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span6" data-view="overview"><h2><span>Payees by status</span><span class="small muted">lifecycle</span></h2><div id="chPayees" class="chart"><div class="empty">loading…</div></div></section>
 
  <!-- ===== Treasury ===== -->
@@ -244,7 +249,20 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="reporting" class="empty">loading…</div>
  </section>
 
+ <section class="span12" data-view="spending">
+  <h2><span>Spending by office</span><span class="row"><select id="spPeriod"><option value="">All periods</option></select><span class="small muted">paid, base currency; an office includes the offices under it</span></span></h2>
+  <div id="spUnits" class="chart"><div class="empty">loading…</div></div>
+ </section>
+ <section class="span6" data-view="spending"><h2>By project</h2><div id="spProjects" class="chart"></div></section>
+ <section class="span6" data-view="spending"><h2>By account</h2><div id="spAccounts" class="chart"></div></section>
+ <section class="span12" data-view="spending"><h2><span>By account code</span><span class="small muted">office . project . account</span></h2><div id="spCodes"></div></section>
+ <section class="span12" data-view="spending"><h2><span>Open commitments</span><span class="small muted">what open purchase orders may still draw</span></h2><div id="spCommit"></div></section>
+
  <!-- ===== Payments ===== -->
+ <section class="span12" data-view="pos">
+  <h2><span>Purchase orders</span><span class="row"><span class="small muted">a supplier invoice is paid only against an open PO it quotes</span><button class="primary" id="addPO">New PO</button></span></h2>
+  <div id="poTable" class="empty">loading…</div>
+ </section>
  <section class="span12" data-view="intake">
   <h2><span>Intake · payment requests from external users</span><span class="small muted" id="intakeMeta"></span></h2>
   <div id="intake" class="empty">loading…</div>
@@ -280,6 +298,17 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="offices">
   <h2><span>Country and branch offices</span><span class="row"><span class="small muted">local currency, time zone and cost centre per office</span><button class="primary" id="addOffice">Add office</button></span></h2>
   <div id="officesTable" class="empty">loading…</div>
+ </section>
+
+ <section class="span6" data-view="codes">
+  <h2><span>Projects</span><button class="primary" id="addProject">Add project</button></h2><div id="projTable" class="empty">loading…</div>
+ </section>
+ <section class="span6" data-view="codes">
+  <h2><span>Chart of accounts</span><button class="primary" id="addAccount">Add account</button></h2><div id="acctTable" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="codes">
+  <h2><span>Check an account code</span><span class="small muted">office cost centre . project . account</span></h2>
+  <div class="row"><input id="codeCheck" placeholder="DE-400.PRJ900.6500" style="min-width:260px"><button id="codeCheckBtn">Check</button><span class="small" id="codeCheckOut"></span></div>
  </section>
 
  <section class="span12" data-view="prices">
@@ -408,7 +437,7 @@ async function intake(){try{const rows=await api("/v1/intake");try{INTAKE_PEOPLE
  $("#intake").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
   {h:"Trust",f:r=>`<span class="small">${esc(r.trust)}${r.counterparty_name?` · ${esc(r.counterparty_name)}`:r.claimed_name?` · claims ${esc(r.claimed_name)}`:""}</span>`},
   {h:"Kind",f:r=>`${esc(r.kind.replaceAll("_"," "))}${r.category?`<div class="small muted">${esc(r.category)}${r.expense_date?` · spent ${esc(r.expense_date)}`:""}</div>`:""}`},
-  {h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>esc(r.invoice_no||"-")},{h:"Due",f:r=>esc(r.due_date||"-")},
+  {h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>`${esc(r.invoice_no||"-")}${r.po_number?`<div class="small"><span class="chip">${esc(r.po_number)}${r.installment?` · ${esc(r.installment)}`:""}</span></div>${r.account_code?`<div class="mono muted">${esc(r.account_code)}</div>`:""}`:""}`},{h:"Due",f:r=>esc(r.due_date||"-")},
   {h:"Read from",f:r=>`<span class="small">${(r.attachments||[]).map(a=>`<div title="${esc(a.problem||`${a.pages} page(s) read`)}">${a.read?"📄":"⚠"} ${esc(a.name)}</div>`).join("")||"email body"}
    <div class="muted">${r.reader==="model+rules"?"model + rules":"rules"}${Object.keys(r.authentication||{}).length?` · ${Object.entries(r.authentication).map(([k,v])=>`${k} ${v}`).join(", ")}`:""}</div></span>`},
   {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}${(r.approvers||[]).length?`<div class="small">approvers: ${r.approvers.map(id=>esc((INTAKE_PEOPLE[id]||{}).name||id)).join(", ")}</div>`:""}</details>`},
@@ -562,9 +591,9 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",ai:"AI model",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+ standards:"Finance standards",ai:"AI model",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+ standards:()=>standardsView(),ai:()=>aiView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/(\w+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
@@ -618,7 +647,12 @@ async function kpis(){const [bal,ex,wh]=await Promise.all([settle(api("/api/airw
 function attention(){const el=$("#kpiAttn");if(!el||!LAST.notifs)return;const n=LAST.notifs.filter(x=>x.tone==="critical"||x.tone==="serious").length;
  el.className=`kpi ${n?"critical":"good"}`;el.querySelector(".v").textContent=String(n)}
 
-async function charts(){const [ex,bud,tree,pay]=await Promise.all([settle(api("/v1/executions?limit=50")),settle(budgetSnapshot()),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`)),settle(api("/v1/payees"))]);
+async function poCharts(){const [sp,pos]=await Promise.all([settle(api("/v1/procurement/spending")),settle(api("/v1/procurement/purchase-orders"))]);
+ if(sp.ok){try{await loadCodes()}catch(e){}$("#chProjects").innerHTML=sp.v.by_project.length?hbars(sp.v.by_project.map(p=>({label:p.project,sub:(CODES.projects[p.project]||{}).name,value:p.base_cost_minor,display:usd(p.base_cost_minor)}))):'<div class="empty">nothing paid against a project yet</div>'}
+ else $("#chProjects").innerHTML=`<div class="muted small">${esc(sp.e.message)}</div>`;
+ if(pos.ok)$("#chPOs").innerHTML=pos.v.filter(r=>r.po.status==="OPEN").map(r=>`<div class="hb"><div class="hl">${esc(r.po.po_id)}<small>${esc(r.po.account_code)}</small></div><div>${poBar(r)}</div><div class="hv">${fmt(Math.max(r.remaining_minor,0),r.po.currency).replace(/.00$/,"")} open</div></div>`).join("")+`<div class="legend"><span style="--c:var(--good)">paid</span><span style="--c:var(--warn)">pending</span><span style="--c:var(--seqlt)">open</span></div>`;
+ else $("#chPOs").innerHTML=`<div class="muted small">${esc(pos.e.message)}</div>`}
+async function charts(){poCharts();const [ex,bud,tree,pay]=await Promise.all([settle(api("/v1/executions?limit=50")),settle(budgetSnapshot()),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`)),settle(api("/v1/payees"))]);
  // activity: executions per day, last 14 days
  if(ex.ok){const days=[];const now=new Date();for(let i=13;i>=0;i--){const d=new Date(now);d.setDate(now.getDate()-i);const key=d.toISOString().slice(0,10);
    const rows=ex.v.filter(r=>(r.created_at||"").slice(0,10)===key);days.push({key,n:rows.length,ok:rows.filter(r=>r.status==="COMPLETED").length,tick:String(d.getDate()),label:d.toLocaleDateString(undefined,{day:"numeric",month:"short"})})}
@@ -696,13 +730,15 @@ function wireActs(root,col,list,idf,fields,after){
   try{await api(`/v1/org/${col}/${encodeURIComponent(b.dataset.id)}?${who()}`,{method:"DELETE"});toast("Deleted","good");after()}catch(e){toast(esc(e.message),"serious")}})}
 
 const UNIT_FIELDS=()=>[{k:"name",l:"Name",req:1},{k:"kind",l:"Type",opts:Object.entries(KIND)},{k:"parent_id",l:"Parent unit",opts:unitOpts("— none (Head Quarter) —")},
- {k:"country",l:"Country (ISO 2)",max:2},{k:"currency",l:"Local currency",max:3},{k:"timezone",l:"Time zone"},{k:"cost_centre",l:"Cost centre"},{k:"active",l:"Active",check:1}];
+ {k:"country",l:"Country (ISO 2)",max:2},{k:"currency",l:"Local currency",max:3},{k:"timezone",l:"Time zone"},{k:"cost_centre",l:"Cost centre"},
+ {k:"payment_limit_minor",l:"Agent pays alone up to (USD, blank = parent's)",money:1,nullable:1},{k:"active",l:"Active",check:1}];
 const USER_FIELDS=()=>[{k:"name",l:"Full name",req:1},{k:"email",l:"Email",type:"email",req:1},{k:"role",l:"Role",opts:Object.entries(ROLES)},{k:"unit_id",l:"Unit",opts:unitOpts()},
  {k:"approval_limit_minor",l:"Approval limit (USD)",money:1},{k:"active",l:"Active",check:1}];
 async function orgUsers(){try{await loadOrg();const units=unitTree();
  $("#unitsTree").innerHTML=table([{h:"Unit",f:u=>`${u.depth?`<span class="tree">${"&nbsp;&nbsp;&nbsp;".repeat(u.depth-1)}└─ </span>`:""}<b>${esc(u.name)}</b>${u.active?"":' <span class="small muted">inactive</span>'}`},
   {h:"Type",f:u=>`<span class="chip ${u.kind}">${KIND[u.kind]}</span>`},{h:"Country",f:u=>esc(u.country||"-")},{h:"Currency",f:u=>esc(u.currency)},{h:"Time zone",f:u=>`<span class="small">${esc(u.timezone)}</span>`},
-  {h:"Cost centre",f:u=>`<span class="mono">${esc(u.cost_centre||"-")}</span>`},{h:"People",num:1,f:u=>ORG.users.filter(p=>p.unit_id===u.unit_id).length},{h:"",f:u=>rowActs("units",u.unit_id)}],units);
+  {h:"Cost centre",f:u=>`<span class="mono">${esc(u.cost_centre||"-")}</span>`},{h:"Pays alone up to",num:1,f:u=>u.payment_limit_minor!=null?usd(u.payment_limit_minor):'<span class="muted">parent\'s</span>'},
+  {h:"People",num:1,f:u=>ORG.users.filter(p=>p.unit_id===u.unit_id).length},{h:"",f:u=>rowActs("units",u.unit_id)}],units);
  wireActs($("#unitsTree"),"units",()=>ORG.units,"unit_id",UNIT_FIELDS,orgUsers);
  const sel=$("#userUnit"),cur=sel.value;sel.innerHTML=unitOpts("All units").map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("");sel.value=cur;sel.onchange=orgUsers;
  const people=ORG.users.filter(p=>!sel.value||p.unit_id===sel.value);
@@ -724,7 +760,7 @@ function openForm(title,fields,rec,col,after){rec={...(rec||{})};$("#dlgTitle").
   +(fields.some(f=>f.list==="catList")?`<datalist id="catList">${(ORG.standards?.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`:"");
  const dlg=$("#dlg");dlg.showModal();
  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
-  const body={...rec};fields.forEach(f=>{const el=$(`#fld-${f.k}`);body[f.k]=f.check?el.checked:f.money?Math.round(parseFloat(el.value||"0")*100):(el.value===""&&f.nullable?null:el.value)});
+  const body={...rec};fields.forEach(f=>{const el=$(`#fld-${f.k}`);body[f.k]=f.check?el.checked:(el.value===""&&f.nullable)?null:f.money?Math.round(parseFloat(el.value||"0")*100):el.value});
   if(body.parent_id==="")body.parent_id=null;if(body.unit_id===""&&col==="prices")body.unit_id=null;
   try{await api(`/v1/org/${col}?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});dlg.close();toast("Saved","good");after()}
   catch(e){$("#dlgErr").textContent=e.message}}}
@@ -784,6 +820,81 @@ $("#saveStd").onclick=async()=>{const g=k=>$(`#sd-${k}`).value;
   document_retention_years:+g("document_retention_years"),fx_rate_source:g("fx_rate_source"),expense_categories:g("expense_categories").split(",").map(x=>x.trim()).filter(Boolean)};
  try{await api(`/v1/org/standards?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#stdMeta").textContent=`saved by ${actor().name}`;toast("Finance standards saved","good")}
  catch(e){$("#stdMeta").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+
+// ---- purchase orders, spending, projects & accounts -------------------------------------------------------------------
+let SUPPLIERS={};
+async function suppliers(){if(Object.keys(SUPPLIERS).length)return SUPPLIERS;try{(await api("/api/live/setup")).payees.forEach(p=>SUPPLIERS[p.id]=p)}catch(e){}return SUPPLIERS}
+const poBar=(st)=>{const t=st.po.total_minor||1;const seg=(v,c,l)=>v>0?`<i style="width:${100*v/t}%;background:${c}" data-tip="${esc(l)}: ${esc(fmt(v,st.po.currency))}"></i>`:"";
+ return `<div class="stack">${seg(st.paid_minor,"var(--good)","paid")}${seg(st.pending_minor,"var(--warn)","pending")}${seg(Math.max(st.remaining_minor,0),"var(--seqlt)","open")}</div>`};
+async function poView(){try{await loadOrg();const [rows,sup]=await Promise.all([api("/v1/procurement/purchase-orders"),suppliers()]);LAST.pos=rows;
+ $("#poTable").innerHTML=table([{h:"PO",f:r=>`<b class="mono" style="white-space:nowrap">${esc(r.po.po_id)}</b><div class="small muted">${esc(r.po.description||"")}</div>`},
+  {h:"Supplier",f:r=>esc((sup[r.po.supplier_id]||{}).name||r.po.supplier_id)},{h:"Account code",f:r=>`<span class="mono" style="white-space:nowrap">${esc(r.po.account_code)}</span>`},
+  {h:"Total",num:1,f:r=>fmt(r.po.total_minor,r.po.currency)},
+  {h:"Paid · pending · open",f:r=>`<div style="min-width:160px">${poBar(r)}</div><div class="small muted" style="margin-top:4px">${fmt(r.paid_minor,r.po.currency)} · ${fmt(r.pending_minor,r.po.currency)} · ${fmt(Math.max(r.remaining_minor,0),r.po.currency)}</div>`},
+  {h:"Terms",f:r=>r.terms.length?r.terms.map(t=>`<span class="pill ${t.state==="PAID"?"good":t.state==="PENDING"?"warn":""}" data-tip="${esc(t.label)}">${esc(t.term_id)} ${esc(fmt(t.amount_minor,r.po.currency))}</span>`).join(" ")+(r.po.allow_partial?' <span class="small muted">+ partial</span>':""):'<span class="small muted">partial invoices</span>'},
+  {h:"Status",f:r=>pill(r.po.status==="OPEN"?"OPEN":r.po.status)},{h:"",f:r=>rowActs("purchase-orders",r.po.po_id)}],rows,"no purchase orders yet");
+ $("#poTable").querySelectorAll('[data-edit="purchase-orders"]').forEach(b=>b.onclick=()=>poForm(rows.find(r=>r.po.po_id===b.dataset.id).po));
+ $("#poTable").querySelectorAll('[data-del="purchase-orders"]').forEach(b=>b.onclick=async()=>{if(!confirm("Delete this PO?"))return;
+  try{await api(`/v1/org/purchase-orders/${encodeURIComponent(b.dataset.id)}?${who()}`,{method:"DELETE"});toast("Deleted","good");poView()}catch(e){toast(esc(e.message),"serious")}})}
+ catch(e){$("#poTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function poForm(po){const sup=await suppliers();po=po||{currency:"USD",terms:[],allow_partial:true,status:"OPEN",issued_date:new Date().toISOString().slice(0,10)};
+ $("#dlgTitle").textContent=po.po_id?`Edit ${po.po_id}`:"New purchase order";$("#dlgErr").textContent="";
+ const termRow=t=>`<div class="row term"><input class="t-id" placeholder="T1" value="${esc(t.term_id||"")}" style="width:70px"><input class="t-label" placeholder="30% deposit" value="${esc(t.label||"")}" style="flex:1"><input class="t-amt" type="number" step="0.01" min="0" placeholder="amount" value="${t.amount_minor!=null?(t.amount_minor/100).toFixed(2):""}" style="width:120px"><button type="button" class="t-del" formnovalidate>✕</button></div>`;
+ $("#dlgBody").innerHTML=`<label>PO number<input id="po-id" required ${po.po_id?"readonly":""} value="${esc(po.po_id||"")}" placeholder="PO-2026-0105"></label>
+  <label>Supplier<select id="po-sup">${Object.values(sup).map(p=>`<option value="${esc(p.id)}" data-ccy="${esc(p.currency||"")}" ${p.id===po.supplier_id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label>
+  <label>Currency<input id="po-ccy" maxlength="3" value="${esc(po.currency)}"></label><label>Total<input id="po-total" type="number" step="0.01" min="0" required value="${po.total_minor!=null?(po.total_minor/100).toFixed(2):""}"></label>
+  <label style="grid-column:1/-1">Account code (office . project . account)<input id="po-code" required value="${esc(po.account_code||"")}" placeholder="DE-400.PRJ900.6500"><span class="small muted" id="po-code-out"></span></label>
+  <label style="grid-column:1/-1">Description<input id="po-desc" value="${esc(po.description||"")}"></label>
+  <div style="grid-column:1/-1"><div class="small" style="font-weight:600;color:var(--ink2);margin-bottom:6px">Payment terms (optional)</div><div id="po-terms">${po.terms.map(termRow).join("")}</div><button type="button" id="po-add-term" formnovalidate>Add term</button></div>
+  <label class="check"><input type="checkbox" id="po-partial" ${po.allow_partial?"checked":""}> Also accept partial invoices</label>
+  <label>Status<select id="po-status">${["OPEN","CLOSED","CANCELLED"].map(x=>`<option ${x===po.status?"selected":""}>${x}</option>`).join("")}</select></label>`;
+ const wire=()=>$("#po-terms").querySelectorAll(".t-del").forEach(b=>b.onclick=()=>b.closest(".term").remove());wire();
+ $("#po-add-term").onclick=()=>{$("#po-terms").insertAdjacentHTML("beforeend",termRow({}));wire()};
+ $("#po-sup").onchange=()=>{const c=$("#po-sup").selectedOptions[0].dataset.ccy;if(c)$("#po-ccy").value=c};if(!po.po_id)$("#po-sup").onchange();
+ $("#po-code").onchange=async()=>{try{const r=await api(`/v1/org/account-code?code=${encodeURIComponent($("#po-code").value)}`);$("#po-code-out").textContent=`${r.unit} · ${r.project} · ${r.account} · agent pays alone up to ${r.payment_limit_minor!=null?usd(r.payment_limit_minor):"no unit limit"}`}catch(e){$("#po-code-out").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+ if(po.account_code)$("#po-code").onchange();
+ $("#dlg").showModal();
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
+  const terms=[...$("#po-terms").querySelectorAll(".term")].map(t=>({term_id:t.querySelector(".t-id").value.trim().toUpperCase(),label:t.querySelector(".t-label").value.trim(),amount_minor:Math.round(parseFloat(t.querySelector(".t-amt").value||"0")*100)})).filter(t=>t.term_id||t.label||t.amount_minor);
+  const body={po_id:$("#po-id").value.trim().toUpperCase(),supplier_id:$("#po-sup").value,currency:$("#po-ccy").value.trim().toUpperCase(),total_minor:Math.round(parseFloat($("#po-total").value||"0")*100),
+   account_code:$("#po-code").value.trim().toUpperCase(),description:$("#po-desc").value,terms,allow_partial:$("#po-partial").checked,status:$("#po-status").value,issued_date:po.issued_date};
+  try{await api(`/v1/org/purchase-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Purchase order saved","good");poView()}
+  catch(e){$("#dlgErr").textContent=e.message}}}
+$("#addPO").onclick=()=>poForm(null);
+
+async function spendingView(){try{const per=$("#spPeriod").value;const [s]=await Promise.all([api("/v1/procurement/spending"+(per?`?period=${encodeURIComponent(per)}`:"")),loadOrg(),loadCodes()]);
+ const tree=treeRows(s.by_unit);const max=Math.max(1,...tree.map(r=>r.with_units_below_minor));
+ $("#spUnits").innerHTML=hbars(tree.map(r=>({label:r.name,indent:r.depth,sub:KIND[r.kind],value:r.with_units_below_minor,display:usd(r.with_units_below_minor),
+  mark:r.own_minor&&r.own_minor!==r.with_units_below_minor?r.own_minor:null,markTip:`charged to the office itself: ${usd(r.own_minor)}`,
+  tip:`${r.name}: ${usd(r.with_units_below_minor)} with the offices below, ${usd(r.own_minor)} itself`})),max)
+  +`<div class="legend"><span style="--c:var(--seq)">paid, office and the offices below</span><span style="--c:var(--ink2)">marker: charged to the office itself</span></div>`;
+ $("#spProjects").innerHTML=hbars(s.by_project.map(p=>({label:p.project,sub:(CODES.projects[p.project]||{}).name,value:p.base_cost_minor,display:usd(p.base_cost_minor)})));
+ $("#spAccounts").innerHTML=hbars(s.by_account.map(a=>({label:a.account,sub:(CODES.accounts[a.account]||{}).name,value:a.base_cost_minor,display:usd(a.base_cost_minor)})));
+ $("#spCodes").innerHTML=table([{h:"Account code",f:r=>`<span class="mono">${esc(r.account_code)}</span>`},{h:"Office",f:r=>esc(unitName(r.unit_id))},{h:"Project",f:r=>esc(r.project||"-")},
+  {h:"Account",f:r=>`${esc(r.account||"-")} <span class="small muted">${esc(r.account_name||"")}</span>`},{h:"Paid",num:1,f:r=>Object.entries(r.by_currency).map(([c,v])=>fmt(v,c)).join("<br>")},
+  {h:"Base cost",num:1,f:r=>usd(r.base_cost_minor)},{h:"Payments",num:1,f:r=>r.payments}],s.by_account_code,"nothing paid against an account code yet");
+ $("#spCommit").innerHTML=table([{h:"PO",f:r=>`<span class="mono">${esc(r.po_id)}</span>`},{h:"Account code",f:r=>`<span class="mono">${esc(r.account_code)}</span>`},
+  {h:"Total",num:1,f:r=>fmt(r.total_minor,r.currency)},{h:"Paid",num:1,f:r=>fmt(r.paid_minor,r.currency)},{h:"Still open",num:1,f:r=>`<b>${fmt(r.open_minor,r.currency)}</b>`}],s.open_commitments,"no open purchase orders")}
+ catch(e){$("#spUnits").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#spPeriod").onchange=spendingView;
+(()=>{const d=new Date();const opts=[];for(let i=0;i<6;i++){const x=new Date(d.getFullYear(),d.getMonth()-i,1);opts.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`)}
+ $("#spPeriod").insertAdjacentHTML("beforeend",opts.map(o=>`<option>${o}</option>`).join(""))})();
+
+let CODES={projects:{},accounts:{}};
+async function loadCodes(){const [p,a]=await Promise.all([api("/v1/org/projects"),api("/v1/org/accounts")]);CODES={list:{p,a},projects:Object.fromEntries(p.map(x=>[x.code,x])),accounts:Object.fromEntries(a.map(x=>[x.code,x]))};return CODES}
+const PROJECT_FIELDS=()=>[{k:"code",l:"Project code (A-Z, 0-9)",req:1,max:12},{k:"name",l:"Name",req:1},{k:"unit_id",l:"Belongs to",opts:unitOpts("— company-wide —")},{k:"active",l:"Active",check:1}];
+const ACCOUNT_FIELDS=()=>[{k:"code",l:"Account code (4-6 digits)",req:1,max:6},{k:"name",l:"Name",req:1},{k:"category",l:"Expense category",req:1,list:"catList"},{k:"active",l:"Active",check:1}];
+async function codesView(){try{await Promise.all([loadOrg(),loadCodes()]);
+ $("#projTable").innerHTML=table([{h:"Code",f:p=>`<b class="mono">${esc(p.code)}</b>`},{h:"Project",f:p=>esc(p.name)},{h:"Belongs to",f:p=>esc(p.unit_id?unitName(p.unit_id):"company-wide")},{h:"",f:p=>rowActs("projects",p.project_id)}],CODES.list.p,"no projects");
+ $("#acctTable").innerHTML=table([{h:"Code",f:a=>`<b class="mono">${esc(a.code)}</b>`},{h:"Account",f:a=>esc(a.name)},{h:"Category",f:a=>`<span class="chip">${esc(a.category)}</span>`},{h:"",f:a=>rowActs("accounts",a.account_id)}],CODES.list.a,"no accounts")
+  +`<datalist id="catList">${(ORG.standards.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`;
+ wireActs($("#projTable"),"projects",()=>CODES.list.p,"project_id",PROJECT_FIELDS,codesView);
+ wireActs($("#acctTable"),"accounts",()=>CODES.list.a,"account_id",ACCOUNT_FIELDS,codesView)}catch(e){$("#projTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#addProject").onclick=async()=>{await loadOrg();openForm("Add project",PROJECT_FIELDS(),{active:true},"projects",codesView)};
+$("#addAccount").onclick=async()=>{await loadOrg();openForm("Add account",ACCOUNT_FIELDS(),{active:true},"accounts",codesView)};
+$("#codeCheckBtn").onclick=async()=>{try{const r=await api(`/v1/org/account-code?code=${encodeURIComponent($("#codeCheck").value)}`);
+ $("#codeCheckOut").innerHTML=`<span class="pill good">VALID</span> ${esc(r.code)}: ${esc(r.unit)} · ${esc(r.project)} · ${esc(r.account)} (${esc(r.category)}) · agent pays alone up to ${r.payment_limit_minor!=null?esc(usd(r.payment_limit_minor))+" (set by "+esc(r.limit_set_by)+")":"no unit limit"}`}
+ catch(e){$("#codeCheckOut").innerHTML=`<span class="pill critical">INVALID</span> ${esc(e.message.replace(/^422 /,""))}`}};
 
 // ---- Settings → AI model -----------------------------------------------------------------------------------------
 let AI=null;

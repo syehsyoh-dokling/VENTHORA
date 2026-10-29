@@ -153,6 +153,19 @@ class Executor:
             if not verdict["ok"]:
                 refuse("approval refused: " + "; ".join(verdict["problems"]))
             approved_by = verdict["approved_by"]
+            # Unit payment limit: a payment above the limit of the unit it is charged to needs one of the people that
+            # unit chain names for it (finance roles whose own approval limit covers it), whatever the matrix allowed.
+            people = {" ".join(str(p).split()).lower() for p in approved_by}
+            for d in plan.obligations:
+                o = by_id.get(d.obligation_id)
+                if (d.action in PAYING_ACTIONS and o is not None and o.unit_payment_limit_minor is not None
+                        and d.base_cost_minor > o.unit_payment_limit_minor):
+                    if not o.unit_approvers:
+                        refuse(f"{o.obligation_id} is above its unit's payment limit and nobody in {o.account_code}'s unit chain "
+                               "has an approval limit that covers it")
+                    if not people & {" ".join(n.split()).lower() for n in o.unit_approvers}:
+                        refuse(f"{o.obligation_id} is above its unit's payment limit ({o.account_code}); it must be approved by "
+                               + " or ".join(o.unit_approvers))
         steps.append(Step(kind="preflight", key="authorization", status="OK", detail={
             "decision": plan.decision, "approved_by": approved_by or "policy (autonomous)",
             "tier": (plan.approval_requirement or {}).get("tier") if approved_by else None}))
@@ -513,7 +526,8 @@ class Executor:
                                      "invoice_fingerprint": o.invoice_fingerprint, "installment": o.installment,
                                      "contract_total_minor": o.contract_total_minor, "line": o.budget_line,
                                      "currency": o.currency, "amount_minor": o.amount_minor, "base_cost_minor": cost.get(oid, 0),
-                                     "paid_at": paid_at, "reporting_period": period, "beneficiary_id": o.beneficiary_id})
+                                     "paid_at": paid_at, "reporting_period": period, "beneficiary_id": o.beneficiary_id,
+                                     "po_number": o.po_number, "account_code": o.account_code})
             # Payee lifecycle: a PAID payout after the cooling period makes a VERIFIED payee ACTIVE.
             if self.store.payee(o.beneficiary_id) is not None:
                 try:

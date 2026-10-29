@@ -50,7 +50,54 @@ class Unit(BaseModel):
     currency: str = "USD"
     timezone: str = Field(default="UTC", max_length=60)
     cost_centre: str = Field(default="", max_length=40)
+    # The agent may pay alone, per payment charged to this unit, up to this (base currency); above it a person in the
+    # unit chain whose approval limit covers the amount must approve. None = the parent unit's limit applies.
+    payment_limit_minor: int | None = Field(default=None, ge=0, le=10**13)
     active: bool = True
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, v: str) -> str:
+        return _ccy(v)
+
+
+class Project(BaseModel):
+    """A project spending is charged to; unit_id None = a company-wide code (e.g. general operations)."""
+    project_id: str | None = Field(default=None, max_length=40)
+    code: str = Field(pattern=r"^[A-Z0-9]{2,12}$")
+    name: str = Field(min_length=1, max_length=120)
+    unit_id: str | None = None
+    active: bool = True
+
+
+class Account(BaseModel):
+    """One line of the chart of accounts (the cost account)."""
+    account_id: str | None = Field(default=None, max_length=40)
+    code: str = Field(pattern=r"^\d{4,6}$")
+    name: str = Field(min_length=1, max_length=120)
+    category: str = Field(min_length=1, max_length=60, description="the finance standards' expense category it belongs to")
+    active: bool = True
+
+
+class POTerm(BaseModel):
+    term_id: str = Field(pattern=r"^[A-Z0-9-]{1,12}$")
+    label: str = Field(min_length=1, max_length=80)
+    amount_minor: int = Field(gt=0, le=10**13)
+
+
+class PurchaseOrder(BaseModel):
+    """What the company agreed to buy: one supplier, one currency, one account code, and how it will be paid.
+    Scheduled terms (e.g. 30% deposit, 70% on delivery) and, when allow_partial, any partial invoice while the PO has room."""
+    po_id: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$", description="the PO number")
+    supplier_id: str = Field(min_length=1, max_length=80, description="the payee (beneficiary) the PO is placed with")
+    currency: str = "USD"
+    total_minor: int = Field(gt=0, le=10**13)
+    account_code: str = Field(min_length=5, max_length=60, description="office cost centre . project . account, e.g. DE-400.PRJ900.6500")
+    description: str = Field(default="", max_length=300)
+    terms: list[POTerm] = Field(default_factory=list)
+    allow_partial: bool = True
+    status: Literal["OPEN", "CLOSED", "CANCELLED"] = "OPEN"
+    issued_date: str = Field(default="2026-10-01", pattern=r"^\d{4}-\d{2}-\d{2}$")
 
     @field_validator("currency")
     @classmethod
@@ -110,6 +157,7 @@ class Standards(BaseModel):
     fx_rate_source: Literal["airwallex", "ecb"] = "airwallex"
     expense_categories: list[str] = Field(default_factory=lambda: ["Payroll", "Logistics", "Suppliers", "Contractors",
                                                                    "Software", "Travel", "Office", "Marketing"])
+    require_po: bool = Field(default=True, description="a supplier invoice is payable only against an open purchase order it quotes")
 
     @field_validator("base_currency")
     @classmethod
@@ -122,8 +170,13 @@ CREATE TABLE IF NOT EXISTS records (
     kind TEXT NOT NULL, record_id TEXT NOT NULL, record_json TEXT NOT NULL, updated_at TEXT NOT NULL,
     updated_by TEXT NOT NULL, PRIMARY KEY (kind, record_id));
 """
-MODELS = {"unit": Unit, "user": User, "allocation": Allocation, "price": Price}
-ID_FIELD = {"unit": "unit_id", "user": "user_id", "allocation": "alloc_id", "price": "price_id"}
+MODELS = {"unit": Unit, "user": User, "allocation": Allocation, "price": Price, "project": Project, "account": Account,
+          "po": PurchaseOrder}
+ID_FIELD = {"unit": "unit_id", "user": "user_id", "allocation": "alloc_id", "price": "price_id", "project": "project_id",
+            "account": "account_id", "po": "po_id"}
+SEED_VERSION = 2
+UNIT_LIMITS = {"hq": 2_500_000, "co-us": 1_000_000, "co-uk": 800_000, "co-de": 800_000, "br-us-west": 300_000,
+               "br-uk-manchester": 300_000, "pf-eu-rollout": 500_000}
 
 
 def _seed() -> dict[str, list[dict]]:
@@ -161,7 +214,44 @@ def _seed() -> dict[str, list[dict]]:
         {"price_id": "p-perdiem-us", "item": "Per diem United States", "category": "Travel", "unit": "day", "price_minor": 7_500, "currency": "USD", "unit_id": "co-us"},
         {"price_id": "p-pallet", "item": "Warehouse pallet slot", "category": "Logistics", "unit": "pallet / month", "price_minor": 1_900, "currency": "EUR", "unit_id": "pf-eu-rollout"},
     ]
-    return {"unit": units, "user": users, "allocation": allocations, "price": prices}
+    for u in units:
+        u["payment_limit_minor"] = UNIT_LIMITS.get(u["unit_id"])
+    return {"unit": units, "user": users, "allocation": allocations, "price": prices} | _seed_v2()
+
+
+def _seed_v2() -> dict[str, list[dict]]:
+    """Added with purchase orders: projects, the chart of accounts and one open PO per registered supplier."""
+    projects = [
+        {"project_id": "pj-ops", "code": "OPS", "name": "General operations", "unit_id": None},
+        {"project_id": "pj-prj900", "code": "PRJ900", "name": "EU Warehouse Roll-out", "unit_id": "pf-eu-rollout"},
+        {"project_id": "pj-brand26", "code": "BRAND26", "name": "Brand refresh 2026", "unit_id": "co-us"},
+    ]
+    accounts = [
+        {"account_id": "ac-6100", "code": "6100", "name": "Freight and logistics", "category": "Logistics"},
+        {"account_id": "ac-6200", "code": "6200", "name": "Contractors and professional services", "category": "Contractors"},
+        {"account_id": "ac-6300", "code": "6300", "name": "Software and subscriptions", "category": "Software"},
+        {"account_id": "ac-6400", "code": "6400", "name": "Travel", "category": "Travel"},
+        {"account_id": "ac-6500", "code": "6500", "name": "Materials and components", "category": "Suppliers"},
+        {"account_id": "ac-6600", "code": "6600", "name": "Marketing and design", "category": "Marketing"},
+        {"account_id": "ac-6700", "code": "6700", "name": "Office", "category": "Office"},
+        {"account_id": "ac-7100", "code": "7100", "name": "Capital equipment", "category": "Suppliers"},
+    ]
+    pos = [
+        {"po_id": "PO-2026-0101", "supplier_id": "ben-lumen-design", "currency": "USD", "total_minor": 500_000,
+         "account_code": "US-200.BRAND26.6600", "description": "Brand refresh, design phases 1-2",
+         "terms": [{"term_id": "T1", "label": "Phase 1 on approval", "amount_minor": 180_000},
+                   {"term_id": "T2", "label": "Phase 2 on delivery", "amount_minor": 320_000}], "allow_partial": True},
+        {"po_id": "PO-2026-0102", "supplier_id": "ben-eu-components", "currency": "EUR", "total_minor": 1_200_000,
+         "account_code": "DE-400.PRJ900.6500", "description": "Racking components for the EU warehouse",
+         "terms": [{"term_id": "T1", "label": "30% deposit", "amount_minor": 360_000},
+                   {"term_id": "T2", "label": "70% on delivery", "amount_minor": 840_000}], "allow_partial": False},
+        {"po_id": "PO-2026-0103", "supplier_id": "ben-uk-logistics", "currency": "GBP", "total_minor": 1_000_000,
+         "account_code": "UK-300.OPS.6100", "description": "Q4 freight UK to US, call-off", "terms": [], "allow_partial": True},
+        {"po_id": "PO-2026-0104", "supplier_id": "ben-contractor-okafor", "currency": "USD", "total_minor": 960_000,
+         "account_code": "US-200.OPS.6200", "description": "Contract design support, Oct-Dec (monthly timesheets)",
+         "terms": [], "allow_partial": True},
+    ]
+    return {"project": projects, "account": accounts, "po": pos}
 
 
 class OrgStore:
@@ -177,6 +267,17 @@ class OrgStore:
                 for row in rows:
                     self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
             self._put("standards", Standards().model_dump() | {"_id": "standards"}, "seed")
+            self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
+        elif seed and (self.get("meta", "seed") or {}).get("version", 1) < SEED_VERSION:
+            # a store made before purchase orders: add the new reference data, change nothing a person entered
+            for kind, rows in _seed_v2().items():
+                if not self.list(kind):
+                    for row in rows:
+                        self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
+            for u in self.list("unit"):
+                if u.get("payment_limit_minor") is None and u["unit_id"] in UNIT_LIMITS:
+                    self._put("unit", u | {"payment_limit_minor": UNIT_LIMITS[u["unit_id"]]}, "seed")
+            self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)
@@ -256,6 +357,82 @@ class OrgStore:
     def _check_price(self, d: dict) -> None:
         if d.get("unit_id"):
             self._unit(d["unit_id"])
+
+    def _check_project(self, d: dict) -> None:
+        if d.get("unit_id"):
+            self._unit(d["unit_id"])
+        if any(x["code"] == d["code"] and x["project_id"] != d["project_id"] for x in self.list("project")):
+            raise OrgError(f"project code {d['code']} is already used")
+
+    def _check_account(self, d: dict) -> None:
+        if any(x["code"] == d["code"] and x["account_id"] != d["account_id"] for x in self.list("account")):
+            raise OrgError(f"account {d['code']} is already in the chart of accounts")
+
+    def _check_po(self, d: dict) -> None:
+        from .intake.pipeline import PAYEES_FILE
+
+        payees = json.loads(PAYEES_FILE.read_text(encoding="utf-8"))["payees"]
+        if d["supplier_id"] not in payees:
+            raise OrgError(f"unknown supplier {d['supplier_id']!r}: a PO is placed with a registered payee")
+        if payees[d["supplier_id"]].get("currency") and payees[d["supplier_id"]]["currency"] != d["currency"]:
+            raise OrgError(f"{payees[d['supplier_id']]['name']} is paid in {payees[d['supplier_id']]['currency']}, not {d['currency']}")
+        self.account_code(d["account_code"])
+        ids = [t["term_id"] for t in d["terms"]]
+        if len(ids) != len(set(ids)):
+            raise OrgError("each payment term needs its own id")
+        if sum(t["amount_minor"] for t in d["terms"]) > d["total_minor"]:
+            raise OrgError("the payment terms add up to more than the PO total")
+        if not d["terms"] and not d["allow_partial"]:
+            raise OrgError("a PO without payment terms must allow partial invoices (otherwise it can never be paid)")
+
+    def account_code(self, code: str) -> dict:
+        """'office cost centre . project . account' -> the unit, project and account it names; refused when any part is
+        unknown, inactive, or the project does not belong to that office (or an office under it)."""
+        parts = (code or "").strip().upper().split(".")
+        if len(parts) != 3 or not all(parts):
+            raise OrgError(f"account code {code!r} must be OFFICE.PROJECT.ACCOUNT, e.g. DE-400.PRJ900.6500")
+        cc, pcode, acode = parts
+        unit = next((u for u in self.list("unit") if (u.get("cost_centre") or "").upper() == cc and u.get("active", True)), None)
+        if unit is None:
+            raise OrgError(f"no active unit has cost centre {cc}")
+        project = next((x for x in self.list("project") if x["code"] == pcode and x.get("active", True)), None)
+        if project is None:
+            raise OrgError(f"unknown or inactive project {pcode}")
+        account = next((x for x in self.list("account") if x["code"] == acode and x.get("active", True)), None)
+        if account is None:
+            raise OrgError(f"account {acode} is not in the chart of accounts")
+        if project.get("unit_id"):
+            chain = [u["unit_id"] for u in self.chain(project["unit_id"])]
+            if unit["unit_id"] not in chain:
+                raise OrgError(f"project {pcode} belongs to {self._unit(project['unit_id'])['name']}, not to {unit['name']}")
+        return {"code": ".".join(parts), "unit": unit, "project": project, "account": account}
+
+    def chain(self, unit_id: str | None) -> list[dict]:
+        """The unit and its ancestors, nearest first."""
+        out, seen = [], set()
+        while unit_id and unit_id not in seen:
+            seen.add(unit_id)
+            u = self.get("unit", unit_id)
+            if u is None:
+                break
+            out.append(u)
+            unit_id = u.get("parent_id")
+        return out
+
+    def payment_limit(self, unit_id: str) -> tuple[int | None, dict | None]:
+        """The agent's per-payment limit for spending charged to this unit: the nearest unit in the chain that sets one."""
+        for u in self.chain(unit_id):
+            if u.get("payment_limit_minor") is not None:
+                return u["payment_limit_minor"], u
+        return None, None
+
+    def approvers_for(self, unit_id: str, amount_minor: int, roles=("country_finance_lead", "finance_manager", "cfo")) -> list[dict]:
+        """Who may approve a payment above the unit's limit: active finance roles in the unit chain whose own approval
+        limit covers the amount, nearest unit first."""
+        order = {u["unit_id"]: i for i, u in enumerate(self.chain(unit_id))}
+        people = [u for u in self.list("user") if u.get("active", True) and u["role"] in roles and u["unit_id"] in order
+                  and u.get("approval_limit_minor", 0) >= amount_minor]
+        return sorted(people, key=lambda u: (order[u["unit_id"]], roles.index(u["role"])))
 
     def standards(self) -> dict:
         rec = self.get("standards", "standards") or Standards().model_dump()

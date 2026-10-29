@@ -39,7 +39,20 @@ from .intake.pipeline import Intake  # noqa: E402
 from .ledger import adjust as ledger_adjust_entry  # noqa: E402
 from .ledger import evaluate as ledger_evaluate  # noqa: E402
 from .orchestrator import Orchestrator  # noqa: E402
-from .organisation import ID_FIELD, WRITE_ROLES, Allocation, OrgError, OrgStore, Price, Standards, Unit, User  # noqa: E402
+from .organisation import (  # noqa: E402
+    ID_FIELD,
+    WRITE_ROLES,
+    Account,
+    Allocation,
+    OrgError,
+    OrgStore,
+    Price,
+    Project,
+    PurchaseOrder,
+    Standards,
+    Unit,
+    User,
+)
 from .payees import PayeeError  # noqa: E402
 from .payees import evaluate as payees_evaluate  # noqa: E402
 from .proofcore.approvals import evaluate as approvals_evaluate  # noqa: E402
@@ -64,7 +77,7 @@ async def lifespan(app: FastAPI):
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
     app.state.org = OrgStore()
-    app.state.intake = Intake(org=app.state.org)  # staff claims are checked against the organisation's settings
+    app.state.intake = Intake(org=app.state.org, payments=app.state.executor.store)  # staff claims and POs use the org settings
     app.state.webhooks = webhooks.WebhookStore()
     app.state.hub = webhooks.Hub()
     await asyncio.to_thread(_warm_horizon)
@@ -1094,7 +1107,8 @@ async def event_stream(request: Request):
 
 
 # ---- organisation: units, people, budget allocations, unit prices and finance standards ---------------------
-ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price)}
+ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price),
+             "projects": ("project", Project), "accounts": ("account", Account), "purchase-orders": ("po", PurchaseOrder)}
 
 
 def _org_kind(collection: str):
@@ -1193,6 +1207,46 @@ async def set_org_standards(s: Standards, role: str = "finance_manager", by: str
     return out
 
 
+@app.get("/v1/org/account-code")
+async def org_account_code(code: str):
+    """Check an account code (office cost centre . project . account) and name what it charges."""
+    try:
+        r = app.state.org.account_code(code)
+    except OrgError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    limit, at = app.state.org.payment_limit(r["unit"]["unit_id"])
+    return {"code": r["code"], "unit": r["unit"]["name"], "unit_id": r["unit"]["unit_id"], "project": r["project"]["name"],
+            "account": r["account"]["name"], "category": r["account"]["category"], "payment_limit_minor": limit,
+            "limit_set_by": at["name"] if at else None}
+
+
+@app.get("/v1/procurement/purchase-orders")
+async def purchase_orders():
+    """Every PO with what is paid (from transfers Airwallex reported PAID), pending in the queue, and still open."""
+    from . import procurement
+
+    org, pay, intake = app.state.org, app.state.executor.store, app.state.intake
+    paid_fp = {r["invoice_fingerprint"] for r in pay.po_payments()}
+    pending: dict[str, dict[str, int]] = {}
+    for r in intake.store.list(1000):
+        if r.po_number and r.status in ("VERIFIED", "NEEDS_REVIEW") and r.invoice_fingerprint not in paid_fp and r.amount_minor:
+            key = r.installment or r.intake_id
+            pending.setdefault(r.po_number, {})[key] = pending.get(r.po_number, {}).get(key, 0) + r.amount_minor
+    out = []
+    for po in org.list("po"):
+        st = procurement.status(org, pay, po["po_id"], pending=pending.get(po["po_id"]))
+        out.append(st | {"po": po})
+    return out
+
+
+@app.get("/v1/procurement/spending")
+async def procurement_spending(period: str | None = None):
+    """Paid spend by office (own and with the offices below), project, account and account code; open PO commitments."""
+    from . import procurement
+
+    return procurement.spending(app.state.org, app.state.executor.store, period)
+
+
 @app.get("/v1/org/allocation-tree")
 async def org_allocation_tree(period: str = "2026"):
     return app.state.org.allocation_tree(period)
@@ -1222,6 +1276,8 @@ async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "
 async def org_delete(collection: str, record_id: str, role: str = "finance_manager", by: str = "dashboard"):
     kind, _ = _org_kind(collection)
     who = _writer(role, by)
+    if kind == "po" and app.state.executor.store.po_payments(record_id):
+        raise HTTPException(409, "money has been paid against this PO; close or cancel it instead, so its payments keep their PO")
     try:
         await asyncio.to_thread(app.state.org.delete, kind, record_id, who)
     except KeyError as exc:

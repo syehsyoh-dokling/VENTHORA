@@ -98,6 +98,9 @@ class ExecutionStore:
             cols = {r[1] for r in c.execute("PRAGMA table_info(spend_ledger)").fetchall()}
             if "beneficiary_id" not in cols:
                 c.execute("ALTER TABLE spend_ledger ADD COLUMN beneficiary_id TEXT")
+            for col in ("po_number", "account_code"):  # payments booked against a purchase order and an account code
+                if col not in cols:
+                    c.execute(f"ALTER TABLE spend_ledger ADD COLUMN {col} TEXT")
             # rows booked before the column existed: recover the payee from the execution's stored plan
             missing = c.execute("SELECT transfer_id, obligation_id FROM spend_ledger WHERE beneficiary_id IS NULL").fetchall()
             if missing:
@@ -413,11 +416,33 @@ class ExecutionStore:
         with self._lock, self._connect() as c:
             c.execute("INSERT OR IGNORE INTO spend_ledger (transfer_id, book_id, obligation_id, invoice_fingerprint, installment,"
                       " contract_total_minor, line, currency, amount_minor, base_cost_minor, paid_at, reporting_period, recorded_at,"
-                      " beneficiary_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                      " beneficiary_id, po_number, account_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                       (row["transfer_id"], row["book_id"], row["obligation_id"], row.get("invoice_fingerprint"),
                        row.get("installment"), row.get("contract_total_minor"), row.get("line"), row["currency"],
                        row["amount_minor"], row["base_cost_minor"], row["paid_at"], row["reporting_period"], _now(),
-                       row.get("beneficiary_id")))
+                       row.get("beneficiary_id"), row.get("po_number"), row.get("account_code")))
+
+    def po_payments(self, po_number: str | None = None) -> list[dict]:
+        """Payments booked against purchase orders (one row per PAID transfer)."""
+        q = ("SELECT transfer_id, po_number, installment, currency, amount_minor, base_cost_minor, paid_at, obligation_id, invoice_fingerprint,"
+             " account_code FROM spend_ledger WHERE po_number IS NOT NULL")
+        args: tuple = ()
+        if po_number:
+            q += " AND po_number = ?"
+            args = (po_number,)
+        with self._lock, self._connect() as c:
+            return [dict(r) for r in c.execute(q + " ORDER BY paid_at", args).fetchall()]
+
+    def spend_by_account(self, period_prefix: str | None = None) -> list[dict]:
+        """Paid spend per account code and currency (base-currency cost alongside), optionally for one period."""
+        q = ("SELECT account_code, currency, SUM(amount_minor) AS amount_minor, SUM(base_cost_minor) AS base_cost_minor,"
+             " COUNT(*) AS payments FROM spend_ledger WHERE account_code IS NOT NULL")
+        args: tuple = ()
+        if period_prefix:
+            q += " AND reporting_period LIKE ?"
+            args = (period_prefix + "%",)
+        with self._lock, self._connect() as c:
+            return [dict(r) for r in c.execute(q + " GROUP BY account_code, currency ORDER BY account_code", args).fetchall()]
 
     # -- payee lifecycle (src/venthora/payees.py holds the transitions) ------------------------------------------
 

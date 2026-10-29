@@ -43,6 +43,13 @@ class Obligation(StrictModel):
     contract_total_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR,
                                              description="PO / contract amount (three-way match)")
     paid_so_far_minor: int = Field(default=0, ge=0, le=MAX_MINOR, description="earlier instalments already paid on this invoice")
+    # Purchase order and account code: what the payment is booked against (office cost centre . project . account).
+    po_number: str | None = Field(default=None, max_length=40)
+    account_code: str | None = Field(default=None, max_length=60)
+    # The unit the account code charges: the agent pays alone up to its limit (base currency); above it one of these
+    # people (finance roles in the unit chain whose own approval limit covers the payment) must approve.
+    unit_payment_limit_minor: int | None = Field(default=None, ge=0, le=MAX_MINOR)
+    unit_approvers: list[str] = Field(default_factory=list, max_length=20)
     due_date: str | None = Field(default=None, description="ISO date; with as_of it places the obligation in a period")
     posted_at: str | None = Field(default=None, description="ISO datetime the document arrived; decides its REPORT period")
     # Aging and dunning: reminders the payee sent (0 none, 1 reminder, 2 second reminder, 3 final notice) and the late-payment

@@ -7,6 +7,7 @@ For every payout the plan would make now (base-currency cost):
   new payee     never PAID before and cost > max_first_payment -> first_payment_to_new_payee_above_limit
   daily         outflow last 24 h + paying now (all payees) > max_outflow_daily   -> daily_outflow_limit_exceeded
   weekly        outflow last 7 d + paying now  > max_outflow_weekly                -> weekly_outflow_limit_exceeded
+  unit          cost > the limit of the unit its account code charges                -> unit_payment_limit_exceeded
 History comes from the spend ledger (facts.py); without history every payee is new and the rolling outflows are zero.
 Above a limit the agent may not act alone: REQUIRES_APPROVAL with the reason, the amounts and the payees named.
 """
@@ -29,7 +30,8 @@ def limit_facts(state: TreasuryState, decisions: list[ObligationDecision]) -> di
     hist_period = dict(h.paid_per_payee_period_minor) if h else {}
     total_now = sum(cost for _, cost in paying)
     rows = [{"obligation_id": o.obligation_id, "beneficiary_id": o.beneficiary_id, "cost_minor": cost,
-             "new_payee": o.beneficiary_id not in paid_before} for o, cost in paying]
+             "new_payee": o.beneficiary_id not in paid_before, "unit_limit_minor": o.unit_payment_limit_minor,
+             "account_code": o.account_code} for o, cost in paying]
     payees = [{"beneficiary_id": b, "paid_this_period_minor": hist_period.get(b, 0), "paying_now_minor": now,
                "total_minor": hist_period.get(b, 0) + now, "new_payee": b not in paid_before} for b, now in sorted(per_payee_now.items())]
     return {"max_single_payment_minor": p.max_single_payment_minor, "max_per_payee_period_minor": p.max_per_payee_period_minor,
@@ -50,6 +52,8 @@ def limit_reasons(f: dict) -> list[str]:
             reasons.add("single_payment_above_limit")
         if mf is not None and r["new_payee"] and r["cost_minor"] > mf:
             reasons.add("first_payment_to_new_payee_above_limit")
+        if r.get("unit_limit_minor") is not None and r["cost_minor"] > r["unit_limit_minor"]:
+            reasons.add("unit_payment_limit_exceeded")
     for pr in f.get("payees", []):
         if mp is not None and pr["total_minor"] > mp:
             reasons.add("payee_period_limit_exceeded")
@@ -67,6 +71,9 @@ def describe(f: dict, reasons: list[str]) -> str:
         bits.append("single payout above " + str(f["max_single_payment_minor"]) + ": " + ", ".join(r["obligation_id"] for r in f["payouts"] if r["cost_minor"] > f["max_single_payment_minor"]))
     if "first_payment_to_new_payee_above_limit" in reasons:
         bits.append("first payment to a new payee above " + str(f["max_first_payment_minor"]) + ": " + ", ".join(r["obligation_id"] for r in f["payouts"] if r["new_payee"] and r["cost_minor"] > f["max_first_payment_minor"]))
+    if "unit_payment_limit_exceeded" in reasons:
+        bits.append("above the unit's payment limit: " + ", ".join(f"{r['obligation_id']} ({r['cost_minor']} > {r['unit_limit_minor']}, {r.get('account_code')})"
+                                                                   for r in f["payouts"] if r.get("unit_limit_minor") is not None and r["cost_minor"] > r["unit_limit_minor"]))
     if "payee_period_limit_exceeded" in reasons:
         bits.append("payee over its period limit " + str(f["max_per_payee_period_minor"]) + ": " + ", ".join(f"{p['beneficiary_id']} ({p['total_minor']})" for p in f["payees"] if p["total_minor"] > f["max_per_payee_period_minor"]))
     if "daily_outflow_limit_exceeded" in reasons:

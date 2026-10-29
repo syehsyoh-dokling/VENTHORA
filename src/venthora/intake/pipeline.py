@@ -40,6 +40,7 @@ AMOUNT_RE = re.compile(r"(?P<cur>USD|EUR|GBP|US\$|\$|€|£)\s?(?P<amt>\d{1,3}(?
                        r"|(?P<amt2>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s?(?P<cur2>USD|EUR|GBP)\b")
 INVOICE_RE = re.compile(r"\b(?:invoice|inv\.?|bill|statement|claim|timesheet)\s*(?:no\.?|number|#|ref\.?|:)?\s*"
                         r"(?P<no>[A-Z]{1,6}[-/]?\d{2,}(?:[-/]\d{1,6})*)", re.IGNORECASE)
+PO_BEFORE_RE = re.compile(r"(?:purchase order|\bp\.?o\.?)\s*(?:no\.?|number|#)?\s*[:#]?\s*$")
 INVOICE_BARE_RE = re.compile(r"\b(?P<no>[A-Z]{2,6}-\d{2,}(?:-\d{1,6})?)\b")
 DUE_RE = re.compile(r"\b(?:due|payable|pay(?:ment)?\s+(?:by|before|on)|by)\s+(?:on\s+|by\s+)?(?P<date>"
                     r"\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?:\s+\d{4})?"
@@ -177,8 +178,12 @@ def _labelled_amount(sums: dict, text: str) -> tuple[Quote, int, str] | None:
 
 def _invoice(text: str, subject: str) -> Quote | None:
     for src, offset in ((subject, -1), (text, 0)):
-        m = INVOICE_RE.search(src) or INVOICE_BARE_RE.search(src)
-        if m:
+        for m in [*INVOICE_RE.finditer(src), *INVOICE_BARE_RE.finditer(src)]:
+            # a purchase order number is not the invoice number (seen in tests: "PO-2026-0101" read as the invoice,
+            # which would make every later invoice on the same PO look like a duplicate)
+            before = src[max(0, m.start() - 20):m.start()].lower()
+            if m.group("no").upper().startswith("PO-") or PO_BEFORE_RE.search(before):
+                continue
             return Quote(field="invoice_no", value=m.group("no").upper(), quote=m.group(0),
                          start=m.start() if offset == 0 else -1, end=m.end() if offset == 0 else -1)
     return None
@@ -292,11 +297,12 @@ class IntakeStore:
 
 class Intake:
     def __init__(self, store: IntakeStore | None = None, registry: Registry | None = None,
-                 reviewer_roles: tuple[str, ...] = ("finance_manager", "ap_clerk"), org=None):
+                 reviewer_roles: tuple[str, ...] = ("finance_manager", "ap_clerk"), org=None, payments=None):
         self.store = store or IntakeStore()
         self.registry = registry or Registry()
         self.reviewer_roles = reviewer_roles
-        self.org = org  # User management, Finance standards and Unit prices; None = no staff claims
+        self.org = org  # User management, Finance standards, Unit prices, purchase orders; None = none of those checks
+        self.payments = payments  # the execution store's spend ledger: what each PO has really paid
 
     def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None, save: bool = True,
                proposals: dict[str, Quote] | None = None) -> IntakeRequest:
@@ -399,6 +405,9 @@ class Intake:
             kind = "unknown"
 
         extra: dict = {}
+        po_hold = False
+        if kind in ("supplier_invoice", "contractor_claim") and self.org is not None:
+            po_hold = self._purchase_order(text, subject, cid, amount, quotes, flags, reasons, extra)
         if kind == "expense_claim":
             extra = self._expense(staff, text, subject, received, amount, quotes, flags, reasons, inv)
             cid, fingerprint = f"staff:{staff['user_id']}", extra.pop("fingerprint")
@@ -438,7 +447,7 @@ class Intake:
             if urgency:
                 status = "NEEDS_REVIEW"
                 reasons.append("pressure language from a registered sender; a person confirms before it is payable")
-            if "totals_do_not_add_up" in flags or "reader_disagreement" in flags:
+            if "totals_do_not_add_up" in flags or "reader_disagreement" in flags or po_hold:
                 status = "NEEDS_REVIEW"
         else:
             status = "NEEDS_REVIEW"
@@ -458,6 +467,59 @@ class Intake:
         if save:
             self.store.save(req)
         return req
+
+    def _purchase_order(self, text, subject, cid, amount, quotes, flags, reasons, extra) -> bool:
+        """Match the invoice to the PO it quotes; True when a person must look first."""
+        from .. import procurement
+
+        found = procurement.find_po(text, subject)
+        if found is None:
+            if self.org.standards().get("require_po", True):
+                flags.append("po_missing")
+                reasons.append("the invoice quotes no purchase order; the finance standards pay supplier invoices "
+                               "only against an open PO")
+                return True
+            return False
+        po_id, quoted, start, end = found
+        quotes.append(Quote(field="po_number", value=po_id, quote=quoted, start=start, end=end))
+        extra["po_number"] = po_id
+        paid = {r["invoice_fingerprint"] for r in (self.payments.po_payments(po_id) if self.payments is not None else [])}
+        pending: dict[str, int] = {}
+        for r in self.store.list(500):  # accepted or waiting, not yet paid: they already hold part of the PO
+            waiting = r.status in ("VERIFIED", "NEEDS_REVIEW") and r.invoice_fingerprint not in paid
+            if r.po_number == po_id and waiting and r.amount_minor:
+                pending[r.installment or r.intake_id] = pending.get(r.installment or r.intake_id, 0) + r.amount_minor
+        m = procurement.match(self.org, self.payments, po_id, supplier_id=cid, currency=amount[2] if amount else None,
+                              amount_minor=amount[1] if amount else None, pending=pending)
+        flags += m["flags"]
+        reasons += m["reasons"]
+        if m["po"] is not None:
+            extra["account_code"] = m["account_code"]
+            if m["installment"]:
+                extra["installment"] = m["installment"]
+        return not m["ok"]
+
+    def _po_terms(self, r: IntakeRequest) -> dict:
+        """What the plan needs from the PO: its total and what it already paid (the three-way match), the term, the
+        account code, and the unit's payment limit with the people who may approve above it."""
+        if not r.po_number or self.org is None:
+            return {}
+        from .. import procurement
+
+        st = procurement.status(self.org, self.payments, r.po_number)
+        if st is None:
+            return {}
+        out = {"po_number": r.po_number, "account_code": st["po"]["account_code"], "installment": r.installment,
+               "contract_total_minor": st["po"]["total_minor"], "paid_so_far_minor": st["paid_minor"]}
+        unit = procurement.unit_of(self.org, st["po"]["account_code"])
+        if unit is not None:
+            limit, _ = self.org.payment_limit(unit["unit_id"])
+            base = self.org.standards()["base_currency"]
+            # approval limits are set in the base currency; another currency is not compared against them
+            need = (r.amount_minor or 0) if (r.currency or base) == base else 0
+            out |= {"unit_payment_limit_minor": limit,
+                    "unit_approvers": [p["name"] for p in self.org.approvers_for(unit["unit_id"], need)][:20]}
+        return out
 
     def _expense(self, staff, text, subject, received, amount, quotes, flags, reasons, inv) -> dict:
         """Check a staff claim against Finance standards and Unit prices, and name its approvers."""
@@ -596,7 +658,7 @@ class Intake:
                 "payee_name": rec["name"], "payout_method": rec.get("payout_method", "LOCAL"), "evidence_ref": ref,
                 "invoice_fingerprint": r.invoice_fingerprint, "budget_line": rec.get("budget_line"),
                 "policy_flags": [f for f in r.flags if f == "payee_bank_details_changed"],
-                "due_date": r.due_date, "dunning_level": r.dunning_level})
+                "due_date": r.due_date, "dunning_level": r.dunning_level} | self._po_terms(r))
             data["evidence"].append({"ref": ref, "subject_id": oid, "source": f"intake:email:{r.sender}",
                                      "status": "verified" if r.status == "VERIFIED" else "pending", "summary": summary})
         data["obligations"] = data["obligations"][:12]

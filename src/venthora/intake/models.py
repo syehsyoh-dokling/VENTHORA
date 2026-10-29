@@ -62,6 +62,10 @@ class IntakeRequest(BaseModel):
     attachments: list[Attachment] = Field(default_factory=list)
     authentication: dict[str, str] = Field(default_factory=dict, description="receiving server's SPF / DKIM / DMARC verdicts")
     reader: Literal["rules", "model+rules"] = "rules"
+    # supplier invoices against a purchase order: which PO, which term, which account code
+    po_number: str | None = None
+    installment: str | None = Field(default=None, description="the PO term it pays (T1, T2...), or 'partial'")
+    account_code: str | None = None
     # expense claims from staff: who claims, from which unit, what for, and who may approve it
     unit_id: str | None = None
     category: str | None = None

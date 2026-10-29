@@ -139,6 +139,47 @@ venthora-intake --as-of 2026-10-24 --fake --execute --receipt --approve "Dana"
 Run on the real sandbox on 23 Oct 2026 (cycle 6 in [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md)): the two
 registered requests were paid and reconciled; the lookalike, the duplicate and the flagged contractor were not.
 
+#### Purchase orders, account codes and unit limits
+
+A supplier invoice is paid only against the purchase order it quotes. You can switch that off with *require PO* in
+the finance standards.
+
+- **Account code = `OFFICE.PROJECT.ACCOUNT`**, for example `DE-400.PRJ900.6500`. The three parts are:
+  - the cost centre of the office that bears the cost;
+  - a project, which belongs to that office or an office under it, or is company-wide (`OPS`);
+  - an account from the chart of accounts.
+
+  Settings → Projects & accounts holds both lists and checks any code.
+- **Purchase orders** (Payments → Purchase orders). Each PO has one supplier, one currency, a total and an account
+  code. It can have scheduled terms (for example `T1` 30% deposit and `T2` 70% on delivery), and it may also accept
+  partial invoices. A PO that money was paid against cannot be deleted, only closed or cancelled.
+- **The match.** The intake reads the PO number from the email or PDF, and never mistakes it for the invoice number.
+  It then checks the supplier, the currency and the room left on the PO. The room is the total minus what Airwallex
+  reported paid, minus invoices already accepted and still waiting. Finally it decides which term the invoice pays:
+  an unpaid term of the same amount, or a partial invoice when the PO allows one. Any mismatch is a flag a person
+  sees: `po_missing`, `po_unknown`, `po_not_open`, `po_supplier_mismatch`, `po_currency_mismatch`, `po_exceeded` or
+  `po_term_mismatch`.
+- **Through the plan.** A matched invoice carries its PO total and what was already paid, so the three-way match
+  refuses an over-claim. It also carries the term and the account code. The executor books every PAID transfer with
+  its PO number and account code.
+- **Unit payment limit.** Each unit sets how much the agent may pay alone per payment charged to it; a unit with no
+  limit uses its parent's. Above that limit the plan stops (`unit_payment_limit_exceeded`, mirrored in
+  `policy/treasury.rego`). The executor then also requires an approver from that unit chain: a finance role whose own
+  approval limit covers the payment.
+- **Spending** (Treasury → Spending) shows paid spend by office, where each office includes the offices under it, and
+  by branch, project, account and account code. Open PO commitments are listed beside it.
+
+Checked live on the Airwallex sandbox (29 Oct 2026, fresh stores) with three supplier emails carrying PDF invoices:
+- Lumen, USD 1,800, was matched to `PO-2026-0101` term T1 and charged to `US-200.BRAND26.6600`.
+- Rheinwerk, EUR 3,600 (EUR 3,000 plus VAT 600), was matched to `PO-2026-0102` term T1 and charged to
+  `DE-400.PRJ900.6500`.
+- Thames, GBP 1,200, was matched as a partial invoice on `PO-2026-0103` and charged to `UK-300.OPS.6100`.
+- Each payment was within its unit's limit, so the plan was `APPROVED` with no person in the loop.
+- The EUR and GBP were converted and the three transfers were paid and reconciled.
+- The ledger then showed each payment under its PO and code. The PO balances updated (T1 paid, T2 open), and spending
+  rolled up to the Germany office (USD 4,058.84), the UK office (USD 1,614.05), the US office (USD 1,800) and HQ
+  (USD 7,472.89).
+
 #### Choosing the model: Settings → AI model
 
 The reader's model is chosen on the dashboard, not in code:

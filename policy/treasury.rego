@@ -92,6 +92,14 @@ approval_reasons contains "single_payment_above_limit" if {
 	r.cost_minor > input.limits.max_single_payment_minor
 }
 
+# Unit payment limit: the unit the account code charges (office cost centre . project . account) lets the agent pay
+# alone only up to its limit. A null unit limit means the obligation names no limited unit.
+approval_reasons contains "unit_payment_limit_exceeded" if {
+	some r in input.limits.payouts
+	r.unit_limit_minor != null
+	r.cost_minor > r.unit_limit_minor
+}
+
 approval_reasons contains "first_payment_to_new_payee_above_limit" if {
 	input.limits.max_first_payment_minor != null
 	some r in input.limits.payouts

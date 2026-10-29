@@ -40,7 +40,8 @@ def email(sender: str, subject: str, body: str, *, date="Fri, 24 Oct 2026 09:00:
     msg["Message-ID"] = msg_id or f"<{abs(hash((sender, subject, body)))}@test>"
     if auth:
         msg["Authentication-Results"] = auth
-    msg.set_content(body)
+    # supplier invoices quote their purchase order (the finance standards require one); Lumen's seeded PO is PO-2026-0101
+    msg.set_content(body + (" Purchase order PO-2026-0101." if sender == LUMEN and "PO-" not in body else ""))
     if pdf is not None:
         msg.add_attachment(pdf, maintype="application", subtype="pdf", filename=pdf_name)
     return msg.as_bytes()
@@ -194,7 +195,7 @@ def test_model_fills_gaps_and_disagreement_goes_to_a_person(intake):
 def postmark(pdf: bytes) -> dict:
     return {"FromFull": {"Email": LUMEN, "Name": "Lumen Billing"}, "From": LUMEN, "To": "abc123@inbound.postmarkapp.com",
             "Subject": "Invoice LD-97", "Date": "Fri, 24 Oct 2026 10:00:00 +0000", "MessageID": "pm-0001",
-            "TextBody": "Invoice attached.", "Headers": [{"Name": "Authentication-Results", "Value": "spf=pass; dkim=pass"}],
+            "TextBody": "Invoice attached, against PO-2026-0101.", "Headers": [{"Name": "Authentication-Results", "Value": "spf=pass; dkim=pass"}],
             "Attachments": [{"Name": "LD-97.pdf", "ContentType": "application/pdf",
                              "Content": base64.b64encode(pdf).decode()}]}
 
