@@ -308,6 +308,18 @@ class Airwallex:
 
     # -- sandbox simulation --------------------------------------------------
 
+    # -- webhook subscriptions (API-created ones are not listed in the web app) -----------------------
+    async def list_webhooks(self) -> list[dict]:
+        body = await self._request("GET", "/api/v1/webhooks")
+        return body.get("items", []) if isinstance(body, dict) else body
+
+    async def create_webhook(self, *, request_id: str, url: str, events: list[str], version: str) -> dict:
+        return await self._request("POST", "/api/v1/webhooks/create",
+                                   json={"request_id": request_id, "url": url, "events": events, "version": version})
+
+    async def update_webhook(self, webhook_id: str, url: str) -> dict:
+        return await self._request("POST", f"/api/v1/webhooks/{webhook_id}/update", json={"url": url})
+
     def _require_sandbox(self) -> None:
         if not self.sandbox:
             raise AirwallexError("simulation endpoints are sandbox-only")

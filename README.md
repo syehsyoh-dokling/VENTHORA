@@ -205,6 +205,22 @@ The dashboards subscribe to `GET /api/stream` (server-sent events), so each conf
 as a toast the moment it is re-read. To receive real events, expose the server on a public HTTPS address (a deployed
 host, or a tunnel such as ngrok for testing). Then add `https://<host>/webhooks/airwallex` under Developer → Webhooks in
 the sandbox web app and put its secret in `.env`. The checklist is on the dashboard under *Webhooks & integrations*.
+
+**Never point a tunnel at the API itself.** The API has no login, so a tunnel goes to the webhook-only gateway. The
+gateway forwards `POST /webhooks/airwallex` with its raw body and the two signature headers, and answers `404` to
+everything else (body ≤ 256 KB). It adds no trust, only removes reach.
+
+```bash
+python scripts/demo_server.py                        # the API on 127.0.0.1:8001, stays private
+python scripts/webhook_gateway.py --port 8002        # the only thing the tunnel may expose
+cloudflared tunnel --url http://localhost:8002       # or: ngrok http 8002
+python scripts/register_webhook.py https://<public-host>   # subscribe via the Airwallex API; writes the secret to .env
+```
+
+`register_webhook.py` creates the subscription through `POST /api/v1/webhooks/create`, or moves an existing one to the
+new host when the tunnel URL changes. It writes the returned secret to `AWX_WEBHOOK_SECRET` in `.env` without printing
+it, so restart the API afterwards. Webhooks created through the API do not appear in the web app; list them with
+`--show`.
 Checked on the real sandbox (29 Oct 2026):
 - A signed `deposit.settled` for a real deposit was acknowledged in 20 ms and confirmed `SETTLED` by the API.
 - An unknown transfer stayed `UNCONFIRMED` because Airwallex answered "Transfer not found".
