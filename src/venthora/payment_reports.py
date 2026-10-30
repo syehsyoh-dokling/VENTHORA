@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 
 from .budget_allocation import months_of, period_of
 
-RUNNING = {"day": "Today", "week": "This week", "month": "Month to date", "quarter": "Quarter to date"}
+RUNNING = {"day": "Today", "week": "This week", "month": "Month to date", "quarter": "Quarter to date", "year": "Year to date"}
 ACCUMULATED = {"month": "Monthly", "quarter": "Quarterly", "half": "Half-yearly (semester)", "year": "Annual"}
 _PTYPE = {"month": "monthly", "quarter": "quarterly", "half": "half_year", "year": "annual"}
 
@@ -75,6 +75,9 @@ def running(rows: list[dict], span: str, day: dt.date, fy_start: int) -> dict:
         start = day - dt.timedelta(days=day.weekday())
     elif span == "month":
         start = day.replace(day=1)
+    elif span == "year":
+        fy = int(period_of(f"{day.year:04d}-{day.month:02d}", "annual", fy_start))
+        start = dt.date(fy, fy_start, 1)
     else:
         q = period_of(f"{day.year:04d}-{day.month:02d}", "quarterly", fy_start)
         first = months_of(q, fy_start)[0]

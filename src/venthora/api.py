@@ -1134,6 +1134,8 @@ async def groundtruth_judge(req: JudgeRequest):
 
 @app.post("/v1/intake/{intake_id}/review", response_model=IntakeRequest)
 async def review_intake(intake_id: str, review: ReviewRequest):
+    if review.decision == "verify":
+        await _balance_covers(intake_id)
     try:
         req = await asyncio.to_thread(app.state.intake.review, intake_id, review)
     except KeyError as exc:
@@ -1142,6 +1144,29 @@ async def review_intake(intake_id: str, review: ReviewRequest):
         raise HTTPException(403, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "intake_review", {"intake_id": intake_id, **review.model_dump()})
     return req
+
+
+async def _balance_covers(intake_id: str) -> None:
+    """A payment is approved only while the Airwallex balance covers it and every bill already approved and unpaid
+    (at indicative rates). Without a connected wallet nothing is refused here; the executor's reserve check still is."""
+    req = app.state.intake.store.get(intake_id)
+    if req is None or not req.amount_minor or req.kind not in ("supplier_invoice", "contractor_claim", "expense_claim"):
+        return
+    try:
+        pos = await treasury_position()
+    except HTTPException:
+        return
+    base, rates = pos["base_currency"], pos["rates"]
+    if req.currency != base and req.currency not in rates:
+        return
+    need = req.amount_minor if req.currency == base else int(req.amount_minor * float(rates[req.currency]))
+    approved = sum(x["amount_minor"] if x["currency"] == base else int(x["amount_minor"] * float(rates.get(x["currency"], 0)))
+                   for x in pos["bills_unpaid"]["approved"] if x["intake_id"] != intake_id)
+    free = pos["available"]["base_minor"] - approved
+    if need > free:
+        raise HTTPException(409, f"the balance does not cover it: {base} {need / 100:,.2f} asked, {base} {max(free, 0) / 100:,.2f} free "
+                                 f"(available {pos['available']['base_minor'] / 100:,.2f} less {approved / 100:,.2f} already approved); "
+                                 "fund the account or reject it with a note")
 
 
 class IntakePlanRequest(BaseModel):
@@ -1241,7 +1266,8 @@ async def treasury_position(fresh: bool = False):
     try:
         value = await position.fetch(_bank(), intake=app.state.intake, store=app.state.executor.store, customers=customers,
                                      base=app.state.org.standards()["base_currency"],
-                                     rate_cache=app.state.__dict__.setdefault("rate_cache", {}))
+                                     rate_cache=app.state.__dict__.setdefault("rate_cache", {}),
+                                     extra=(load_reporting_config().reporting_currency,))
     except AirwallexError as exc:
         raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
     value["as_of"] = datetime.now(UTC).isoformat(timespec="seconds")
@@ -2118,3 +2144,64 @@ async def po_reconciliation_report():
                 waiting.setdefault(r.po_number, []).append({"invoice_no": r.invoice_no, "amount_minor": r.amount_minor})
         return payment_reports.po_reconciliation(app.state.org, app.state.executor.store, waiting)
     return await asyncio.to_thread(build)
+
+
+# ---- Overview: the balance, its equivalents, and the four numbers a finance manager acts on ----
+@app.get("/v1/treasury/overview")
+async def treasury_overview(span: str = Query("month", pattern="^(day|week|month|quarter|year)$")):
+    """The available balance at Airwallex with what it is worth in the major currencies and the reporting currency,
+    and for the chosen period: pending payments (what cannot go without a person), cash out (paid), cash in (settled
+    customer payments, not top-ups), and every action that waits for a person, with where to clear it."""
+    from zoneinfo import ZoneInfo
+
+    from . import payment_reports
+    from .position import MAJORS
+
+    pos = await treasury_position()
+    base, rates = pos["base_currency"], pos["rates"]
+    cfg = load_reporting_config()
+    local = cfg.reporting_currency
+    avail = pos["available"]["base_minor"]
+    equivalents = []
+    for c in (*MAJORS, local):
+        if c == base or c not in rates or any(e["currency"] == c for e in equivalents):
+            continue
+        equivalents.append({"currency": c, "amount": round(avail / 100 / float(rates[c]), 2), "rate": rates[c], "local": c == local})
+    rows, tz, start = await asyncio.to_thread(_report_rows)
+    day = datetime.now(ZoneInfo(tz)).date()
+    out = payment_reports.running(rows, span, day, start)
+    window = (out["from"], out["to"])
+    settled = [d | {"on": payment_reports._local_day(str(d["created_at"]), tz).isoformat()} for d in pos.get("deposits_settled", []) if d.get("created_at")]
+    in_window = [d for d in settled if window[0] <= d["on"] <= window[1]]
+    cust = [d for d in in_window if d["customer"]]
+    tops = [d for d in in_window if not d["customer"]]
+
+    def by_ccy(items):
+        o: dict[str, int] = {}
+        for d in items:
+            o[d["currency"]] = o.get(d["currency"], 0) + d["amount_minor"]
+        return o
+    bills = pos["bills_unpaid"]
+    waiting = bills["waiting"]
+    waiting_base = sum(x["amount_minor"] if x["currency"] == base else int(x["amount_minor"] * float(rates.get(x["currency"], 0))) for x in waiting)
+    queue = await asyncio.to_thread(app.state.intake.store.list, 1000)
+    store = app.state.executor.store
+    payees = await asyncio.to_thread(store.list_payees)
+    actions = [
+        {"label": "invoices and claims to approve or reject", "count": sum(1 for r in queue if r.status in ("NEEDS_REVIEW", "QUARANTINED")), "href": "#/intake?needs"},
+        {"label": "payees waiting for a call-back", "count": sum(1 for p in payees if p["status"] in ("NEW", "CHANGED")), "href": "#/payees"},
+        {"label": "books locked by a reconciliation case", "count": len(await asyncio.to_thread(store.open_recon_cases)), "href": "#/executions"},
+        {"label": "payment incidents open", "count": sum(1 for i in await asyncio.to_thread(store.list_incidents, 200) if i.get("status") != "RESOLVED"), "href": "#/executions"},
+    ]
+    return {"as_of": pos["as_of"], "base_currency": base, "reporting_currency": local, "span": span, "span_label": out["label"],
+            "window": {"from": window[0], "to": window[1]},
+            "balance": {"available_base_minor": avail, "wallet": pos["available"]["wallet"], "processing_out": pos["processing_out"],
+                        "equivalents": equivalents, "missing_rates": pos["missing_rates"],
+                        "shortfall": bills["base_minor"] > avail, "bills_unpaid_base_minor": bills["base_minor"]},
+            "pending_payment": {"base_minor": waiting_base, "count": bills["waiting_count"], "ready_base_minor": bills["base_minor"] - waiting_base,
+                                "ready_count": bills["approved_count"], "exceeds_balance": bills["base_minor"] > avail},
+            "cash_out": {"base_minor": out["summary"]["base_cost_minor"], "count": out["summary"]["payments"], "by_currency": out["summary"]["by_currency"],
+                         "top_vendor": out["summary"]["by_vendor"][0]["payee"] if out["summary"]["by_vendor"] else None},
+            "cash_in": {"base_minor": sum(d["base_minor"] or 0 for d in cust), "count": len(cust), "by_currency": by_ccy(cust),
+                        "top_ups_base_minor": sum(d["base_minor"] or 0 for d in tops), "top_ups_count": len(tops)},
+            "actions": {"count": sum(a["count"] for a in actions), "items": actions}}

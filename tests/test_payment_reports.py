@@ -118,7 +118,7 @@ def test_report_endpoints_and_po_reconciliation(client):
     assert sum(b["base_cost_minor"] for b in acc["buckets"]) == 230_000 and acc["buckets"][-1]["cumulative_base_cost_minor"] == 230_000
     csv = client.get("/v1/reports/payments?view=running&span=month&format=csv")
     assert csv.headers["content-type"].startswith("text/csv") and "TOTAL,,,,,,USD,2300.00" in csv.text
-    assert client.get("/v1/reports/payments?view=running&span=year").status_code == 422
+    assert client.get("/v1/reports/payments?view=running&span=half").status_code == 422
     rec = {p["po_id"]: p for p in client.get("/v1/reports/purchase-orders").json()}
     p = rec[PO]
     assert (p["paid_minor"], p["left_minor"], p["state"], p["payments"]) == (230_000, 270_000, "OPEN", 2)

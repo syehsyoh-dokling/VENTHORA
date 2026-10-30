@@ -20,6 +20,7 @@ from decimal import Decimal
 from .gateways.airwallex import TERMINAL_TRANSFER_STATUSES, to_minor
 
 TRACKED = ("USD", "EUR", "GBP")
+MAJORS = ("EUR", "GBP", "JPY", "SGD", "CNY", "HKD", "AUD")  # the balance is also shown in these (and the reporting currency)
 
 
 def _when(v) -> float:
@@ -113,6 +114,9 @@ def compose(*, balances: dict[str, dict[str, int]], rates: dict[str, Decimal], b
             announced.append({"currency": r.currency, "amount_minor": r.amount_minor, "payer": r.counterparty_name or r.sender,
                               "expected": r.due_date, "intake_id": r.intake_id})
     incoming_base, incoming_ccy, m4 = _sum(from_customers + announced, rates, base)
+    # money that arrived and settled: from registered customers (cash in), or anyone else (top-ups of the main account)
+    settled_in = [dep(d) | {"customer": dep(d)["payer"].lower() in known, "base_minor": _base(dep(d)["amount_minor"], dep(d)["currency"], rates, base)}
+                  for d in deposits if d.get("status") == "SETTLED"]
 
     return {"base_currency": base, "rates": {c: str(r) for c, r in rates.items()},
             "available": {"base_minor": available_base, "wallet": wallet,
@@ -125,16 +129,18 @@ def compose(*, balances: dict[str, dict[str, int]], rates: dict[str, Decimal], b
             "incoming_uncleared": {"base_minor": incoming_base, "by_currency": incoming_ccy, "arrived_pending": from_customers[:20],
                                    "announced": announced[:20], "arrived_count": len(from_customers), "announced_count": len(announced)},
             "after_all_base_minor": available_base - bills_base + deposits_base + incoming_base,  # processing is already out
+            "deposits_settled": sorted(settled_in, key=lambda x: _when(x["created_at"]), reverse=True)[:500],
             "missing_rates": sorted(set(m1 + m2 + m3 + m4 + [w["currency"] for w in wallet if w["available_base_minor"] is None]))}
 
 
-async def fetch(bank, *, intake, store, customers: set[str], base: str, rate_cache: dict) -> dict:
+async def fetch(bank, *, intake, store, customers: set[str], base: str, rate_cache: dict, extra: tuple[str, ...] = ()) -> dict:
     """Read the wallet, its transfers and deposits from Airwallex, and the queue from the intake."""
     balances = await bank.balances_detail()
     transfers = await bank.list_transfers()
     deposits = await bank.list_deposits()
     needed = {c for c, b in balances.items() if (c in TRACKED or any(b.values())) and c != base}
     needed |= {r.currency for r in intake.store.list(1000) if r.currency and r.currency != base}
+    needed |= {c for c in (*MAJORS, *extra) if c != base}
     rates = {}
     for c in sorted(needed):
         if c not in rate_cache:

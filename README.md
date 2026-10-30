@@ -415,6 +415,16 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 
 
+## The overview
+
+The first row is the money at Airwallex: the available balance, what it is worth today in the major currencies and
+the reporting currency (at Airwallex's indicative rates), and how it is spread across the currencies held. It turns
+red when unpaid bills exceed it, and then an approval the balance cannot cover is refused ("fund the account or reject
+it with a note"). The second row, for today, this week, month, quarter or year to date: **pending payment** (what waits
+for a person), **total cash out** (paid), **total cash in** (settled payments from registered customers; top-ups of the
+main account are shown apart, not counted), and **pending action** (every item a person must clear, each linking to
+where it is cleared).
+
 ## The flow, end to end
 
 1. **Data in.** A finance manager connects the old system (Settings → Sync API) and/or uploads Excel, CSV or PDF
@@ -532,7 +542,7 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 
 ## API
 
-Every endpoint (107 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
+Every endpoint (108 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
 an API key needs, and in `/openapi.json` and the interactive `/docs`.
 
 **Other applications** call VENTHORA with an API key created on that page:

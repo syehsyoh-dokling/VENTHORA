@@ -122,6 +122,41 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
 .kpi .v{font-size:24px;font-weight:700;margin-top:4px;letter-spacing:-.4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .d{color:var(--ink2);font-size:12px;margin-top:2px}
 .kpi[data-href]{cursor:pointer}.kpi[data-href]:hover{border-color:var(--brand2)}
+/* overview: the balance row and the four cards */
+.bal{background:var(--surface);border:1px solid var(--line);border-radius:calc(var(--radius) + 4px);box-shadow:var(--shadow);padding:22px 24px;
+ display:grid;grid-template-columns:minmax(260px,1.15fr) minmax(260px,1.2fr) minmax(220px,1fr);gap:28px;position:relative;overflow:hidden}
+.bal::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,var(--brand),var(--brand2))}
+.bal.short{border-color:var(--critical)}.bal.short::before{background:var(--critical)}
+.bal .lbl{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+.bal .big{font-size:40px;font-weight:750;letter-spacing:-1.2px;line-height:1.05;margin-top:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bal .big small{font-size:20px;font-weight:600;color:var(--muted);letter-spacing:0}
+.bal .big .ccy{font-size:18px;font-weight:700;color:var(--ink2);letter-spacing:.5px;margin-right:6px;vertical-align:6px}
+.bal .sub{color:var(--ink2);font-size:12.5px;margin-top:8px;line-height:1.5}
+.bal .alert{margin-top:12px;padding:8px 10px;border-radius:9px;background:color-mix(in srgb,var(--critical) 12%,transparent);color:var(--critical);font-size:12.5px;font-weight:600}
+.eqs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;margin-top:10px}
+.eq{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--line);padding:5px 0;font-variant-numeric:tabular-nums}
+.eq b{font-size:12px;color:var(--ink2);letter-spacing:.4px}.eq span{font-size:14.5px;font-weight:650}.eq.local b::after{content:" · local";color:var(--muted);font-weight:500}
+.wal{margin-top:10px}.wal .r{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;font-size:12.5px;padding:4px 0;font-variant-numeric:tabular-nums}
+.wal .t{height:8px;border-radius:99px;background:color-mix(in srgb,var(--seq) 14%,transparent);overflow:hidden}.wal .t i{display:block;height:100%;border-radius:99px;background:var(--seq)}
+.kbar{display:flex;align-items:center;margin:16px 2px 10px;gap:12px;flex-wrap:wrap}
+.seg[hidden]{display:none}.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--shadow)}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
+.seg button.on{background:var(--brand2);color:var(--surface)}
+.k4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.c4{background:var(--surface);border:1px solid var(--line);border-radius:calc(var(--radius) + 2px);box-shadow:var(--shadow);padding:16px 18px 14px;display:flex;flex-direction:column;gap:6px;position:relative;cursor:pointer;transition:border-color .15s,transform .15s}
+.c4:hover{border-color:var(--brand2);transform:translateY(-1px)}
+.c4 .h{display:flex;align-items:center;gap:10px}.c4 .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:color-mix(in srgb,var(--seq) 14%,transparent);color:var(--seq)}
+.c4.warn .ic{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}.c4.critical .ic{background:color-mix(in srgb,var(--critical) 14%,transparent);color:var(--critical)}
+.c4.good .ic{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
+.c4 .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
+.c4 .v{font-size:26px;font-weight:750;letter-spacing:-.6px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c4.critical .v{color:var(--critical)}
+.c4 .d{color:var(--ink2);font-size:12.5px;line-height:1.45}
+.c4 .f{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);font-size:12px;color:var(--brand2);font-weight:600}
+.c4 .alist a{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;color:var(--ink2);text-decoration:none}.c4 .alist a:hover{color:var(--brand2)}
+.c4 .alist b{font-variant-numeric:tabular-nums}.c4 .alist a.z{opacity:.55}
+@media (max-width:1100px){.bal{grid-template-columns:1fr 1fr}.bal .wcol{grid-column:1/-1}.k4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){header.top{flex-wrap:wrap}header.top .right{flex-wrap:wrap;width:100%;margin-left:0}#kspan:not([hidden]){display:flex;width:100%}#kspan button{flex:1;padding:6px 4px}.bal{grid-template-columns:1fr;padding:18px}.bal .big{font-size:32px}.k4{grid-template-columns:1fr}}
 .kpi .br{display:block;font-size:12.5px;font-weight:600;color:var(--warn);letter-spacing:0;margin-top:1px}
 
 /* charts */
@@ -224,10 +259,14 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 </aside>
 <div class="content">
 <header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><h1 id="pageTitle">Overview</h1>
- <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><a class="go" href="/live">Operations run ▸</a></span></header>
+ <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><a class="go" href="/live">Operations run ▸</a></span></header>
 <main>
  <!-- ===== Overview: charts and notifications only ===== -->
- <section class="span12 plain" data-view="overview"><div id="kpis" class="kpis"><div class="empty">loading…</div></div></section>
+ <section class="span12 plain" data-view="overview">
+  <div id="bal" class="bal"><div class="empty">loading…</div></div>
+  <div class="kbar"><span class="small muted" id="kwin"></span></div>
+  <div id="kpis" class="k4"></div>
+ </section>
  <section class="span8" data-view="overview"><h2><span>Payment activity</span><span class="small muted">executions per day, last 14 days</span></h2><div id="chActivity" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span4 notif" data-view="overview"><h2><span>Notifications</span><span class="small muted" id="notifMeta"></span></h2><div id="notifs" class="feed"><div class="empty">loading…</div></div></section>
  <section class="span6" data-view="overview"><h2><span>Budget used by line</span><span class="small muted" id="chBudgetMeta"></span></h2><div id="chBudget" class="chart"><div class="empty">loading…</div></div></section>
@@ -584,8 +623,9 @@ function docChecks(cs){if(!cs.length)return '<span class="small muted">-</span>'
  const held=cs.some(c=>c.status==="fail"&&c.mode==="required");
  return `<details><summary class="small"><span class="pill ${held?"critical":n("fail")+n("warn")?"warn":"good"}">${n("pass")}/${cs.filter(c=>c.status!=="skip").length}</span>${n("fail")?` ${n("fail")} failed`:""}${n("warn")?` · ${n("warn")} to look at`:""}</summary>`
   +cs.map(c=>`<div class="small" style="margin:3px 0"><span class="pill ${CHECK_TONE[c.status]}" title="${esc(c.mode)}">${CHECK_ICON[c.status]}</span> <b>${esc(c.label)}</b>${c.mode==="required"?"":' <span class="muted">(warn)</span>'}${c.source!=="rules"?` <span class="chip">${esc(c.source)}</span>`:""}<div class="muted">${esc(c.detail)}</div>${c.evidence?`<div class="quote">“${esc(c.evidence)}”</div>`:""}</div>`).join("")+"</details>"}
-async function intake(){try{const rows=await api("/v1/intake");try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};rows.forEach(r=>{const k=r.payment?"PAID":r.status;c[k]=(c[k]||0)+1});
- $("#intakeMeta").textContent=Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · ");
+async function intake(){try{const all=await api("/v1/intake");const needs=location.hash.includes("?needs");
+ const rows=needs?all.filter(r=>!r.payment&&["NEEDS_REVIEW","QUARANTINED"].includes(r.status)):all;try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};all.forEach(r=>{const k=r.payment?"PAID":r.status;c[k]=(c[k]||0)+1});
+ $("#intakeMeta").innerHTML=esc(Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · "))+(needs?` · <span class="pill warn">showing what needs a person</span> <a href="#/intake">show all</a>`:"");
  $("#intake").innerHTML=table([{h:"Status",f:r=>r.payment?`<span class="pill good">PAID</span><div class="small muted">${fmt(r.payment.amount_minor,r.payment.currency)} · ${esc((r.payment.paid_at||"").slice(0,10))}</div>`:pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
   {h:"Trust",f:r=>`<span class="small">${esc(r.trust)}${r.counterparty_name?` · ${esc(r.counterparty_name)}`:r.claimed_name?` · claims ${esc(r.claimed_name)}`:""}</span>`},
   {h:"Kind",f:r=>`${esc(r.kind.replaceAll("_"," "))}${r.category?`<div class="small muted">${esc(r.category)}${r.expense_date?` · spent ${esc(r.expense_date)}`:""}</div>`:""}`},
@@ -750,7 +790,7 @@ const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>alloc
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
- $("#pageTitle").textContent=TITLES[view];document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
+ $("#pageTitle").textContent=TITLES[view];$("#kspan").hidden=view!=="overview";document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
  if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);
 $("#menuBtn").onclick=()=>$("#nav").classList.toggle("open");
@@ -789,31 +829,36 @@ function stacked(parts){const total=parts.reduce((s,p)=>s+p.n,0)||1;
 const settle=p=>p.then(v=>({ok:true,v}),e=>({ok:false,e}));
 let LAST={};
 async function overview(){await Promise.all([kpis(),charts(),notifications()])}
-async function kpis(){const pos=await settle(api("/v1/treasury/position"));const tiles=[];
- if(pos.ok){const P=pos.v,B=P.base_currency,b=m=>`${B} ${short(m)}`,full=m=>fmt(m,B);
-  const cc=o=>Object.entries(o||{}).map(([c,v])=>fmt(v,c)).join(" · ");
-  const out=P.processing_out,bill=P.bills_unpaid,dep=P.deposits_pending,inc=P.incoming_uncleared;
-  tiles.push({k:"Available balance · Airwallex",v:b(P.available.base_minor),bracket:out.count?`(${short(out.base_minor)} processing, already out)`:"",
-   full:full(P.available.base_minor),tone:"good",href:"#/ledger",
-   d:P.available.wallet.filter(w=>w.available).map(w=>`${w.currency} ${short(w.available)}`).join(" · ")||"empty",
-   tip:`Spendable now at Airwallex (old balance + settled deposits + received payments): ${P.available.wallet.map(w=>`${fmt(w.available,w.currency)}${w.pending?`, ${fmt(w.pending,w.currency)} pending`:""}${w.reserved?`, ${fmt(w.reserved,w.currency)} reserved`:""}`).join("; ")}.`
-    +(out.count?` ${out.count} transfer(s) still processing: ${cc(out.by_currency)}; Airwallex took them out of the available balance when they were created.`:" No transfer is processing.")});
-  tiles.push({k:"Bills to pay · not yet paid",v:b(bill.base_minor),full:full(bill.base_minor),tone:bill.base_minor?"warn":"good",href:"#/intake",
-   d:`${bill.approved_count} ready to pay · ${bill.waiting_count} waiting for a person`,
-   tip:`Will reduce the balance when paid: ${[...bill.approved,...bill.waiting].map(x=>`${x.who} ${fmt(x.amount_minor,x.currency)}${x.po_number?` (${x.po_number})`:""}`).join("; ")||"none"}`});
-  tiles.push({k:"Pending deposits",v:b(dep.base_minor),full:full(dep.base_minor),tone:dep.count?"warn":"",href:"#/integrations",
-   d:dep.count?`${dep.count} deposit(s) not yet in the balance`:"none waiting",
-   tip:dep.count?`Arrived at Airwallex, not settled: ${dep.items.map(x=>`${x.payer||"unknown payer"} ${fmt(x.amount_minor,x.currency)}`).join("; ")}`:"No deposit is pending at Airwallex."});
-  tiles.push({k:"Incoming payments · not cleared",v:b(inc.base_minor),full:full(inc.base_minor),tone:inc.base_minor?"warn":"",href:"#/intake",
-   d:`${inc.arrived_count} arrived, not settled · ${inc.announced_count} announced`,
-   tip:`Not in the balance yet: ${[...inc.arrived_pending.map(x=>`${x.payer} ${fmt(x.amount_minor,x.currency)} (arrived, pending)`),...inc.announced.map(x=>`${x.payer} ${fmt(x.amount_minor,x.currency)} (announced${x.expected?` for ${x.expected}`:""})`)].join("; ")||"none"}`});
-  tiles.push({k:"Outlook · after all of these",v:b(P.after_all_base_minor),full:full(P.after_all_base_minor),href:"#/budget",
-   d:"available − bills + pending deposits + incoming",
-   tip:`An outlook, not spendable money. At Airwallex's indicative rates${Object.keys(P.rates).length?` (${Object.entries(P.rates).map(([c,r])=>`${c} ${Number(r).toFixed(4)}`).join(", ")})`:""}${P.missing_rates.length?`; no rate for ${P.missing_rates.join(", ")}`:""}. As of ${P.as_of.slice(11,19)} UTC.`});
- }else tiles.push({k:"Airwallex wallet",v:"not connected",d:pos.e.message.replace(/^\d+ /,""),tone:"warn"});
- tiles.push({id:"kpiAttn",k:"Needs attention",v:"…",d:"serious or critical notifications",href:"#/overview"});
- $("#kpis").innerHTML=tiles.map(t=>`<div class="kpi ${t.tone||""}" ${t.id?`id="${t.id}"`:""} ${t.href?`data-href="${t.href}"`:""} ${t.tip?`data-tip="${esc(t.tip)}"`:""}><div class="k">${esc(t.k)}</div><div class="v" title="${esc(t.full||t.v)}">${esc(t.v)}${t.bracket?` <span class="br">${esc(t.bracket)}</span>`:""}</div><div class="d">${esc(t.d)}</div></div>`).join("");
- $("#kpis").querySelectorAll("[data-href]").forEach(el=>el.onclick=()=>{if(el.dataset.href!=="#/overview")location.hash=el.dataset.href});attention()}
+let KSPAN=(()=>{try{return localStorage.getItem("venthora.kspan")||"month"}catch(e){return "month"}})();
+const cmp=(v,c)=>{try{return new Intl.NumberFormat("en",{style:"currency",currency:c,currencyDisplay:"code",notation:"compact",maximumFractionDigits:2}).format(v)}catch(e){return `${c} ${short(Math.round(v*100))}`}};
+async function kpis(){document.querySelectorAll("#kspan button").forEach(b=>b.classList.toggle("on",b.dataset.s===KSPAN));
+ const r=await settle(api(`/v1/treasury/overview?span=${KSPAN}`));
+ if(!r.ok){$("#bal").className="bal";$("#bal").innerHTML=`<div><div class="lbl">Airwallex balance</div><div class="big">not connected</div><div class="sub">${esc(r.e.message.replace(/^\d+ /,""))}</div></div>`;$("#kpis").innerHTML="";return}
+ const o=r.v,B=o.base_currency,b=o.balance,av=b.available_base_minor,whole=Math.trunc(av/100),cents=String(Math.abs(av)%100).padStart(2,"0");
+ const out=b.processing_out,wal=b.wallet.filter(w=>w.available).sort((x,y)=>(y.available_base_minor||0)-(x.available_base_minor||0));
+ $("#bal").className=`bal ${b.shortfall?"short":""}`;
+ $("#bal").innerHTML=`<div><div class="lbl">Available balance · Airwallex</div>
+   <div class="big"><span class="ccy">${esc(B)}</span>${whole.toLocaleString("en")}<small>.${cents}</small></div>
+   <div class="sub">Spendable now: old balance + settled deposits + received payments.${out.count?`<br>${fmt(out.base_minor,B)} in ${out.count} transfer(s) processing, already taken out.`:""}<br><span class="muted">As of ${esc(o.as_of.slice(11,16))} UTC · indicative rates</span></div>
+   ${b.shortfall?`<div class="alert">Unpaid bills ${fmt(b.bills_unpaid_base_minor,B)} exceed the balance by ${fmt(b.bills_unpaid_base_minor-av,B)}: approvals the balance cannot cover are refused until it is funded.</div>`:""}</div>
+  <div><div class="lbl">Worth today in</div><div class="eqs">${b.equivalents.map(e=>`<div class="eq ${e.local?"local":""}" data-tip="${esc(`1 ${e.currency} = ${Number(e.rate).toPrecision(4)} ${B}`)}"><b>${esc(e.currency)}</b><span>${new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:2}).format(e.amount)}</span></div>`).join("")||'<div class="muted small">no rates yet</div>'}</div>
+   ${b.missing_rates.length?`<div class="sub muted">no rate for ${esc(b.missing_rates.join(", "))}</div>`:""}</div>
+  <div class="wcol"><div class="lbl">Held in ${wal.length} currenc${wal.length===1?"y":"ies"}</div><div class="wal">${wal.map(w=>{const pct=av?Math.round(100*(w.available_base_minor||0)/av):0;
+   return `<div class="r" data-tip="${esc(`${fmt(w.available,w.currency)} = ${fmt(w.available_base_minor||0,B)}${w.pending?`; ${fmt(w.pending,w.currency)} pending`:""}`)}"><b>${esc(w.currency)}</b><div class="t"><i style="width:${Math.max(pct,1)}%"></i></div><span>${cmp(w.available/100,w.currency)} · ${pct}%</span></div>`}).join("")||'<div class="muted small">empty</div>'}</div></div>`;
+ $("#kwin").textContent=`${o.span_label}: ${o.window.from}${o.window.to!==o.window.from?` to ${o.window.to}`:""}`;
+ const pp=o.pending_payment,co=o.cash_out,ci=o.cash_in,ac=o.actions;
+ const cards=[
+  {k:"Pending payment",ic:"⏳",tone:pp.exceeds_balance?"critical":pp.count?"warn":"good",v:fmt(pp.base_minor,B),href:"#/intake?needs",
+   d:`${pp.count} waiting for a person${pp.ready_count?` · ${pp.ready_count} approved, ${fmt(pp.ready_base_minor,B)} ready to pay`:""}${pp.exceeds_balance?"<br><b>Bills exceed the available balance</b>":""}`,f:"Approve or reject →"},
+  {k:"Total cash out",ic:"↗",tone:"",v:fmt(co.base_minor,B),href:"#/payment-reports",
+   d:`${co.count} payment(s) paid${co.top_vendor?` · largest to ${esc(co.top_vendor)}`:""}${Object.keys(co.by_currency).length>1?`<br>${Object.entries(co.by_currency).map(([c,v])=>fmt(v,c)).join(" · ")}`:""}`,f:"Payment report →"},
+  {k:"Total cash in",ic:"↙",tone:ci.count?"good":"",v:fmt(ci.base_minor,B),href:"#/integrations",
+   d:`${ci.count} customer payment(s) settled${ci.top_ups_count?`<br><span class="muted">top-ups of the main account not counted: ${fmt(ci.top_ups_base_minor,B)}</span>`:""}`,f:"Deposits and webhooks →"},
+  {k:"Pending action",ic:"✋",tone:ac.count?"critical":"good",v:String(ac.count),href:(ac.items.find(a=>a.count)||ac.items[0]).href,
+   d:`<div class="alist">${ac.items.map(a=>`<a href="${a.href}" class="${a.count?"":"z"}"><span>${esc(a.label)}</span><b>${a.count}</b></a>`).join("")}</div>`,f:ac.count?"Clear them →":"Nothing waits for a person"}];
+ $("#kpis").innerHTML=cards.map(c=>`<div class="c4 ${c.tone}" data-href="${c.href}"><div class="h"><span class="ic">${c.ic}</span><span class="k">${esc(c.k)}</span></div><div class="v" title="${esc(c.v)}">${esc(c.v)}</div><div class="d">${c.d}</div><div class="f">${c.f}</div></div>`).join("");
+ $("#kpis").querySelectorAll(".c4").forEach(el=>el.onclick=ev=>{if(ev.target.closest("a"))return;location.hash=el.dataset.href})}
+document.querySelectorAll("#kspan button").forEach(b=>b.onclick=()=>{KSPAN=b.dataset.s;try{localStorage.setItem("venthora.kspan",KSPAN)}catch(e){}kpis()});
 function attention(){const el=$("#kpiAttn");if(!el||!LAST.notifs)return;const n=LAST.notifs.filter(x=>x.tone==="critical"||x.tone==="serious").length;
  el.className=`kpi ${n?"critical":"good"}`;el.querySelector(".v").textContent=String(n)}
 
