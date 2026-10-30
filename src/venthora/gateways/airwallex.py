@@ -150,8 +150,9 @@ def _transfer(body: dict) -> TransferResult:
 
 class Airwallex:
     def __init__(self, base_url: str | None = None, client: httpx.AsyncClient | None = None,
-                 max_attempts: int = 3, backoff_s: float = 0.5):
+                 max_attempts: int = 3, backoff_s: float = 0.5, credentials: tuple[str, str] | None = None):
         self.base_url = base_url or env("AIRWALLEX_BASE_URL", SANDBOX_URL)
+        self._fixed = credentials  # a candidate connection under test; None = the connected account, else .env
         self._client = client or httpx.AsyncClient(base_url=self.base_url, timeout=15.0)
         self._token: str | None = None
         self._expires_at = 0.0
@@ -159,9 +160,21 @@ class Airwallex:
         self._max_attempts = max_attempts
         self._backoff_s = backoff_s
 
+    def _creds(self) -> tuple[str, str]:
+        if self._fixed is not None:
+            return self._fixed
+        from ..airwallex_settings import credentials
+
+        return credentials()
+
+    def forget_token(self) -> None:
+        """The connected account changed: log in again on the next call."""
+        self._token, self._expires_at = None, 0.0
+
     @property
     def configured(self) -> bool:
-        return bool(env("AIRWALLEX_CLIENT_ID") and env("AIRWALLEX_API_KEY"))
+        cid, key = self._creds()
+        return bool(cid and key)
 
     @property
     def sandbox(self) -> bool:
@@ -178,8 +191,8 @@ class Airwallex:
         async with self._lock:
             now = datetime.now(UTC).timestamp()
             if not self._token or now >= self._expires_at - 60:
-                res = await self._client.post("/api/v1/authentication/login", headers={
-                    "x-client-id": env("AIRWALLEX_CLIENT_ID"), "x-api-key": env("AIRWALLEX_API_KEY")})
+                cid, key = self._creds()
+                res = await self._client.post("/api/v1/authentication/login", headers={"x-client-id": cid, "x-api-key": key})
                 if res.status_code >= 400:
                     raise AirwallexError("authentication failed", status=res.status_code)
                 body = res.json()

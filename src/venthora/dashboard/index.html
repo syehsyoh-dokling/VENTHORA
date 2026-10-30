@@ -234,6 +234,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/runs" data-nav="runs"><i>☰</i>Run reports</a>
   <div class="grp">Organisation</div>
   <a href="#/users" data-nav="users"><i>⌂</i>User management</a>
+  <a href="#/airwallex" data-nav="airwallex" style="padding-left:34px;font-size:12.5px">Airwallex account</a>
+  <a href="#/admins" data-nav="admins" style="padding-left:34px;font-size:12.5px">Admin team</a>
   <div class="grp">Settings</div>
   <a href="#/readiness" data-nav="readiness"><i>☑</i>Data readiness<span class="cnt" id="cnt-ready"></span></a>
   <a href="#/sources-sync" data-nav="sources-sync"><i>⇅</i>Sync API</a>
@@ -250,6 +252,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
   <a href="#/standards" data-nav="standards"><i>✎</i>Finance standards</a>
   <a href="#/ai" data-nav="ai"><i>✦</i>AI model</a>
+  <a href="#/ai-local" data-nav="ai-local" style="padding-left:34px;font-size:12.5px">Local model (vLLM)</a>
+  <a href="#/ai-keys" data-nav="ai-keys" style="padding-left:34px;font-size:12.5px">AI API keys</a>
   <a href="#/mandate" data-nav="mandate"><i>⚖</i>Mandate &amp; policy</a>
   <a href="#/integrations" data-nav="integrations"><i>⚡</i>Webhooks &amp; integrations</a>
   <div class="grp">Assurance</div>
@@ -510,12 +514,86 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="small muted" style="margin:10px 0 4px">Allowed file types</div><div class="row" id="drTypes"></div>
  </section>
 
+ <section class="span8" data-view="airwallex">
+  <h2><span>Airwallex account</span><span id="awxState" class="small"></span></h2>
+  <div id="awxNow" class="small"></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Connect your Airwallex account</h3>
+  <div class="form">
+   <label>Client ID<input id="awx-cid" autocomplete="off" placeholder="from Airwallex: Developer → API keys"></label>
+   <label>API key<input id="awx-key" type="password" autocomplete="off" placeholder="pasted once; never shown again"></label>
+   <label>Account name<input id="awx-name" placeholder="e.g. Acme Group Pte Ltd"></label>
+   <label>Environment<select id="awx-env"><option value="sandbox">Sandbox (demo and testing)</option><option value="production" disabled>Production (not in this build)</option></select></label>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="primary" id="awxConnect">Test and connect</button><button id="awxDrop">Disconnect (use .env)</button><span class="small" id="awxMsg"></span></div>
+ </section>
+ <section class="span4" data-view="airwallex">
+  <h2>New to Airwallex?</h2>
+  <div class="small" style="line-height:1.7">A company account is opened at Airwallex itself: it verifies the business (KYB) and its owners, which no other
+   application may do for you. Then everything else happens here.
+   <ol style="padding-left:18px;margin:8px 0">
+    <li>Open the account and complete verification at <a href="https://www.airwallex.com/" target="_blank" rel="noopener">airwallex.com</a>.</li>
+    <li>In Airwallex, <b>Developer → API keys</b>: create a key and copy the client ID and API key.</li>
+    <li>Paste them on the left: VENTHORA logs in once to check them, then keeps them.</li>
+    <li>Open the <b>Global Accounts</b> you need below: local bank details in each currency for customers and top-ups.</li>
+   </ol>
+   <span class="muted">VENTHORA executes on the Airwallex sandbox in this build.</span></div>
+ </section>
+ <section class="span12" data-view="airwallex">
+  <h2><span>Global Accounts</span><span class="row"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="VENTHORA receipts"><button class="primary" id="gaOpen">Open a Global Account</button></span></h2>
+  <div class="small muted">Bank details in your name, per currency: customers pay into them and the money lands in the wallet as a deposit.</div>
+  <div id="gaList" class="empty" style="margin-top:10px">loading…</div>
+ </section>
+
+ <section class="span12" data-view="admins">
+  <h2><span>Admin team</span><span class="row"><button class="primary" id="addAdmin">Add admin</button></span></h2>
+  <div class="small muted">Who runs each level. The <b>super admin</b> is the FCO at head quarters: sees everything and may do everything. An HQ admin
+   works company-wide; a country office, branch or project finance admin works only in its own unit and the units under it, and gives only roles below its own.</div>
+  <div id="adminLevels" style="margin-top:12px"></div>
+ </section>
+ <section class="span12" data-view="admins">
+  <h2>Every kind of account</h2><div id="roleGuide"></div>
+ </section>
+
+ <section class="span8" data-view="ai-local">
+  <h2><span>Local model (vLLM)</span><span class="small muted" id="locActive"></span></h2>
+  <div class="small muted">A model on your own machine or GPU server, through any OpenAI-compatible server: vLLM, Ollama, LM Studio, llama.cpp. Nothing leaves your network.</div>
+  <div class="form" style="margin-top:12px">
+   <label style="grid-column:1/-1">Server address<input id="loc-ep" placeholder="http://127.0.0.1:8000/v1"></label>
+   <label>Model<input id="loc-model" list="locModels" placeholder="press Discover models"></label>
+   <label>Access token (optional)<input id="loc-token" type="password" autocomplete="off"></label>
+  </div><datalist id="locModels"></datalist>
+  <div class="row" style="margin-top:12px"><button id="locFind">Discover models</button><button id="locTest">Test</button><button class="primary" id="locUse">Save and use</button><span class="small" id="locMsg"></span></div>
+ </section>
+ <section class="span4" data-view="ai-local">
+  <h2>Start a server</h2>
+  <div class="small" style="line-height:1.7"><b>vLLM</b> (GPU): <code>vllm serve Qwen/Qwen2.5-7B-Instruct --port 8000</code> → <code>http://127.0.0.1:8000/v1</code><br>
+   <b>Ollama</b>: <code>ollama run qwen2.5:7b</code> → <code>http://127.0.0.1:11434/v1</code><br>
+   <b>LM Studio</b>: start the local server → <code>http://127.0.0.1:1234/v1</code><br>
+   <b>This laptop</b>: <code>python scripts/local_llm_server.py --port 8003</code> → <code>http://127.0.0.1:8003</code></div>
+ </section>
+
+ <section class="span8" data-view="ai-keys">
+  <h2><span>AI API keys</span><span class="small muted" id="keyActive"></span></h2>
+  <div class="form">
+   <label>Provider<select id="k-prov"></select></label>
+   <label>API key<input id="k-key" type="password" autocomplete="off" placeholder="paste the key"></label>
+   <label>Model<input id="k-model" list="kModels" placeholder="press List models, or type it"></label>
+   <label id="k-base-l">Base URL<input id="k-base" placeholder="https://…/v1"></label>
+   <label class="check" style="grid-column:1/-1"><input type="checkbox" id="k-consent"> <span id="k-consent-t"></span></label>
+  </div><datalist id="kModels"></datalist>
+  <div class="row" style="margin-top:12px"><button id="kSave">Save key</button><button id="kList">List models</button><button id="kTest">Test</button><button class="primary" id="kUse">Save and use this provider</button><span class="small" id="kMsg"></span></div>
+ </section>
+ <section class="span4" data-view="ai-keys">
+  <h2>Saved keys</h2><div id="kSaved" class="small"></div>
+  <div class="small muted" style="margin-top:10px">Keys are kept on this machine per provider and never shown again, only their last four characters. A hosted provider receives the email and PDF text it reads.</div>
+ </section>
+
  <section class="span8" data-view="ai">
   <h2><span>AI model</span><span class="small muted" id="aiActive"></span></h2>
   <div class="modes" id="aiModes">
    <label class="mode"><input type="radio" name="aiMode" value="rules"><span><b>Rules only</b><small>No model. The deterministic readers decide alone.</small></span></label>
    <label class="mode"><input type="radio" name="aiMode" value="self_hosted"><span><b>Self-hosted model</b><small>Qwen or any OpenAI-compatible server: this laptop, a GPU machine, vLLM, Ollama, LM Studio.</small></span></label>
-   <label class="mode"><input type="radio" name="aiMode" value="provider"><span><b>Hosted provider</b><small>OpenAI, Anthropic, Groq, Gemini, Mistral or OpenRouter, with your own API key.</small></span></label>
+   <label class="mode"><input type="radio" name="aiMode" value="provider"><span><b>Hosted provider</b><small>Anthropic, OpenAI, Gemini, Mistral, DeepSeek, NVIDIA NIM, Qwen and more, with your own API key (keys: Settings → AI API keys).</small></span></label>
   </div>
   <div class="form" id="aiSelf" style="margin-top:14px">
    <label style="grid-column:1/-1">Server address<input id="ai-endpoint" placeholder="http://127.0.0.1:8003/v1  or  http://gpu-server:8000/v1"></label>
@@ -784,8 +862,8 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:"Finance standards",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
@@ -795,11 +873,16 @@ function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view
 window.addEventListener("hashchange",route);
 $("#menuBtn").onclick=()=>$("#nav").classList.toggle("open");
 
-const ACTORS=[{role:"finance_manager",name:"Dana Finch",label:"Dana Finch · Finance manager"},{role:"cfo",name:"Omar Reyes",label:"Omar Reyes · CFO"},
- {role:"admin",name:"Platform admin",label:"Platform admin"},{role:"auditor",name:"Ines Duarte",label:"Ines Duarte · Auditor (read only)"}];
-$("#actor").innerHTML=ACTORS.map((a,i)=>`<option value="${i}">${esc(a.label)}</option>`).join("");
-try{const s=localStorage.getItem("venthora.actor");if(s!==null&&ACTORS[+s])$("#actor").value=s}catch(e){}
-$("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor",$("#actor").value)}catch(e){}};
+let ACTORS=[{role:"finance_manager",name:"Dana Finch",label:"Dana Finch · Finance manager"}];
+function actorsFill(){const keep=(()=>{try{return localStorage.getItem("venthora.actor.name")}catch(e){return null}})();
+ $("#actor").innerHTML=ACTORS.map((a,i)=>`<option value="${i}">${esc(a.label)}</option>`).join("");
+ const i=ACTORS.findIndex(a=>a.name===keep);if(i>=0)$("#actor").value=String(i)}
+async function loadActors(){try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
+ const rank=["super_admin","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
+ ACTORS=us.sort((a,b)=>rank.indexOf(a.role)-rank.indexOf(b.role)||a.name.localeCompare(b.name)).map(u=>({role:u.role,name:u.name,label:`${u.name} · ${R[u.role]||u.role}`}));
+ if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill()}catch(e){actorsFill()}}
+actorsFill();loadActors();
+$("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}};
 const actor=()=>ACTORS[+$("#actor").value]||ACTORS[0];
 const who=()=>`role=${encodeURIComponent(actor().role)}&by=${encodeURIComponent(actor().name)}`;
 
@@ -933,7 +1016,8 @@ function stream(){if(!window.EventSource){$("#streamState").textContent="polling
 
 // =============================== organisation: units and people ===============================
 const KIND={HQ:"Head Quarter",COUNTRY_OFFICE:"Country office",BRANCH_OFFICE:"Branch office",PROJECT_FINANCE:"Project finance"};
-const ROLES={admin:"Admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",auditor:"Auditor"};
+const ROLES={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",
+ admin:"Admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor"};
 let ORG={units:[],users:[],prices:[],allocations:[],standards:null};
 async function loadOrg(){const [u,p,pr,al,st]=await Promise.all([api("/v1/org/units"),api("/v1/org/users"),api("/v1/org/prices"),api("/v1/org/allocations"),api("/v1/org/standards")]);
  ORG={units:u,users:p,prices:pr,allocations:al,standards:st};return ORG}
@@ -1393,6 +1477,90 @@ $("#drSave").onclick=async()=>{const req={};Object.keys(DR.kinds).forEach(k=>req
   allowed_file_types:[...document.querySelectorAll("[data-ft]:checked")].map(c=>c.dataset.ft)};
  try{await api(`/v1/settings/documents?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#drMsg").innerHTML='<span class="pill good">saved</span>';toast("Document rules saved","good")}
  catch(e){$("#drMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+
+// ---- User management → Airwallex account -------------------------------------------------------------------------------
+async function awxView(){try{const c=await api("/v1/airwallex/connection");
+ $("#awxState").innerHTML=c.connected?`<span class="pill good">CONNECTED · ${c.sandbox?"SANDBOX":"LIVE"}</span>`:'<span class="pill critical">NOT CONNECTED</span>';
+ $("#awxNow").innerHTML=`<dl class="kv"><dt>Credentials</dt><dd>${c.source==="settings"?`connected here${c.updated_by?` by ${esc(c.updated_by)}`:""}`:c.source==="env"?"from .env on this machine":"none"}${c.client_id_hint?` · client ID ${esc(c.client_id_hint)}`:""}${c.key_set?" · key set":""}</dd>
+  ${c.account_name?`<dt>Account</dt><dd>${esc(c.account_name)}</dd>`:""}<dt>Wallet</dt><dd>${c.connected?`${c.currencies.length} currenc${c.currencies.length===1?"y":"ies"} held (${esc(c.currencies.join(", ")||"none")}) · ${c.global_accounts} Global Account(s)`:esc(c.error||"")}</dd>
+  <dt>API</dt><dd class="mono">${esc(c.base_url)}</dd></dl>`;
+ $("#awx-name").value=c.account_name||"";
+ const ga=await settle(api("/v1/airwallex/global-accounts"));
+ if(ga.ok){$("#gaOpt").innerHTML=ga.v.options.map(o=>`<option value="${o.currency}|${o.country_code}">${esc(o.label)}</option>`).join("");
+  $("#gaList").innerHTML=table([{h:"Currency",f:g=>`<b>${esc(g.currencies.join(", "))}</b><div class="small muted">${esc(g.country_code||"")}</div>`},{h:"Name",f:g=>esc(g.nick_name||"-")},
+   {h:"Bank details",f:g=>`<span class="mono small">${esc(g.iban||g.account_number||"-")}</span>${g.routing.length?`<div class="small muted">${g.routing.map(r=>`${esc(r.type)} ${esc(r.value)}`).join(" · ")}</div>`:""}${g.swift_code?`<div class="small muted">SWIFT ${esc(g.swift_code)}</div>`:""}`},
+   {h:"Bank",f:g=>esc(g.institution||"-")},{h:"Status",f:g=>`<span class="pill ${g.status==="ACTIVE"?"good":"warn"}">${esc(g.status||"-")}</span>`}],ga.v.items,"no Global Account yet: open one above")}
+ else $("#gaList").innerHTML=`<div class="err">${esc(ga.e.message)}</div>`}
+ catch(e){$("#awxNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#awxConnect").onclick=async()=>{$("#awxMsg").textContent="logging in to Airwallex…";
+ try{await api(`/v1/airwallex/connection?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({client_id:$("#awx-cid").value.trim(),api_key:$("#awx-key").value||null,account_name:$("#awx-name").value.trim(),environment:$("#awx-env").value})});
+  $("#awx-key").value="";$("#awx-cid").value="";$("#awxMsg").innerHTML='<span class="pill good">CONNECTED</span>';toast("Airwallex account connected","good");awxView();kpis()}
+ catch(e){$("#awxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#awxDrop").onclick=async()=>{if(!confirm("Disconnect this Airwallex account? VENTHORA goes back to the credentials in .env, if any."))return;
+ try{await api(`/v1/airwallex/connection?${who()}`,{method:"DELETE"});toast("Disconnected","good");awxView()}catch(e){$("#awxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#gaOpen").onclick=async()=>{const [currency,country_code]=$("#gaOpt").value.split("|");if(!confirm(`Open a ${currency} Global Account (${country_code}) on the connected Airwallex account?`))return;
+ try{const g=await api(`/v1/airwallex/global-accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({currency,country_code,nick_name:$("#gaNick").value.trim()||"VENTHORA receipts"})});
+  toast(`Global Account opened: ${g.currencies.join(", ")}`,"good");awxView()}catch(e){toast(e.message,"critical")}};
+
+// ---- User management → Admin team ----------------------------------------------------------------------------------------
+const LEVELS=[["super_admin","Super admin · FCO","HQ"],["hq_admin","Head quarter admins","HQ"],["country_admin","Country office admins","COUNTRY_OFFICE"],["branch_admin","Branch admins","BRANCH_OFFICE"],["project_admin","Project finance admins","PROJECT_FINANCE"]];
+const ROLE_GUIDE=[["Super admin (FCO)","Head quarter","Monitors everything; may do everything, including connecting Airwallex and the admin team."],
+ ["HQ admin","Head quarter","Company-wide settings, users, budgets and data sources."],["Country office admin","A country office","Its office and the branches and project finance units under it."],
+ ["Branch admin","A branch","Its branch and the project finance units under it."],["Project finance admin","A project finance unit","That unit only."],
+ ["CFO","Head quarter","Approves the largest payments; company-wide finance settings."],["Finance manager","Any office","Reviews and approves invoices and claims; runs payments within the mandate."],
+ ["Country finance lead","A country office","Approves staff claims and payments of its office within its limit."],["Project accountant","A project","Approves within its own limit for its project."],
+ ["Treasury analyst","Any office","Prepares runs and reports; approves nothing."],["Requester","Any office","Asks for payments (payment orders, claims); never approves its own."],
+ ["Auditor","Any office","Reads everything, changes nothing."],["API key","An application","Another system calling VENTHORA within its scopes (Settings → API access)."]];
+async function adminView(){try{await loadOrg();
+ $("#adminLevels").innerHTML=LEVELS.map(([role,label,kind])=>{const rows=ORG.users.filter(u=>u.role===role);
+  return `<h3 class="small muted" style="margin:12px 0 6px">${esc(label)} <span class="muted">· ${esc(KIND[kind])}</span></h3>`+table([{h:"Name",f:u=>`<b>${esc(u.name)}</b>${u.active===false?' <span class="small muted">inactive</span>':""}`},{h:"Email",f:u=>`<span class="mono small">${esc(u.email)}</span>`},
+   {h:"Unit",f:u=>esc(unitName(u.unit_id))},{h:"Reach",f:u=>role==="super_admin"||role==="hq_admin"?"company-wide":`${esc(unitName(u.unit_id))} and the units under it`},{h:"",f:u=>rowActs("users",u.user_id)}],rows,"nobody yet")}).join("");
+ wireActs($("#adminLevels"),"users",()=>ORG.users,"user_id",USER_FIELDS,adminView);
+ $("#roleGuide").innerHTML=table([{h:"Account",f:r=>`<b>${esc(r[0])}</b>`},{h:"Sits at",f:r=>esc(r[1])},{h:"May",f:r=>`<span class="small">${esc(r[2])}</span>`}],ROLE_GUIDE)+'<div class="small muted" style="margin-top:6px">Add people in User management; admins here.</div>';
+ loadActors()}catch(e){$("#adminLevels").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#addAdmin").onclick=async()=>{await loadOrg();$("#dlgTitle").textContent="Add admin";$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=`<label>Level<select id="ad-level">${LEVELS.map(([r,l])=>`<option value="${r}">${esc(l)}</option>`).join("")}</select></label><label>Unit<select id="ad-unit"></select></label>
+  <label>Full name<input id="ad-name" required></label><label>Email<input id="ad-email" type="email" required></label>`;
+ const fill=()=>{const kind=LEVELS.find(l=>l[0]===$("#ad-level").value)[2];$("#ad-unit").innerHTML=ORG.units.filter(u=>u.kind===kind).map(u=>`<option value="${esc(u.unit_id)}">${esc(u.name)}</option>`).join("")};
+ $("#ad-level").onchange=fill;fill();$("#dlg").showModal();
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
+  try{await api(`/v1/org/users?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:$("#ad-name").value.trim(),email:$("#ad-email").value.trim(),role:$("#ad-level").value,unit_id:$("#ad-unit").value,approval_limit_minor:0})});
+   $("#dlg").close();toast("Admin added","good");adminView()}catch(e){$("#dlgErr").textContent=e.message}}};
+
+// ---- Settings → Local model (vLLM) and AI API keys ------------------------------------------------------------------------
+const aiSend=(path,body,method="POST")=>api(`${path}?${who()}`,{method,headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+const locBody=()=>({mode:"self_hosted",self_hosted:{endpoint:$("#loc-ep").value.trim(),model:$("#loc-model").value.trim(),token:$("#loc-token").value||null},provider:{name:"openai"}});
+async function localView(){try{const a=await api("/v1/settings/ai");$("#loc-ep").value=a.self_hosted.endpoint||"";$("#loc-model").value=a.self_hosted.model||"";$("#loc-token").value="";
+ $("#loc-token").placeholder=a.self_hosted.token_set?`saved (${a.self_hosted.token_hint||"set"}); blank keeps it`:"only if the server asks for one";
+ $("#locActive").textContent=`in use: ${a.active}`;$("#locMsg").textContent=""}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+$("#locFind").onclick=async()=>{$("#locMsg").textContent="asking the server…";try{const r=await aiSend("/v1/settings/ai/models",locBody());$("#locModels").innerHTML=r.models.map(m=>`<option value="${esc(m)}">`).join("");
+ if(!$("#loc-model").value&&r.models[0])$("#loc-model").value=r.models[0];$("#locMsg").textContent=`${r.models.length} model(s) on the server`}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#locTest").onclick=async()=>{$("#locMsg").textContent="testing…";try{const r=await aiSend("/v1/settings/ai/test",locBody());
+ $("#locMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> answered in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#locUse").onclick=async()=>{try{await aiSend("/v1/settings/ai",locBody(),"PUT");toast("Local model in use","good");localView()}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+let KV=null;
+const kBody=(mode)=>({mode,consent_external:$("#k-consent").checked,provider:{name:$("#k-prov").value,model:$("#k-model").value.trim(),api_key:$("#k-key").value||null,base_url:$("#k-base").value.trim()},self_hosted:KV?{endpoint:KV.self_hosted.endpoint,model:KV.self_hosted.model,token:null}:{}});
+function kShow(){const p=$("#k-prov").value,info=(KV.providers[p]||{}),saved=KV.keys[p];
+ $("#k-base-l").style.display=info.custom?"":"none";$("#k-key").placeholder=saved?`saved (${saved.key_hint}); blank keeps it`:"paste the key";
+ $("#k-model").value=saved?.model||(p===KV.provider.name?KV.provider.model:"")||info.default||"";$("#k-base").value=saved?.base_url||"";
+ $("#kModels").innerHTML=(info.suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");
+ $("#k-consent-t").textContent=`Email and PDF text will be sent to ${info.label||p} to be read. I am allowed to share it.`}
+async function keysView(){try{KV=await api("/v1/settings/ai");const cur=$("#k-prov").value;
+ $("#k-prov").innerHTML=Object.entries(KV.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}${KV.keys[k]?" ✓":""}</option>`).join("");
+ $("#k-prov").value=cur&&KV.providers[cur]?cur:(KV.mode==="provider"?KV.provider.name:"anthropic");$("#k-key").value="";$("#k-consent").checked=!!KV.consent_external;kShow();
+ $("#keyActive").textContent=`in use: ${KV.active}`;
+ $("#kSaved").innerHTML=table([{h:"Provider",f:([k])=>`<b>${esc((KV.providers[k]||{}).label||k)}</b>${KV.mode==="provider"&&KV.provider.name===k?' <span class="pill good">IN USE</span>':""}`},{h:"Key",f:([,v])=>`<span class="mono">${esc(v.key_hint||"")}</span>`},
+  {h:"Model",f:([,v])=>esc(v.model||"-")},{h:"",f:([k])=>`<button data-kdel="${esc(k)}">Delete</button>`}],Object.entries(KV.keys),"no key saved yet");
+ $("#kSaved").querySelectorAll("[data-kdel]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete this key from VENTHORA?"))return;try{await api(`/v1/settings/ai/keys/${b.dataset.kdel}?${who()}`,{method:"DELETE"});keysView()}catch(e){toast(e.message,"critical")}});
+ $("#kMsg").textContent=""}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+$("#k-prov").onchange=()=>{$("#k-key").value="";kShow()};
+$("#kSave").onclick=async()=>{try{await aiSend(`/v1/settings/ai/keys/${$("#k-prov").value}`,{api_key:$("#k-key").value||null,model:$("#k-model").value.trim(),base_url:$("#k-base").value.trim()},"PUT");
+ toast("Key saved","good");keysView()}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#kList").onclick=async()=>{$("#kMsg").textContent="asking the provider…";try{const r=await aiSend("/v1/settings/ai/models",kBody("provider"));$("#kModels").innerHTML=r.models.map(m=>`<option value="${esc(m)}">`).join("");
+ $("#kMsg").textContent=`${r.models.length} model(s) offered`}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#kTest").onclick=async()=>{$("#kMsg").textContent="testing…";try{const r=await aiSend("/v1/settings/ai/test",kBody("provider"));
+ $("#kMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> ${esc(r.model)} answered in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#kUse").onclick=async()=>{try{await aiSend("/v1/settings/ai",kBody("provider"),"PUT");toast("Provider in use","good");keysView()}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 // ---- Settings → AI model -----------------------------------------------------------------------------------------
 let AI=null;

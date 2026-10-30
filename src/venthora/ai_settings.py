@@ -4,7 +4,10 @@
 Three modes, one switch:
 * rules        no model; the deterministic readers decide alone (the default)
 * self_hosted  any OpenAI-compatible server: Qwen on this laptop, a GPU box elsewhere, vLLM, Ollama, LM Studio
-* provider     a hosted model with the user's own API key: OpenAI, Anthropic, Groq, Google Gemini, Mistral, OpenRouter
+* provider     a hosted model with the user's own API key (Anthropic, OpenAI, Google Gemini, Mistral, Groq, DeepSeek, xAI,
+               Together, Fireworks, Cerebras, NVIDIA NIM, Qwen / DashScope, Moonshot, Cohere, Perplexity, OpenRouter,
+               Hugging Face, or any other OpenAI-compatible service). Keys are kept per provider (Settings → AI API keys),
+               so switching provider never asks for a key again.
 
 Whatever is chosen, the model only proposes; every value it returns must be quoted verbatim from the source or it is
 dropped (intake/reader.py, evidence/reader.py). Sending email and PDF text to a hosted provider needs an explicit
@@ -32,11 +35,23 @@ from .evidence.llm import AnthropicModel, ChatModel
 PROVIDERS: dict[str, dict] = {
     "openai": {"label": "OpenAI", "base_url": "https://api.openai.com/v1", "api": "openai"},
     "anthropic": {"label": "Anthropic (Claude)", "base_url": "https://api.anthropic.com", "api": "anthropic",
-                  "suggested": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]},
+                  "suggested": ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"], "default": "claude-sonnet-5-5"},
     "groq": {"label": "Groq", "base_url": "https://api.groq.com/openai/v1", "api": "openai"},
     "gemini": {"label": "Google Gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api": "openai"},
     "mistral": {"label": "Mistral", "base_url": "https://api.mistral.ai/v1", "api": "openai"},
     "openrouter": {"label": "OpenRouter", "base_url": "https://openrouter.ai/api/v1", "api": "openai"},
+    "deepseek": {"label": "DeepSeek", "base_url": "https://api.deepseek.com/v1", "api": "openai"},
+    "xai": {"label": "xAI (Grok)", "base_url": "https://api.x.ai/v1", "api": "openai"},
+    "together": {"label": "Together AI", "base_url": "https://api.together.xyz/v1", "api": "openai"},
+    "fireworks": {"label": "Fireworks AI", "base_url": "https://api.fireworks.ai/inference/v1", "api": "openai"},
+    "cerebras": {"label": "Cerebras", "base_url": "https://api.cerebras.ai/v1", "api": "openai"},
+    "nvidia": {"label": "NVIDIA NIM", "base_url": "https://integrate.api.nvidia.com/v1", "api": "openai"},
+    "dashscope": {"label": "Qwen (Alibaba DashScope)", "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1", "api": "openai"},
+    "moonshot": {"label": "Moonshot (Kimi)", "base_url": "https://api.moonshot.ai/v1", "api": "openai"},
+    "cohere": {"label": "Cohere", "base_url": "https://api.cohere.ai/compatibility/v1", "api": "openai"},
+    "perplexity": {"label": "Perplexity", "base_url": "https://api.perplexity.ai", "api": "openai"},
+    "huggingface": {"label": "Hugging Face Inference", "base_url": "https://router.huggingface.co/v1", "api": "openai"},
+    "custom": {"label": "Other OpenAI-compatible service", "base_url": "", "api": "openai", "custom": True},
 }
 Mode = Literal["rules", "self_hosted", "provider"]
 
@@ -63,10 +78,23 @@ class SelfHosted(BaseModel):
 
 
 class Provider(BaseModel):
-    name: Literal["openai", "anthropic", "groq", "gemini", "mistral", "openrouter"] = "openai"
+    name: str = "openai"
     model: str = Field(default="", max_length=200)
     api_key: str | None = Field(default=None, max_length=500, description="write-only; None keeps the stored key")
     clear_api_key: bool = False
+    base_url: str = Field(default="", max_length=300, description="only for an other OpenAI-compatible service")
+
+    @field_validator("name")
+    @classmethod
+    def known(cls, v: str) -> str:
+        if v not in PROVIDERS:
+            raise ValueError(f"unknown provider {v!r}; one of {', '.join(PROVIDERS)}")
+        return v
+
+    @field_validator("base_url")
+    @classmethod
+    def check_base(cls, v: str) -> str:
+        return _url(v)
 
 
 class AISettings(BaseModel):
@@ -97,23 +125,77 @@ class AIStore:
         return {**json.loads(r["record_json"]), "_updated_at": r["updated_at"], "_updated_by": r["updated_by"]} if r else None
 
     def merged(self, s: AISettings) -> dict:
-        """The settings with write-only secrets resolved: a new secret replaces, None keeps, clear_* removes."""
+        """The settings with write-only secrets resolved: a new secret replaces, None keeps (from the key vault for a
+        provider), clear_* removes. The vault keeps one key per provider."""
         old = self.raw() or {}
         rec = s.model_dump()
-        for section, key, clear in (("self_hosted", "token", "clear_token"), ("provider", "api_key", "clear_api_key")):
-            new = rec[section].pop(key)
-            wipe = rec[section].pop(clear)
-            kept = ((old.get(section) or {}).get(key) or "") if (section != "provider" or (old.get("provider") or {}).get("name") == rec["provider"]["name"]) else ""
-            rec[section][key] = "" if wipe else (new.strip() if new else kept)
+        keys = dict(old.get("keys") or {})
+        op = old.get("provider") or {}
+        if op.get("api_key") and op.get("name") and op["name"] not in keys:  # a record from before the vault
+            keys[op["name"]] = {"api_key": op["api_key"], "model": op.get("model", ""), "base_url": op.get("base_url", "")}
+        sh = rec["self_hosted"]
+        new, wipe = sh.pop("token"), sh.pop("clear_token")
+        sh["token"] = "" if wipe else (new.strip() if new else ((old.get("self_hosted") or {}).get("token") or ""))
+        pv = rec["provider"]
+        new, wipe = pv.pop("api_key"), pv.pop("clear_api_key")
+        slot = dict(keys.get(pv["name"]) or {})
+        if wipe:
+            keys.pop(pv["name"], None)
+            pv["api_key"] = ""
+        else:
+            pv["api_key"] = new.strip() if new else slot.get("api_key", "")
+            if pv["api_key"]:
+                keys[pv["name"]] = {"api_key": pv["api_key"], "model": pv["model"] or slot.get("model", ""),
+                                    "base_url": pv["base_url"] or slot.get("base_url", "")}
+        pv["base_url"] = pv["base_url"] or slot.get("base_url", "")
+        rec["keys"] = keys
         return rec
 
-    def save(self, s: AISettings, by: str) -> dict:
-        rec = self.merged(s)
-        check(rec)
+    def _write(self, rec: dict, by: str) -> None:
         with self._lock, self._connect() as c:
             c.execute("INSERT INTO settings VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET record_json = excluded.record_json,"
                       " updated_at = excluded.updated_at, updated_by = excluded.updated_by",
                       (json.dumps(rec), datetime.now(UTC).isoformat(timespec="seconds"), by))
+
+    def current(self) -> dict:
+        """The saved record without its bookkeeping, or the defaults."""
+        raw = self.raw()
+        if raw is None:
+            return AISettings().model_dump() | {"keys": {}}
+        return {k: v for k, v in raw.items() if not k.startswith("_")}
+
+    def save_key(self, name: str, api_key: str | None, model: str, base_url: str, by: str) -> dict:
+        """Keep a provider's key in the vault without switching to it (a new key replaces, None keeps the old one)."""
+        rec = self.current()
+        keys = dict(rec.get("keys") or {})
+        old = keys.get(name) or {}
+        key = (api_key or "").strip() or old.get("api_key", "")
+        if not key:
+            raise ValueError(f"paste the {PROVIDERS[name]['label']} API key")
+        if PROVIDERS[name].get("custom") and not (base_url or old.get("base_url")):
+            raise ValueError("an other OpenAI-compatible service needs its base URL")
+        keys[name] = {"api_key": key, "model": model or old.get("model", ""), "base_url": _url(base_url) or old.get("base_url", "")}
+        rec["keys"] = keys
+        if rec.get("provider", {}).get("name") == name:  # the active provider follows its new key
+            rec["provider"] = rec["provider"] | {"api_key": key, "model": keys[name]["model"] or rec["provider"].get("model", ""),
+                                                 "base_url": keys[name]["base_url"]}
+        self._write(rec, by)
+        return public(self)
+
+    def delete_key(self, name: str, by: str) -> dict:
+        rec = self.current()
+        if rec.get("mode") == "provider" and rec.get("provider", {}).get("name") == name:
+            raise ValueError("this provider is in use; switch the AI model to another one first")
+        rec["keys"] = {k: v for k, v in (rec.get("keys") or {}).items() if k != name}
+        if rec.get("provider", {}).get("name") == name:
+            rec["provider"] = rec["provider"] | {"api_key": ""}
+        self._write(rec, by)
+        return public(self)
+
+    def save(self, s: AISettings, by: str) -> dict:
+        rec = self.merged(s)
+        check(rec)
+        self._write(rec, by)
         return public(self)
 
 
@@ -127,6 +209,8 @@ def check(rec: dict) -> None:
             raise ValueError(f"enter the {PROVIDERS[p['name']]['label']} API key")
         if not p["model"]:
             raise ValueError("choose a model")
+        if PROVIDERS[p["name"]].get("custom") and not p.get("base_url"):
+            raise ValueError("an other OpenAI-compatible service needs its base URL")
         if not rec.get("consent_external"):
             raise ValueError(f"confirm that email and PDF text may be sent to {PROVIDERS[p['name']]['label']}")
 
@@ -143,15 +227,18 @@ def public(store: AIStore) -> dict:
         return {"source": "env" if ep and model else "default", "mode": "self_hosted" if ep and model else "rules",
                 "self_hosted": {"endpoint": ep, "model": model, "token_set": bool(env("MODEL_TOKEN") or env("MODEL_API_KEY")),
                                 "token_hint": None},
-                "provider": {"name": "openai", "model": "", "key_set": False, "key_hint": None},
+                "provider": {"name": "openai", "model": "", "key_set": False, "key_hint": None, "base_url": ""},
                 "consent_external": False, "timeout_s": float(env("MODEL_TIMEOUT_SEC", "60")), "updated_at": None, "updated_by": None,
-                "providers": PROVIDERS}
+                "providers": PROVIDERS, "keys": {}}
     sh, pv = raw["self_hosted"], raw["provider"]
     return {"source": "settings", "mode": raw["mode"],
             "self_hosted": {"endpoint": sh["endpoint"], "model": sh["model"], "token_set": bool(sh["token"]), "token_hint": _hint(sh["token"])},
-            "provider": {"name": pv["name"], "model": pv["model"], "key_set": bool(pv["api_key"]), "key_hint": _hint(pv["api_key"])},
+            "provider": {"name": pv["name"], "model": pv["model"], "key_set": bool(pv["api_key"]), "key_hint": _hint(pv["api_key"]),
+                         "base_url": pv.get("base_url", "")},
             "consent_external": raw.get("consent_external", False), "timeout_s": raw.get("timeout_s", 60.0),
-            "updated_at": raw["_updated_at"], "updated_by": raw["_updated_by"], "providers": PROVIDERS}
+            "updated_at": raw["_updated_at"], "updated_by": raw["_updated_by"], "providers": PROVIDERS,
+            "keys": {n: {"key_set": bool(k.get("api_key")), "key_hint": _hint(k.get("api_key", "")), "model": k.get("model", ""),
+                         "base_url": k.get("base_url", "")} for n, k in (raw.get("keys") or {}).items()}}
 
 
 def model_for(rec: dict | None):
@@ -166,7 +253,7 @@ def model_for(rec: dict | None):
         p = rec["provider"]
         if PROVIDERS[p["name"]]["api"] == "anthropic":
             return AnthropicModel(api_key=p["api_key"], model=p["model"], timeout_s=timeout)
-        return ChatModel(endpoint=PROVIDERS[p["name"]]["base_url"], model=p["model"], token=p["api_key"], timeout_s=timeout)
+        return ChatModel(endpoint=p.get("base_url") or PROVIDERS[p["name"]]["base_url"], model=p["model"], token=p["api_key"], timeout_s=timeout)
     return ChatModel(endpoint="", model="")
 
 

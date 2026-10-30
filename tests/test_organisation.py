@@ -9,7 +9,8 @@ def test_seed_tree_and_allocations():
         units = client.get("/v1/org/units").json()
         kinds = {u["kind"] for u in units}
         assert kinds == {"HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE", "PROJECT_FINANCE"}
-        assert len(client.get("/v1/org/users").json()) == 6
+        users = client.get("/v1/org/users").json()
+        assert len(users) == 7 and [u["name"] for u in users if u["role"] == "super_admin"] == ["Rosa Lindqvist"]  # the FCO at HQ
         tree = {r["unit_id"]: r for r in client.get("/v1/org/allocation-tree?period=2026").json()}
         assert tree["hq"]["passed_down"] == {"USD": 510_000_000} and tree["hq"]["over_allocated"] == {}
         assert client.get("/v1/org/standards").json()["base_currency"] == "USD"

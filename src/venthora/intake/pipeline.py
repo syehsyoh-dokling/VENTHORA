@@ -324,7 +324,7 @@ class IntakeStore:
 
 class Intake:
     def __init__(self, store: IntakeStore | None = None, registry: Registry | None = None,
-                 reviewer_roles: tuple[str, ...] = ("finance_manager", "ap_clerk"), org=None, payments=None):
+                 reviewer_roles: tuple[str, ...] = ("finance_manager", "ap_clerk", "super_admin"), org=None, payments=None):
         self.store = store or IntakeStore()
         self.registry = registry or Registry()
         self.reviewer_roles = reviewer_roles

@@ -31,6 +31,7 @@ def isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("VENTHORA_ORG_DB", str(tmp_path / "org.db"))
     monkeypatch.setenv("VENTHORA_AI_DB", str(tmp_path / "ai.db"))
     monkeypatch.setenv("VENTHORA_MASTER_DB", str(tmp_path / "master.db"))
+    monkeypatch.setenv("VENTHORA_SECRETS_DB", str(tmp_path / "secrets.db"))  # no connected Airwallex account in tests
     monkeypatch.setenv("VENTHORA_REPORTING_CONFIG", str(tmp_path / "reporting.json"))  # starts from the shipped copy
     monkeypatch.setenv("VENTHORA_ECB_CSV", str(tmp_path / "missing-ecb.csv"))
 

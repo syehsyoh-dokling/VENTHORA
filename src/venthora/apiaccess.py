@@ -33,7 +33,7 @@ from .config import data_path
 AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "treasury": ("Treasury and payments", "plans, executions, position, ledger, incidents, Airwallex balances",
                  ("/v1/plans", "/v1/executions", "/v1/treasury", "/v1/incidents", "/v1/ledger", "/v1/recon-cases",
-                  "/api/airwallex", "/api/sandbox", "/api/scenarios", "/api/live", "/api/runs", "/api/audit")),
+                  "/api/airwallex", "/v1/airwallex", "/api/sandbox", "/api/scenarios", "/api/live", "/api/runs", "/api/audit")),
     "payables": ("Payables", "intake of invoices and claims, payees and bank details, purchase orders, approvals",
                  ("/v1/intake", "/v1/payees", "/v1/procurement", "/v1/approvals")),
     "receivables": ("Receivables", "customer invoices and ageing", ("/v1/aging",)),
@@ -47,7 +47,7 @@ AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
                ("/health", "/api/status", "/api/groundtruth", "/api/matrix")),
 }
 NO_KEY = ("/webhooks/",)               # inbound push channels: their own signatures and secrets
-NEVER_BY_KEY = ("/v1/developer/keys",)  # a key cannot create or revoke keys
+NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection")  # a key cannot manage keys or the bank connection
 OPEN_WITH_KEY = ("/openapi.json", "/docs", "/v1/developer/catalog")
 ROLES = ("auditor", "treasury_analyst", "finance_manager", "cfo", "admin")  # the dashboard's roles; auditor is read only
 

@@ -22,9 +22,18 @@ from pydantic import BaseModel, Field, field_validator
 from .config import data_path
 
 UnitKind = Literal["HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE", "PROJECT_FINANCE"]
-Role = Literal["admin", "cfo", "finance_manager", "treasury_analyst", "country_finance_lead",
-               "project_accountant", "auditor"]
-WRITE_ROLES = {"admin", "cfo", "finance_manager"}
+Role = Literal["super_admin", "hq_admin", "country_admin", "branch_admin", "project_admin", "admin", "cfo", "finance_manager",
+               "treasury_analyst", "country_finance_lead", "project_accountant", "requester", "auditor"]
+# company-wide writers; the scoped admins below write only inside their own unit and the units under it
+WRITE_ROLES = {"super_admin", "hq_admin", "admin", "cfo", "finance_manager"}
+# the admin team: who runs each level of the organisation (the super admin is the FCO at HQ, who sees and may do everything)
+ADMIN_LEVELS = {"super_admin": "HQ", "hq_admin": "HQ", "country_admin": "COUNTRY_OFFICE", "branch_admin": "BRANCH_OFFICE",
+                "project_admin": "PROJECT_FINANCE"}
+SCOPED_ADMINS = {"country_admin", "branch_admin", "project_admin"}
+# roles a scoped admin may give: never one at or above its own level, never a company-wide one
+GRANTABLE = {"country_admin": {"branch_admin", "project_admin", "country_finance_lead", "project_accountant", "treasury_analyst", "requester", "auditor"},
+             "branch_admin": {"project_admin", "project_accountant", "treasury_analyst", "requester", "auditor"},
+             "project_admin": {"project_accountant", "requester", "auditor"}}
 PARENTS: dict[str, set[str]] = {"HQ": set(), "COUNTRY_OFFICE": {"HQ"}, "BRANCH_OFFICE": {"COUNTRY_OFFICE"},
                                 "PROJECT_FINANCE": {"HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE"}}
 CCY = re.compile(r"^[A-Z]{3}$")
@@ -218,6 +227,7 @@ def _seed() -> dict[str, list[dict]]:
         {"unit_id": "pf-eu-rollout", "name": "EU Warehouse Roll-out", "kind": "PROJECT_FINANCE", "parent_id": "co-de", "country": "DE", "currency": "EUR", "timezone": "Europe/Berlin", "cost_centre": "PRJ-900"},
     ]
     users = [
+        {"user_id": "u-fco", "name": "Rosa Lindqvist", "email": "rosa.lindqvist@acme.example", "role": "super_admin", "unit_id": "hq"},
         {"user_id": "u-omar", "name": "Omar Reyes", "email": "omar.reyes@acme.example", "role": "cfo", "unit_id": "hq", "approval_limit_minor": 100_000_000},
         {"user_id": "u-dana", "name": "Dana Finch", "email": "dana.finch@acme.example", "role": "finance_manager", "unit_id": "co-us", "approval_limit_minor": 5_000_000},
         {"user_id": "u-lee", "name": "Lee Park", "email": "lee.park@acme.example", "role": "treasury_analyst", "unit_id": "hq"},
@@ -377,7 +387,13 @@ class OrgStore:
             cur = self.get("unit", cur["parent_id"]) if cur.get("parent_id") else None
 
     def _check_user(self, d: dict) -> None:
-        self._unit(d["unit_id"])
+        unit = self._unit(d["unit_id"])
+        level = ADMIN_LEVELS.get(d["role"])
+        if level and unit["kind"] != level:
+            raise OrgError(f"a {d['role'].replace('_', ' ')} belongs to a {level.replace('_', ' ').lower()} unit, not to {unit['name']}")
+        if d["role"] == "super_admin" and d.get("active", True) and any(
+                u["role"] == "super_admin" and u.get("active", True) and u["user_id"] != d["user_id"] for u in self.list("user")):
+            raise OrgError("there is already an active super admin (the FCO at HQ); deactivate them first")
         if any(u["email"].lower() == d["email"].lower() and u["user_id"] != d["user_id"] for u in self.list("user")):
             raise OrgError("another person already uses that email")
 
@@ -467,6 +483,29 @@ class OrgStore:
             if unit["unit_id"] not in chain:
                 raise OrgError(f"project {pcode} belongs to {self._unit(project['unit_id'])['name']}, not to {unit['name']}")
         return {"code": ".".join(parts), "unit": unit, "project": project, "account": account}
+
+    def subtree(self, unit_id: str) -> set[str]:
+        """The unit and every unit under it."""
+        units = self.list("unit")
+        out, todo = {unit_id}, [unit_id]
+        while todo:
+            cur = todo.pop()
+            for u in units:
+                if u.get("parent_id") == cur and u["unit_id"] not in out:
+                    out.add(u["unit_id"])
+                    todo.append(u["unit_id"])
+        return out
+
+    def unit_of_record(self, kind: str, rec: dict) -> str | None:
+        """The unit a record belongs to, for the scoped admins' reach (None: company-wide)."""
+        if kind == "unit":
+            return rec.get("parent_id") if not self.get("unit", rec.get("unit_id") or "") else rec.get("unit_id")
+        if kind == "po":
+            try:
+                return self.account_code(rec.get("account_code", ""))["unit"]["unit_id"]
+            except OrgError:
+                return None
+        return rec.get("unit_id")
 
     def chain(self, unit_id: str | None) -> list[dict]:
         """The unit and its ancestors, nearest first."""

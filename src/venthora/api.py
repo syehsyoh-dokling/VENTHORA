@@ -1476,6 +1476,37 @@ async def ai_settings_models(s: ai_settings.AISettings | None = None, role: str 
         raise HTTPException(502, f"could not list models: {type(exc).__name__}: {str(exc)[:200]}") from exc
 
 
+class AIKeyIn(BaseModel):
+    api_key: str | None = Field(None, max_length=500)
+    model: str = Field("", max_length=200)
+    base_url: str = Field("", max_length=300)
+
+
+@app.put("/v1/settings/ai/keys/{provider}")
+async def ai_key_save(provider: str, body: AIKeyIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Keep a provider's API key (and preferred model) in the vault, without switching the model in use."""
+    who = _writer(role, by)
+    if provider not in ai_settings.PROVIDERS:
+        raise HTTPException(404, "unknown provider")
+    try:
+        out = await asyncio.to_thread(ai_settings.AIStore().save_key, provider, body.api_key, body.model, body.base_url, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "ai_key_saved", {"by": who, "provider": provider, "model": body.model})  # never the key
+    return out | {"active": ai_settings.describe(active_model())}
+
+
+@app.delete("/v1/settings/ai/keys/{provider}")
+async def ai_key_delete(provider: str, role: str = "finance_manager", by: str = "dashboard"):
+    who = _writer(role, by)
+    try:
+        out = await asyncio.to_thread(ai_settings.AIStore().delete_key, provider, who)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "ai_key_deleted", {"by": who, "provider": provider})
+    return out | {"active": ai_settings.describe(active_model())}
+
+
 @app.get("/v1/org/standards")
 async def org_standards():
     return app.state.org.standards()
@@ -1828,10 +1859,36 @@ async def org_list(collection: str):
     return app.state.org.list(kind)
 
 
+def _org_writer(role: str, by: str, kind: str, rec: dict | None) -> str:
+    """Company-wide writers write anywhere; a scoped admin (country, branch, project finance) only inside its own unit and
+    the units under it, only organisation records, and never gives a role at or above its own."""
+    from .organisation import GRANTABLE, SCOPED_ADMINS
+
+    if role not in SCOPED_ADMINS:
+        return _writer(role, by)
+    org = app.state.org
+    me = next((u for u in org.list("user") if u.get("active", True) and u["role"] == role
+               and by.strip().lower() in (u["name"].lower(), u["email"].lower())), None)
+    if me is None:
+        raise HTTPException(403, f"{by} is not an active {role.replace('_', ' ')}")
+    if kind not in ("unit", "user", "allocation", "price", "project", "po"):
+        raise HTTPException(403, f"a {role.replace('_', ' ')} may not change {kind} records; ask a company-wide admin")
+    reach = org.subtree(me["unit_id"])
+    unit = org.unit_of_record(kind, rec or {})
+    if unit is None or unit not in reach:
+        raise HTTPException(403, f"outside your reach: {role.replace('_', ' ')} of {org.get('unit', me['unit_id'])['name']} manages that unit and the units under it")
+    if kind == "unit" and (rec or {}).get("unit_id") == me["unit_id"] and org.get("unit", me["unit_id"]) and \
+            (rec or {}).get("parent_id") != org.get("unit", me["unit_id"]).get("parent_id"):
+        raise HTTPException(403, "you cannot move your own unit")
+    if kind == "user" and (rec or {}).get("role") not in GRANTABLE[role]:
+        raise HTTPException(403, f"a {role.replace('_', ' ')} may give: {', '.join(sorted(GRANTABLE[role]))}")
+    return f"{by} ({role})"
+
+
 @app.post("/v1/org/{collection}")
 async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
     kind, model = _org_kind(collection)
-    who = _writer(role, by)
+    who = _org_writer(role, by, kind, body)
     try:
         rec = await asyncio.to_thread(app.state.org.save, kind, model.model_validate(body), who)
     except OrgError as exc:
@@ -1845,7 +1902,7 @@ async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "
 @app.delete("/v1/org/{collection}/{record_id}")
 async def org_delete(collection: str, record_id: str, role: str = "finance_manager", by: str = "dashboard"):
     kind, _ = _org_kind(collection)
-    who = _writer(role, by)
+    who = _org_writer(role, by, kind, app.state.org.get(kind, record_id))
     if kind == "po" and app.state.executor.store.po_payments(record_id):
         raise HTTPException(409, "money has been paid against this PO; close or cancel it instead, so its payments keep their PO")
     try:
@@ -2205,3 +2262,130 @@ async def treasury_overview(span: str = Query("month", pattern="^(day|week|month
             "cash_in": {"base_minor": sum(d["base_minor"] or 0 for d in cust), "count": len(cust), "by_currency": by_ccy(cust),
                         "top_ups_base_minor": sum(d["base_minor"] or 0 for d in tops), "top_ups_count": len(tops)},
             "actions": {"count": sum(a["count"] for a in actions), "items": actions}}
+
+
+# ---- User management → Airwallex account: connect it (sandbox), open Global Accounts ----
+CONNECT_ROLES = {"super_admin", "admin", "cfo", "finance_manager"}
+GLOBAL_ACCOUNT_OPTIONS = [  # the receiving accounts Airwallex offers by currency and the country the account is held in
+    {"currency": "USD", "country_code": "US", "label": "USD · United States (ACH, Fedwire)"},
+    {"currency": "GBP", "country_code": "GB", "label": "GBP · United Kingdom (Faster Payments)"},
+    {"currency": "EUR", "country_code": "DE", "label": "EUR · Germany (SEPA)"},
+    {"currency": "AUD", "country_code": "AU", "label": "AUD · Australia (BSB)"},
+    {"currency": "HKD", "country_code": "HK", "label": "HKD · Hong Kong (FPS)"},
+    {"currency": "SGD", "country_code": "SG", "label": "SGD · Singapore (FAST)"},
+    {"currency": "CNY", "country_code": "CN", "label": "CNY · China"},
+    {"currency": "CAD", "country_code": "CA", "label": "CAD · Canada"},
+    {"currency": "JPY", "country_code": "JP", "label": "JPY · Japan"},
+    {"currency": "NZD", "country_code": "NZ", "label": "NZD · New Zealand"},
+]
+
+
+def _connector(role: str, by: str) -> str:
+    if role not in CONNECT_ROLES:
+        raise HTTPException(403, f"role '{role}' may not change the Airwallex connection; allowed: {', '.join(sorted(CONNECT_ROLES))}")
+    return f"{by} ({role})"
+
+
+def _ga_row(g: dict) -> dict:
+    feats = g.get("supported_features") or g.get("required_features") or []
+    return {"id": g.get("id"), "nick_name": g.get("nick_name") or "", "status": g.get("status"), "country_code": g.get("country_code"),
+            "currencies": sorted({f.get("currency") for f in feats if f.get("currency")}) or ([g["currency"]] if g.get("currency") else []),
+            "account_name": g.get("account_name"), "account_number": g.get("account_number"), "iban": g.get("iban"),
+            "routing": [{"type": r.get("type"), "value": r.get("value")} for r in (g.get("account_routing") or [])],
+            "swift_code": g.get("swift_code"), "institution": (g.get("institution") or {}).get("name"),
+            "methods": sorted({f.get("transfer_method") for f in feats if f.get("transfer_method")})}
+
+
+@app.get("/v1/airwallex/connection")
+async def airwallex_connection():
+    """Which Airwallex account VENTHORA works on (secrets never returned) and whether it answers now."""
+    from . import airwallex_settings
+
+    out = airwallex_settings.public()
+    bank = app.state.agent.proof.airwallex
+    out |= {"sandbox": bank.sandbox, "base_url": bank.base_url, "connected": False, "currencies": [], "global_accounts": 0}
+    if not bank.configured:
+        return out | {"error": "no Airwallex credentials: connect an account below, or set them in .env"}
+    try:
+        bal = await bank.balances_detail()
+        gas = await bank.list_global_accounts()
+    except AirwallexError as exc:
+        return out | {"error": f"Airwallex did not accept the credentials or did not answer: {exc}"}
+    return out | {"connected": True, "currencies": sorted(c for c, b in bal.items() if any(b.values())), "global_accounts": len(gas)}
+
+
+@app.put("/v1/airwallex/connection")
+async def airwallex_connect(body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    """Connect an Airwallex account: the credentials log in once (sandbox) before they are kept."""
+    from . import airwallex_settings
+    from .gateways.airwallex import SANDBOX_URL, Airwallex
+
+    who = _connector(role, by)
+    if str(body.get("environment", "sandbox")) != "sandbox":
+        raise HTTPException(422, "VENTHORA executes on the Airwallex sandbox only")
+    try:
+        conn = airwallex_settings.Connection.model_validate(body)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    store = airwallex_settings.AirwallexStore()
+    rec = store.merged(conn)
+    if not rec["api_key"]:
+        raise HTTPException(422, "paste the API key (a new client ID needs its own key)")
+    trial = Airwallex(base_url=SANDBOX_URL, credentials=(rec["client_id"], rec["api_key"]), max_attempts=1)
+    try:
+        bal = await trial.balances_detail()
+    except AirwallexError as exc:
+        raise HTTPException(422, f"Airwallex refused these credentials: {exc}") from exc
+    finally:
+        await trial.close()
+    await asyncio.to_thread(store.save, rec, who)
+    app.state.agent.proof.airwallex.forget_token()
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "airwallex_connected", {"by": who, "client_id_hint": rec["client_id"][-4:],
+                                                                          "currencies": sorted(c for c, b in bal.items() if any(b.values()))})
+    return await airwallex_connection()
+
+
+@app.delete("/v1/airwallex/connection")
+async def airwallex_disconnect(role: str = "finance_manager", by: str = "dashboard"):
+    """Forget the connected account; VENTHORA falls back to the credentials in .env, if any."""
+    from . import airwallex_settings
+
+    who = _connector(role, by)
+    await asyncio.to_thread(airwallex_settings.AirwallexStore().clear)
+    app.state.agent.proof.airwallex.forget_token()
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "airwallex_disconnected", {"by": who})
+    return await airwallex_connection()
+
+
+@app.get("/v1/airwallex/global-accounts")
+async def airwallex_global_accounts():
+    """The account's Global Accounts (the bank details customers pay into), and which ones can be opened."""
+    try:
+        rows = [_ga_row(g) for g in await _bank().list_global_accounts()]
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+    return {"items": rows, "options": GLOBAL_ACCOUNT_OPTIONS}
+
+
+class GlobalAccountIn(BaseModel):
+    currency: str = Field(min_length=3, max_length=3)
+    country_code: str = Field(min_length=2, max_length=2)
+    nick_name: str = Field("VENTHORA receipts", min_length=1, max_length=60)
+
+
+@app.post("/v1/airwallex/global-accounts")
+async def airwallex_open_global_account(body: GlobalAccountIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Open a Global Account: local bank details in that currency, for customers and top-ups to pay into."""
+    import uuid
+
+    who = _connector(role, by)
+    try:
+        g = await _bank().create_global_account(request_id=str(uuid.uuid4()), country_code=body.country_code.upper(),
+                                                currency=body.currency.upper(), nick_name=body.nick_name)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex could not open it: {exc}") from exc
+    await asyncio.to_thread(app.state.audit.append, "global_account_opened", {"by": who, "currency": body.currency.upper(),
+                                                                            "country_code": body.country_code.upper(), "id": g.get("id")})
+    return _ga_row(g)

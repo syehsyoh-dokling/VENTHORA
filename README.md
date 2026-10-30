@@ -415,6 +415,31 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 
 
+
+## People, the Airwallex account and the AI model
+
+**User management** has two more pages:
+
+* **Airwallex account.** Paste the client ID and API key (Airwallex → Developer → API keys): VENTHORA logs in once
+  to check them, keeps them on this machine (never shown again, only their last four characters), and uses them
+  instead of `.env`. A new company opens its Airwallex account at Airwallex itself (business verification); the
+  page links there. **Global Accounts** (local bank details per currency, for customers and top-ups) are listed and
+  opened from the page. VENTHORA executes on the sandbox.
+* **Admin team.** The **super admin** is the FCO at head quarters: sees and may do everything. An **HQ admin** works
+  company-wide; a **country office**, **branch** or **project finance admin** works only in its own unit and the
+  units under it, and gives only roles below its own (refused otherwise, with the reason). The page lists every
+  kind of account (CFO, finance manager, country finance lead, project accountant, treasury analyst, requester,
+  auditor, API keys). The person acting in the dashboard is chosen from User management.
+
+**Settings** has two more pages for the AI model:
+
+* **Local model (vLLM).** Any OpenAI-compatible server on your machine or GPU (vLLM, Ollama, LM Studio,
+  llama.cpp): discover its models, test, use.
+* **AI API keys.** A key per provider, kept in a vault: Anthropic, OpenAI, Google Gemini, Mistral, Groq, DeepSeek,
+  xAI, Together, Fireworks, Cerebras, NVIDIA NIM, Qwen (DashScope), Moonshot, Cohere, Perplexity, OpenRouter,
+  Hugging Face, or any other OpenAI-compatible service. Save a key, list the provider's models, test, and switch
+  between providers without pasting a key again.
+
 ## The overview
 
 The first row is the money at Airwallex: the available balance, what it is worth today in the major currencies and
@@ -542,7 +567,7 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 
 ## API
 
-Every endpoint (108 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
+Every endpoint (115 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
 an API key needs, and in `/openapi.json` and the interactive `/docs`.
 
 **Other applications** call VENTHORA with an API key created on that page:
