@@ -437,6 +437,27 @@ the invoice date when the rules cannot, and lists findings; an answer that does 
 dropped, and the model can only add a warning, never pass a check the rules failed. The result is on every request
 in **Intake** (the *Checks* column), with the evidence for each check.
 
+
+## Payment reports and purchase orders
+
+Every invoice is its own payment (its own payout lock and Airwallex transfer); **Payments → Payment reports**
+brings them together in one statement, with a CSV download:
+
+| Report | Window |
+|---|---|
+| Running | today, this week (Monday to the date), month to date, fiscal quarter to date, by the day the money was paid |
+| Accumulated | monthly, quarterly, half-yearly (semester) or annual buckets of the fiscal year, each with its total and the running total, by reporting period (the cut-off decides the month, as in the period close) |
+
+Each report totals per currency with the base-currency cost, by vendor and by purchase order. Below it, every PO is
+reconciled: total, paid, in flight, invoiced and waiting, what is left, each term's state, and **OVERPAID** or
+**UNDERPAID** (closed before it was paid in full).
+
+A PO can be paid several times while it has room. The intake already refuses an invoice that would pass the PO
+(paid + waiting invoices); **the executor checks again when money moves**, on the payments booked, the transfers
+still in flight from other runs and the other payments in the same plan: never past the PO total, each term
+exactly once and for exactly its amount, partial invoices only where the PO allows them, the PO's supplier and
+currency, and every invoice paid in full or not at all. Any failure refuses the run before money moves.
+
 ## Budget allocation: checked again when money moves
 
 **Settings → Budget allocation** has three pages:
@@ -482,7 +503,7 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 
 ## API
 
-Every endpoint (104 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
+Every endpoint (106 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
 an API key needs, and in `/openapi.json` and the interactive `/docs`.
 
 **Other applications** call VENTHORA with an API key created on that page:

@@ -28,6 +28,9 @@ CREATE TABLE IF NOT EXISTS operations (
     op_key TEXT PRIMARY KEY, execution_id TEXT NOT NULL, kind TEXT NOT NULL,
     request_id TEXT NOT NULL UNIQUE, status TEXT NOT NULL, airwallex_id TEXT,
     response_json TEXT, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS po_draws (
+    payout_key TEXT PRIMARY KEY, po_number TEXT NOT NULL, installment TEXT, currency TEXT NOT NULL,
+    amount_minor INTEGER NOT NULL, execution_id TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS payouts (
     payout_key TEXT PRIMARY KEY, obligation_id TEXT NOT NULL, execution_id TEXT NOT NULL,
     status TEXT NOT NULL, transfer_id TEXT, updated_at TEXT NOT NULL);
@@ -189,6 +192,26 @@ class ExecutionStore:
             c.execute("INSERT OR REPLACE INTO payouts VALUES (?, ?, ?, 'IN_FLIGHT', ?, ?)",
                       (payout_key, obligation_id, execution_id, row["transfer_id"] if row and
                        row["execution_id"] == execution_id else None, _now()))
+
+    def record_po_draw(self, payout_key: str, po_number: str, installment: str | None, currency: str, amount_minor: int,
+                       execution_id: str) -> None:
+        """A payout claimed against a purchase order; while its transfer is in flight it holds part of the PO."""
+        with self._lock, self._connect() as c:
+            c.execute("INSERT OR REPLACE INTO po_draws VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (payout_key, po_number, installment, currency, amount_minor, execution_id, _now()))
+
+    def po_in_flight(self, po_number: str) -> list[dict]:
+        """Draws on a PO whose transfer is claimed or in flight and not yet booked as paid."""
+        q = ("SELECT d.installment, d.currency, d.amount_minor, d.payout_key FROM po_draws d JOIN payouts p ON p.payout_key = d.payout_key"
+             " WHERE d.po_number = ? AND p.status = 'IN_FLIGHT'"
+             " AND (p.transfer_id IS NULL OR p.transfer_id NOT IN (SELECT transfer_id FROM spend_ledger))")
+        with self._lock, self._connect() as c:
+            return [dict(r) for r in c.execute(q, (po_number,)).fetchall()]
+
+    def paid_rows(self) -> list[dict]:
+        """Every booked payment (one row per PAID transfer), for the payment reports."""
+        with self._lock, self._connect() as c:
+            return [dict(r) for r in c.execute("SELECT * FROM spend_ledger ORDER BY paid_at").fetchall()]
 
     def settle_payout(self, payout_key: str, status: str, transfer_id: str | None) -> None:
         with self._lock, self._connect() as c:

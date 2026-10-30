@@ -193,6 +193,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="grp">Payments</div>
   <a href="#/intake" data-nav="intake"><i>✉</i>Intake<span class="cnt" id="cnt-intake"></span></a>
   <a href="#/pos" data-nav="pos"><i>▣</i>Purchase orders</a>
+  <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Payment reports</a>
   <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
   <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
   <a href="#/runs" data-nav="runs"><i>☰</i>Run reports</a>
@@ -270,6 +271,24 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="spending"><h2><span>Open commitments</span><span class="small muted">what open purchase orders may still draw</span></h2><div id="spCommit"></div></section>
 
  <!-- ===== Payments ===== -->
+ <section class="span12" data-view="payment-reports">
+  <h2><span>Payment reports</span><span class="row">
+   <select id="prView"><option value="running">Running</option><option value="accumulated">Accumulated</option></select>
+   <select id="prSpan"></select><input type="date" id="prDate"><button id="prCsv">Download CSV</button></span></h2>
+  <div class="small muted" id="prNote"></div>
+  <div id="prTiles" class="row" style="margin:12px 0;gap:12px;flex-wrap:wrap"></div>
+  <div id="prBuckets"></div>
+  <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:12px">
+   <div><h3 class="small muted" style="margin:0 0 6px">By vendor</h3><div id="prVendors"></div></div>
+   <div><h3 class="small muted" style="margin:0 0 6px">By purchase order</h3><div id="prPos"></div></div>
+  </div>
+  <h3 class="small muted" style="margin:16px 0 6px">Payments</h3><div id="prRows" style="overflow-x:auto"></div>
+ </section>
+ <section class="span12" data-view="payment-reports">
+  <h2><span>Purchase orders against what was paid</span><span class="small muted">a PO may be paid several times while it has room; never past its total, each term once and in full</span></h2>
+  <div id="prRecon" class="empty">loading…</div>
+ </section>
+
  <section class="span12" data-view="pos">
   <h2><span>Purchase orders</span><span class="row"><span class="small muted">a supplier invoice is paid only against an open PO it quotes</span><button class="primary" id="addPO">New PO</button></span></h2>
   <div id="poTable" class="empty">loading…</div>
@@ -725,8 +744,8 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:"Finance standards","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
@@ -917,6 +936,37 @@ function openForm(title,fields,rec,col,after){rec={...(rec||{})};$("#dlgTitle").
   catch(e){$("#dlgErr").textContent=e.message}}}
 
 // =============================== settings: allocation, offices, prices, standards, mandate ===============================
+// ---- Payment reports: running and accumulated, and every PO reconciled ----------------------------------------------
+const PR_SPANS={running:[["day","Today"],["week","This week"],["month","Month to date"],["quarter","Quarter to date"]],
+ accumulated:[["month","Monthly"],["quarter","Quarterly"],["half","Half-yearly (semester)"],["year","Annual"]]};
+const PO_TONE={OPEN:"",["FULLY PAID"]:"good",UNDERPAID:"warn",OVERPAID:"critical",CANCELLED:"",PAID:"good",["PARTLY PAID"]:"warn",["IN FLIGHT"]:"warn"};
+const ccyList=o=>Object.entries(o||{}).map(([c,v])=>fmt(v,c)).join("<br>")||"-";
+function prQuery(){return `view=${$("#prView").value}&span=${$("#prSpan").value}${$("#prDate").value?`&date=${$("#prDate").value}`:""}`}
+function prSpans(){const cur=$("#prSpan").value;$("#prSpan").innerHTML=PR_SPANS[$("#prView").value].map(([k,l])=>`<option value="${k}" ${k===cur?"selected":""}>${l}</option>`).join("");if(!$("#prSpan").value)$("#prSpan").value="month"}
+async function reportsView(){if(!$("#prSpan").options.length)prSpans();try{const [r,recon]=await Promise.all([api(`/v1/reports/payments?${prQuery()}`),api("/v1/reports/purchase-orders")]);
+ $("#prNote").innerHTML=r.view==="running"?`${esc(r.label)}: ${esc(r.from)} to ${esc(r.to)} by the day the money was paid (${esc(r.timezone)})`
+  :`${esc(r.label)} ${r.fiscal_year?`· fiscal year ${r.fiscal_year} (starts in month ${r.fiscal_year_start_month})`:""} · by reporting period, so the cut-off decides the month`;
+ const s=r.summary;$("#prTiles").innerHTML=[["Payments",s.payments],["Paid",ccyList(s.by_currency)],[`Cost in ${r.base_currency}`,fmt(s.base_cost_minor,r.base_currency)],["Vendors",s.by_vendor.length],["POs",s.by_po.length]]
+  .map(([l,v])=>`<div class="tile" style="min-width:150px"><div class="small muted">${l}</div><div style="font-size:18px;font-weight:600">${v}</div></div>`).join("");
+ $("#prBuckets").innerHTML=r.view==="accumulated"?table([{h:"Period",f:b=>`<b>${esc(b.period)}</b>${b.current?' <span class="pill good">now</span>':""}<div class="small muted">${esc(b.months[0])} – ${esc(b.months[b.months.length-1])}</div>`},
+  {h:"Payments",num:1,f:b=>b.payments},{h:"Paid in the period",num:1,f:b=>ccyList(b.by_currency)},{h:`Cost (${r.base_currency})`,num:1,f:b=>fmt(b.base_cost_minor,r.base_currency)},
+  {h:"Accumulated",num:1,f:b=>`<b>${fmt(b.cumulative_base_cost_minor,r.base_currency)}</b><div class="small muted">${ccyList(b.cumulative_by_currency)}</div>`}],r.buckets):"";
+ $("#prVendors").innerHTML=table([{h:"Vendor",f:v=>esc(v.payee)},{h:"Payments",num:1,f:v=>v.payments},{h:"Paid",num:1,f:v=>ccyList(v.by_currency)}],s.by_vendor,"no payment");
+ $("#prPos").innerHTML=table([{h:"PO",f:p=>`<span class="chip">${esc(p.po_number)}</span>`},{h:"Payments",num:1,f:p=>p.payments},{h:"Terms",f:p=>esc(p.terms.join(", ")||"-")},{h:"Paid",num:1,f:p=>fmt(p.amount_minor,p.currency)}],s.by_po,"no payment against a PO");
+ $("#prRows").innerHTML=table([{h:"Paid on",f:x=>esc(x.paid_on)},{h:"Period",f:x=>esc(x.reporting_period)},{h:"Payee",f:x=>esc(x.payee)},{h:"PO / term",f:x=>x.po_number?`${esc(x.po_number)}${x.installment?` · ${esc(x.installment)}`:""}`:"-"},
+  {h:"Charge code",f:x=>`<span class="mono small">${esc(x.account_code||"-")}</span>`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)},{h:`Cost (${r.base_currency})`,num:1,f:x=>fmt(x.base_cost_minor,r.base_currency)},
+  {h:"Transfer",f:x=>`<span class="mono small muted">${esc((x.transfer_id||"").slice(0,12))}</span>`}],r.rows,"no payment in this window");
+ $("#prRecon").innerHTML=table([{h:"PO",f:p=>`<b>${esc(p.po_id)}</b><div class="small muted">${esc(p.supplier_id)} · <span class="mono">${esc(p.account_code)}</span></div>`},
+  {h:"State",f:p=>`<span class="pill ${PO_TONE[p.state]||""}">${esc(p.state)}</span>${p.status!=="OPEN"?`<div class="small muted">PO ${esc(p.status.toLowerCase())}</div>`:""}`},
+  {h:"Total",num:1,f:p=>fmt(p.total_minor,p.currency)},{h:"Paid",num:1,f:p=>`${fmt(p.paid_minor,p.currency)}<div class="small muted">${p.payments} payment(s)</div>`},
+  {h:"In flight",num:1,f:p=>p.in_flight_minor?fmt(p.in_flight_minor,p.currency):"-"},
+  {h:"Invoiced, waiting",num:1,f:p=>p.invoiced_waiting_minor?`${fmt(p.invoiced_waiting_minor,p.currency)}<div class="small muted">${p.waiting_invoices.map(esc).join(", ")}</div>`:"-"},
+  {h:"Left",num:1,f:p=>`<b class="${p.left_minor<0?"err":""}">${fmt(p.left_minor,p.currency)}</b>${p.invoiced_waiting_minor?`<div class="small muted">${fmt(p.left_minor-p.invoiced_waiting_minor,p.currency)} after waiting invoices</div>`:""}`},
+  {h:"Terms",f:p=>p.terms.map(t=>`<div class="small"><span class="pill ${PO_TONE[t.state]||""}">${esc(t.term_id)} ${esc(t.state)}</span> ${fmt(t.paid_minor,p.currency)} / ${fmt(t.amount_minor,p.currency)}</div>`).join("")||(p.allow_partial?'<span class="small muted">partial invoices</span>':"-")}],recon,"no purchase order")}
+ catch(e){$("#prTiles").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#prView").onchange=()=>{prSpans();reportsView()};$("#prSpan").onchange=reportsView;$("#prDate").onchange=reportsView;
+$("#prCsv").onclick=()=>{location.href=`/v1/reports/payments?${prQuery()}&format=csv`};
+
 // ---- Budget allocation: regular (charge code) and project based, period, cut-off and sync ----------------------------
 let BP=null,PROJ=[];
 const OFFICE_KINDS=new Set(["HQ","COUNTRY_OFFICE"]);

@@ -1905,3 +1905,56 @@ async def doc_rules_put(body: Annotated[dict, Body()], role: str = "finance_mana
     saved = await asyncio.to_thread(app.state.org.save_doc_rules, rules, who)
     await asyncio.to_thread(app.state.audit.append, "doc_rules", saved | {"by": who})
     return saved
+
+
+# ---- Payment reports: running and accumulated, and every PO reconciled ----
+def _report_rows() -> tuple[list[dict], str, int]:
+    from . import payment_reports
+
+    cfg = load_reporting_config()
+    names = {k: v.get("name", k) for k, v in app.state.intake.registry.payees.items()}
+    rows = payment_reports.enrich(app.state.executor.store.paid_rows(), cfg.timezone, names)
+    return rows, cfg.timezone, int(app.state.org.standards().get("fiscal_year_start_month", 1))
+
+
+@app.get("/v1/reports/payments")
+async def payment_report(view: str = Query("running", pattern="^(running|accumulated)$"),
+                         span: str = Query("month", pattern="^(day|week|month|quarter|half|year)$"),
+                         date: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"), format: str = Query("json", pattern="^(json|csv)$")):
+    """Every PAID payment in one statement: running (today, this week, month or fiscal quarter to date, by paid date)
+    or accumulated (monthly, quarterly, half-yearly or annual buckets with running totals, by reporting period)."""
+    from zoneinfo import ZoneInfo
+
+    from . import payment_reports
+
+    rows, tz, start = await asyncio.to_thread(_report_rows)
+    day = datetime.fromisoformat(date).date() if date else datetime.now(ZoneInfo(tz)).date()
+    if view == "running":
+        if span not in payment_reports.RUNNING:
+            raise HTTPException(422, f"a running report is one of {list(payment_reports.RUNNING)}")
+        rep = payment_reports.running(rows, span, day, start)
+    else:
+        if span not in payment_reports.ACCUMULATED:
+            raise HTTPException(422, f"an accumulated report is one of {list(payment_reports.ACCUMULATED)}")
+        rep = payment_reports.accumulated(rows, span, day, start)
+    rep |= {"timezone": tz, "fiscal_year_start_month": start, "base_currency": app.state.org.standards()["base_currency"]}
+    if format == "csv":
+        name = f"venthora-payments-{view}-{span}-{day.isoformat()}.csv"
+        return Response(payment_reports.to_csv(rep), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    return rep
+
+
+@app.get("/v1/reports/purchase-orders")
+async def po_reconciliation_report():
+    """Every PO against what was paid, what is in flight and what is invoiced and waiting: never over its total;
+    UNDERPAID when it was closed before it was paid in full."""
+    from . import payment_reports, procurement
+
+    def build():
+        paid = {r["invoice_fingerprint"] for r in app.state.executor.store.po_payments()}
+        waiting: dict[str, list[dict]] = {}
+        for r in app.state.intake.store.list(1000):
+            if r.po_number and procurement.holds(r, paid):
+                waiting.setdefault(r.po_number, []).append({"invoice_no": r.invoice_no, "amount_minor": r.amount_minor})
+        return payment_reports.po_reconciliation(app.state.org, app.state.executor.store, waiting)
+    return await asyncio.to_thread(build)

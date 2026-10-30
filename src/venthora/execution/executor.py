@@ -151,6 +151,7 @@ class Executor:
                     refuse(f"payee {rec['beneficiary_id']} is {rec['status']}: a person must verify it by call-back on the "
                            "registered number before any payment")
         self._budget_gate(plan, by_id, steps, refuse)
+        self._po_gate(plan, by_id, steps, refuse)
         if plan.decision == "BLOCKED":
             refuse("ProofCore blocked this plan")
         approvals = [a.model_dump() for a in ([req.approval] if req.approval else []) + list(req.approvals)]
@@ -204,6 +205,71 @@ class Executor:
         if bad:
             refuse("budget allocation: " + "; ".join(f"{v['obligation_id']}: {v['reason']}" for v in bad))
         steps.append(Step(kind="preflight", key="budget_allocation", status="OK", detail={"checked": verdicts}))
+
+    def _po_gate(self, plan: PlanResult, by_id: dict, steps: list[Step], refuse) -> None:
+        """Purchase orders, read fresh at execution: a PO may be paid several times while it has room, never past its
+        total (paid + in flight + this plan), each term exactly once and in full, and every invoice in full."""
+        if self.org is None:
+            return
+        from .. import procurement
+
+        tol = procurement.TOLERANCE_MINOR
+        drawn: dict[str, int] = {}
+        terms_taken: dict[str, set[str]] = {}
+        checked, problems = [], []
+        for d in plan.obligations:
+            o = by_id.get(d.obligation_id)
+            if d.action not in PAYING_ACTIONS or o is None or not o.po_number:
+                continue
+            po = self.org.get("po", o.po_number)
+            if po is None:
+                problems.append(f"{o.obligation_id}: PO {o.po_number} does not exist")
+                continue
+            if po["status"] != "OPEN":
+                problems.append(f"{o.obligation_id}: PO {o.po_number} is {po['status'].lower()}")
+                continue
+            if o.currency != po["currency"]:
+                problems.append(f"{o.obligation_id}: PO {o.po_number} is in {po['currency']}, the payment in {o.currency}")
+                continue
+            if po["supplier_id"] != o.beneficiary_id:
+                problems.append(f"{o.obligation_id}: PO {o.po_number} was placed with {po['supplier_id']}, not {o.beneficiary_id}")
+                continue
+            if d.amount_minor != o.amount_minor:
+                problems.append(f"{o.obligation_id}: pays {d.amount_minor / 100:,.2f} of an invoice of {o.amount_minor / 100:,.2f}; "
+                                "a PO invoice is paid in full or not at all")
+                continue
+            if o.po_number not in drawn:
+                st = procurement.status(self.org, self.store, o.po_number)
+                flight = self.store.po_in_flight(o.po_number)
+                drawn[o.po_number] = st["paid_minor"] + sum(f["amount_minor"] for f in flight if f["currency"] == po["currency"])
+                terms_taken[o.po_number] = {t["term_id"] for t in st["terms"] if t["state"] == "PAID"} | {f["installment"] for f in flight if f["installment"]}
+            terms = {t["term_id"]: t for t in po["terms"]}
+            if o.installment in terms:
+                t = terms[o.installment]
+                if o.installment in terms_taken[o.po_number]:
+                    problems.append(f"{o.obligation_id}: term {t['term_id']} of PO {o.po_number} is already paid or being paid")
+                    continue
+                if abs(o.amount_minor - t["amount_minor"]) > tol:
+                    problems.append(f"{o.obligation_id}: term {t['term_id']} of PO {o.po_number} is {t['amount_minor'] / 100:,.2f}; "
+                                    f"paying {o.amount_minor / 100:,.2f} would {'over' if o.amount_minor > t['amount_minor'] else 'under'}pay it")
+                    continue
+            elif not po["allow_partial"]:
+                problems.append(f"{o.obligation_id}: PO {o.po_number} takes only its terms, and this payment matches none")
+                continue
+            after = drawn[o.po_number] + o.amount_minor
+            if after > po["total_minor"] + tol:
+                problems.append(f"{o.obligation_id}: PO {o.po_number} has {po['currency']} {(po['total_minor'] - drawn[o.po_number]) / 100:,.2f} "
+                                f"left of {po['total_minor'] / 100:,.2f}; paying {o.amount_minor / 100:,.2f} would overpay it")
+                continue
+            drawn[o.po_number] = after
+            if o.installment in terms:
+                terms_taken[o.po_number].add(o.installment)
+            checked.append({"obligation_id": o.obligation_id, "po": o.po_number, "term": o.installment, "amount_minor": o.amount_minor,
+                            "left_after_minor": po["total_minor"] - after})
+        if problems:
+            refuse("purchase order: " + "; ".join(problems))
+        if checked:
+            steps.append(Step(kind="preflight", key="purchase_orders", status="OK", detail={"checked": checked}))
 
     async def _run(self, eid: str, state: TreasuryState, plan: PlanResult, before: dict[str, int],
                    req: ExecutionRequest, steps: list[Step]) -> ExecutionResult:
@@ -326,6 +392,9 @@ class Executor:
                     self.store.settle_payout(claimed, "RELEASED", None)
                 return None
             claims[d.obligation_id] = key
+            o = by_id[d.obligation_id]
+            if o.po_number:  # while in flight, this payout holds its part of the PO against other runs
+                self.store.record_po_draw(key, o.po_number, o.installment, o.currency, o.amount_minor, eid)
         steps.append(Step(kind="preflight", key="payout-claims", status="OK", detail={"claimed": sorted(claims)}))
         return claims
 
