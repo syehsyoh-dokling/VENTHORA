@@ -84,6 +84,7 @@ async def lifespan(app: FastAPI):
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
     app.state.org = OrgStore()
     app.state.executor.org = app.state.org  # payments with a charge code are held to their budget allocation
+    app.state.executor.on_result = _execution_done
     app.state.keys = apiaccess.KeyStore()
     app.state.intake = Intake(org=app.state.org, payments=app.state.executor.store)  # staff claims and POs use the org settings
     app.state.webhooks = webhooks.WebhookStore()
@@ -152,6 +153,14 @@ async def api_keys(request: Request, call_next):
     request.scope["query_string"] = urlencode(q).encode()
     request.state.api_key = key["key_id"]
     return await call_next(request)
+
+
+def _execution_done(result) -> None:
+    """Every execution result reaches the dashboards at once: paid, refused or waiting for a person."""
+    app.state.position_cache = None
+    paid = sum(1 for st in result.steps if st.kind == "transfer" and (st.detail or {}).get("status") == "PAID")
+    app.state.hub.publish("execution", {"execution_id": result.execution_id, "status": result.status, "message": result.message[:300],
+                                        "paid": paid})
 
 
 def _scenario_file(scenario_id: str):
@@ -830,7 +839,19 @@ async def get_incident(incident_id: str):
 
 @app.get("/v1/intake", response_model=list[IntakeRequest])
 async def list_intake():
-    return app.state.intake.store.list()
+    """The queue, each request with the money that settled it (PAID transfers booked against its invoice)."""
+    def build():
+        paid: dict[str, dict] = {}
+        for r in app.state.executor.store.paid_rows():
+            if not r.get("invoice_fingerprint"):
+                continue
+            p = paid.setdefault(r["invoice_fingerprint"], {"amount_minor": 0, "currency": r["currency"], "transfers": [], "paid_at": r["paid_at"]})
+            p["amount_minor"] += r["amount_minor"]
+            p["transfers"].append(r["transfer_id"])
+            p["paid_at"] = max(p["paid_at"], r["paid_at"])
+        return [q.model_copy(update={"payment": paid.get(q.invoice_fingerprint)}) if q.invoice_fingerprint in paid else q
+                for q in app.state.intake.store.list()]
+    return await asyncio.to_thread(build)
 
 
 @app.post("/v1/intake/emails", response_model=IntakeRequest)
@@ -861,6 +882,8 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
     proposals = await reader.read(parsed["text"], parsed["subject"], datetime.fromisoformat(parsed["received_at"]).date(),
                                   model) if model.configured else {}
     req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals)
+    if "po_unknown" in req.flags and req.po_number and not dry_run:
+        req = await _po_from_sources(req, raw, fps, proposals)
     req = await _validate_documents(req, raw, model, save=not dry_run)
     if not dry_run:
         app.state.position_cache = None  # a new bill or remittance changes the position
@@ -878,6 +901,125 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
                 with contextlib.suppress(PayeeError):
                     store.payee_event(req.counterparty_id, {"kind": "bank_change", "bank_fingerprint": fp,
                                                             "source": f"intake:{req.intake_id}", "quote": quoted[:300]})
+    return req
+
+
+async def _po_from_sources(req: IntakeRequest, raw: bytes, fps: dict | None, proposals: dict) -> IntakeRequest:
+    """An invoice quotes a PO VENTHORA does not have: ask every connected source (Settings → Sync API) for it. Found:
+    the PO is written through the usual checks and the invoice is read again against it. Not found: it waits for a
+    person, with the sources that were asked in the reason."""
+    po_id = req.po_number
+    got, asked = await _pull_po(po_id, req.intake_id)
+    if got:
+        fresh = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=False, proposals=proposals,
+                                        retriage_of=req.intake_id)
+        out = fresh.model_copy(update={"intake_id": req.intake_id,
+                                       "reasons": [f"PO {po_id} was not in VENTHORA; pulled from {got} and matched again"] + fresh.reasons})
+    else:
+        out = req.model_copy(update={"reasons": req.reasons + [_po_missing_reason(po_id, asked)]})
+    await asyncio.to_thread(app.state.intake.store.save, out)
+    return out
+
+
+def _po_missing_reason(po_id: str, asked: list[str]) -> str:
+    return (f"PO {po_id} is not in VENTHORA and none of the connected sources has it (asked: {', '.join(asked)})" if asked
+            else f"PO {po_id} is not in VENTHORA and no source is connected to pull it from (Settings → Sync API)")
+
+
+async def _pull_po(po_id: str, for_id: str) -> tuple[str | None, list[str]]:
+    """Ask every connected source for one PO and write it through the usual checks. (source name or None, asked)."""
+    from . import ingestion
+    from .connectors import ConnectorStore, fetch
+
+    asked, got = [], None
+    store = ConnectorStore()
+    for c in store.list():
+        raw_c = store.get_raw(c["connector_id"])
+        em = (raw_c or {}).get("entities", {}).get("po")
+        if not em or not em.get("enabled", True):
+            continue
+        asked.append(c["name"])
+        try:
+            rows, ids = await fetch(raw_c, "po")
+        except Exception:  # noqa: BLE001 - a source that does not answer is reported in the reason
+            continue
+        hit = [(r, i) for r, i in zip(rows, ids, strict=False) if str(r.get("po_id", "")).upper() == po_id]
+        if hit:
+            rep = await asyncio.to_thread(ingestion.apply, "po", [r for r, _ in hit], [i for _, i in hit], source=f"sync:{c['connector_id']}",
+                                          **_ingest_ctx())
+            if app.state.org.get("po", po_id) is not None:
+                got = c["name"]
+                await asyncio.to_thread(app.state.audit.append, "po_pulled", {"po": po_id, "connector": c["connector_id"], "for": for_id,
+                                                                            "report": {k: v for k, v in rep.items() if k in ("created", "updated", "rejected")}})
+                break
+    return got, asked
+
+
+class OrderAttachment(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    content_type: str = Field("application/pdf", max_length=100)
+    base64: str = Field(max_length=MAX_EMAIL_BYTES * 2)
+
+
+class PaymentOrderIn(BaseModel):
+    """A payment someone inside the company asks for: an invoice in hand, a contractor, a supplier deposit."""
+    vendor_id: str = Field(min_length=1, max_length=80, description="a registered payee")
+    invoice_no: str = Field(min_length=2, max_length=40, description="the invoice or reference being paid")
+    amount_minor: int = Field(gt=0, le=10**13)
+    currency: str = Field(min_length=3, max_length=3)
+    due_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    po_number: str | None = Field(None, max_length=40)
+    description: str = Field("", max_length=300)
+    attachments: list[OrderAttachment] = Field(default_factory=list, max_length=10)
+
+
+@app.post("/v1/intake/payment-orders", response_model=IntakeRequest)
+async def payment_order(body: PaymentOrderIn, role: str = "finance_manager", by: str = "dashboard"):
+    """An internal payment order into the same queue as emailed invoices, through the same checks: the payee must be
+    registered, the PO must match (pulled from a connected source when VENTHORA does not have it), duplicates are
+    refused, attached documents are validated. It always waits for a person other than the one who asked."""
+    import base64
+    import uuid
+    from email.message import EmailMessage
+
+    from .intake.documents import attachments_of
+    from .intake.models import Attachment
+
+    person = next((u for u in app.state.org.list("user") if u.get("active", True)
+                   and by.strip().lower() in (u["name"].lower(), u["email"].lower())), None)
+    if person is None:
+        raise HTTPException(403, f"{by} is not an active person in User management; only people of the organisation may ask for a payment")
+    po_id = (body.po_number or "").strip().upper() or None
+    pulled = None
+    if po_id and app.state.org.get("po", po_id) is None:
+        pulled = await _pull_po(po_id, f"order:{body.invoice_no}")
+    bill = {"bill_id": f"ORDER-{uuid.uuid4().hex[:10]}", "vendor_id": body.vendor_id, "invoice_no": body.invoice_no.upper(),
+            "amount_minor": body.amount_minor, "currency": body.currency.upper(), "due_date": body.due_date,
+            "po_number": po_id, "description": body.description}
+    req = await asyncio.to_thread(app.state.intake.ingest_record, bill, source=f"internal:{person['user_id']}")
+    msg = EmailMessage()  # the attachments as one message, so documents are read and validated like an email's
+    msg["From"] = person["email"]
+    msg["Subject"] = f"Payment order {bill['invoice_no']}"
+    msg.set_content(f"Payment order {bill['invoice_no']} for {body.vendor_id}. {body.description}")
+    for a in body.attachments:
+        main, _, sub = a.content_type.partition("/")
+        msg.add_attachment(base64.b64decode(a.base64), maintype=main or "application", subtype=sub or "octet-stream", filename=a.name)
+    reasons = [f"internal payment order by {person['name']} ({person['role'].replace('_', ' ')}); a different person approves it"]
+    if pulled and pulled[0]:
+        reasons.append(f"PO {po_id} was not in VENTHORA; pulled from {pulled[0]}")
+    elif pulled:
+        reasons.append(_po_missing_reason(po_id, pulled[1]))
+    reasons += [r for r in req.reasons if not r.startswith("from the company's own system")]
+    files = await asyncio.to_thread(attachments_of, msg)
+    req = req.model_copy(update={"display_name": person["name"], "sender": person["email"], "flags": [*req.flags, "internal_order"],
+                                 "reasons": reasons, "status": "NEEDS_REVIEW" if req.status == "VERIFIED" else req.status,
+                                 "attachments": [Attachment(**{k: v for k, v in f.items() if k != "text"}) for f in files]})
+    await asyncio.to_thread(app.state.intake.store.save, req)
+    req = await _validate_documents(req, msg.as_bytes(), active_model(), save=True)
+    app.state.position_cache = None
+    app.state.hub.publish("intake", {"channel": "internal"} | req.model_dump(include={
+        "intake_id", "kind", "status", "trust", "sender", "counterparty_name", "amount_minor", "currency", "invoice_no", "reader", "flags"}))
+    await asyncio.to_thread(app.state.audit.append, "payment_order", req.model_dump(exclude={"text"}) | {"by": f"{person['name']} ({role})"})
     return req
 
 
@@ -1347,11 +1489,16 @@ async def demo_legacy_erp(entity: str, request: Request):
 
 @app.get("/v1/sources/connectors")
 async def connectors_list(request: Request):
-    from .connectors import ConnectorStore, demo_connector
+    from .connectors import Connector, ConnectorStore, demo_connector
 
     store = ConnectorStore()
+    demo = demo_connector(str(request.base_url).rstrip("/"))
     if not store.list():  # a fresh install shows the demo connector to the stand-in ERP, ready to sync
-        store.save(demo_connector(str(request.base_url).rstrip("/")))
+        store.save(demo)
+    raw = store.get_raw(demo.connector_id)
+    if raw is not None and set(demo.entities) - set(raw["entities"]):  # entities added since it was saved
+        add = {k: v for k, v in demo.entities.items() if k not in raw["entities"]}
+        store.save(Connector.model_validate(raw | {"entities": raw["entities"] | add}))
     return store.list()
 
 
@@ -1420,8 +1567,14 @@ async def _sync_connector(connector_id: str, dry_run: bool, entity: str | None, 
 
 @app.get("/v1/sources/master/{entity}")
 async def master_list(entity: str):
+    from .ingestion import ORG_ENTITIES
     from .masterdata import ENTITIES, MasterStore
 
+    if entity in ORG_ENTITIES:
+        org = app.state.org
+        with org._connect() as c:
+            by = {r["record_id"]: r["updated_by"] for r in c.execute("SELECT record_id, updated_by FROM records WHERE kind = ?", (entity,))}
+        return [r | {"_source": by.get(r.get(ID_FIELD[entity]), "-")} for r in org.list(entity)]
     if entity not in ENTITIES:
         raise HTTPException(404, "unknown entity")
     rows = MasterStore().list(entity)
@@ -1578,10 +1731,15 @@ async def readiness():
     rep = load_config()
     add("Plan and policy", "Reporting cut-off", "ok" if getattr(rep, "set_by", None) not in (None, "", "seed") else "placeholder",
         f"day {rep.cutoff_day} {rep.cutoff_time} {rep.timezone}, reporting in {rep.reporting_currency}", "#/standards")
-    for kind, label, fix in (("unit", "Organisation units", "#/users"), ("user", "People and approval limits", "#/users"),
-                             ("project", "Projects", "#/codes"), ("account", "Chart of accounts", "#/codes")):
+    for kind, label in (("unit", "Organisation units (offices, branches)"), ("user", "People and approval limits"),
+                        ("project", "Projects"), ("account", "Chart of accounts"), ("price", "Unit prices")):
         r, a = org_real(kind)
-        add("Organisation", label, "ok" if r else "placeholder", f"{a} records ({r} entered or changed by a person)", fix)
+        add("Organisation", label, "ok" if r else "placeholder",
+            f"{a} records ({r} synced, uploaded or entered by a person; the rest are the demo seed)", "#/sources-sync")
+    pol = org.budget_policy()
+    add("Plan and policy", "Budget allocation", "ok",
+        "No limit: every unit pays from the balance" if pol["enforcement"] == "no_limit"
+        else f"Limited per allocation, {len(org.list('allocation'))} allocations", "#/budget-policy")
     summary = {s: sum(1 for i in items if i["status"] == s) for s in ("ok", "placeholder", "missing")}
     return {"summary": summary, "items": items}
 
@@ -1754,20 +1912,22 @@ async def budget_policy_put(body: BudgetPolicyIn, role: str = "finance_manager",
     from .organisation import Standards
 
     who = _writer(role, by)
+    sent = body.model_dump(exclude_unset=True)  # what the caller did not send keeps its current value
     try:
-        ZoneInfo(body.timezone)
+        ZoneInfo(sent.get("timezone", load_reporting_config().timezone))
         cur = app.state.org.budget_policy()
-        pol = BudgetPolicy.model_validate(cur | body.model_dump(include={"enforcement", "period_type", "daily_sync_time", "monthly_sync_day", "sync_enabled"}))
+        pol = BudgetPolicy.model_validate(cur | {k: v for k, v in sent.items() if k in ("enforcement", "period_type", "daily_sync_time", "monthly_sync_day", "sync_enabled")})
     except Exception as exc:  # noqa: BLE001 - a bad time zone or value is the caller's to fix
         raise HTTPException(422, str(exc)) from exc
     org = app.state.org
     await asyncio.to_thread(org.save_budget_policy, pol, who)
-    std = org.standards() | {"fiscal_year_start_month": body.fiscal_year_start_month}
-    await asyncio.to_thread(org.save_standards, Standards.model_validate(std), who)
-    cfg = load_reporting_config().model_copy(update={"cutoff_day": body.cutoff_day, "cutoff_time": body.cutoff_time,
-                                                     "timezone": body.timezone, "set_by": who})
-    save_reporting_config(cfg)
-    await asyncio.to_thread(app.state.audit.append, "budget_policy", body.model_dump() | {"by": who})
+    if "fiscal_year_start_month" in sent:
+        std = org.standards() | {"fiscal_year_start_month": sent["fiscal_year_start_month"]}
+        await asyncio.to_thread(org.save_standards, Standards.model_validate(std), who)
+    cut = {k: sent[k] for k in ("cutoff_day", "cutoff_time", "timezone") if k in sent}
+    if cut:
+        save_reporting_config(load_reporting_config().model_copy(update=cut | {"set_by": who}))
+    await asyncio.to_thread(app.state.audit.append, "budget_policy", sent | {"by": who})
     return await asyncio.to_thread(_budget_policy_view)
 
 

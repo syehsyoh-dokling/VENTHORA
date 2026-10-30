@@ -2,7 +2,8 @@
 """What arrives with an email, turned into text the intake can quote: PDF attachments, inbound-service payloads,
 the receiving server's sender-authentication verdicts, and the invoice's own arithmetic.
 
-* PDF       text-based PDFs only (exported invoices); a scan without a text layer is listed, never guessed.
+* PDF       the text layer of an exported invoice; a scan without one is read by local OCR (RapidOCR, offline),
+            and so is an attached image (JPG, PNG). OCR text is marked as such; what it cannot read is listed.
 * Postmark  the inbound JSON (no own domain needed: every Postmark server has an inbound address) is rebuilt
             into a standard RFC 822 message, attachments included, so one parser serves every channel.
 * SPF/DKIM  read from Authentication-Results / Received-SPF added by the receiving server. A registered mailbox
@@ -22,6 +23,47 @@ from email.message import EmailMessage
 MAX_PDF_BYTES = 5 * 1024 * 1024
 MAX_PDF_PAGES = 20
 MAX_TEXT = 20_000
+MAX_OCR_IMAGES = 6
+_OCR = None
+
+
+def _engine():
+    """The OCR engine, loaded once; None when RapidOCR is not installed (the files are then listed, not read)."""
+    global _OCR
+    if _OCR is None:
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+
+            _OCR = RapidOCR()
+        except Exception:  # noqa: BLE001 - OCR is optional
+            _OCR = False
+    return _OCR or None
+
+
+# a label glued to an UPPER-case or digit value ("InvoiceNL-5009"); the label itself in any case
+LABEL_GLUE = re.compile(r"\b(?i:invoice|inv|iban|date|due|amount|total|po|account|no\.?|number|faktur|tanggal|rekening)(?=[A-Z0-9])")
+CCY_WORD = re.compile(r"(?i)\b(usd|eur|gbp|sgd|idr|aud|cad|chf|jpy|cny|hkd|myr|thb|php|inr|nzd)\b")
+
+
+GLUED_PAIR = re.compile(r"(?i)\b(invoice|amount|total|due|issue|tax|account|bank|grand)(date|due|amount|no|number|total|name)\b")
+
+
+def ocr_image(data: bytes) -> str:
+    """Text read from one image, line by line top to bottom; labels OCR glued to their value are split again
+    ("InvoiceNL-5009" -> "Invoice NL-5009", "date:2026" -> "date: 2026")."""
+    eng = _engine()
+    if eng is None or not data:
+        return ""
+    try:
+        res, _ = eng(data)
+    except Exception:  # noqa: BLE001 - an unreadable image is listed, never fatal
+        return ""
+    lines = [t for _, t, score in (res or []) if float(score) >= 0.5]
+    text = "\n".join(lines)
+    text = LABEL_GLUE.sub(lambda m: m.group(0) + " ", text)
+    text = CCY_WORD.sub(lambda m: m.group(0).upper(), text)  # "UsD 300.00" -> "USD 300.00"
+    text = GLUED_PAIR.sub(lambda m: f"{m.group(1)} {m.group(2)}", text)  # "Invoicedate" -> "Invoice date"
+    return re.sub(r":(?=\S)", ": ", text)
 
 
 def pdf_text(data: bytes) -> tuple[str, int, str | None]:
@@ -36,11 +78,16 @@ def pdf_text(data: bytes) -> tuple[str, int, str | None]:
             return "", len(reader.pages), "encrypted"
         pages = reader.pages[:MAX_PDF_PAGES]
         text = "\n".join((p.extract_text() or "") for p in pages)
+        if not text.strip():  # a scan: read the page images
+            images = [im.data for p in pages for im in p.images][:MAX_OCR_IMAGES]
+            ocr = "\n".join(filter(None, (ocr_image(d) for d in images)))
+            if ocr.strip():
+                return ocr[:MAX_TEXT], len(pages), "scanned PDF; text read by OCR"
     except Exception as exc:  # noqa: BLE001 - a malformed attachment is reported, never fatal
         return "", 0, f"unreadable PDF ({type(exc).__name__})"
     text = re.sub(r"[ \t]+", " ", text).strip()
     if not text:
-        return "", len(pages), "no text layer (a scan); not read"
+        return "", len(pages), "no text layer and no OCR text (a scan); not read"
     return text[:MAX_TEXT], len(pages), None
 
 
@@ -56,8 +103,12 @@ def attachments_of(msg) -> list[dict]:
         if ctype == "application/pdf" or name.lower().endswith(".pdf"):
             item["text"], item["pages"], item["problem"] = pdf_text(data)
             item["read"] = bool(item["text"])
+        elif ctype.startswith("image/") or name.lower().rsplit(".", 1)[-1] in ("jpg", "jpeg", "png", "tif", "tiff", "bmp", "webp"):
+            item["text"] = ocr_image(data) if len(data) <= MAX_PDF_BYTES else ""
+            item["pages"], item["read"] = 1, bool(item["text"])
+            item["problem"] = "image; text read by OCR" if item["text"] else "image; no text could be read"
         else:
-            item["problem"] = "not a PDF; not read"
+            item["problem"] = "not a PDF or an image; not read"
         out.append(item)
     return out
 

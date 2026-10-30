@@ -40,9 +40,10 @@ CURRENCIES = {"USD": "USD", "US$": "USD", "$": "USD", "EUR": "EUR", "€": "EUR"
 AMOUNT_RE = re.compile(r"(?P<cur>USD|EUR|GBP|US\$|\$|€|£)\s?(?P<amt>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)"
                        r"|(?P<amt2>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s?(?P<cur2>USD|EUR|GBP)\b")
 INVOICE_RE = re.compile(r"\b(?:invoice|inv\.?|bill|statement|claim|timesheet)\s*(?:no\.?|number|#|ref\.?|:)?\s*"
-                        r"(?P<no>[A-Z]{1,6}[-/]?\d{2,}(?:[-/]\d{1,6})*)", re.IGNORECASE)
+                        r"(?P<no>[A-Z]{1,6}[-/]?(?:[A-Z]{1,3}\d{2,}|\d{2,}[A-Z]{0,3})(?:[-/][A-Z0-9]{1,8})*)", re.IGNORECASE)
 PO_BEFORE_RE = re.compile(r"(?:purchase order|\bp\.?o\.?)\s*(?:no\.?|number|#)?\s*[:#]?\s*$")
-INVOICE_BARE_RE = re.compile(r"\b(?P<no>[A-Z]{2,6}-\d{2,}(?:-\d{1,6})?)\b")
+# LD-4410, LD-F025811, INV/2026/X/017, INV-2026-A17: letters, then digits (a short letter run may sit on either side)
+INVOICE_BARE_RE = re.compile(r"(?<![-/A-Za-z0-9])(?P<no>[A-Z]{2,6}[-/](?:[A-Z]{1,3}\d{2,}|\d{2,}[A-Z]{0,3})(?:[-/][A-Z0-9]{1,8})?)\b")
 DUE_RE = re.compile(r"\b(?:due|payable|pay(?:ment)?\s+(?:by|before|on)|by)\s+(?:on\s+|by\s+)?(?P<date>"
                     r"\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?:\s+\d{4})?"
                     r"|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?"
@@ -331,7 +332,7 @@ class Intake:
         self.payments = payments  # the execution store's spend ledger: what each PO has really paid
 
     def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None, save: bool = True,
-               proposals: dict[str, Quote] | None = None) -> IntakeRequest:
+               proposals: dict[str, Quote] | None = None, retriage_of: str | None = None) -> IntakeRequest:
         """Triage one raw email. save=False (dry run) triages without touching the queue. `proposals` are fields
         the model read and the reader already matched verbatim to the text (see intake/reader.py)."""
         parsed = parse_eml(raw)
@@ -440,6 +441,8 @@ class Intake:
         else:
             fingerprint = _fingerprint(rec, inv.value if inv else None, cid) if kind != "remittance_notice" else None
         known = dict(book_fingerprints or {}) | self.store.fingerprints()
+        if retriage_of:  # read again (e.g. after its PO was pulled in): the request is not a duplicate of itself
+            known = {k: v for k, v in known.items() if v != retriage_of}
         duplicate_of = known.get(fingerprint) if fingerprint else None
 
         if trust == "failed_authentication":
@@ -650,6 +653,9 @@ class Intake:
                 raise PermissionError("the claimant cannot review their own claim")
         elif review.role not in self.reviewer_roles:
             raise PermissionError(f"role {review.role} may not review intake; allowed: {', '.join(self.reviewer_roles)}")
+        if "internal_order" in req.flags and review.decision == "verify" and \
+                review.reviewer.strip().lower() == (req.display_name or "").strip().lower():
+            raise PermissionError("the person who asked for this payment cannot approve it")
         if req.status == "DUPLICATE":
             raise PermissionError("a duplicate invoice cannot be verified; the original is already in the book")
         if review.decision == "verify" and req.counterparty_id is None:

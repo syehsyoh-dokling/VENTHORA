@@ -1,50 +1,371 @@
 {
   "_note": "A stand-in for the company's old ERP, served at /demo/legacy-erp/<entity> for the Sync API demo. Its field names are the old system's (CompanyName, Bank.IBAN, Amount ...), not VENTHORA's, so the connector's mapping is exercised. All data is fictional; the bank details are sandbox test values.",
+  "units": [
+    {
+      "Code": "co-sg",
+      "Name": "Singapore Country Office",
+      "Type": "Country office",
+      "Parent": "hq",
+      "Country": "SG",
+      "Currency": "SGD",
+      "TimeZone": "Asia/Singapore",
+      "CostCentre": "SG-500",
+      "PayLimit": "15000.00"
+    },
+    {
+      "Code": "br-sg-jurong",
+      "Name": "Jurong Branch",
+      "Type": "Branch",
+      "Parent": "co-sg",
+      "Country": "SG",
+      "Currency": "SGD",
+      "TimeZone": "Asia/Singapore",
+      "CostCentre": "SG-510",
+      "PayLimit": "5000.00"
+    },
+    {
+      "Code": "co-de",
+      "Name": "Germany Country Office",
+      "Type": "Country office",
+      "Parent": "hq",
+      "Country": "DE",
+      "Currency": "EUR",
+      "TimeZone": "Europe/Berlin",
+      "CostCentre": "DE-400",
+      "PayLimit": "25000.00"
+    }
+  ],
+  "people": [
+    {
+      "FullName": "Mei Lin Tan",
+      "Email": "meilin.tan@acme.example",
+      "Role": "Country finance lead",
+      "Unit": "co-sg",
+      "ApprovalLimit": "20000.00"
+    },
+    {
+      "FullName": "Ravi Kumar",
+      "Email": "ravi.kumar@acme.example",
+      "Role": "Treasury analyst",
+      "Unit": "br-sg-jurong",
+      "ApprovalLimit": "0"
+    },
+    {
+      "FullName": "Dana Finch",
+      "Email": "dana.finch@acme.example",
+      "Role": "Finance manager",
+      "Unit": "co-us",
+      "ApprovalLimit": "60000.00"
+    }
+  ],
+  "projects": [
+    {
+      "Code": "SGWH27",
+      "Name": "Singapore warehouse fit-out 2027",
+      "Unit": "co-sg"
+    },
+    {
+      "Code": "PRJ900",
+      "Name": "EU Warehouse Roll-out",
+      "Unit": "pf-eu-rollout"
+    }
+  ],
+  "accounts": [
+    {
+      "GL": "6800",
+      "Name": "Rent and facilities",
+      "Category": "Office"
+    },
+    {
+      "GL": "6100",
+      "Name": "Freight and logistics",
+      "Category": "Logistics"
+    }
+  ],
+  "prices": [
+    {
+      "Item": "Pallet racking bay",
+      "Category": "Suppliers",
+      "Per": "bay",
+      "Price": "1250.00",
+      "Currency": "SGD",
+      "Office": "co-sg"
+    },
+    {
+      "Item": "Forklift hire",
+      "Category": "Logistics",
+      "Per": "day",
+      "Price": "320.00",
+      "Currency": "SGD",
+      "Office": "co-sg"
+    },
+    {
+      "Item": "SaaS seat",
+      "Category": "Software",
+      "Per": "seat / month",
+      "Price": "45.00",
+      "Currency": "USD",
+      "Office": ""
+    }
+  ],
   "vendors": [
-    {"Id": "V-2001", "Code": "nordlicht-logistik", "CompanyName": "Nordlicht Logistik GmbH", "Currency": "EUR", "PayMethod": "SWIFT",
-     "Emails": "rechnungen@nordlicht-logistik.example", "Phone": "+49 40 555 0181", "Category": "logistics", "Priority": "6",
-     "Bank": {"Holder": "Nordlicht Logistik GmbH", "IBAN": "DE89 3704 0044 0532 0130 00", "SWIFT": "COBADEFFXXX", "BankName": "Commerzbank", "Country": "DE", "Currency": "EUR"},
-     "Address": {"Street": "Speicherstadt 12", "City": "Hamburg", "Zip": "20457", "Country": "DE"}},
-    {"Id": "V-2002", "Code": "pacific-office", "CompanyName": "Pacific Office Supplies LLC", "Currency": "USD", "PayMethod": "LOCAL",
-     "Emails": "ar@pacific-office.example", "Phone": "+1 415 555 0144", "Category": "office", "Priority": "3",
-     "Bank": {"Holder": "Pacific Office Supplies LLC", "Number": "483101090077", "RoutingType": "aba", "Routing": "026009593", "BankName": "Bank of America", "Country": "US", "Currency": "USD"},
-     "Address": {"Street": "88 Mission Street", "City": "San Francisco", "State": "CA", "Zip": "94105", "Country": "US"}},
-    {"Id": "V-2003", "Code": "harbor-analytics", "CompanyName": "Harbor Analytics Ltd", "Currency": "GBP", "PayMethod": "LOCAL",
-     "Emails": "billing@harbor-analytics.example", "Phone": "+44 20 5550 1290", "Category": "contractors", "Priority": "4",
-     "Bank": {"Holder": "Harbor Analytics Ltd", "Number": "41926819", "RoutingType": "sort_code", "Routing": "400515", "BankName": "HSBC UK", "Country": "GB", "Currency": "GBP"},
-     "Address": {"Street": "1 Canada Square", "City": "London", "Zip": "E14 5AB", "Country": "GB"}},
-    {"Id": "V-1002", "Code": "ben-saas-vendor", "CompanyName": "Cloudloom Software LLC", "Currency": "USD", "PayMethod": "LOCAL",
-     "Emails": "billing@cloudloom.example", "Phone": "+1 415 555 0102", "Category": "saas", "Priority": "2",
-     "Bank": {"Holder": "Cloudloom Software LLC", "Number": "483101090099", "RoutingType": "aba", "Routing": "026009593", "BankName": "Bank of America", "Country": "US", "Currency": "USD"},
-     "Address": {"Street": "500 Howard Street", "City": "San Francisco", "State": "CA", "Zip": "94105", "Country": "US"}}
+    {
+      "Id": "V-2001",
+      "Code": "nordlicht-logistik",
+      "CompanyName": "Nordlicht Logistik GmbH",
+      "Currency": "EUR",
+      "PayMethod": "SWIFT",
+      "Emails": "rechnungen@nordlicht-logistik.example",
+      "Phone": "+49 40 555 0181",
+      "Category": "logistics",
+      "Priority": "6",
+      "Bank": {
+        "Holder": "Nordlicht Logistik GmbH",
+        "IBAN": "DE89 3704 0044 0532 0130 00",
+        "SWIFT": "COBADEFFXXX",
+        "BankName": "Commerzbank",
+        "Country": "DE",
+        "Currency": "EUR"
+      },
+      "Address": {
+        "Street": "Speicherstadt 12",
+        "City": "Hamburg",
+        "Zip": "20457",
+        "Country": "DE"
+      }
+    },
+    {
+      "Id": "V-2002",
+      "Code": "pacific-office",
+      "CompanyName": "Pacific Office Supplies LLC",
+      "Currency": "USD",
+      "PayMethod": "LOCAL",
+      "Emails": "ar@pacific-office.example",
+      "Phone": "+1 415 555 0144",
+      "Category": "office",
+      "Priority": "3",
+      "Bank": {
+        "Holder": "Pacific Office Supplies LLC",
+        "Number": "483101090077",
+        "RoutingType": "aba",
+        "Routing": "026009593",
+        "BankName": "Bank of America",
+        "Country": "US",
+        "Currency": "USD"
+      },
+      "Address": {
+        "Street": "88 Mission Street",
+        "City": "San Francisco",
+        "State": "CA",
+        "Zip": "94105",
+        "Country": "US"
+      }
+    },
+    {
+      "Id": "V-2003",
+      "Code": "harbor-analytics",
+      "CompanyName": "Harbor Analytics Ltd",
+      "Currency": "GBP",
+      "PayMethod": "LOCAL",
+      "Emails": "billing@harbor-analytics.example",
+      "Phone": "+44 20 5550 1290",
+      "Category": "contractors",
+      "Priority": "4",
+      "Bank": {
+        "Holder": "Harbor Analytics Ltd",
+        "Number": "41926819",
+        "RoutingType": "sort_code",
+        "Routing": "400515",
+        "BankName": "HSBC UK",
+        "Country": "GB",
+        "Currency": "GBP"
+      },
+      "Address": {
+        "Street": "1 Canada Square",
+        "City": "London",
+        "Zip": "E14 5AB",
+        "Country": "GB"
+      }
+    },
+    {
+      "Id": "V-1002",
+      "Code": "ben-saas-vendor",
+      "CompanyName": "Cloudloom Software LLC",
+      "Currency": "USD",
+      "PayMethod": "LOCAL",
+      "Emails": "billing@cloudloom.example",
+      "Phone": "+1 415 555 0102",
+      "Category": "saas",
+      "Priority": "2",
+      "Bank": {
+        "Holder": "Cloudloom Software LLC",
+        "Number": "483101090099",
+        "RoutingType": "aba",
+        "Routing": "026009593",
+        "BankName": "Bank of America",
+        "Country": "US",
+        "Currency": "USD"
+      },
+      "Address": {
+        "Street": "500 Howard Street",
+        "City": "San Francisco",
+        "State": "CA",
+        "Zip": "94105",
+        "Country": "US"
+      }
+    }
   ],
   "customers": [
-    {"Id": "C-501", "Code": "brightside-retail", "CompanyName": "Brightside Retail Inc", "Currency": "USD", "Emails": "ap@brightside-retail.example", "Kept": 9, "Missed": 1},
-    {"Id": "C-502", "Code": "acme-retail", "CompanyName": "Acme Retail Ltd", "Currency": "USD", "Emails": "ar@acme-retail.example; acme.retail.ar@outlook.com", "Kept": 14, "Missed": 2}
+    {
+      "Id": "C-501",
+      "Code": "brightside-retail",
+      "CompanyName": "Brightside Retail Inc",
+      "Currency": "USD",
+      "Emails": "ap@brightside-retail.example",
+      "Kept": 9,
+      "Missed": 1
+    },
+    {
+      "Id": "C-502",
+      "Code": "acme-retail",
+      "CompanyName": "Acme Retail Ltd",
+      "Currency": "USD",
+      "Emails": "ar@acme-retail.example; acme.retail.ar@outlook.com",
+      "Kept": 14,
+      "Missed": 2
+    }
   ],
   "purchase_orders": [
-    {"Id": "P-77", "Number": "PO-2026-0201", "Vendor": "nordlicht-logistik", "Currency": "EUR", "Total": "20000.00", "CostCode": "DE-400.PRJ900.6100",
-     "Memo": "Racking delivery and installation", "PartialAllowed": false,
-     "Terms": [{"term_id": "T1", "label": "30% on order", "amount_minor": 600000}, {"term_id": "T2", "label": "70% on installation", "amount_minor": 1400000}]},
-    {"Id": "P-78", "Number": "PO-2026-0202", "Vendor": "pacific-office", "Currency": "USD", "Total": "3000.00", "CostCode": "US-210.OPS.6700",
-     "Memo": "Office supplies, US West branch, Q4", "PartialAllowed": true, "Terms": []}
+    {
+      "Id": "P-77",
+      "Number": "PO-2026-0201",
+      "Vendor": "nordlicht-logistik",
+      "Currency": "EUR",
+      "Total": "20000.00",
+      "CostCode": "DE-400.PRJ900.6100",
+      "Memo": "Racking delivery and installation",
+      "PartialAllowed": false,
+      "Terms": [
+        {
+          "term_id": "T1",
+          "label": "30% on order",
+          "amount_minor": 600000
+        },
+        {
+          "term_id": "T2",
+          "label": "70% on installation",
+          "amount_minor": 1400000
+        }
+      ]
+    },
+    {
+      "Id": "P-78",
+      "Number": "PO-2026-0202",
+      "Vendor": "pacific-office",
+      "Currency": "USD",
+      "Total": "3000.00",
+      "CostCode": "US-210.OPS.6700",
+      "Memo": "Office supplies, US West branch, Q4",
+      "PartialAllowed": true,
+      "Terms": []
+    },
+    {
+      "Id": "P-79",
+      "Number": "PO-2026-0203",
+      "Vendor": "pacific-office",
+      "Currency": "USD",
+      "Total": "2400.00",
+      "CostCode": "US-210.OPS.6700",
+      "Memo": "Office chairs, two deliveries",
+      "PartialAllowed": true,
+      "Terms": []
+    }
   ],
   "open_bills": [
-    {"Id": "B-9001", "Vendor": "nordlicht-logistik", "InvoiceNo": "NL-5001", "Amount": "6000.00", "Currency": "EUR", "DueDate": "2026-11-12", "PO": "PO-2026-0201", "Memo": "30% on order"},
-    {"Id": "B-9002", "Vendor": "pacific-office", "InvoiceNo": "POS-3310", "Amount": "1200.00", "Currency": "USD", "DueDate": "2026-11-09", "PO": "PO-2026-0202", "Memo": "Paper and toner"},
-    {"Id": "B-9003", "Vendor": "harbor-analytics", "InvoiceNo": "HA-77", "Amount": "900.00", "Currency": "GBP", "DueDate": "2026-11-15", "PO": "", "Memo": "October analytics retainer"}
+    {
+      "Id": "B-9001",
+      "Vendor": "nordlicht-logistik",
+      "InvoiceNo": "NL-5001",
+      "Amount": "6000.00",
+      "Currency": "EUR",
+      "DueDate": "2026-11-12",
+      "PO": "PO-2026-0201",
+      "Memo": "30% on order"
+    },
+    {
+      "Id": "B-9002",
+      "Vendor": "pacific-office",
+      "InvoiceNo": "POS-3310",
+      "Amount": "1200.00",
+      "Currency": "USD",
+      "DueDate": "2026-11-09",
+      "PO": "PO-2026-0202",
+      "Memo": "Paper and toner"
+    },
+    {
+      "Id": "B-9003",
+      "Vendor": "harbor-analytics",
+      "InvoiceNo": "HA-77",
+      "Amount": "900.00",
+      "Currency": "GBP",
+      "DueDate": "2026-11-15",
+      "PO": "",
+      "Memo": "October analytics retainer"
+    }
   ],
   "receivables": [
-    {"Id": "R-3001", "Customer": "brightside-retail", "InvoiceNo": "BR-9001", "Amount": "12500.00", "Currency": "USD", "DueDate": "2026-11-10"},
-    {"Id": "R-3002", "Customer": "acme-retail", "InvoiceNo": "AR-6001", "Amount": "4000.00", "Currency": "USD", "DueDate": "2026-11-05"}
+    {
+      "Id": "R-3001",
+      "Customer": "brightside-retail",
+      "InvoiceNo": "BR-9001",
+      "Amount": "12500.00",
+      "Currency": "USD",
+      "DueDate": "2026-11-10"
+    },
+    {
+      "Id": "R-3002",
+      "Customer": "acme-retail",
+      "InvoiceNo": "AR-6001",
+      "Amount": "4000.00",
+      "Currency": "USD",
+      "DueDate": "2026-11-05"
+    }
   ],
   "budget": [
-    {"Period": "CURRENT", "Line": "logistics", "Amount": "15000.00", "Auto": "10000", "Alert": "8000"},
-    {"Period": "CURRENT", "Line": "suppliers", "Amount": "25000.00", "Auto": "8000", "Alert": "7000"},
-    {"Period": "CURRENT", "Line": "office", "Amount": "4000.00", "Auto": "10000", "Alert": "9000"}
+    {
+      "Period": "CURRENT",
+      "Line": "logistics",
+      "Amount": "15000.00",
+      "Auto": "10000",
+      "Alert": "8000"
+    },
+    {
+      "Period": "CURRENT",
+      "Line": "suppliers",
+      "Amount": "25000.00",
+      "Auto": "8000",
+      "Alert": "7000"
+    },
+    {
+      "Period": "CURRENT",
+      "Line": "office",
+      "Amount": "4000.00",
+      "Auto": "10000",
+      "Alert": "9000"
+    }
   ],
   "books": [
-    {"Tenant": "acme-group", "TenantName": "Acme Group (US operations)", "Book": "eu-warehouse-*", "Payees": "nordlicht-logistik; ben-eu-components",
-     "Approvers": [{"name": "Omar Reyes", "role": "cfo"}]}
+    {
+      "Tenant": "acme-group",
+      "TenantName": "Acme Group (US operations)",
+      "Book": "eu-warehouse-*",
+      "Payees": "nordlicht-logistik; ben-eu-components",
+      "Approvers": [
+        {
+          "name": "Omar Reyes",
+          "role": "cfo"
+        }
+      ]
+    }
   ]
 }

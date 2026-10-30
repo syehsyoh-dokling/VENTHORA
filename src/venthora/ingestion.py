@@ -6,8 +6,14 @@
   po            the organisation's purchase orders (the same checks as the PO form: supplier, currency, account code)
   bill          master data, then the intake queue through the same checks as an emailed invoice (vendor, PO, duplicate)
   customer, receivable, budget_line, tenant_book   master data (read by the registry, the plan, budget and tenancy)
+  unit, user, project, account, price   the organisation itself (offices and branches, people and their approval
+                limits, projects, the chart of accounts, unit prices), through the same checks as the Settings forms;
+                a record is matched by its natural key (cost centre, email, project or account code, item) so a second
+                sync updates it instead of adding a copy
 """
 from __future__ import annotations
+
+import re
 
 from .masterdata import MasterStore, beneficiary_payload
 from .payees import PayeeError, bank_fingerprint_of
@@ -21,6 +27,8 @@ def apply(entity: str, rows: list[dict], ext_ids: list[str | None], *, source: s
     keep = [(r, ext_ids[i] if i < len(ext_ids) else None) for i, r in enumerate(rows) if "_error" not in r]
     if entity == "po":
         return _purchase_orders(keep, pre_rejected, source=source, org=org, dry_run=dry_run)
+    if entity in ORG_ENTITIES:
+        return _organisation(entity, keep, pre_rejected, source=source, org=org, dry_run=dry_run)
     before = {v["vendor_id"]: v for v in master.list("vendor")} if entity == "vendor" else {}
     report = master.upsert(entity, [r for r, _ in keep], source=source, external_ids=[e for _, e in keep], dry_run=dry_run)
     report["rejected"] = pre_rejected + report["rejected"]
@@ -38,6 +46,15 @@ def apply(entity: str, rows: list[dict], ext_ids: list[str | None], *, source: s
                                       + (f" ({', '.join(req.flags)})" if req.flags else "")
                                       + (f" - {req.reasons[-1]}" if req.status != "VERIFIED" and req.reasons else ""))
     return report
+
+
+def _why(exc) -> str:
+    """A rejection a person can act on: which field, and what is wrong with it."""
+    if hasattr(exc, "errors"):
+        e = exc.errors()[0]
+        field = ".".join(str(x) for x in e.get("loc", ()) if x != "__root__")
+        return f"{field}: {e['msg']}" if field else e["msg"]
+    return str(exc)
 
 
 def _vendor_lifecycle(rec: dict, before: dict | None, payees) -> list[str]:
@@ -78,6 +95,80 @@ def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict
                 org._check_po(data)
             (report["updated"] if old else report["created"]).append(po.po_id)
         except (OrgError, ValueError) as exc:
-            msg = exc.errors()[0]["msg"] if hasattr(exc, "errors") else str(exc)
+            msg = _why(exc)
             report["rejected"].append({"row": i + 1, "external_id": ext, "error": msg})
+    return report
+
+
+ORG_ENTITIES = ("unit", "user", "project", "account", "price")
+KIND_WORDS = {"hq": "HQ", "head": "HQ", "headquarter": "HQ", "headquarters": "HQ", "country": "COUNTRY_OFFICE",
+              "branch": "BRANCH_OFFICE", "cabang": "BRANCH_OFFICE", "project": "PROJECT_FINANCE"}
+
+
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(s).lower()).strip("-")[:36] or "x"
+
+
+def _org_row(entity: str, row: dict, org) -> tuple[dict, dict | None]:
+    """The row with its id (the existing record's, matched by natural key, or a new one) and that existing record."""
+    row = {k: v for k, v in row.items() if v not in (None, "")}
+    if entity == "unit":
+        if row.get("kind"):
+            k = str(row["kind"]).strip().upper().replace(" ", "_")
+            row["kind"] = k if k in ("HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE", "PROJECT_FINANCE") else \
+                next((v for w, v in KIND_WORDS.items() if w in k.lower()), k)
+        old = org.get("unit", row["unit_id"]) if row.get("unit_id") else None
+        old = old or next((u for u in org.list("unit") if row.get("cost_centre") and (u.get("cost_centre") or "").upper() == row["cost_centre"]), None)
+        row["unit_id"] = old["unit_id"] if old else row.get("unit_id") or _slug(row.get("name", ""))
+    elif entity == "user":
+        if row.get("role"):
+            row["role"] = str(row["role"]).strip().lower().replace(" ", "_")
+        old = next((u for u in org.list("user") if u["email"].lower() == str(row.get("email", "")).lower()), None)
+        row["user_id"] = old["user_id"] if old else "u-" + _slug(row.get("name", row.get("email", "")))
+    elif entity == "project":
+        old = next((x for x in org.list("project") if x["code"] == str(row.get("code", "")).upper()), None)
+        row["project_id"] = old["project_id"] if old else "pj-" + _slug(row.get("code", ""))
+    elif entity == "account":
+        row["code"] = str(row.get("code", "")).strip()
+        old = next((x for x in org.list("account") if x["code"] == row["code"]), None)
+        row["account_id"] = old["account_id"] if old else "ac-" + _slug(row["code"])
+    else:
+        old = next((x for x in org.list("price") if x["item"].lower() == str(row.get("item", "")).lower()
+                    and (x.get("unit_id") or None) == (row.get("unit_id") or None)), None)
+        row["price_id"] = old["price_id"] if old else "p-" + _slug(f"{row.get('item', '')}-{row.get('unit_id') or 'all'}")
+    return row, old
+
+
+def _organisation(entity: str, keep, rejected, *, source: str, org, dry_run: bool) -> dict:
+    from .organisation import ID_FIELD, MODELS, OrgError
+
+    report = {"entity": entity, "source": source, "created": [], "updated": [], "unchanged": [], "rejected": list(rejected),
+              "changes": [], "followed": []}
+    todo = list(enumerate(keep))
+    for _ in range(6):  # units: a parent may come later in the file; retry until nothing more can be placed
+        later = []
+        for i, (raw, ext) in todo:
+            try:
+                row, old = _org_row(entity, raw, org)
+                rec = MODELS[entity].model_validate(row)
+                data = rec.model_dump()
+                rid = data[ID_FIELD[entity]]
+                if old and {k: old.get(k) for k in data} == data:
+                    report["unchanged"].append(rid)
+                    continue
+                if dry_run:
+                    getattr(org, f"_check_{entity}")(dict(data))
+                else:
+                    org.save(entity, rec, source)
+                (report["updated"] if old else report["created"]).append(rid)
+            except (OrgError, ValueError, KeyError) as exc:
+                msg = _why(exc)
+                if entity == "unit" and "unit" in msg.lower() and "unknown" in msg.lower():
+                    later.append((i, (raw, ext), msg))
+                    continue
+                report["rejected"].append({"row": i + 1, "external_id": ext, "error": msg})
+        if not later or len(later) == len(todo):
+            report["rejected"] += [{"row": i + 1, "external_id": ext, "error": msg} for i, (raw, ext), msg in later]
+            break
+        todo = [(i, item) for i, item, _ in later]
     return report

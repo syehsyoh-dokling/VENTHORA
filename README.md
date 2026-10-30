@@ -414,6 +414,27 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 
 
+
+## The flow, end to end
+
+1. **Data in.** A finance manager connects the old system (Settings → Sync API) and/or uploads Excel, CSV or PDF
+   files; Data readiness shows what is still a placeholder.
+2. **Budget.** Settings → Budget allocation starts at *No limit*; limits per charge code or project are optional.
+3. **Money in.** A deposit to the Airwallex Global Account shows as pending, then in the available balance
+   (old balance + the deposit), pushed by webhook.
+4. **Requests in.** Invoices and claims by email (text, PDF, scanned PDF or photo, read by rules, OCR and the model,
+   every value quoted), or an internal **payment order** from Intake → *New payment order* (it always waits for a
+   person other than the one who asked). Every supplier invoice must quote a PO: a PO VENTHORA does not have is
+   pulled from the connected source; one that no source has holds the invoice with the reason.
+5. **Checks.** Sender and payee, PO room (termin-n), duplicates, the required documents and every document check,
+   then the plan: conversion where needed, approvals, and at execution the budget, PO, payee and reserve gates again.
+6. **Paid, and shown.** Airwallex pays; the reconciliation, the payment reports and the PO reconciliation update,
+   the request shows **PAID** in Intake, and every dashboard is told the moment a run finishes.
+
+This was run end to end on a fresh install against the Airwallex sandbox: sync, two Excel uploads, a deposit
+(available balance up by exactly the deposit), an invoice whose PO came from the old system, document checks
+(18 of 18), a plan, the budget and PO gates (termin-1), a PAID transfer, and the reports.
+
 ## Document validation: the finance checks before anything is payable
 
 **Settings → Document validation** decides what an invoice, a contractor claim, a staff expense claim or a
@@ -431,7 +452,8 @@ standard check is **Off**, **Warn** (flagged, still payable) or **Required** (a 
 | Marks | stamp present; **stamp size on the page within the set millimetres**; signature present |
 | AI review | what an auditor would question, each finding quoted from the document |
 
-Local Python reads the PDF text, the position and size of every image placed on a page (a stamp is a near-square
+Local Python reads the PDF text (and, for a scanned PDF or a photo of an invoice, the text local OCR reads from it:
+RapidOCR, offline), the position and size of every image placed on a page (a stamp is a near-square
 image in coloured ink; a signature a wide thin stroke; sizes come from the page geometry, in mm), and the PDF's
 info dictionary. The AI model (Settings → AI model, e.g. a local Qwen) says which document each attachment is, reads
 the invoice date when the rules cannot, and lists findings; an answer that does not quote the document verbatim is
@@ -468,7 +490,7 @@ refuses the run before money moves; the executor's record names the termin each 
 |---|---|
 | **Regular based** | Budget for a charge-code scope. Every payment carries `OFFICE.PROJECT.ACCOUNT`; pick a country office (or HQ), optionally a branch or unit under it, optionally one project, and give an amount or **No limit**. *Also the units under it* lets an office's allocation cover its branches that have none of their own |
 | **Project based** | Budget for one project (name / code), wherever it is charged |
-| **Period, cut-off & sync** | *Limited* (each scope only its own allocation) or *No limit* (every unit pays from the available balance); the active period: monthly, quarterly, half-yearly, annually (fiscal year) or no period (until used); the month Q1 starts in (Q2 is the next three months, and so on); the cut-off day and time; the daily sync time and the monthly sync day |
+| **Period, cut-off & sync** | *No limit* (the default: every unit pays from the available balance) or *Limited* (each scope only its own allocation); the active period: monthly, quarterly, half-yearly, annually (fiscal year) or no period (until used); the month Q1 starts in (Q2 is the next three months, and so on); the cut-off day and time; the daily sync time and the monthly sync day |
 
 Which allocation governs a payment: a project-based allocation of its project, else the unit's own allocation
 (with the project, then without), else the nearest office above it that includes the units under it. One
@@ -490,8 +512,13 @@ that replace them with the company's own records; every record keeps its source 
 |---|---|
 | **Data readiness** | Lists everything VENTHORA needs (credentials, vendors and bank details, POs, open bills, customers and receivables, budget, tenant books, mailboxes, AI model) and marks each one *real*, *placeholder* or *missing*, with a link to fix it |
 | **Sync API** | A generic REST/JSON connector to the old application: base URL, auth (none, bearer, basic, custom header; the secret is write-only), and per entity a path, the list inside the response and a field mapping (`"target": "source.path\|transform"`, transforms `major`, `int`, `upper`, `lower`, `nospace`, `date`, `split`, constants as `=VALUE`). *Dry run* reports what would change; *Sync now* writes it |
-| **Upload dataset** | When there is no API: CSV, Excel or PDF. Columns are matched to fields by synonyms (or by the configured model, which may only pick real column names); PDF tables are read from the text layer, and rows a model extracts are kept only where each value occurs in the PDF. Preview shows cleaned and rejected rows; nothing is written until Commit |
+| **Upload dataset** | When there is no API: CSV, Excel or PDF, several files at once (each with its own mapping, or *Commit all*). Columns are matched to fields by synonyms (or by the configured model, which may only pick real column names); PDF tables are read from the text layer, and rows a model extracts are kept only where each value occurs in the PDF. Preview shows cleaned and rejected rows; nothing is written until Commit |
 | **Email sources** | The inbound addresses VENTHORA reads and what each takes (supplier invoices, staff claims, remittances). Mail that reaches the wrong address, or one not listed, is flagged and waits for a person |
+
+Both cover everything VENTHORA runs on: offices, branches and units, people and approval limits, projects, the chart
+of accounts, unit prices, vendors and bank details, customers, purchase orders, open bills, receivables, budget lines
+and tenant books. Organisation records are matched by their key (cost centre, email, code, item), so a second sync
+updates them; a rejected row names the field that is wrong.
 
 Sync and upload share one validation pipeline, with the same safeguards as manual entry:
 
@@ -505,7 +532,7 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 
 ## API
 
-Every endpoint (106 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
+Every endpoint (107 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
 an API key needs, and in `/openapi.json` and the interactive `/docs`.
 
 **Other applications** call VENTHORA with an API key created on that page:

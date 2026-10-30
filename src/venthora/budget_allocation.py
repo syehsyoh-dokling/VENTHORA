@@ -34,7 +34,7 @@ PERIOD_LABEL = {"monthly": "Monthly", "quarterly": "Quarterly", "half_year": "Ha
 
 
 class BudgetPolicy(BaseModel):
-    enforcement: Literal["per_allocation", "no_limit"] = "per_allocation"
+    enforcement: Literal["per_allocation", "no_limit"] = "no_limit"  # until a finance manager sets limits, every unit may pay
     period_type: PeriodType = "annual"
     daily_sync_time: str = Field(default="23:59", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     monthly_sync_day: int = Field(default=1, ge=1, le=31, description="clamped to the month's last day")

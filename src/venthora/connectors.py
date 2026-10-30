@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from .config import data_path
 
-ENTITY_NAMES = ("vendor", "customer", "po", "bill", "receivable", "budget_line", "tenant_book")
+ENTITY_NAMES = ("unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line", "tenant_book")
 
 
 class EntityMap(BaseModel):
@@ -90,6 +90,18 @@ def demo_connector(base_url: str) -> Connector:
             "bank.bank_name": "Bank.BankName", "bank.bank_country_code": "Bank.Country|upper", "bank.account_currency": "Bank.Currency|upper",
             "address.street_address": "Address.Street", "address.city": "Address.City", "address.state": "Address.State",
             "address.postcode": "Address.Zip", "address.country_code": "Address.Country|upper"}),
+        "unit": EntityMap(path="units", items_path="items", mapping={
+            "unit_id": "Code|lower", "name": "Name", "kind": "Type", "parent_id": "Parent|lower", "country": "Country|upper",
+            "currency": "Currency|upper", "timezone": "TimeZone", "cost_centre": "CostCentre|upper", "payment_limit_minor": "PayLimit|major"}),
+        "user": EntityMap(path="people", items_path="items", mapping={
+            "name": "FullName", "email": "Email|lower", "role": "Role", "unit_id": "Unit|lower", "approval_limit_minor": "ApprovalLimit|major"}),
+        "project": EntityMap(path="projects", items_path="items", mapping={
+            "code": "Code|upper", "name": "Name", "unit_id": "Unit|lower"}),
+        "account": EntityMap(path="accounts", items_path="items", mapping={
+            "code": "GL", "name": "Name", "category": "Category"}),
+        "price": EntityMap(path="prices", items_path="items", mapping={
+            "item": "Item", "category": "Category", "unit": "Per", "price_minor": "Price|major", "currency": "Currency|upper",
+            "unit_id": "Office|lower"}),
         "customer": EntityMap(path="customers", items_path="items", mapping={
             "customer_id": "Code|lower", "name": "CompanyName", "currency": "Currency|upper", "contacts": "Emails|split",
             "promises_kept": "Kept|int", "promises_missed": "Missed|int"}),
@@ -109,7 +121,8 @@ def demo_connector(base_url: str) -> Connector:
     })
 
 
-ORDER = ("vendor", "customer", "po", "bill", "receivable", "budget_line", "tenant_book")  # who must exist before whom
+ORDER = ("unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line",
+         "tenant_book")  # who must exist before whom: offices before their people, accounts and vendors before POs
 
 
 class ConnectorStore:

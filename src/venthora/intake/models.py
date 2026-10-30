@@ -85,6 +85,7 @@ class IntakeRequest(BaseModel):
     expense_date: str | None = None
     approvers: list[str] = Field(default_factory=list, description="eligible approvers, nearest unit first; never the claimant")
     checks: list[Check] = Field(default_factory=list, description="document validation: identity, dates, documents, stamp")
+    payment: dict | None = Field(default=None, description="filled when listed: the PAID transfer(s) that settled it")
     text_sha256: str
     text: str = Field(max_length=40_000)
 

@@ -82,13 +82,23 @@ class Executor:
         self.poll_interval_s = poll_interval_s
         self._run_lock = asyncio.Lock()
         self.org = None  # the organisation store; set, every payment with a charge code is held to its budget allocation
+        self.on_result = None  # called with every result (the API pushes it to the dashboards)
 
     async def audit_async(self, kind: str, payload: dict) -> None:
         await asyncio.to_thread(self.audit.append, kind, payload)
 
     # -- entry points ----------------------------------------------------------
 
+    def _done(self, result: ExecutionResult) -> ExecutionResult:
+        if self.on_result is not None:
+            with contextlib.suppress(Exception):  # telling the dashboards never changes the outcome
+                self.on_result(result)
+        return result
+
     async def execute(self, req: ExecutionRequest) -> ExecutionResult:
+        return self._done(await self._execute(req))
+
+    async def _execute(self, req: ExecutionRequest) -> ExecutionResult:
         steps: list[Step] = []
         try:
             plan = await self._preflight(req, steps)
@@ -120,7 +130,7 @@ class Executor:
         steps = [Step(kind="preflight", key="resume", status="OK", detail={"previous_status": record["status"]})]
         async with self._run_lock:
             self._before_at = stored.get("before_at")  # the ledger explains what other books did meanwhile
-            return await self._run(execution_id, req.state, plan, stored["balances_before"], req, steps)
+            return self._done(await self._run(execution_id, req.state, plan, stored["balances_before"], req, steps))
 
     # -- phases ----------------------------------------------------------------
 

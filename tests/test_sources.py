@@ -40,8 +40,17 @@ def test_sync_fills_every_table_and_bank_details_start_untrusted(client):
     dry = client.post("/v1/sources/connectors/legacy-erp-demo/sync?dry_run=true").json()["reports"]
     assert len(dry["vendor"]["created"]) == 4 and client.get("/v1/sources/master/vendor").json() == []
     rep = client.post("/v1/sources/connectors/legacy-erp-demo/sync").json()["reports"]
-    assert {e: len(r["created"]) for e, r in rep.items()} == {"vendor": 4, "customer": 2, "po": 2, "bill": 3, "receivable": 2,
+    assert {e: len(r["created"]) for e, r in rep.items()} == {"unit": 2, "user": 2, "project": 1, "account": 1, "price": 2,
+                                                             "vendor": 4, "customer": 2, "po": 3, "bill": 3, "receivable": 2,
                                                              "budget_line": 3, "tenant_book": 1}
+    # records the organisation already had are matched by their key (cost centre, email, code, item), not copied
+    assert {e: rep[e]["updated"] for e in ("unit", "user")} == {"unit": ["co-de"], "user": ["u-dana"]} and rep["price"]["unchanged"] == ["p-saas"]
+    units = {u["unit_id"]: u for u in client.get("/v1/org/units").json()}
+    assert units["br-sg-jurong"]["parent_id"] == "co-sg" and units["co-sg"]["kind"] == "COUNTRY_OFFICE" and units["br-sg-jurong"]["kind"] == "BRANCH_OFFICE"
+    people = {u["email"]: u for u in client.get("/v1/org/users").json()}
+    assert people["meilin.tan@acme.example"]["role"] == "country_finance_lead" and people["dana.finch@acme.example"]["approval_limit_minor"] == 6_000_000
+    ready = {i["name"]: i["status"] for i in client.get("/v1/sources/readiness").json()["items"] if i["group"] == "Organisation"}
+    assert set(ready.values()) == {"ok"}, ready  # no organisation placeholder left after one sync
     assert all(not r["rejected"] for r in rep.values())
     follow = " | ".join(rep["vendor"]["followed"])
     assert "nordlicht-logistik: registered NEW" in follow and "ben-saas-vendor: bank details changed, now CHANGED" in follow

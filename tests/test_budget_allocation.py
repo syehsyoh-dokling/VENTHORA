@@ -46,7 +46,8 @@ def _alloc(client, **body):
 
 
 def test_the_most_specific_allocation_governs(client):
-    client.put("/v1/budget-allocation/policy", json={"period_type": "monthly", "fiscal_year_start_month": 1, "cutoff_day": 31, "cutoff_time": "23:59", "timezone": "UTC"})
+    assert client.get("/v1/budget-allocation/policy").json()["enforcement"] == "no_limit"  # the default: every unit may pay
+    client.put("/v1/budget-allocation/policy", json={"enforcement": "per_allocation", "period_type": "monthly", "fiscal_year_start_month": 1, "cutoff_day": 31, "cutoff_time": "23:59", "timezone": "UTC"})
     month = dt.datetime.now(dt.UTC).strftime("%Y-%m")
     _alloc(client, period=month, unit_id="co-us", include_children=True, amount_minor=100_000)
     _alloc(client, period=month, unit_id="br-us-west", amount_minor=20_000, include_children=False)
@@ -113,6 +114,9 @@ def test_execution_refuses_a_payment_beyond_its_allocation(tmp_path):
     with store._connect() as c:
         c.execute("INSERT INTO spend_ledger (transfer_id, obligation_id, book_id, line, currency, amount_minor, base_cost_minor, paid_at,"
                   " reporting_period, recorded_at, account_code) VALUES ('t1','o1','b','l','USD',200000000,200000000,'2026-10-01',?, '2026-10-01','US-200.OPS.6700')", (month,))
+    from venthora.budget_allocation import BudgetPolicy
+
+    org.save_budget_policy(BudgetPolicy(enforcement="per_allocation"), "test")
     b = Budget(org, store)
     usage = {a["alloc_id"]: a for a in b.usage("2026")}
     assert usage["a-us"]["spent_minor"] == 200_000_000 and usage["a-hq"]["spent_minor"] == 0  # counted where it was governed
@@ -136,6 +140,9 @@ def test_execute_refuses_before_any_money_moves(tmp_path, monkeypatch):
     monkeypatch.setenv("AIRWALLEX_CLIENT_ID", "sandbox-client")
     monkeypatch.setenv("AIRWALLEX_API_KEY", "sandbox-key")
     org = OrgStore(str(tmp_path / "o.db"))
+    from venthora.budget_allocation import BudgetPolicy
+
+    org.save_budget_policy(BudgetPolicy(enforcement="per_allocation"), "test")  # the default is No limit
     a = org.get("allocation", "a-uk") | {"amount_minor": 100}  # UK office: USD 1.00 left for the whole year
     org.save("allocation", Allocation.model_validate(a), "test")
     fake = FakeAirwallex(balances=WALLET)

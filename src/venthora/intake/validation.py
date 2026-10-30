@@ -71,7 +71,7 @@ CHECKS: dict[str, tuple[str, Mode, str]] = {
     "due_date_after_invoice_date": ("Due date on or after invoice date", "warn", "the due date does not precede the issue date"),
     "totals_add_up": ("Subtotal + tax = total", "required", "the document's own arithmetic adds up"),
     "currency_matches_po": ("Currency matches the PO", "required", "the invoice currency is the purchase order's"),
-    "attachments_readable": ("Attachments readable", "warn", "every PDF has a text layer (a scan is listed, not read)"),
+    "attachments_readable": ("Attachments readable", "warn", "every PDF and image could be read (text layer, or OCR for a scan or photo)"),
     "file_types_allowed": ("File types allowed", "required", "attachments are of the allowed types and within the size limit"),
     "pdf_dates_not_after_submission": ("PDF not created after submission", "required", "the PDF's own creation and modification dates are not after the submission"),
     "pdf_not_edited": ("PDF not edited after it was issued", "warn", "modified more than a day after creation, or produced by an editing tool"),
@@ -193,6 +193,9 @@ def read_documents(raw: bytes) -> list[dict]:
                 except Exception as exc:  # noqa: BLE001
                     doc["problem"] = doc["problem"] or f"unreadable PDF ({type(exc).__name__})"
         elif ctype.startswith("image/"):
+            from .documents import ocr_image
+
+            doc["text"] = ocr_image(data) if len(data) <= MAX_PDF_BYTES else ""
             try:
                 from PIL import Image
 
@@ -419,7 +422,7 @@ def validate(req, docs: list[dict], rules: DocRules, *, company: str = "", vendo
 
     # the files themselves
     if docs:
-        unread = [d["name"] for d in docs if d["ext"] == "pdf" and not d["text"]]
+        unread = [d["name"] for d in docs if (d["ext"] == "pdf" or d["content_type"].startswith("image/")) and not d["text"]]
         add("attachments_readable", "fail" if unread else "pass", ("not read: " + ", ".join(unread) + " (" + "; ".join(d["problem"] or "no text" for d in docs if d["name"] in unread) + ")") if unread else "every PDF has a text layer")
         bad = [f"{d['name']} ({d['ext'] or d['content_type']})" for d in docs if d["ext"] not in rules.allowed_file_types]
         big = [f"{d['name']} ({d['bytes'] / 1024 / 1024:.1f} MB)" for d in docs if d["bytes"] > rules.max_attachment_mb * 1024 * 1024]

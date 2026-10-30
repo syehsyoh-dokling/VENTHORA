@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import re
 
-PO_RE = re.compile(r"\b(?:P\.?\s?O\.?|purchase\s+order)\s*(?:no\.?|number|#|ref\.?)?\s*[:#]?\s*(?P<po>[A-Z0-9]+(?:[/-][A-Z0-9]+)+|\d{3,})",
+# "PO" must stand alone: an invoice number like POS-025437 is not "PO S-025437" (seen live)
+PO_RE = re.compile(r"\b(?:P\.?\s?O\.?(?![A-Za-z])|purchase\s+order)\s*(?:no\.?|number|#|ref\.?)?\s*[:#]?\s*(?P<po>[A-Z0-9]+(?:[/-][A-Z0-9]+)+|\d{3,})",
                    re.IGNORECASE)
 PO_BARE_RE = re.compile(r"\b(?P<po>PO-[A-Z0-9]+(?:-[A-Z0-9]+)*)\b", re.IGNORECASE)
 TOLERANCE_MINOR = 1

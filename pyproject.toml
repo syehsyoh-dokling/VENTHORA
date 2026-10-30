@@ -20,6 +20,7 @@ dependencies = [
   "pypdf>=5,<7",
   "openpyxl>=3.1,<4",
   "pillow>=10,<13",
+  "rapidocr_onnxruntime>=1.2,<2",
 ]
 
 [project.scripts]
