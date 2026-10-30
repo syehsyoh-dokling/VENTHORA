@@ -207,15 +207,15 @@ class Executor:
         steps.append(Step(kind="preflight", key="budget_allocation", status="OK", detail={"checked": verdicts}))
 
     def _po_gate(self, plan: PlanResult, by_id: dict, steps: list[Step], refuse) -> None:
-        """Purchase orders, read fresh at execution: a PO may be paid several times while it has room, never past its
-        total (paid + in flight + this plan), each term exactly once and in full, and every invoice in full."""
+        """Purchase orders, read fresh at execution: a PO may be paid any number of times while it has room, each payment
+        its next termin (termin-n, in order), never past its total (paid + in flight + this plan), every invoice in full."""
         if self.org is None:
             return
         from .. import procurement
 
         tol = procurement.TOLERANCE_MINOR
         drawn: dict[str, int] = {}
-        terms_taken: dict[str, set[str]] = {}
+        termin: dict[str, int] = {}
         checked, problems = [], []
         for d in plan.obligations:
             o = by_id.get(d.obligation_id)
@@ -242,29 +242,16 @@ class Executor:
                 st = procurement.status(self.org, self.store, o.po_number)
                 flight = self.store.po_in_flight(o.po_number)
                 drawn[o.po_number] = st["paid_minor"] + sum(f["amount_minor"] for f in flight if f["currency"] == po["currency"])
-                terms_taken[o.po_number] = {t["term_id"] for t in st["terms"] if t["state"] == "PAID"} | {f["installment"] for f in flight if f["installment"]}
-            terms = {t["term_id"]: t for t in po["terms"]}
-            if o.installment in terms:
-                t = terms[o.installment]
-                if o.installment in terms_taken[o.po_number]:
-                    problems.append(f"{o.obligation_id}: term {t['term_id']} of PO {o.po_number} is already paid or being paid")
-                    continue
-                if abs(o.amount_minor - t["amount_minor"]) > tol:
-                    problems.append(f"{o.obligation_id}: term {t['term_id']} of PO {o.po_number} is {t['amount_minor'] / 100:,.2f}; "
-                                    f"paying {o.amount_minor / 100:,.2f} would {'over' if o.amount_minor > t['amount_minor'] else 'under'}pay it")
-                    continue
-            elif not po["allow_partial"]:
-                problems.append(f"{o.obligation_id}: PO {o.po_number} takes only its terms, and this payment matches none")
-                continue
+                termin[o.po_number] = st["next_termin"] - 1
             after = drawn[o.po_number] + o.amount_minor
             if after > po["total_minor"] + tol:
                 problems.append(f"{o.obligation_id}: PO {o.po_number} has {po['currency']} {(po['total_minor'] - drawn[o.po_number]) / 100:,.2f} "
                                 f"left of {po['total_minor'] / 100:,.2f}; paying {o.amount_minor / 100:,.2f} would overpay it")
                 continue
             drawn[o.po_number] = after
-            if o.installment in terms:
-                terms_taken[o.po_number].add(o.installment)
-            checked.append({"obligation_id": o.obligation_id, "po": o.po_number, "term": o.installment, "amount_minor": o.amount_minor,
+            termin[o.po_number] += 1
+            checked.append({"obligation_id": o.obligation_id, "po": o.po_number, "termin": termin[o.po_number],
+                            "scheduled_term": o.installment if o.installment != "partial" else None, "amount_minor": o.amount_minor,
                             "left_after_minor": po["total_minor"] - after})
         if problems:
             refuse("purchase order: " + "; ".join(problems))

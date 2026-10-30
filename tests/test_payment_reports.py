@@ -48,11 +48,13 @@ def test_a_po_is_paid_several_times_but_never_past_its_total(tmp_path):
     assert "b: PO PO-2026-0101 has USD 2,000.00 left of 5,000.00; paying 2,500.00 would overpay it" in msg
 
 
-def test_terms_are_paid_once_and_in_full(tmp_path):
-    msg, _ = _gate(tmp_path, [{"id": "t1", "amount": 170_000, "term": "T1"}])
-    assert "term T1 of PO PO-2026-0101 is 1,800.00; paying 1,700.00 would underpay it" in msg
-    msg, _ = _gate(tmp_path / "2", [{"id": "t1", "amount": 180_000, "term": "T1"}], setup=lambda s, o: _ledger(s, "tr1", 180_000, "T1"))
-    assert "term T1 of PO PO-2026-0101 is already paid" in msg
+def test_every_payment_is_the_next_termin_of_any_amount(tmp_path):
+    ok, steps = _gate(tmp_path, [{"id": "a", "amount": 170_000, "term": "T1"}, {"id": "b", "amount": 120_000}],
+                      setup=lambda s, o: _ledger(s, "tr1", 180_000, "T1"))
+    assert ok == "OK"  # T1 was paid already and 1,700 is no scheduled amount: neither matters while the PO has room
+    assert [(c["obligation_id"], c["termin"], c["left_after_minor"]) for c in steps[0].detail["checked"]] == [("a", 2, 150_000), ("b", 3, 30_000)]
+    msg, _ = _gate(tmp_path / "2", [{"id": "c", "amount": 330_000}], setup=lambda s, o: _ledger(s, "tr1", 180_000, "T1"))
+    assert "has USD 3,200.00 left" in msg and "would overpay it" in msg
     msg, _ = _gate(tmp_path / "3", [{"id": "x", "amount": 100_000, "pay": 60_000}])
     assert "paid in full or not at all" in msg
 
@@ -75,7 +77,7 @@ def test_wrong_po_supplier_currency_or_status(tmp_path):
 
 
 def test_running_and_accumulated_windows():
-    rows = [{"paid_on": d, "reporting_period": p, "payee": "Lumen", "po_number": PO, "installment": None, "currency": "USD",
+    rows = [{"paid_on": d, "reporting_period": p, "payee": "Lumen", "po_number": PO, "installment": None, "termin": 1, "currency": "USD",
              "amount_minor": a, "base_cost_minor": a} for d, p, a in [("2026-10-30", "2026-10", 100), ("2026-10-27", "2026-11", 200),
                                                                      ("2026-10-02", "2026-10", 400), ("2026-09-15", "2026-09", 800), ("2027-01-05", "2027-01", 1600)]]
     day = dt.date(2026, 10, 30)  # a Friday
@@ -111,7 +113,7 @@ def test_report_endpoints_and_po_reconciliation(client):
     _ledger(store, "tr2", 50_000, "partial", paid_at=today.isoformat(), period=month)
     rep = client.get("/v1/reports/payments?view=running&span=month").json()
     assert rep["summary"]["payments"] == 2 and rep["summary"]["by_currency"] == {"USD": 230_000}
-    assert rep["summary"]["by_po"][0] == {"po_number": PO, "payments": 2, "currency": "USD", "amount_minor": 230_000, "terms": ["T1", "partial"]}
+    assert rep["summary"]["by_po"][0] == {"po_number": PO, "payments": 2, "currency": "USD", "amount_minor": 230_000, "terms": ["termin-1", "termin-2"]}
     acc = client.get("/v1/reports/payments?view=accumulated&span=month").json()
     assert sum(b["base_cost_minor"] for b in acc["buckets"]) == 230_000 and acc["buckets"][-1]["cumulative_base_cost_minor"] == 230_000
     csv = client.get("/v1/reports/payments?view=running&span=month&format=csv")
@@ -120,7 +122,9 @@ def test_report_endpoints_and_po_reconciliation(client):
     rec = {p["po_id"]: p for p in client.get("/v1/reports/purchase-orders").json()}
     p = rec[PO]
     assert (p["paid_minor"], p["left_minor"], p["state"], p["payments"]) == (230_000, 270_000, "OPEN", 2)
-    assert [t["state"] for t in p["terms"]] == ["PAID", "OPEN"]
+    assert [t["state"] for t in p["terms"]] == ["PAID", "OPEN"]  # the schedule beside the termins
+    assert [(t["termin"], t["amount_minor"], t["scheduled_term"]) for t in p["termins"]] == [(1, 180_000, "T1"), (2, 50_000, None)] and p["next_termin"] == 3
+    assert [r["termin"] for r in rep["rows"]] == [1, 2]
     po = app.state.org.get("po", PO) | {"status": "CLOSED"}
     app.state.org.save("po", PurchaseOrder.model_validate(po), "test")
     assert {p["po_id"]: p for p in client.get("/v1/reports/purchase-orders").json()}[PO]["state"] == "UNDERPAID"

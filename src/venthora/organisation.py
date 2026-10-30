@@ -87,7 +87,9 @@ class POTerm(BaseModel):
 
 class PurchaseOrder(BaseModel):
     """What the company agreed to buy: one supplier, one currency, one account code, and how it will be paid.
-    Scheduled terms (e.g. 30% deposit, 70% on delivery) and, when allow_partial, any partial invoice while the PO has room."""
+    Paid any number of times while it has room: every payment is its next termin (termin-1, termin-2 ...), of any amount,
+    never past the total. Scheduled terms (e.g. 30% deposit, 70% on delivery) are the payment plan shown beside them.
+    allow_partial is kept for stored records and imports; it no longer limits payments."""
     po_id: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$", description="the PO number")
     supplier_id: str = Field(min_length=1, max_length=80, description="the payee (beneficiary) the PO is placed with")
     currency: str = "USD"
@@ -443,8 +445,6 @@ class OrgStore:
             raise OrgError("each payment term needs its own id")
         if sum(t["amount_minor"] for t in d["terms"]) > d["total_minor"]:
             raise OrgError("the payment terms add up to more than the PO total")
-        if not d["terms"] and not d["allow_partial"]:
-            raise OrgError("a PO without payment terms must allow partial invoices (otherwise it can never be paid)")
 
     def account_code(self, code: str) -> dict:
         """'office cost centre . project . account' -> the unit, project and account it names; refused when any part is

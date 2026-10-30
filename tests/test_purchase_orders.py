@@ -90,8 +90,8 @@ def test_an_over_po_invoice_holds_nothing(env):
 def test_terms_only_po_and_every_mismatch(env):
     org, _, intake = env
     odd = intake.ingest(mail(RHEIN, "Rechnung RW-77", "Invoice RW-77, PO-2026-0102. Amount due: EUR 2,000.00, due 30 Nov 2026.", "f"))
-    # PO-2026-0102 is paid only in its two terms (EUR 3,600 / 8,400); EUR 2,000 is neither
-    assert odd.trust == "registered" and "po_term_mismatch" in odd.flags and odd.status == "NEEDS_REVIEW"
+    # EUR 2,000 is neither scheduled term (EUR 3,600 / 8,400): it is simply the PO's next termin while the PO has room
+    assert odd.trust == "registered" and odd.status == "VERIFIED" and odd.installment == "partial" and "termin-1" in " ".join(odd.reasons)
     t1 = intake.ingest(mail(RHEIN, "Rechnung RW-78", "Invoice RW-78, PO-2026-0102, deposit. Amount due: EUR 3,600.00, due 30 Nov 2026.", "f2"))
     assert (t1.status, t1.installment, t1.account_code) == ("VERIFIED", "T1", "DE-400.PRJ900.6500")
     wrong = intake.ingest(mail(THAMES, "Invoice TF-403", "Invoice TF-403, PO-2026-0101. Amount due: GBP 500.00, due 30 Nov 2026.", "g"))

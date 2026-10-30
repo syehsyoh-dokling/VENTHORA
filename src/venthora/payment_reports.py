@@ -35,11 +35,15 @@ def _local_day(paid_at: str, tz: str) -> dt.date:
 
 
 def enrich(rows: list[dict], tz: str, names: dict[str, str]) -> list[dict]:
+    termin: dict[str, int] = {}
     out = []
-    for r in rows:
+    for r in sorted(rows, key=lambda x: x["paid_at"]):  # every payment on a PO is its next termin, in paid order
+        if r.get("po_number"):
+            termin[r["po_number"]] = termin.get(r["po_number"], 0) + 1
         out.append({"paid_on": _local_day(r["paid_at"], tz).isoformat(), "paid_at": r["paid_at"], "reporting_period": r["reporting_period"],
                     "payee_id": r.get("beneficiary_id"), "payee": names.get(r.get("beneficiary_id") or "", r.get("beneficiary_id") or "-"),
                     "obligation_id": r["obligation_id"], "po_number": r.get("po_number"), "installment": r.get("installment"),
+                    "termin": termin[r["po_number"]] if r.get("po_number") else None,
                     "account_code": r.get("account_code"), "currency": r["currency"], "amount_minor": r["amount_minor"],
                     "base_cost_minor": r["base_cost_minor"], "transfer_id": r["transfer_id"], "book_id": r.get("book_id")})
     return out
@@ -59,8 +63,7 @@ def summarise(rows: list[dict]) -> dict:
             p = pos.setdefault(r["po_number"], {"po_number": r["po_number"], "payments": 0, "currency": r["currency"], "amount_minor": 0, "terms": []})
             p["payments"] += 1
             p["amount_minor"] += r["amount_minor"]
-            if r["installment"]:
-                p["terms"].append(r["installment"])
+            p["terms"].append(f"termin-{r['termin']}")
     return {"payments": len(rows), "by_currency": by_ccy, "base_cost_minor": sum(r["base_cost_minor"] for r in rows),
             "by_vendor": sorted(vendors.values(), key=lambda v: -v["base_cost_minor"]), "by_po": sorted(pos.values(), key=lambda p: p["po_number"])}
 
@@ -139,7 +142,10 @@ def po_reconciliation(org, store, waiting: dict[str, list[dict]] | None = None) 
             if t["paid_minor"] > t["amount_minor"] + procurement.TOLERANCE_MINOR:
                 ts = "OVERPAID"
             terms.append({"term_id": t["term_id"], "label": t["label"], "amount_minor": t["amount_minor"], "paid_minor": t["paid_minor"], "state": ts})
-        out.append({"po_id": po["po_id"], "supplier_id": po["supplier_id"], "currency": po["currency"], "status": po["status"],
+        termins = [{"termin": p["termin"], "paid_at": p["paid_at"], "amount_minor": p["amount_minor"], "scheduled_term": p["installment"]
+                    if p["installment"] not in (None, "partial") else None} for p in st["payments"]]
+        out.append({"po_id": po["po_id"], "supplier_id": po["supplier_id"], "currency": po["currency"], "status": po["status"], "termins": termins,
+                    "next_termin": st["next_termin"],
                     "account_code": po["account_code"], "allow_partial": po["allow_partial"], "total_minor": po["total_minor"],
                     "paid_minor": st["paid_minor"], "payments": len(st["payments"]), "in_flight_minor": in_flight,
                     "invoiced_waiting_minor": invoiced, "waiting_invoices": [w["invoice_no"] for w in inv], "left_minor": left,
@@ -150,9 +156,9 @@ def po_reconciliation(org, store, waiting: dict[str, list[dict]] | None = None) 
 def to_csv(report: dict) -> str:
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["paid_on", "reporting_period", "payee", "po_number", "term", "account_code", "currency", "amount", "base_cost", "obligation_id", "transfer_id"])
+    w.writerow(["paid_on", "reporting_period", "payee", "po_number", "termin", "account_code", "currency", "amount", "base_cost", "obligation_id", "transfer_id"])
     for r in report["rows"]:
-        w.writerow([r["paid_on"], r["reporting_period"], r["payee"], r["po_number"] or "", r["installment"] or "", r["account_code"] or "",
+        w.writerow([r["paid_on"], r["reporting_period"], r["payee"], r["po_number"] or "", f"termin-{r['termin']}" if r["termin"] else "", r["account_code"] or "",
                     r["currency"], f"{r['amount_minor'] / 100:.2f}", f"{r['base_cost_minor'] / 100:.2f}", r["obligation_id"], r["transfer_id"]])
     for c, v in report["summary"]["by_currency"].items():
         w.writerow(["TOTAL", "", "", "", "", "", c, f"{v / 100:.2f}", "", "", ""])

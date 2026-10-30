@@ -285,8 +285,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <h3 class="small muted" style="margin:16px 0 6px">Payments</h3><div id="prRows" style="overflow-x:auto"></div>
  </section>
  <section class="span12" data-view="payment-reports">
-  <h2><span>Purchase orders against what was paid</span><span class="small muted">a PO may be paid several times while it has room; never past its total, each term once and in full</span></h2>
-  <div id="prRecon" class="empty">loading…</div>
+  <h2><span>Purchase orders against what was paid</span><span class="small muted">a PO may be paid any number of times while it has room; every payment is its next termin, never past the total</span></h2>
+  <div id="prRecon" class="empty" style="overflow-x:auto">loading…</div>
  </section>
 
  <section class="span12" data-view="pos">
@@ -952,8 +952,8 @@ async function reportsView(){if(!$("#prSpan").options.length)prSpans();try{const
   {h:"Payments",num:1,f:b=>b.payments},{h:"Paid in the period",num:1,f:b=>ccyList(b.by_currency)},{h:`Cost (${r.base_currency})`,num:1,f:b=>fmt(b.base_cost_minor,r.base_currency)},
   {h:"Accumulated",num:1,f:b=>`<b>${fmt(b.cumulative_base_cost_minor,r.base_currency)}</b><div class="small muted">${ccyList(b.cumulative_by_currency)}</div>`}],r.buckets):"";
  $("#prVendors").innerHTML=table([{h:"Vendor",f:v=>esc(v.payee)},{h:"Payments",num:1,f:v=>v.payments},{h:"Paid",num:1,f:v=>ccyList(v.by_currency)}],s.by_vendor,"no payment");
- $("#prPos").innerHTML=table([{h:"PO",f:p=>`<span class="chip">${esc(p.po_number)}</span>`},{h:"Payments",num:1,f:p=>p.payments},{h:"Terms",f:p=>esc(p.terms.join(", ")||"-")},{h:"Paid",num:1,f:p=>fmt(p.amount_minor,p.currency)}],s.by_po,"no payment against a PO");
- $("#prRows").innerHTML=table([{h:"Paid on",f:x=>esc(x.paid_on)},{h:"Period",f:x=>esc(x.reporting_period)},{h:"Payee",f:x=>esc(x.payee)},{h:"PO / term",f:x=>x.po_number?`${esc(x.po_number)}${x.installment?` · ${esc(x.installment)}`:""}`:"-"},
+ $("#prPos").innerHTML=table([{h:"PO",f:p=>`<span class="chip">${esc(p.po_number)}</span>`},{h:"Payments",num:1,f:p=>p.payments},{h:"Termins",f:p=>esc(p.terms.join(", ")||"-")},{h:"Paid",num:1,f:p=>fmt(p.amount_minor,p.currency)}],s.by_po,"no payment against a PO");
+ $("#prRows").innerHTML=table([{h:"Paid on",f:x=>esc(x.paid_on)},{h:"Period",f:x=>esc(x.reporting_period)},{h:"Payee",f:x=>esc(x.payee)},{h:"PO / termin",f:x=>x.po_number?`${esc(x.po_number)} · <b>termin-${x.termin}</b>${x.installment&&x.installment!=="partial"?` <span class="small muted">(${esc(x.installment)})</span>`:""}`:"-"},
   {h:"Charge code",f:x=>`<span class="mono small">${esc(x.account_code||"-")}</span>`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)},{h:`Cost (${r.base_currency})`,num:1,f:x=>fmt(x.base_cost_minor,r.base_currency)},
   {h:"Transfer",f:x=>`<span class="mono small muted">${esc((x.transfer_id||"").slice(0,12))}</span>`}],r.rows,"no payment in this window");
  $("#prRecon").innerHTML=table([{h:"PO",f:p=>`<b>${esc(p.po_id)}</b><div class="small muted">${esc(p.supplier_id)} · <span class="mono">${esc(p.account_code)}</span></div>`},
@@ -962,7 +962,8 @@ async function reportsView(){if(!$("#prSpan").options.length)prSpans();try{const
   {h:"In flight",num:1,f:p=>p.in_flight_minor?fmt(p.in_flight_minor,p.currency):"-"},
   {h:"Invoiced, waiting",num:1,f:p=>p.invoiced_waiting_minor?`${fmt(p.invoiced_waiting_minor,p.currency)}<div class="small muted">${p.waiting_invoices.map(esc).join(", ")}</div>`:"-"},
   {h:"Left",num:1,f:p=>`<b class="${p.left_minor<0?"err":""}">${fmt(p.left_minor,p.currency)}</b>${p.invoiced_waiting_minor?`<div class="small muted">${fmt(p.left_minor-p.invoiced_waiting_minor,p.currency)} after waiting invoices</div>`:""}`},
-  {h:"Terms",f:p=>p.terms.map(t=>`<div class="small"><span class="pill ${PO_TONE[t.state]||""}">${esc(t.term_id)} ${esc(t.state)}</span> ${fmt(t.paid_minor,p.currency)} / ${fmt(t.amount_minor,p.currency)}</div>`).join("")||(p.allow_partial?'<span class="small muted">partial invoices</span>':"-")}],recon,"no purchase order")}
+  {h:"Termins paid",f:p=>p.termins.map(t=>`<div class="small"><span class="pill good">termin-${t.termin}</span> ${fmt(t.amount_minor,p.currency)} <span class="muted">${esc((t.paid_at||"").slice(0,10))}${t.scheduled_term?` · ${esc(t.scheduled_term)}`:""}</span></div>`).join("")+`<div class="small muted">next: termin-${p.next_termin}</div>`},
+  {h:"Schedule",f:p=>p.terms.map(t=>`<div class="small"><span class="pill ${PO_TONE[t.state]||""}">${esc(t.term_id)} ${esc(t.state)}</span> ${fmt(t.amount_minor,p.currency)}</div>`).join("")||'<span class="small muted">none</span>'}],recon,"no purchase order")}
  catch(e){$("#prTiles").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#prView").onchange=()=>{prSpans();reportsView()};$("#prSpan").onchange=reportsView;$("#prDate").onchange=reportsView;
 $("#prCsv").onclick=()=>{location.href=`/v1/reports/payments?${prQuery()}&format=csv`};
@@ -1107,7 +1108,7 @@ async function poView(){try{await loadOrg();const [rows,sup]=await Promise.all([
   {h:"Supplier",f:r=>esc((sup[r.po.supplier_id]||{}).name||r.po.supplier_id)},{h:"Account code",f:r=>`<span class="mono" style="white-space:nowrap">${esc(r.po.account_code)}</span>`},
   {h:"Total",num:1,f:r=>fmt(r.po.total_minor,r.po.currency)},
   {h:"Paid · pending · open",f:r=>`<div style="min-width:160px">${poBar(r)}</div><div class="small muted" style="margin-top:4px">${fmt(r.paid_minor,r.po.currency)} · ${fmt(r.pending_minor,r.po.currency)} · ${fmt(Math.max(r.remaining_minor,0),r.po.currency)}</div>`},
-  {h:"Terms",f:r=>r.terms.length?r.terms.map(t=>`<span class="pill ${t.state==="PAID"?"good":t.state==="PENDING"?"warn":""}" data-tip="${esc(t.label)}">${esc(t.term_id)} ${esc(fmt(t.amount_minor,r.po.currency))}</span>`).join(" ")+(r.po.allow_partial?' <span class="small muted">+ partial</span>':""):'<span class="small muted">partial invoices</span>'},
+  {h:"Terms",f:r=>r.terms.length?r.terms.map(t=>`<span class="pill ${t.state==="PAID"?"good":t.state==="PENDING"?"warn":""}" data-tip="${esc(t.label)}">${esc(t.term_id)} ${esc(fmt(t.amount_minor,r.po.currency))}</span>`).join(" ")+' <span class="small muted">· termins of any amount within the total</span>':'<span class="small muted">termins of any amount within the total</span>'},
   {h:"Status",f:r=>pill(r.po.status==="OPEN"?"OPEN":r.po.status)},{h:"",f:r=>rowActs("purchase-orders",r.po.po_id)}],rows,"no purchase orders yet");
  $("#poTable").querySelectorAll('[data-edit="purchase-orders"]').forEach(b=>b.onclick=()=>poForm(rows.find(r=>r.po.po_id===b.dataset.id).po));
  $("#poTable").querySelectorAll('[data-del="purchase-orders"]').forEach(b=>b.onclick=async()=>{if(!confirm("Delete this PO?"))return;
@@ -1121,8 +1122,8 @@ async function poForm(po){const sup=await suppliers();po=po||{currency:"USD",ter
   <label>Currency<input id="po-ccy" maxlength="3" value="${esc(po.currency)}"></label><label>Total<input id="po-total" type="number" step="0.01" min="0" required value="${po.total_minor!=null?(po.total_minor/100).toFixed(2):""}"></label>
   <label style="grid-column:1/-1">Account code (office . project . account)<input id="po-code" required value="${esc(po.account_code||"")}" placeholder="DE-400.PRJ900.6500"><span class="small muted" id="po-code-out"></span></label>
   <label style="grid-column:1/-1">Description<input id="po-desc" value="${esc(po.description||"")}"></label>
-  <div style="grid-column:1/-1"><div class="small" style="font-weight:600;color:var(--ink2);margin-bottom:6px">Payment terms (optional)</div><div id="po-terms">${po.terms.map(termRow).join("")}</div><button type="button" id="po-add-term" formnovalidate>Add term</button></div>
-  <label class="check"><input type="checkbox" id="po-partial" ${po.allow_partial?"checked":""}> Also accept partial invoices</label>
+  <div style="grid-column:1/-1"><div class="small" style="font-weight:600;color:var(--ink2);margin-bottom:6px">Payment schedule (optional)</div><div id="po-terms">${po.terms.map(termRow).join("")}</div><button type="button" id="po-add-term" formnovalidate>Add term</button></div>
+  <div class="small muted" style="grid-column:1/-1">Every payment on this PO is its next termin (termin-1, termin-2 ...), of any amount, as long as all of them together stay within the total; the schedule above is the payment plan shown beside them.</div>
   <label>Status<select id="po-status">${["OPEN","CLOSED","CANCELLED"].map(x=>`<option ${x===po.status?"selected":""}>${x}</option>`).join("")}</select></label>`;
  const wire=()=>$("#po-terms").querySelectorAll(".t-del").forEach(b=>b.onclick=()=>b.closest(".term").remove());wire();
  $("#po-add-term").onclick=()=>{$("#po-terms").insertAdjacentHTML("beforeend",termRow({}));wire()};
@@ -1133,7 +1134,7 @@ async function poForm(po){const sup=await suppliers();po=po||{currency:"USD",ter
  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
   const terms=[...$("#po-terms").querySelectorAll(".term")].map(t=>({term_id:t.querySelector(".t-id").value.trim().toUpperCase(),label:t.querySelector(".t-label").value.trim(),amount_minor:Math.round(parseFloat(t.querySelector(".t-amt").value||"0")*100)})).filter(t=>t.term_id||t.label||t.amount_minor);
   const body={po_id:$("#po-id").value.trim().toUpperCase(),supplier_id:$("#po-sup").value,currency:$("#po-ccy").value.trim().toUpperCase(),total_minor:Math.round(parseFloat($("#po-total").value||"0")*100),
-   account_code:$("#po-code").value.trim().toUpperCase(),description:$("#po-desc").value,terms,allow_partial:$("#po-partial").checked,status:$("#po-status").value,issued_date:po.issued_date};
+   account_code:$("#po-code").value.trim().toUpperCase(),description:$("#po-desc").value,terms,allow_partial:true,status:$("#po-status").value,issued_date:po.issued_date};
   try{await api(`/v1/org/purchase-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Purchase order saved","good");poView()}
   catch(e){$("#dlgErr").textContent=e.message}}}
 $("#addPO").onclick=()=>poForm(null);

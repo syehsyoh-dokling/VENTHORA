@@ -1,18 +1,19 @@
 # ruff: noqa: E501
 """Purchase orders: what was agreed, what has been paid, and whether an invoice may draw on it.
 
-A PO names one supplier, one currency, a total, an account code (office cost centre . project . account) and how it
-is paid: scheduled terms (e.g. T1 30% deposit, T2 70% on delivery) and, when allow_partial, any partial invoice while
-the PO still has room. Its balance comes from the money that really left: the spend ledger rows the executor booked
-for transfers Airwallex reported PAID. Invoices already accepted but not yet paid count as pending, so two invoices
-cannot each take the same remaining amount.
+A PO names one supplier, one currency, a total and an account code (office cost centre . project . account). It may be
+paid any number of times while it has room: every payment is the PO's next termin (termin-1, termin-2, ... in the
+order the money was paid), of any amount, as long as all of them together never pass the total. Scheduled terms
+(e.g. T1 30% deposit, T2 70% on delivery) are the payment plan shown beside the termins; an invoice that equals an
+open scheduled term is labelled with it, any other amount is simply the next termin. Its balance comes from the money
+that really left: the spend ledger rows the executor booked for transfers Airwallex reported PAID. Invoices already
+accepted but not yet paid count as pending, so two invoices cannot each take the same remaining amount.
 
 An invoice matches when every check passes; each failure is a flag a person sees:
   po_unknown / po_not_open          the quoted PO does not exist, or is closed or cancelled
   po_supplier_mismatch              the PO was placed with someone else
   po_currency_mismatch              the invoice is in another currency
   po_exceeded                       paid + pending + this invoice would pass the PO total
-  po_term_mismatch                  the amount equals no unpaid term and the PO does not allow partial invoices
 """
 from __future__ import annotations
 
@@ -49,7 +50,10 @@ def status(org, payments, po_id: str, *, pending: dict[str, int] | None = None) 
     po = org.get("po", po_id)
     if po is None:
         return None
-    rows = payments.po_payments(po_id) if payments is not None else []
+    rows = sorted(payments.po_payments(po_id) if payments is not None else [], key=lambda r: r["paid_at"])
+    for n, r in enumerate(rows, 1):
+        r["termin"] = n  # every payment on a PO is its next termin, in the order the money was paid
+    flying = payments.po_in_flight(po_id) if payments is not None and hasattr(payments, "po_in_flight") else []
     paid = sum(r["amount_minor"] for r in rows if r["currency"] == po["currency"])
     by_term: dict[str, int] = {}
     for r in rows:
@@ -59,7 +63,7 @@ def status(org, payments, po_id: str, *, pending: dict[str, int] | None = None) 
                   "state": "PAID" if by_term.get(t["term_id"], 0) >= t["amount_minor"] else
                            "PENDING" if t["term_id"] in (pending or {}) else "OPEN"} for t in po["terms"]]
     return {"po": po, "paid_minor": paid, "pending_minor": waiting, "remaining_minor": po["total_minor"] - paid - waiting,
-            "terms": terms, "payments": rows}
+            "terms": terms, "payments": rows, "next_termin": len(rows) + len(flying) + 1}
 
 
 def match(org, payments, po_id: str, *, supplier_id: str | None, currency: str | None, amount_minor: int | None,
@@ -86,21 +90,13 @@ def match(org, payments, po_id: str, *, supplier_id: str | None, currency: str |
                            f"{max(st['remaining_minor'], 0) / 100:,.2f} left (total {po['total_minor'] / 100:,.2f}, paid "
                            f"{st['paid_minor'] / 100:,.2f}, pending {st['pending_minor'] / 100:,.2f})")
         term = next((t for t in st["terms"] if t["state"] == "OPEN" and abs(t["amount_minor"] - amount_minor) <= TOLERANCE_MINOR), None)
-        if term:
-            installment = term["term_id"]
-        elif po["allow_partial"]:
-            installment = "partial"
-        else:
-            flags.append("po_term_mismatch")
-            reasons.append(f"{po['currency']} {amount_minor / 100:,.2f} equals no unpaid term of PO {po_id} ("
-                           + ", ".join(f"{t['term_id']} {t['amount_minor'] / 100:,.2f} {t['state'].lower()}" for t in st["terms"])
-                           + ") and the PO does not take partial invoices")
+        installment = term["term_id"] if term else "partial"  # any amount is the next termin; a scheduled term is only a label
     ok = not flags
     if ok:
-        what = f"term {installment} ({next(t['label'] for t in st['terms'] if t['term_id'] == installment)})" \
-            if installment not in (None, "partial") else "a partial invoice"
-        reasons.append(f"PO {po_id} matched as {what}; {po['currency']} {(st['remaining_minor'] - (amount_minor or 0)) / 100:,.2f} "
-                       f"left after it; charged to {po['account_code']}")
+        sched = next((t["label"] for t in st["terms"] if t["term_id"] == installment), None)
+        reasons.append(f"PO {po_id} matched as its next payment (termin-{st['next_termin']} if paid next"
+                       + (f"; scheduled term {installment}, {sched}" if sched else "") + f"); {po['currency']} "
+                       f"{(st['remaining_minor'] - (amount_minor or 0)) / 100:,.2f} left after it; charged to {po['account_code']}")
     return {"ok": ok, "flags": flags, "reasons": reasons, "po": po, "installment": installment,
             "account_code": po["account_code"], "paid_minor": st["paid_minor"], "remaining_minor": st["remaining_minor"]}
 

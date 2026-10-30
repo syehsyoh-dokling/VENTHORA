@@ -179,14 +179,15 @@ the finance standards.
 
   Settings → Projects & accounts holds both lists and checks any code.
 - **Purchase orders** (Payments → Purchase orders). Each PO has one supplier, one currency, a total and an account
-  code. It can have scheduled terms (for example `T1` 30% deposit and `T2` 70% on delivery), and it may also accept
-  partial invoices. A PO that money was paid against cannot be deleted, only closed or cancelled.
+  code. It can be paid any number of times while it has room: **every payment is the PO's next termin**
+  (termin-1, termin-2 ... in the order the money was paid), of any amount, as long as all of them together stay
+  within the total. A payment schedule (for example `T1` 30% deposit and `T2` 70% on delivery) is optional and is
+  shown beside the termins as the plan. A PO that money was paid against cannot be deleted, only closed or cancelled.
 - **The match.** The intake reads the PO number from the email or PDF, and never mistakes it for the invoice number.
   It then checks the supplier, the currency and the room left on the PO. The room is the total minus what Airwallex
-  reported paid, minus invoices already accepted and still waiting. Finally it decides which term the invoice pays:
-  an unpaid term of the same amount, or a partial invoice when the PO allows one. Any mismatch is a flag a person
-  sees: `po_missing`, `po_unknown`, `po_not_open`, `po_supplier_mismatch`, `po_currency_mismatch`, `po_exceeded` or
-  `po_term_mismatch`.
+  reported paid, minus invoices already accepted and still waiting. Any amount within the room is accepted as the
+  PO's next termin (labelled with a scheduled term when it equals one). Any mismatch is a flag a person sees:
+  `po_missing`, `po_unknown`, `po_not_open`, `po_supplier_mismatch`, `po_currency_mismatch` or `po_exceeded`.
 - **Through the plan.** A matched invoice carries its PO total and what was already paid, so the three-way match
   refuses an over-claim. It also carries the term and the account code. The executor books every PAID transfer with
   its PO number and account code.
@@ -449,14 +450,15 @@ brings them together in one statement, with a CSV download:
 | Accumulated | monthly, quarterly, half-yearly (semester) or annual buckets of the fiscal year, each with its total and the running total, by reporting period (the cut-off decides the month, as in the period close) |
 
 Each report totals per currency with the base-currency cost, by vendor and by purchase order. Below it, every PO is
-reconciled: total, paid, in flight, invoiced and waiting, what is left, each term's state, and **OVERPAID** or
+reconciled: total, the termins paid (termin-1, termin-2 ... with amount and date), in flight, invoiced and waiting,
+what is left, the next termin, the schedule beside it, and **OVERPAID** or
 **UNDERPAID** (closed before it was paid in full).
 
-A PO can be paid several times while it has room. The intake already refuses an invoice that would pass the PO
-(paid + waiting invoices); **the executor checks again when money moves**, on the payments booked, the transfers
-still in flight from other runs and the other payments in the same plan: never past the PO total, each term
-exactly once and for exactly its amount, partial invoices only where the PO allows them, the PO's supplier and
-currency, and every invoice paid in full or not at all. Any failure refuses the run before money moves.
+A PO can be paid two, three or more times while it has room; every payment is its next termin. The intake already
+refuses an invoice that would pass the PO (paid + waiting invoices); **the executor checks again when money moves**,
+on the payments booked, the transfers still in flight from other runs and the other payments in the same plan:
+never past the PO total, the PO's supplier and currency, and every invoice paid in full or not at all. Any failure
+refuses the run before money moves; the executor's record names the termin each payment becomes.
 
 ## Budget allocation: checked again when money moves
 
