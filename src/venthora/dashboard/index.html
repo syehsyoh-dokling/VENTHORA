@@ -204,6 +204,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/sources-upload" data-nav="sources-upload"><i>⇪</i>Upload dataset</a>
   <a href="#/sources-email" data-nav="sources-email"><i>✉</i>Email sources</a>
   <a href="#/api-access" data-nav="api-access"><i>⌘</i>API access</a>
+  <a href="#/doc-rules" data-nav="doc-rules"><i>✓</i>Document validation</a>
   <a href="#/allocation" data-nav="budget-group"><i>◔</i>Budget allocation</a>
   <a href="#/allocation" data-nav="allocation" style="padding-left:34px;font-size:12.5px">Regular based</a>
   <a href="#/allocation-project" data-nav="allocation-project" style="padding-left:34px;font-size:12.5px">Project based</a>
@@ -431,6 +432,26 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="epList" class="empty">loading…</div>
  </section>
 
+ <section class="span12" data-view="doc-rules">
+  <h2><span>Document validation</span><span class="row"><label class="check small"><input type="checkbox" id="dr-enabled"> validate every invoice, claim and bank letter</label><button class="primary" id="drSave">Save</button><span class="small" id="drMsg"></span></span></h2>
+  <div class="small muted">Local Python reads the email, the PDF text, every image placed on a page (stamp, signature) and the PDF's own dates; the AI model (Settings → AI model) adds which document each file is, the invoice date and anything an auditor would question, always quoting the document. A failed <b>Required</b> check holds the request for a person; <b>Warn</b> flags it.</div>
+  <h3 class="small muted" style="margin:16px 0 6px">Required documents: every ticked one must come with the request</h3>
+  <div id="drDocs" style="overflow-x:auto"></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Standard checks</h3>
+  <div id="drChecks"></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Limits</h3>
+  <div class="form">
+   <label>Invoice older than (days) is flagged<input id="dr-age" type="number" min="1" max="3650"></label>
+   <label>Stamp size from (mm)<input id="dr-smin" type="number" min="5" max="150" step="0.5"></label>
+   <label>Stamp size to (mm)<input id="dr-smax" type="number" min="5" max="150" step="0.5"></label>
+   <label>Signature at least (mm wide)<input id="dr-sig" type="number" min="3" max="150" step="0.5"></label>
+   <label>Largest attachment (MB)<input id="dr-mb" type="number" min="0.1" max="35" step="0.1"></label>
+   <label>Dates like 03/04/2026 mean<select id="dr-order"><option value="dmy">3 April (day first)</option><option value="mdy">March 4 (month first)</option></select></label>
+   <label class="check"><input type="checkbox" id="dr-body"> an invoice written in the email body counts as the invoice</label>
+  </div>
+  <div class="small muted" style="margin:10px 0 4px">Allowed file types</div><div class="row" id="drTypes"></div>
+ </section>
+
  <section class="span8" data-view="ai">
   <h2><span>AI model</span><span class="small muted" id="aiActive"></span></h2>
   <div class="modes" id="aiModes">
@@ -539,6 +560,11 @@ $("#planIntake").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">a
  try{renderPlan(await api("/v1/intake/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario_id:$("#scenario").value,as_of:"2026-10-24"})}))}catch(e){$("#planOut").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
 
 let INTAKE_PEOPLE={};
+const CHECK_ICON={pass:"✓",fail:"✗",warn:"!",skip:"–"},CHECK_TONE={pass:"good",fail:"critical",warn:"warn",skip:""};
+function docChecks(cs){if(!cs.length)return '<span class="small muted">-</span>';const n=s=>cs.filter(c=>c.status===s).length;
+ const held=cs.some(c=>c.status==="fail"&&c.mode==="required");
+ return `<details><summary class="small"><span class="pill ${held?"critical":n("fail")+n("warn")?"warn":"good"}">${n("pass")}/${cs.filter(c=>c.status!=="skip").length}</span>${n("fail")?` ${n("fail")} failed`:""}${n("warn")?` · ${n("warn")} to look at`:""}</summary>`
+  +cs.map(c=>`<div class="small" style="margin:3px 0"><span class="pill ${CHECK_TONE[c.status]}" title="${esc(c.mode)}">${CHECK_ICON[c.status]}</span> <b>${esc(c.label)}</b>${c.mode==="required"?"":' <span class="muted">(warn)</span>'}${c.source!=="rules"?` <span class="chip">${esc(c.source)}</span>`:""}<div class="muted">${esc(c.detail)}</div>${c.evidence?`<div class="quote">“${esc(c.evidence)}”</div>`:""}</div>`).join("")+"</details>"}
 async function intake(){try{const rows=await api("/v1/intake");try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};rows.forEach(r=>c[r.status]=(c[r.status]||0)+1);
  $("#intakeMeta").textContent=Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · ");
  $("#intake").innerHTML=table([{h:"Status",f:r=>pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
@@ -547,6 +573,7 @@ async function intake(){try{const rows=await api("/v1/intake");try{INTAKE_PEOPLE
   {h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>`${esc(r.invoice_no||"-")}${r.po_number?`<div class="small"><span class="chip">${esc(r.po_number)}${r.installment?` · ${esc(r.installment)}`:""}</span></div>${r.account_code?`<div class="mono muted">${esc(r.account_code)}</div>`:""}`:""}`},{h:"Due",f:r=>esc(r.due_date||"-")},
   {h:"Read from",f:r=>`<span class="small">${(r.attachments||[]).map(a=>`<div title="${esc(a.problem||`${a.pages} page(s) read`)}">${a.read?"📄":"⚠"} ${esc(a.name)}</div>`).join("")||"email body"}
    <div class="muted">${r.reader==="model+rules"?"model + rules":"rules"}${Object.keys(r.authentication||{}).length?` · ${Object.entries(r.authentication).map(([k,v])=>`${k} ${v}`).join(", ")}`:""}</div></span>`},
+  {h:"Checks",f:r=>docChecks(r.checks||[])},
   {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}${(r.approvers||[]).length?`<div class="small">approvers: ${r.approvers.map(id=>esc((INTAKE_PEOPLE[id]||{}).name||id)).join(", ")}</div>`:""}</details>`},
   {h:"",f:r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`:""}],
   rows,"No requests waiting. Invoices and claims emailed to the inbound address appear here the moment they arrive.");
@@ -698,9 +725,9 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+ standards:"Finance standards","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
@@ -1219,6 +1246,27 @@ $("#addKey").onclick=async()=>{CAT=CAT||await api("/v1/developer/catalog");$("#d
     <div class="row" style="margin-top:8px"><code class="mono" id="newKeyVal" style="word-break:break-all">${esc(k.key)}</code><button id="copyKey">Copy</button><button id="hideKey">Done</button></div></div>`;
    $("#copyKey").onclick=async()=>{try{await navigator.clipboard.writeText(k.key);toast("Key copied","good")}catch(e){}};$("#hideKey").onclick=()=>{$("#newKey").innerHTML=""};apiView()}
   catch(e){$("#dlgErr").textContent=e.message}}};
+
+// ---- Settings → Document validation ---------------------------------------------------------------------------------
+let DR=null;
+async function docRulesView(){try{DR=await api("/v1/settings/documents");const r=DR.rules,kinds=Object.entries(DR.kinds);
+ $("#dr-enabled").checked=r.enabled;
+ $("#drDocs").innerHTML=`<table><thead><tr><th>Document</th>${kinds.map(([,l])=>`<th style="text-align:center">${esc(l)}</th>`).join("")}</tr></thead><tbody>`
+  +Object.entries(DR.document_types).map(([k,l])=>`<tr><td>${esc(l)}</td>${kinds.map(([kind])=>`<td style="text-align:center"><input type="checkbox" data-req="${kind}" data-doc="${k}" ${(r.required_documents[kind]||[]).includes(k)?"checked":""}></td>`).join("")}</tr>`).join("")+"</tbody></table>";
+ $("#drChecks").innerHTML=table([{h:"Check",f:([,c])=>`<b>${esc(c.label)}</b><div class="small muted">${esc(c.description)}</div>`},
+  {h:"Mode",f:([k,c])=>`<select data-chk="${k}">${["off","warn","required"].map(m=>`<option value="${m}" ${(r.checks[k]||c.default)===m?"selected":""}>${{off:"Off",warn:"Warn",required:"Required"}[m]}</option>`).join("")}</select>`}],Object.entries(DR.checks));
+ $("#dr-age").value=r.max_invoice_age_days;$("#dr-smin").value=r.stamp_min_mm;$("#dr-smax").value=r.stamp_max_mm;$("#dr-sig").value=r.signature_min_mm;
+ $("#dr-mb").value=r.max_attachment_mb;$("#dr-order").value=r.date_order;$("#dr-body").checked=r.invoice_in_body_ok;
+ const types=[...new Set(["pdf","jpg","jpeg","png","tif","tiff","heic","xlsx","xls","csv","docx","doc","zip",...r.allowed_file_types])];
+ $("#drTypes").innerHTML=types.map(t=>`<label class="check small"><input type="checkbox" data-ft="${t}" ${r.allowed_file_types.includes(t)?"checked":""}> .${t}</label>`).join(" ")}
+ catch(e){$("#drDocs").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#drSave").onclick=async()=>{const req={};Object.keys(DR.kinds).forEach(k=>req[k]=[...document.querySelectorAll(`[data-req="${k}"]:checked`)].map(c=>c.dataset.doc));
+ const body={enabled:$("#dr-enabled").checked,required_documents:req,checks:Object.fromEntries([...document.querySelectorAll("[data-chk]")].map(s=>[s.dataset.chk,s.value])),
+  max_invoice_age_days:+$("#dr-age").value,stamp_min_mm:+$("#dr-smin").value,stamp_max_mm:+$("#dr-smax").value,signature_min_mm:+$("#dr-sig").value,
+  max_attachment_mb:+$("#dr-mb").value,date_order:$("#dr-order").value,invoice_in_body_ok:$("#dr-body").checked,
+  allowed_file_types:[...document.querySelectorAll("[data-ft]:checked")].map(c=>c.dataset.ft)};
+ try{await api(`/v1/settings/documents?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#drMsg").innerHTML='<span class="pill good">saved</span>';toast("Document rules saved","good")}
+ catch(e){$("#drMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 // ---- Settings → AI model -----------------------------------------------------------------------------------------
 let AI=null;

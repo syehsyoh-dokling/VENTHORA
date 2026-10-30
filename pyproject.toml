@@ -19,6 +19,7 @@ dependencies = [
   "pyarrow>=17",
   "pypdf>=5,<7",
   "openpyxl>=3.1,<4",
+  "pillow>=10,<13",
 ]
 
 [project.scripts]

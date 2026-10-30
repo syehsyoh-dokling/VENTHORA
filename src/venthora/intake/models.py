@@ -21,6 +21,18 @@ class Attachment(BaseModel):
     problem: str | None = None
 
 
+class Check(BaseModel):
+    """One document-validation check (Settings → Document validation) and its outcome."""
+    model_config = ConfigDict(extra="forbid")
+    check: str
+    label: str
+    mode: Literal["off", "warn", "required"]
+    status: Literal["pass", "fail", "warn", "skip"]
+    detail: str
+    evidence: str | None = None
+    source: Literal["rules", "model", "rules+model"] = "rules"
+
+
 class Quote(BaseModel):
     """A field value and the verbatim text it was read from."""
     model_config = ConfigDict(extra="forbid")
@@ -72,6 +84,7 @@ class IntakeRequest(BaseModel):
     category: str | None = None
     expense_date: str | None = None
     approvers: list[str] = Field(default_factory=list, description="eligible approvers, nearest unit first; never the claimant")
+    checks: list[Check] = Field(default_factory=list, description="document validation: identity, dates, documents, stamp")
     text_sha256: str
     text: str = Field(max_length=40_000)
 

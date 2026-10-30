@@ -861,6 +861,7 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
     proposals = await reader.read(parsed["text"], parsed["subject"], datetime.fromisoformat(parsed["received_at"]).date(),
                                   model) if model.configured else {}
     req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals)
+    req = await _validate_documents(req, raw, model, save=not dry_run)
     if not dry_run:
         app.state.position_cache = None  # a new bill or remittance changes the position
         app.state.hub.publish("intake", {"channel": channel} | req.model_dump(include={
@@ -1848,3 +1849,59 @@ async def _budget_scheduler(every_s: float = 30.0) -> None:
                         await _budget_sync(kind, "scheduler (budget allocation)")
                         break
         await asyncio.sleep(every_s)
+
+
+# ---- Settings → Document validation: required documents and the standard finance checks ----
+async def _validate_documents(req: IntakeRequest, raw: bytes, model, *, save: bool) -> IntakeRequest:
+    """Local checks on the email and its files, with the model's grounded reading; a failed Required check holds a
+    VERIFIED request for a person. A request already in the queue (same Message-ID) is returned as it is."""
+    from .intake import validation
+
+    if req.checks or req.kind not in validation.KINDS:
+        return req
+    rules = validation.DocRules.model_validate(app.state.org.doc_rules())
+    if not rules.enabled:
+        return req
+    docs = await asyncio.to_thread(validation.read_documents, raw)
+    received = datetime.fromisoformat(req.received_at.replace("Z", "+00:00")).date()
+    assist = await validation.model_assist(model, req.subject, req.text, docs, received) if model.configured else {}
+    vendor = app.state.intake.registry.payees.get(req.counterparty_id or "") if req.kind != "expense_claim" else None
+    bank = None
+    if vendor is not None:
+        ben = app.state.executor.beneficiaries.get(req.counterparty_id) or {}
+        bank = ((ben.get("payload") or {}).get("beneficiary") or {}).get("bank_details") or None
+    po = app.state.org.get("po", req.po_number) if req.po_number else None
+    checks = validation.validate(req, docs, rules, company=app.state.org.standards().get("company_name", ""), vendor=vendor,
+                                 registered_bank=bank, po=po, model=assist)
+    out = validation.apply(req, checks)
+    if save:
+        await asyncio.to_thread(app.state.intake.store.save, out)
+    return out
+
+
+@app.get("/v1/settings/documents")
+async def doc_rules_get():
+    """The document-validation rules, with the catalogue of document types and checks the page offers."""
+    from .intake import validation
+
+    return {"rules": app.state.org.doc_rules(), "kinds": validation.KIND_LABEL,
+            "document_types": {k: v[0] for k, v in validation.DOC_TYPES.items()},
+            "checks": {k: {"label": v[0], "default": v[1], "description": v[2]} for k, v in validation.CHECKS.items()}}
+
+
+@app.put("/v1/settings/documents")
+async def doc_rules_put(body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    from .intake import validation
+
+    who = _writer(role, by)
+    try:
+        rules = validation.DocRules.model_validate(app.state.org.doc_rules() | body)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    bad = [t for ts in rules.required_documents.values() for t in ts if t not in validation.DOC_TYPES]
+    bad += [k for k in rules.required_documents if k not in validation.KINDS] + [k for k in rules.checks if k not in validation.CHECKS]
+    if bad or rules.stamp_min_mm > rules.stamp_max_mm:
+        raise HTTPException(422, f"unknown: {bad}" if bad else "the stamp's minimum size is above its maximum")
+    saved = await asyncio.to_thread(app.state.org.save_doc_rules, rules, who)
+    await asyncio.to_thread(app.state.audit.append, "doc_rules", saved | {"by": who})
+    return saved

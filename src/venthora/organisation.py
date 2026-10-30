@@ -509,6 +509,16 @@ class OrgStore:
         self._put("budget_policy", p.model_dump() | {"_id": "budget_policy"}, by)
         return self.budget_policy()
 
+    def doc_rules(self) -> dict:
+        from .intake.validation import DocRules
+
+        rec = self.get("doc_rules", "doc_rules")
+        return DocRules.model_validate({k: v for k, v in (rec or {}).items() if k != "_id"}).model_dump()
+
+    def save_doc_rules(self, r, by: str) -> dict:
+        self._put("doc_rules", r.model_dump() | {"_id": "doc_rules"}, by)
+        return self.doc_rules()
+
     def save_standards(self, s: Standards, by: str) -> dict:
         self._put("standards", s.model_dump() | {"_id": "standards"}, by)
         return self.standards()

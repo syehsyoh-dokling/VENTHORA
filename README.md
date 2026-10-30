@@ -412,6 +412,31 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 
 
+
+## Document validation: the finance checks before anything is payable
+
+**Settings → Document validation** decides what an invoice, a contractor claim, a staff expense claim or a
+bank-detail letter must prove. Ticked documents are mandatory per kind (invoice, tax invoice / faktur pajak,
+receipt / kwitansi, PO copy, delivery note / surat jalan, goods received note / BAST, quotation, contract / SPK,
+timesheet, statement, bank letter, tax registration, business licence, travel documents, expense report). Every
+standard check is **Off**, **Warn** (flagged, still payable) or **Required** (a failure holds the request for a person):
+
+| Area | Checks |
+|---|---|
+| Identity | registered mailbox; vendor name and company name on the document; vendor tax ID; any account number or IBAN on the document is the registered account |
+| Dates | invoice date read; **not after the submission date**; not older than the limit; due date not before it; the PDF's own creation and modification dates not after the submission |
+| Numbers | invoice number; subtotal + tax = total; currency matches the PO |
+| Files | allowed types and size; PDFs have a text layer; not edited after issue (modified days after creation, or produced by an editing tool) |
+| Marks | stamp present; **stamp size on the page within the set millimetres**; signature present |
+| AI review | what an auditor would question, each finding quoted from the document |
+
+Local Python reads the PDF text, the position and size of every image placed on a page (a stamp is a near-square
+image in coloured ink; a signature a wide thin stroke; sizes come from the page geometry, in mm), and the PDF's
+info dictionary. The AI model (Settings → AI model, e.g. a local Qwen) says which document each attachment is, reads
+the invoice date when the rules cannot, and lists findings; an answer that does not quote the document verbatim is
+dropped, and the model can only add a warning, never pass a check the rules failed. The result is on every request
+in **Intake** (the *Checks* column), with the evidence for each check.
+
 ## Budget allocation: checked again when money moves
 
 **Settings → Budget allocation** has three pages:
@@ -457,7 +482,7 @@ and a connector already pointed at it, so **Settings → Sync API → Sync now**
 
 ## API
 
-Every endpoint (102 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
+Every endpoint (104 at the time of writing) is listed in **Settings → API access**, grouped by area with the scope
 an API key needs, and in `/openapi.json` and the interactive `/docs`.
 
 **Other applications** call VENTHORA with an API key created on that page:
