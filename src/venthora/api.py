@@ -2109,16 +2109,25 @@ async def upload_fields():
     return {e: [{"field": f, "kind": k} for f, (k, _) in fs.items()] for e, fs in FIELDS.items()}
 
 
+@app.get("/v1/sources/entities")
+async def upload_entities():
+    """Every kind of record a dataset can hold: its label, what VENTHORA uses it for, and the page it shows on."""
+    from .imports import ENTITIES
+
+    return [{"entity": e, "label": label, "why": why, "page": page} for e, (label, why, page) in ENTITIES.items()]
+
+
 @app.post("/v1/sources/uploads")
-async def upload_start(request: Request, entity: str, filename: str, role: str = "finance_manager"):
-    """Upload a CSV, Excel or PDF file (the raw bytes as the body). The reply proposes which column feeds which field;
-    nothing is written until the preview is committed."""
+async def upload_start(request: Request, filename: str, entity: str = "auto", role: str = "finance_manager"):
+    """Upload any data file (the raw bytes as the body): CSV, TSV, Excel, JSON, Word, HTML, e-mail, PDF or text.
+    entity=auto lets VENTHORA decide what the file holds (column names first, then the AI model). The reply proposes
+    which column feeds which field; nothing is written until the preview is committed."""
     import uuid
 
     from . import imports
 
     _writer(role, "upload")
-    if entity not in imports.FIELDS:
+    if entity != "auto" and entity not in imports.FIELDS:
         raise HTTPException(404, "unknown entity")
     data = await request.body()
     if not data or len(data) > MAX_UPLOAD_BYTES:
@@ -2128,8 +2137,24 @@ async def upload_start(request: Request, entity: str, filename: str, role: str =
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     model = active_model()
+    detected = None
+    if entity == "auto":
+        scores = imports.detect(parsed["headers"])
+        clear = bool(scores) and scores[0][1] >= 3 and (len(scores) == 1 or scores[0][1] - scores[1][1] >= 1)
+        entity, by = (scores[0][0], "column names") if clear else (None, "")
+        if entity is None:
+            entity = await imports.detect_with_model(parsed["headers"], parsed["rows"][:3], parsed.get("text", ""), model)
+            by = "AI model" if entity else ""
+        if entity is None and scores:
+            entity, by = scores[0][0], "column names (best guess)"
+        if entity is None:
+            raise HTTPException(422, "VENTHORA could not tell what this file holds" + ("" if model.configured else
+                                " (connect an AI model to read documents without columns)") + ": choose the kind of data and upload again")
+        detected = {"entity": entity, "by": by, "candidates": [{"entity": e, "score": round(sc, 2)} for e, sc in scores[:3]]}
     reader = "rules"
-    if parsed["kind"] == "pdf" and model.configured:
+    if parsed["kind"] in ("pdf", "docx", "html", "eml", "text") and not parsed["rows"] and not model.configured:
+        raise HTTPException(422, "this document has no columns; connect an AI model (Platform Setup > Agent) so it can be read")
+    if parsed["kind"] in ("pdf", "docx", "html", "eml", "text") and model.configured and (parsed["kind"] == "pdf" or not parsed["rows"]):
         rows = await imports.pdf_rows_with_model(entity, parsed.get("text", ""), model)
         if rows:  # the model read the report; keys are already VENTHORA's fields
             parsed |= {"rows": rows, "headers": sorted({k for r in rows for k in r})}
@@ -2143,7 +2168,9 @@ async def upload_start(request: Request, entity: str, filename: str, role: str =
         reader = "rules+model" if extra else "rules"
     uid = uuid.uuid4().hex[:12]
     app.state.__dict__.setdefault("uploads", {})[uid] = {"filename": filename, "entity": entity, **parsed}
-    return {"upload_id": uid, "filename": filename, "entity": entity, "kind": parsed["kind"], "headers": parsed["headers"],
+    label, _, page = imports.ENTITIES[entity]
+    return {"upload_id": uid, "filename": filename, "entity": entity, "label": label, "page": page, "detected": detected,
+            "kind": parsed["kind"], "headers": parsed["headers"],
             "rows": len(parsed["rows"]), "sample": parsed["rows"][:5], "mapping": mapping, "reader": reader,
             "unmapped_fields": [f for f in imports.FIELDS[entity] if f not in mapping]}
 

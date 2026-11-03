@@ -6,9 +6,10 @@
   po            the organisation's purchase orders (the same checks as the PO form: supplier, currency, account code)
   bill          master data, then the intake queue through the same checks as an emailed invoice (vendor, PO, duplicate)
   customer, receivable, budget_line, tenant_book   master data (read by the registry, the plan, budget and tenancy)
-  unit, user, project, account, price   the organisation itself (offices and branches, people and their approval
-                limits, projects, the chart of accounts, unit prices), through the same checks as the Settings forms;
-                a record is matched by its natural key (cost centre, email, project or account code, item) so a second
+  unit, user, project, account, price, allocation   the organisation itself (offices and branches, people and their approval
+                limits, projects, the chart of accounts, unit prices, budget allocations), through the same checks as
+                the Settings forms; a record is matched by its natural key (cost centre, email, project or account
+                code, item, allocation scope and period) so a second
                 sync updates it instead of adding a copy
 """
 from __future__ import annotations
@@ -100,7 +101,7 @@ def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict
     return report
 
 
-ORG_ENTITIES = ("unit", "user", "project", "account", "price")
+ORG_ENTITIES = ("unit", "user", "project", "account", "price", "allocation")
 KIND_WORDS = {"hq": "HQ", "head": "HQ", "headquarter": "HQ", "headquarters": "HQ", "country": "COUNTRY_OFFICE",
               "branch": "BRANCH_OFFICE", "cabang": "BRANCH_OFFICE", "project": "PROJECT_FINANCE"}
 
@@ -132,6 +133,17 @@ def _org_row(entity: str, row: dict, org) -> tuple[dict, dict | None]:
         row["code"] = str(row.get("code", "")).strip()
         old = next((x for x in org.list("account") if x["code"] == row["code"]), None)
         row["account_id"] = old["account_id"] if old else "ac-" + _slug(row["code"])
+    elif entity == "allocation":
+        if row.get("unit_id") and not org.get("unit", row["unit_id"]):  # a cost centre or an office name instead of its id
+            u = str(row["unit_id"]).lower()
+            hit = next((x for x in org.list("unit") if u in ((x.get("cost_centre") or "").lower(), x["name"].lower())), None)
+            row["unit_id"] = hit["unit_id"] if hit else row["unit_id"]
+        if row.get("basis") not in (None, "regular", "project"):
+            row["basis"] = "project" if "project" in str(row["basis"]) else "regular"
+        basis, code = row.get("basis", "regular"), (str(row.get("project_code") or "").upper() or None)
+        old = next((a for a in org.list("allocation") if a.get("basis", "regular") == basis and a["period"] == str(row.get("period", ""))
+                    and (a.get("project_code") or None) == code and (basis == "project" or a.get("unit_id") == row.get("unit_id"))), None)
+        row["alloc_id"] = old["alloc_id"] if old else "al-" + _slug(f"{basis}-{row.get('period', '')}-{row.get('unit_id') or ''}-{code or ''}")
     else:
         old = next((x for x in org.list("price") if x["item"].lower() == str(row.get("item", "")).lower()
                     and (x.get("unit_id") or None) == (row.get("unit_id") or None)), None)

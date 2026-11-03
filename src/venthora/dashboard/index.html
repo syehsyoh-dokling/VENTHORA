@@ -279,22 +279,17 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   </div></div>
 
   <div class="mg" data-g="system"><button type="button" class="mh"><i>☷</i><span>System Setting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
-   <div class="nsub">Dataset</div>
-   <a href="#/sources-upload" data-nav="sources-upload" class="nin">Upload dataset</a>
-   <div class="nsub">Finance SOP</div>
-   <a href="#/standards" data-nav="standards" class="nin">Finance standards</a>
-   <a href="#/doc-rules" data-nav="doc-rules" class="nin">Document validation</a>
-   <a href="#/mandate" data-nav="mandate" class="nin">Mandate &amp; policy</a>
-   <div class="nsub">Budget allocation</div>
-   <a href="#/allocation" data-nav="allocation" class="nin">Regular based</a>
-   <a href="#/allocation-project" data-nav="allocation-project" class="nin">Project based</a>
-   <a href="#/budget-policy" data-nav="budget-policy" class="nin">Period, cut-off &amp; sync</a>
-   <div class="nsub">Webhooks</div>
-   <a href="#/integrations" data-nav="integrations" class="nin">Airwallex webhooks</a>
-   <div class="nsub">Organisation structure</div>
-   <a href="#/offices" data-nav="offices" class="nin">Country offices</a>
-   <a href="#/codes" data-nav="codes" class="nin">Projects &amp; accounts</a>
-   <a href="#/prices" data-nav="prices" class="nin">Unit prices</a>
+   <a href="#/sources-upload" data-nav="sources-upload"><i>⇪</i>Dataset upload</a>
+   <a href="#/standards" data-nav="standards"><i>⚑</i>Finance standards</a>
+   <a href="#/doc-rules" data-nav="doc-rules"><i>✓</i>Document validation</a>
+   <a href="#/mandate" data-nav="mandate"><i>⚖</i>Mandate &amp; policy</a>
+   <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget · regular based</a>
+   <a href="#/allocation-project" data-nav="allocation-project"><i>◫</i>Budget · project based</a>
+   <a href="#/budget-policy" data-nav="budget-policy"><i>◷</i>Period, cut-off &amp; sync</a>
+   <a href="#/integrations" data-nav="integrations"><i>↯</i>Airwallex webhooks</a>
+   <a href="#/offices" data-nav="offices"><i>⌂</i>Country offices</a>
+   <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
+   <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
   </div></div>
  </nav>
  <div class="actor"><label class="small muted" for="actor">Acting as</label><select id="actor"></select></div>
@@ -518,9 +513,11 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
 
  <section class="span12" data-view="sources-upload">
-  <h2><span>Upload dataset</span><span class="small muted">CSV, Excel or PDF when the old application has no API</span></h2>
-  <div class="row"><select id="upEntity"><option value="unit">Offices, branches and units</option><option value="user">People and approval limits</option><option value="project">Projects</option><option value="account">Chart of accounts</option><option value="price">Unit prices</option><option value="vendor" selected>Vendors and bank details</option><option value="customer">Customers</option><option value="po">Purchase orders</option><option value="bill">Open bills (AP)</option><option value="receivable">Receivables (AR)</option><option value="budget_line">Budget lines</option><option value="tenant_book">Tenant books</option></select>
-   <input type="file" id="upFile" accept=".csv,.txt,.xlsx,.xlsm,.pdf" multiple><button class="primary" id="upGo">Read the file(s)</button><button id="upAll" disabled>Commit all</button><span class="small" id="upMsg"></span></div>
+  <h2><span>Upload dataset</span><span class="small muted">any file, any layout: VENTHORA's agent reads it and files the data where it belongs</span></h2>
+  <div class="small" style="margin-bottom:10px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>How it works:</b> drop any file (Excel, CSV, JSON, Word, PDF, HTML, an e-mail or plain text). VENTHORA's AI agent reads it, decides what it holds (vendors, people, purchase orders, budgets…), matches each column to VENTHORA's fields and shows a preview; on <b>Commit</b> every record goes to its own page through the same checks as entering it by hand. Leave <b>Auto-detect</b> on, or pick the kind of data yourself.</div>
+  <div class="row"><select id="upEntity"><option value="auto" selected>Auto-detect: the agent decides</option></select>
+   <input type="file" id="upFile" multiple><button class="primary" id="upGo">Read the file(s)</button><button id="upAll" disabled>Commit all</button><span class="small" id="upMsg"></span></div>
+  <div class="small muted" id="upKinds" style="margin-top:6px"></div>
   <div id="upMap" style="margin-top:14px"></div>
   <div id="upResult" style="margin-top:14px"></div>
  </section>
@@ -965,7 +962,7 @@ const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate"
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
  standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
  document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
@@ -1557,11 +1554,14 @@ async function mdView(){try{const e=$("#mdEntity").value;const rows=await api(`/
  $("#mdTable").innerHTML=table(MD_COLS[e].map(([k,h])=>({h,f:r=>mdCell(r,k),num:k==="amount_minor"})),rows,"nothing synced or uploaded yet: VENTHORA uses the data/*.json placeholders")}catch(e){$("#mdTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#mdEntity").onchange=mdView;
 
-let UPFIELDS=null,UPS=[];
+let UPFIELDS=null,UPS=[],UPKINDS=null;
+async function uploadKinds(){try{if(!UPKINDS){UPKINDS=await api("/v1/sources/entities");
+  $("#upEntity").innerHTML='<option value="auto" selected>Auto-detect: the agent decides</option>'+UPKINDS.map(k=>`<option value="${esc(k.entity)}">${esc(k.label)}</option>`).join("")}
+ $("#upKinds").innerHTML="VENTHORA takes: "+UPKINDS.map(k=>`<a href="${esc(k.page)}" title="${esc(k.why)}">${esc(k.label)}</a>`).join(" · ")}catch(e){$("#upKinds").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
 const upMapping=card=>Object.fromEntries([...card.querySelectorAll("[data-fld]")].map(sel=>{const c=card.querySelector(`[data-const="${sel.dataset.fld}"]`).value.trim();
  return [sel.dataset.fld,sel.value||(c?"="+c:"")]}).filter(([,v])=>v));
 async function upCommit(card,up){const out=card.querySelector(".upOut");try{const done=await api(`/v1/sources/uploads/${up.upload_id}/commit?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mapping:upMapping(card)})});
- out.innerHTML=`<div class="small"><b>Committed</b></div>${rep1(done)}`;card.querySelector(".upC").disabled=true;up.done=true;return true}catch(e){out.innerHTML=`<div class="err">${esc(e.message)}</div>`;return false}}
+ out.innerHTML=`<div class="small"><b>Committed</b> · <a href="${esc(up.page)}">Open ${esc(up.label)} ›</a></div>${rep1(done)}`;card.querySelector(".upC").disabled=true;up.done=true;return true}catch(e){out.innerHTML=`<div class="err">${esc(e.message)}</div>`;return false}}
 $("#upGo").onclick=async()=>{const files=[...$("#upFile").files];if(!files.length){$("#upMsg").textContent="choose one or more files first";return}
  $("#upMap").innerHTML=$("#upResult").innerHTML="";UPS=[];$("#upAll").disabled=true;$("#upMsg").textContent=`reading ${files.length} file(s)…`;
  UPFIELDS=UPFIELDS||await api("/v1/sources/fields");const ent=$("#upEntity").value;
@@ -1569,7 +1569,8 @@ $("#upGo").onclick=async()=>{const files=[...$("#upFile").files];if(!files.lengt
   try{const r=await fetch(`/v1/sources/uploads?entity=${ent}&filename=${encodeURIComponent(f.name)}&${who()}`,{method:"POST",body:await f.arrayBuffer()});const j=await r.json();if(!r.ok)throw new Error(j.detail||r.status);
    const up={...j,name:f.name,done:false};UPS.push({card,up});const opts=["",...j.headers];
    card.innerHTML=`<div class="row" style="justify-content:space-between"><b>${esc(f.name)}</b><span class="small"><span class="pill good">${esc(j.kind.toUpperCase())}</span> ${j.rows} row(s) · columns matched by <b>${esc(j.reader)}</b></span></div>
-    <div class="form" style="margin-top:8px">${UPFIELDS[ent].map(fd=>`<label>${esc(fd.field)} <span class="muted">(${esc(fd.kind)})</span><select data-fld="${esc(fd.field)}">${opts.map(o=>`<option value="${esc(o)}" ${j.mapping[fd.field]===o?"selected":""}>${o?esc(o):"— not in the file —"}</option>`).join("")}</select><input data-const="${esc(fd.field)}" placeholder="or one value for every row"></label>`).join("")}</div>
+    <div class="small" style="margin-top:4px">Holds <b>${esc(j.label)}</b>${j.detected?` <span class="muted">(decided by ${esc(j.detected.by)})</span>`:""} · goes to <a href="${esc(j.page)}">${esc(j.label)} ›</a></div>
+    <div class="form" style="margin-top:8px">${UPFIELDS[j.entity].map(fd=>`<label>${esc(fd.field)} <span class="muted">(${esc(fd.kind)})</span><select data-fld="${esc(fd.field)}">${opts.map(o=>`<option value="${esc(o)}" ${j.mapping[fd.field]===o?"selected":""}>${o?esc(o):"— not in the file —"}</option>`).join("")}</select><input data-const="${esc(fd.field)}" placeholder="or one value for every row"></label>`).join("")}</div>
     <details style="margin-top:8px"><summary class="small">First rows as read</summary><div style="overflow-x:auto">${table(j.headers.slice(0,10).map(h=>({h:esc(h),f:x=>esc(x[h]??"")})),j.sample)}</div></details>
     <div class="row" style="margin-top:10px"><button class="upP">Preview</button><button class="primary upC" disabled>Commit</button><span class="small muted">nothing is written until Commit</span></div><div class="upOut" style="margin-top:8px"></div>`;
    card.querySelector(".upP").onclick=async()=>{const out=card.querySelector(".upOut");try{const pv=await api(`/v1/sources/uploads/${up.upload_id}/preview`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mapping:upMapping(card)})});

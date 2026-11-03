@@ -127,10 +127,11 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("PUT", "/v1/sources/connectors/{connector_id}"): ("Save a connector", "Create or change a connection to the old system or ERP."),
     ("POST", "/v1/sources/connectors/{connector_id}/sync"): ("Run a sync", "Read every enabled entity from the source and write it; dry_run=true only reports what would change."),
     ("GET", "/v1/sources/fields"): ("Import fields", "The fields each entity takes and how a cell is read, for building import files."),
+    ("GET", "/v1/sources/entities"): ("Dataset kinds", "Every kind of record a dataset can hold, what VENTHORA uses it for and the page it shows on."),
     ("GET", "/v1/sources/master/{entity}"): ("List master data", "The synced or imported records of one entity."),
     ("GET", "/v1/sources/readiness"): ("Readiness", "Platform setup: every connection, organisation record, master data set, intake channel and policy VENTHORA needs, whether it is done, required or optional, and where to set it."),
     ("GET", "/v1/sources/runs"): ("List sync runs", "Every sync and import with its counts of created, updated and rejected records."),
-    ("POST", "/v1/sources/uploads"): ("Upload a file", "Upload a CSV, Excel or PDF file as the raw body; the reply says which entity it holds."),
+    ("POST", "/v1/sources/uploads"): ("Upload a file", "Upload any data file (CSV, Excel, JSON, Word, HTML, e-mail, PDF or text) as the raw body; with entity=auto VENTHORA decides what it holds."),
     ("POST", "/v1/sources/uploads/{upload_id}/commit"): ("Import an upload", "Write the previewed records of an upload."),
     ("POST", "/v1/sources/uploads/{upload_id}/preview"): ("Preview an upload", "What the import would create, update or reject, without writing it."),
     # settings

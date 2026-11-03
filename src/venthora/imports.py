@@ -1,7 +1,11 @@
 # ruff: noqa: E501
-"""Upload dataset: master data from a file when the old application has no API (CSV, Excel, or a PDF report).
+"""Upload dataset: any file that holds VENTHORA's data, when the old application has no API.
 
-  parse      CSV (delimiter sniffed), Excel (first sheet, first non-empty row is the header), or PDF (its text layer)
+  parse      CSV / TSV / TXT (delimiter sniffed), Excel (the first sheet with data), JSON (a list of records), Word
+             .docx (its first table, else its text), HTML (its first table, else its text), e-mail .eml (its body),
+             PDF (its text layer), and any other text file as text
+  detect     entity=auto: the columns are scored against every entity's field names and synonyms; when that is not
+             clear (or the file is a document without columns) the configured AI model picks the entity
   map        each VENTHORA field is matched to a column by name and synonyms ("Vendor Name", "Supplier", "Kreditor"...);
              the configured AI model may propose the rest, and only a column that exists can be proposed
   clean      by the field's kind: amounts to minor units, dates to YYYY-MM-DD, currencies upper-case, IBANs without
@@ -126,6 +130,34 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
         "tenant": ("lower", ("tenant", "entity", "company")), "tenant_name": ("text", ("tenant name",)),
         "book": ("text", ("book", "book id")), "allowed_payees": ("list", ("allowed payees", "payees", "vendors")),
     },
+    "allocation": {
+        "basis": ("lower", ("basis", "allocation basis", "allocation type", "budget basis")),
+        "period": ("text", ("budget period", "period", "month", "quarter", "fiscal year")),
+        "unit_id": ("lower", ("unit id", "unit", "office", "branch", "cost centre", "cost center")),
+        "include_children": ("bool", ("include children", "include branches", "include sub units")),
+        "project_code": ("upper", ("project code", "project", "project no")),
+        "line": ("text", ("budget line", "line", "expense category", "category")),
+        "amount_minor": ("amount", ("allocated amount", "allocation", "allocated", "budget amount", "amount", "budget")),
+        "no_limit": ("bool", ("no limit", "unlimited")),
+        "currency": ("ccy", ("currency", "ccy")),
+    },
+}
+
+# entity -> (label, what it is for, the dashboard page its records show on)
+ENTITIES: dict[str, tuple[str, str, str]] = {
+    "unit": ("Offices, branches and units", "the organisation tree, local currency, time zone, cost centre and payment limit", "#/offices"),
+    "user": ("People and approval limits", "who works where, their role and how much they may approve", "#/users"),
+    "project": ("Projects", "the project part of every charge code", "#/codes"),
+    "account": ("Chart of accounts", "the GL account every payment is booked to", "#/codes"),
+    "price": ("Unit prices", "agreed prices invoice lines are checked against", "#/prices"),
+    "vendor": ("Vendors and bank details", "who can be paid, to which account", "#/payees"),
+    "customer": ("Customers", "who pays the company, to match money that arrives", "#/sources-sync"),
+    "po": ("Purchase orders", "supplier invoices are paid only against an open PO", "#/pos"),
+    "bill": ("Open bills (AP)", "supplier invoices due; they enter the payment queue", "#/intake"),
+    "receivable": ("Receivables (AR)", "customer invoices still open, for the cash forecast", "#/sources-sync"),
+    "budget_line": ("Budget lines", "the plan per budget line and period", "#/budget"),
+    "allocation": ("Budget allocations", "budget given to an office, branch or project for a period", "#/allocation"),
+    "tenant_book": ("Tenant books", "which entity a payment belongs to, its payees and approvers", "#/mandate"),
 }
 
 
@@ -133,18 +165,35 @@ def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", str(s).lower()).strip()
 
 
+IMAGE_ENDINGS = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp", ".heic")
+
+
 def parse(data: bytes, filename: str) -> dict:
-    """{'kind', 'headers', 'rows', 'text'}: rows are dicts keyed by header."""
+    """{'kind', 'headers', 'rows', 'text'}: rows are dicts keyed by header; a document without columns has only text."""
     name = filename.lower()
     if name.endswith((".xlsx", ".xlsm")):
         import openpyxl
 
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-        ws = wb.worksheets[0]
-        grid = [[("" if c is None else (c.isoformat()[:10] if hasattr(c, "isoformat") else str(c))).strip() for c in r]
-                for r in ws.iter_rows(values_only=True)]
-        grid = [r for r in grid if any(r)]
-        return _table("xlsx", grid)
+        for ws in wb.worksheets:  # the first sheet that holds anything
+            grid = [[("" if c is None else (c.isoformat()[:10] if hasattr(c, "isoformat") else str(c))).strip() for c in r]
+                    for r in ws.iter_rows(values_only=True)]
+            grid = [r for r in grid if any(r)]
+            if grid:
+                return _table("xlsx", grid) | {"sheet": ws.title}
+        return _table("xlsx", [])
+    if name.endswith((".xls", ".ods", ".numbers")):
+        raise ValueError("this spreadsheet format cannot be read here: save it as .xlsx or .csv and upload again")
+    if name.endswith(IMAGE_ENDINGS):
+        raise ValueError("a photo or scan has no text to read: upload the PDF, Excel or CSV it came from, or a PDF with a text layer")
+    if name.endswith(".json"):
+        return _json_table(data)
+    if name.endswith(".docx"):
+        return _docx(data)
+    if name.endswith((".html", ".htm")):
+        return _html(data.decode("utf-8", errors="replace"))
+    if name.endswith(".eml"):
+        return _eml(data)
     if name.endswith(".pdf"):
         from .intake.documents import pdf_text
 
@@ -163,14 +212,109 @@ def parse(data: bytes, filename: str) -> dict:
         table = [r for r in grid if len(r) >= 3]
         out = _table("pdf", table) if len(table) >= 2 else {"kind": "pdf", "headers": [], "rows": []}
         return out | {"text": text, "pages": pages}
+    if data[:4] == b"PK\x03\x04":  # a zip that is not .xlsx or .docx
+        raise ValueError("this file is not text, a spreadsheet, a PDF or a Word document VENTHORA can read")
     raw = data.decode("utf-8-sig", errors="replace") if b"\x00" not in data[:200] else data.decode("utf-16", errors="replace")
     try:
         dialect = csv.Sniffer().sniff(raw[:4000], delimiters=",;\t|")
         delim = dialect.delimiter
     except csv.Error:
-        delim = ","
-    grid = [[c.strip() for c in r] for r in csv.reader(io.StringIO(raw), delimiter=delim)]
-    return _table("csv", [r for r in grid if any(r)])
+        delim = None
+    if delim is None and not name.endswith((".csv", ".tsv")):
+        return {"kind": "text", "headers": [], "rows": [], "text": raw}  # prose, a statement or a list: the model reads it
+    grid = [[c.strip() for c in r] for r in csv.reader(io.StringIO(raw), delimiter=delim or ",")]
+    return _table("csv", [r for r in grid if any(r)]) | {"text": raw[:20000]}
+
+
+def _json_table(data: bytes) -> dict:
+    try:
+        doc = json.loads(data.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"the JSON could not be read: {exc}") from exc
+    if isinstance(doc, dict):  # {"vendors": [...]} or {"data": [...]}: the first list of records
+        doc = next((v for v in doc.values() if isinstance(v, list) and v and isinstance(v[0], dict)), [doc])
+    recs = [r for r in doc if isinstance(r, dict)] if isinstance(doc, list) else []
+    if not recs:
+        raise ValueError("the JSON holds no list of records")
+    flat = []
+    for r in recs[:5000]:
+        row: dict[str, str] = {}
+        for k, v in r.items():
+            if isinstance(v, dict):  # {"bank": {"iban": ...}} -> "bank.iban"
+                row |= {f"{k}.{k2}": "" if v2 is None else str(v2) for k2, v2 in v.items() if not isinstance(v2, (dict, list))}
+            else:
+                row[k] = ", ".join(map(str, v)) if isinstance(v, list) else ("" if v is None else str(v))
+        flat.append(row)
+    headers = list(dict.fromkeys(k for r in flat for k in r))
+    return {"kind": "json", "headers": headers, "rows": [{h: r.get(h, "") for h in headers} for r in flat],
+            "truncated": len(recs) > 5000}
+
+
+def _docx(data: bytes) -> dict:
+    import zipfile
+    from xml.etree import ElementTree as ET
+
+    w = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    try:
+        root = ET.fromstring(zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml"))
+    except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
+        raise ValueError("the Word file could not be read; save it as .docx or PDF") from exc
+    cell = lambda el: " ".join("".join(t.text or "" for t in p.iter(f"{w}t")) for p in el.iter(f"{w}p")).strip()  # noqa: E731
+    text = "\n".join(cell(p) for p in root.iter(f"{w}p"))
+    for tbl in root.iter(f"{w}tbl"):
+        grid = [[cell(tc) for tc in tr.iter(f"{w}tc")] for tr in tbl.iter(f"{w}tr")]
+        grid = [r for r in grid if any(r)]
+        if len(grid) >= 2:
+            return _table("docx", grid) | {"text": text}
+    return {"kind": "docx", "headers": [], "rows": [], "text": text}
+
+
+def _html(raw: str) -> dict:
+    from html.parser import HTMLParser
+
+    class Tables(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.tables, self.row, self.cell, self.text = [], None, None, []
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "table":
+                self.tables.append([])
+            elif tag == "tr" and self.tables:
+                self.row = []
+            elif tag in ("td", "th") and self.row is not None:
+                self.cell = []
+
+        def handle_endtag(self, tag):
+            if tag in ("td", "th") and self.cell is not None and self.row is not None:
+                self.row.append(" ".join("".join(self.cell).split()))
+                self.cell = None
+            elif tag == "tr" and self.row is not None and self.tables:
+                self.tables[-1].append(self.row)
+                self.row = None
+
+        def handle_data(self, d):
+            if self.cell is not None:
+                self.cell.append(d)
+            self.text.append(d)
+
+    t = Tables()
+    t.feed(raw)
+    text = re.sub(r"\n\s*\n+", "\n", "".join(t.text)).strip()
+    grid = next(([r for r in g if any(r)] for g in t.tables if len([r for r in g if any(r)]) >= 2), None)
+    return (_table("html", grid) if grid else {"kind": "html", "headers": [], "rows": []}) | {"text": text}
+
+
+def _eml(data: bytes) -> dict:
+    from email import policy
+    from email.parser import BytesParser
+
+    msg = BytesParser(policy=policy.default).parsebytes(data)
+    body = msg.get_body(preferencelist=("plain", "html"))
+    text = body.get_content() if body else ""
+    if body is not None and body.get_content_type() == "text/html":
+        return _html(text) | {"kind": "eml"}
+    return {"kind": "eml", "headers": [], "rows": [], "text": f"Subject: {msg.get('subject', '')}\n{text}"}
 
 
 def _table(kind: str, grid: list[list[str]]) -> dict:
@@ -179,6 +323,35 @@ def _table(kind: str, grid: list[list[str]]) -> dict:
     headers = [h or f"column {i + 1}" for i, h in enumerate(grid[0])]
     rows = [{headers[i]: (r[i] if i < len(r) else "") for i in range(len(headers))} for r in grid[1:]]
     return {"kind": kind, "headers": headers, "rows": rows[:5000], "truncated": len(rows) > 5000}
+
+
+def detect(headers: list[str]) -> list[tuple[str, float]]:
+    """Every entity scored by how many of its fields the columns name; its key field (the first) counts double."""
+    scores = []
+    for e, fields in FIELDS.items():
+        hit = suggest(e, headers)
+        if hit:
+            key = next(iter(fields))
+            scores.append((e, len(hit) + (1 if key in hit else 0) + len(hit) / len(fields)))
+    return sorted(scores, key=lambda x: -x[1])
+
+
+async def detect_with_model(headers: list[str], sample: list[dict], text: str, model) -> str | None:
+    """The entity a model says the file holds, or None; it may answer only one of VENTHORA's entities."""
+    from .evidence.llm import LLMUnavailable, first_json_object
+
+    if not model.configured:
+        return None
+    kinds = {e: f"{label}: {why}" for e, (label, why, _) in ENTITIES.items()}
+    prompt = ("Decide which kind of business records a file holds. Reply with one JSON object {\"entity\": key}, where key is "
+              "one of the kinds given, or {\"entity\": null} when none fits.")
+    doc = json.dumps({"kinds": kinds, "columns": headers[:40], "sample_rows": sample[:3], "text": text[:3000]}, default=str)[:6000]
+    try:
+        reply = first_json_object(await model.complete([{"role": "system", "content": prompt}, {"role": "user", "content": doc}], max_tokens=60))
+    except (LLMUnavailable, ValueError):
+        return None
+    e = reply.get("entity")
+    return e if e in FIELDS else None
 
 
 def suggest(entity: str, headers: list[str]) -> dict[str, str]:
@@ -228,7 +401,8 @@ async def suggest_with_model(entity: str, headers: list[str], sample: list[dict]
 
 
 async def pdf_rows_with_model(entity: str, text: str, model) -> list[dict]:
-    """Rows a model reads from a PDF report; a value survives only when it occurs in the PDF's text."""
+    """Rows a model reads from a document (a PDF report, a Word file, an e-mail, plain text); a value survives only
+    when it occurs in the document's own text."""
     from .evidence.llm import LLMUnavailable, first_json_object
 
     if not model.configured:
