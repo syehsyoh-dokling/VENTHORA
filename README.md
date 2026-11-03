@@ -426,8 +426,9 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
   country, a contact and the two agreements; VENTHORA opens the account through Airwallex's connected-accounts API
   (status CREATED), lists it, and submits it for Airwallex's verification. The same call works in production by
   changing `AIRWALLEX_BASE_URL`; Airwallex must have enabled account opening on the platform account (until then the
-  form shows Airwallex's own refusal). **Global Accounts** (local bank details per currency, for customers and top-ups) are listed and
-  opened from the page. VENTHORA executes on the sandbox.
+  form shows Airwallex's own refusal). Receiving accounts (Airwallex Global Accounts) live in **Treasury → Receiving accounts**: the
+  bank details per currency with Copy and a ready-to-send payment instruction for customers, the deposits that
+  arrived in each, and a question before opening a second account for the same currency and country. VENTHORA executes on the sandbox.
 * **Admin team.** The **super admin** is the FCO at head quarters: sees and may do everything. An **HQ admin** works
   company-wide; a **country office**, **branch** or **project finance admin** works only in its own unit and the
   units under it, and gives only roles below its own (refused otherwise, with the reason). The page lists every

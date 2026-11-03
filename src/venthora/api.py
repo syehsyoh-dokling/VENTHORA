@@ -2362,11 +2362,29 @@ async def airwallex_disconnect(role: str = "finance_manager", by: str = "dashboa
 
 @app.get("/v1/airwallex/global-accounts")
 async def airwallex_global_accounts():
-    """The account's Global Accounts (the bank details customers pay into), and which ones can be opened."""
+    """The account's Global Accounts (the bank details customers pay into) with the deposits that arrived in each,
+    and which ones can be opened."""
+    from .gateways.airwallex import to_minor
+
+    bank = _bank()
     try:
-        rows = [_ga_row(g) for g in await _bank().list_global_accounts()]
+        rows = [_ga_row(g) for g in await bank.list_global_accounts()]
+        deposits = await bank.list_deposits()
     except AirwallexError as exc:
         raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+    by_ga: dict[str, list[dict]] = {}
+    for d in deposits:
+        if d.get("global_account_id"):
+            by_ga.setdefault(d["global_account_id"], []).append(
+                {"amount_minor": to_minor(d.get("amount", 0)), "currency": d.get("currency"), "status": d.get("status"),
+                 "payer": (d.get("payer") or {}).get("name") or "", "reference": d.get("reference") or "", "created_at": d.get("created_at")})
+    for r in rows:
+        got = sorted(by_ga.get(r["id"], []), key=lambda x: str(x["created_at"] or ""), reverse=True)
+        settled: dict[str, int] = {}
+        for x in got:
+            if x["status"] == "SETTLED":
+                settled[x["currency"]] = settled.get(x["currency"], 0) + x["amount_minor"]
+        r |= {"deposits": got[:5], "deposit_count": len(got), "settled_by_currency": settled}
     return {"items": rows, "options": GLOBAL_ACCOUNT_OPTIONS}
 
 
@@ -2374,6 +2392,7 @@ class GlobalAccountIn(BaseModel):
     currency: str = Field(min_length=3, max_length=3)
     country_code: str = Field(min_length=2, max_length=2)
     nick_name: str = Field("VENTHORA receipts", min_length=1, max_length=60)
+    allow_duplicate: bool = Field(False, description="open another one although this currency and country already has one")
 
 
 @app.post("/v1/airwallex/global-accounts")
@@ -2382,6 +2401,17 @@ async def airwallex_open_global_account(body: GlobalAccountIn, role: str = "fina
     import uuid
 
     who = _connector(role, by)
+    ccy, cc = body.currency.upper(), body.country_code.upper()
+    if not body.allow_duplicate:
+        try:
+            same = [r for r in (_ga_row(g) for g in await _bank().list_global_accounts())
+                    if r["country_code"] == cc and ccy in r["currencies"] and r["status"] != "CLOSED"]
+        except AirwallexError as exc:
+            raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+        if same:
+            raise HTTPException(409, f"you already have {len(same)} {ccy} account(s) in {cc} ("
+                                     + ", ".join(f"{r['nick_name'] or '-'} {(r['iban'] or r['account_number'] or '')[-4:]}" for r in same)
+                                     + "); customers can pay into those. Open another only if you need a separate one.")
     try:
         g = await _bank().create_global_account(request_id=str(uuid.uuid4()), country_code=body.country_code.upper(),
                                                 currency=body.currency.upper(), nick_name=body.nick_name)

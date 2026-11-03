@@ -63,6 +63,11 @@ def test_connect_an_airwallex_account(client, monkeypatch):
     monkeypatch.setattr(Airwallex, "balances_detail", balances)
     monkeypatch.setattr(Airwallex, "list_global_accounts", gas)
     monkeypatch.setattr(Airwallex, "create_global_account", create)
+
+    async def deposits(self):
+        return [{"global_account_id": "ga1", "amount": 120.5, "currency": "USD", "status": "SETTLED", "payer": {"name": "Acme Retail"},
+                 "created_at": "2026-11-01T02:00:00+0000"}]
+    monkeypatch.setattr(Airwallex, "list_deposits", deposits)
     assert client.get("/v1/airwallex/connection").json()["connected"] is False
     r = client.put("/v1/airwallex/connection", json={"client_id": "client-abcd1234", "api_key": "wrong-key-1234567"})
     assert r.status_code == 422 and "refused" in r.json()["detail"]
@@ -76,6 +81,11 @@ def test_connect_an_airwallex_account(client, monkeypatch):
     ga = client.get("/v1/airwallex/global-accounts").json()
     assert ga["items"][0]["currencies"] == ["USD"] and ga["items"][0]["routing"] == [{"type": "aba", "value": "026073150"}]
     assert any(o["currency"] == "GBP" for o in ga["options"])
+    assert ga["items"][0]["deposit_count"] == 1 and ga["items"][0]["settled_by_currency"] == {"USD": 12050}
+    assert ga["items"][0]["deposits"][0]["payer"] == "Acme Retail"
+    r = client.post("/v1/airwallex/global-accounts", json={"currency": "usd", "country_code": "us"})
+    assert r.status_code == 409 and "already have 1 USD account" in r.json()["detail"]  # no copies by accident
+    assert client.post("/v1/airwallex/global-accounts", json={"currency": "usd", "country_code": "us", "allow_duplicate": True}).status_code == 200
     opened = client.post("/v1/airwallex/global-accounts", json={"currency": "gbp", "country_code": "gb", "nick_name": "UK receipts"}).json()
     assert opened["currencies"] == ["GBP"] and opened["country_code"] == "GB"
     assert client.delete("/v1/airwallex/connection").json()["source"] in ("env", "none")

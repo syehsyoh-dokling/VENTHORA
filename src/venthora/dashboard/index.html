@@ -228,6 +228,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/plan" data-nav="plan"><i>◇</i>Plan &amp; proof</a>
   <a href="#/budget" data-nav="budget"><i>▤</i>Budget &amp; mandate</a>
   <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
+  <a href="#/receiving" data-nav="receiving"><i>⇩</i>Receiving accounts</a>
   <a href="#/reporting" data-nav="reporting"><i>◷</i>Reporting periods</a>
   <a href="#/spending" data-nav="spending"><i>▦</i>Spending</a>
   <div class="grp">Payments</div>
@@ -547,10 +548,11 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <div id="suList" style="margin-top:12px"></div>
   </div>
  </section>
- <section class="span12" data-view="airwallex">
-  <h2><span>Global Accounts</span><span class="row"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="VENTHORA receipts"><button class="primary" id="gaOpen">Open a Global Account</button></span></h2>
-  <div class="small muted">Bank details in your name, per currency: customers pay into them and the money lands in the wallet as a deposit.</div>
-  <div id="gaList" class="empty" style="margin-top:10px">loading…</div>
+ <section class="span12" data-view="receiving">
+  <h2><span>Receiving accounts</span><span class="row"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="Customer receipts"><button id="gaOpen">Open another account</button></span></h2>
+  <div class="small muted">Bank details in your name at Airwallex, one per currency. Give them to customers on invoices: they pay by a local
+   transfer, and the money lands in the wallet as a deposit (it shows on the Overview as cash in).</div>
+  <div id="gaList" class="empty" style="margin-top:12px">loading…</div>
  </section>
 
  <section class="span12" data-view="admins">
@@ -871,8 +873,8 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
@@ -1494,13 +1496,7 @@ async function awxView(){try{const c=await api("/v1/airwallex/connection");
   ${c.account_name?`<dt>Account</dt><dd>${esc(c.account_name)}</dd>`:""}<dt>Wallet</dt><dd>${c.connected?`${c.currencies.length} currenc${c.currencies.length===1?"y":"ies"} held (${esc(c.currencies.join(", ")||"none")}) · ${c.global_accounts} Global Account(s)`:esc(c.error||"")}</dd>
   <dt>API</dt><dd class="mono">${esc(c.base_url)}</dd>${c.acting_for?`<dt>Working for</dt><dd><b>${esc(c.acting_for.name)}</b> <span class="mono small">${esc(c.acting_for.account_id)}</span> · opened from VENTHORA, no key of its own <button id="awxBack">Back to the main account</button></dd>`:""}</dl>`;
  if($("#awxBack"))$("#awxBack").onclick=async()=>{try{await api(`/v1/airwallex/acting?${who()}`,{method:"DELETE"});toast("Back to the main account","good");awxView();kpis()}catch(e){toast(e.message,"critical")}};
- $("#awx-name").value=c.account_name||"";
- const ga=await settle(api("/v1/airwallex/global-accounts"));
- if(ga.ok){$("#gaOpt").innerHTML=ga.v.options.map(o=>`<option value="${o.currency}|${o.country_code}">${esc(o.label)}</option>`).join("");
-  $("#gaList").innerHTML=table([{h:"Currency",f:g=>`<b>${esc(g.currencies.join(", "))}</b><div class="small muted">${esc(g.country_code||"")}</div>`},{h:"Name",f:g=>esc(g.nick_name||"-")},
-   {h:"Bank details",f:g=>`<span class="mono small">${esc(g.iban||g.account_number||"-")}</span>${g.routing.length?`<div class="small muted">${g.routing.map(r=>`${esc(r.type)} ${esc(r.value)}`).join(" · ")}</div>`:""}${g.swift_code?`<div class="small muted">SWIFT ${esc(g.swift_code)}</div>`:""}`},
-   {h:"Bank",f:g=>esc(g.institution||"-")},{h:"Status",f:g=>`<span class="pill ${g.status==="ACTIVE"?"good":"warn"}">${esc(g.status||"-")}</span>`}],ga.v.items,"no Global Account yet: open one above")}
- else $("#gaList").innerHTML=`<div class="err">${esc(ga.e.message)}</div>`}
+ $("#awx-name").value=c.account_name||""}
  catch(e){$("#awxNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 const SU_COUNTRIES=[["SG","Singapore"],["ID","Indonesia"],["MY","Malaysia"],["HK","Hong Kong"],["AU","Australia"],["NZ","New Zealand"],["GB","United Kingdom"],["US","United States"],["DE","Germany"],["NL","Netherlands"],["FR","France"],["JP","Japan"],["CN","China"],["CA","Canada"],["AE","United Arab Emirates"]];
 $("#su-country").innerHTML=SU_COUNTRIES.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
@@ -1525,9 +1521,35 @@ $("#awxConnect").onclick=async()=>{$("#awxMsg").textContent="logging in to Airwa
  catch(e){$("#awxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#awxDrop").onclick=async()=>{if(!confirm("Disconnect this Airwallex account? VENTHORA goes back to the credentials in .env, if any."))return;
  try{await api(`/v1/airwallex/connection?${who()}`,{method:"DELETE"});toast("Disconnected","good");awxView()}catch(e){$("#awxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
-$("#gaOpen").onclick=async()=>{const [currency,country_code]=$("#gaOpt").value.split("|");if(!confirm(`Open a ${currency} Global Account (${country_code}) on the connected Airwallex account?`))return;
- try{const g=await api(`/v1/airwallex/global-accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({currency,country_code,nick_name:$("#gaNick").value.trim()||"VENTHORA receipts"})});
-  toast(`Global Account opened: ${g.currencies.join(", ")}`,"good");awxView()}catch(e){toast(e.message,"critical")}};
+let GAS=[];
+const gaDetails=g=>[`Account name: ${g.account_name||"-"}`,g.iban?`IBAN: ${g.iban}`:`Account number: ${g.account_number||"-"}`,
+ ...g.routing.map(r=>`${String(r.type||"").replaceAll("_"," ").toUpperCase()}: ${r.value}`),g.swift_code?`SWIFT/BIC: ${g.swift_code}`:"",`Bank: ${g.institution||"-"}`,
+ `Currency: ${g.currencies.join(", ")}`,`Country: ${g.country_code||"-"}`].filter(Boolean).join("\n");
+const gaInstruction=g=>`Please pay by a local ${g.currencies.length===1?g.currencies[0]+" ":""}bank transfer to:\n\n${gaDetails(g)}\n\nReference: our invoice number.\nThank you.`;
+async function copyText(t,what){try{await navigator.clipboard.writeText(t);toast(`${what} copied`,"good")}catch(e){prompt("Copy:",t)}}
+async function receivingView(){try{const r=await api("/v1/airwallex/global-accounts");GAS=r.items;
+ $("#gaOpt").innerHTML=r.options.map(o=>`<option value="${o.currency}|${o.country_code}">${esc(o.label)}</option>`).join("");
+ const live=GAS.filter(g=>g.status!=="CLOSED");
+ $("#gaList").innerHTML=live.length?`<div class="k4" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${live.map((g,i)=>{const dep=g.deposits[0];
+  return `<div class="c4" style="cursor:default"><div class="h"><span class="ic">${esc(g.currencies.length>1?"∗":g.currencies[0].slice(0,1))}</span><span class="k">${esc(g.currencies.length>3?`${g.currencies.length} currencies`:g.currencies.join(", "))} · ${esc(g.country_code||"")}</span>
+   <span class="pill ${g.status==="ACTIVE"?"good":"warn"}" style="margin-left:auto">${esc(g.status||"-")}</span></div>
+   <div class="d"><b>${esc(g.nick_name||"-")}</b> · ${esc(g.institution||"")}</div>
+   <div class="mono" style="font-size:15px">${esc(g.iban||g.account_number||"not issued yet")}</div>
+   <div class="small muted">${g.routing.map(x=>`${esc(String(x.type||"").replaceAll("_"," "))} ${esc(x.value)}`).join(" · ")}${g.swift_code?`${g.routing.length?" · ":""}SWIFT ${esc(g.swift_code)}`:""}</div>
+   <div class="small">${g.deposit_count?`${g.deposit_count} deposit(s) arrived${Object.keys(g.settled_by_currency).length?` · settled ${Object.entries(g.settled_by_currency).map(([c,v])=>fmt(v,c)).join(" · ")}`:""}${dep?`<div class="muted">last: ${fmt(dep.amount_minor,dep.currency)} from ${esc(dep.payer||"unknown payer")} · ${esc(String(dep.created_at||"").slice(0,10))} · ${esc(dep.status||"")}</div>`:""}`:'<span class="muted">no deposit yet</span>'}</div>
+   <div class="f row" style="gap:8px">${g.status==="ACTIVE"?`<button data-gacopy="${i}">Copy bank details</button><button data-gasend="${i}">Payment instruction</button>`:'<span class="muted">wait until ACTIVE before giving it out</span>'}</div></div>`}).join("")}</div>`
+  :'<div class="empty">no receiving account yet: open one above</div>';
+ $("#gaList").querySelectorAll("[data-gacopy]").forEach(b=>b.onclick=()=>copyText(gaDetails(live[+b.dataset.gacopy]),"Bank details"));
+ $("#gaList").querySelectorAll("[data-gasend]").forEach(b=>b.onclick=()=>{const g=live[+b.dataset.gasend];$("#dlgTitle").textContent="Payment instruction for customers";$("#dlgErr").textContent="";
+  $("#dlgBody").innerHTML=`<label style="grid-column:1/-1">Paste it into the invoice or the email<textarea id="ga-ins" style="min-height:220px;font:12.5px ui-monospace,Consolas,monospace">${esc(gaInstruction(g))}</textarea></label>`;
+  $("#dlg").showModal();$("#dlgForm").onsubmit=ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();copyText($("#ga-ins").value,"Payment instruction");$("#dlg").close()}})}
+ catch(e){$("#gaList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#gaOpen").onclick=async()=>{const [currency,country_code]=$("#gaOpt").value.split("|");
+ const same=GAS.filter(g=>g.country_code===country_code&&g.currencies.includes(currency)&&g.status!=="CLOSED");
+ if(same.length&&!confirm(`You already have ${same.length} ${currency} account(s) in ${country_code}. Customers can pay into those.\n\nOpen another one anyway?`))return;
+ if(!same.length&&!confirm(`Open a ${currency} receiving account (${country_code}) at Airwallex?`))return;
+ try{const g=await api(`/v1/airwallex/global-accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({currency,country_code,nick_name:$("#gaNick").value.trim()||"Customer receipts",allow_duplicate:same.length>0})});
+  toast(`Receiving account opened: ${g.currencies.join(", ")}`,"good");receivingView()}catch(e){toast(e.message,"critical")}};
 
 // ---- User management → Admin team ----------------------------------------------------------------------------------------
 const LEVELS=[["super_admin","Super admin · FCO","HQ"],["hq_admin","Head quarter admins","HQ"],["country_admin","Country office admins","COUNTRY_OFFICE"],["branch_admin","Branch admins","BRANCH_OFFICE"],["project_admin","Project finance admins","PROJECT_FINANCE"]];
