@@ -45,6 +45,8 @@ CHANNELS = {"ap:invoice": "Accounts payable system", "hris": "Payroll system", "
 # The mandate. kind: grant = a permission VENTHORA holds (unchecked = revoked, a person decides instead);
 # guard = a safeguard VENTHORA keeps (unchecked = not enforced); locked = always on.
 # unit: usd (minor units in the payload), pct (basis points), days, hours, level.
+# critical rules without a value that the mandate authority may switch off (mandate.SWITCHABLE_CRITICAL says what then happens)
+SWITCHABLE_LOCKED = {"duplicates", "recon"}
 MANDATES: list[dict] = [
     {"key": "pay_single", "kind": "grant", "label": "Make a single payout on its own, up to", "unit": "usd", "value": 1_000_000,
      "policy": "max_single_payment_minor", "revoked": 0, "help": "Revoked: every payout waits for an approver."},
@@ -199,7 +201,7 @@ def defaults(scenario: str, executor: Executor, standing: dict | None = None) ->
             row["value"] = pol[m["policy"]]
         if m["key"] in (standing or {}).get("values", {}):
             row["value"] = standing["values"][m["key"]]
-        if m["kind"] != "locked" and m["key"] in (standing or {}).get("enabled", {}):
+        if (m["kind"] != "locked" or m["key"] in SWITCHABLE_LOCKED) and m["key"] in (standing or {}).get("enabled", {}):
             row["enabled"] = bool(standing["enabled"][m["key"]])
         mandates.append(row)
     budget = st.get("budget") or {}
@@ -244,7 +246,7 @@ def apply_config(state: TreasuryState, cfg: dict, today: dt.date) -> tuple[Treas
     summary = []
     for spec in MANDATES:
         row = granted.get(spec["key"], {})
-        on = True if spec["kind"] == "locked" else bool(row.get("enabled", True))
+        on = True if spec["kind"] == "locked" and spec["key"] not in SWITCHABLE_LOCKED else bool(row.get("enabled", True))
         value = row.get("value", spec.get("value"))
         if spec["policy"] is None:
             summary.append({"key": spec["key"], "kind": spec["kind"], "label": spec["label"], "enabled": on, "value": None, "unit": None})

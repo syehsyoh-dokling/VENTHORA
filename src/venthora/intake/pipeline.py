@@ -27,6 +27,7 @@ from email.utils import getaddresses, parsedate_to_datetime
 from pathlib import Path
 from uuid import uuid4
 
+from .. import mandate
 from ..config import ROOT, data_path
 from ..domain.models import TreasuryState
 from . import claims, documents
@@ -331,6 +332,13 @@ class Intake:
         self.org = org  # User management, Finance standards, Unit prices, purchase orders; None = none of those checks
         self.payments = payments  # the execution store's spend ledger: what each PO has really paid
 
+    def _modes(self) -> dict[str, str]:
+        return mandate.check_modes(self.org)
+
+    def _flag(self, flags: list[str], flag: str, check: str) -> None:
+        if self._modes()[check] != "off":
+            flags.append(flag)
+
     def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None, save: bool = True,
                proposals: dict[str, Quote] | None = None, retriage_of: str | None = None) -> IntakeRequest:
         """Triage one raw email. save=False (dry run) triages without touching the queue. `proposals` are fields
@@ -346,6 +354,8 @@ class Intake:
         flags: list[str] = []
         reasons: list[str] = []
         auth = parsed["authentication"]
+        mode = self._modes()  # the standing mandate: each check holds, only warns, or is off
+        sender_holds = mode["sender"] == "hold"
 
         hit = reg.by_contact(parsed["sender"])
         staff = claims.employee(self.org, parsed["sender"]) if not hit else None
@@ -378,7 +388,7 @@ class Intake:
         amount = _labelled_amount(sums, text) or _amount(text)
         inv = _invoice(text, subject)
         due = _due(text, received)
-        if sums.get("adds_up") is False:
+        if sums.get("adds_up") is False and mode["totals"] != "off":
             flags.append("totals_do_not_add_up")
             reasons.append("the subtotal and tax do not add up to the total: " + "; ".join(
                 f"{k} {sums[k]['minor'] / 100:,.2f}" for k in ("subtotal", "tax", "total") if k in sums))
@@ -398,9 +408,13 @@ class Intake:
                     inv = theirs
                 else:
                     due = theirs
-            elif mine.value != theirs.value:
+            elif mine.value != theirs.value and mode["readers"] != "off":
                 flags.append("reader_disagreement")
                 reasons.append(f"the rules read {field} as {mine.value!r}, the model as {theirs.value!r} (\"{theirs.quote}\")")
+        if mode["bank_change"] == "off":
+            bank = []
+        if mode["pressure"] == "off":
+            urgency = []
         quotes += bank + urgency + remit + claim[:2]
         for q in (amount[0] if amount else None, inv, due):
             if q:
@@ -419,7 +433,7 @@ class Intake:
                 break
 
         is_payer = role == "payer" or (claimed and claimed[2] == "payer" and not hit)
-        if bank:
+        if bank and mode["bank_change"] == "hold":
             kind = "bank_change"
         elif staff and amount:
             kind = "expense_claim"
@@ -444,8 +458,22 @@ class Intake:
         if retriage_of:  # read again (e.g. after its PO was pulled in): the request is not a duplicate of itself
             known = {k: v for k, v in known.items() if v != retriage_of}
         duplicate_of = known.get(fingerprint) if fingerprint else None
+        if duplicate_of and not mandate.rule_on(self.org, "duplicates"):
+            # the mandate authority switched the duplicate rule off: a person decides; the executor's payout lock
+            # still never sends a second payout for the same invoice
+            flags.append("possible_duplicate")
+            reasons.append(f"repeats a request already in the book or the queue ({duplicate_of}); the duplicate rule is off, a person decides")
+            duplicate_of = None
+            force_review = True
+        else:
+            force_review = False
+        # with the sender check on warn or off, a registered counterparty whose Reply-To points elsewhere is treated as
+        # registered, and an unknown or unauthenticated sender is held for review instead of quarantined (never paid)
+        trusted = trust in ("registered", "staff") or (not sender_holds and trust == "reply_to_mismatch")
+        if not sender_holds and trust != "registered":
+            reasons.append(f"sender check is {mode['sender']} under the mandate: {trust.replace('_', ' ')} is not quarantined")
 
-        if trust == "failed_authentication":
+        if trust == "failed_authentication" and sender_holds:
             # a forged sender is the alarm even when it copies an invoice already in the book (seen live: a spoofed
             # resend of a real invoice number was filed as a mere duplicate)
             status = "QUARANTINED"
@@ -455,13 +483,13 @@ class Intake:
             status = "DUPLICATE"
             reasons.append(f"{'claim' if kind == 'expense_claim' else 'invoice ' + inv.value if inv else 'claim'} is already "
                            f"in the book or the queue ({duplicate_of}); never paid twice")
-        elif trust not in ("registered", "staff") and (kind in ("supplier_invoice", "contractor_claim", "bank_change") or amount):
+        elif not trusted and sender_holds and (kind in ("supplier_invoice", "contractor_claim", "bank_change") or amount):
             status = "QUARANTINED"
             if bank:
                 reasons.append("asks to redirect a payment to new bank details from an unverified mailbox")
             if urgency:
                 reasons.append("pressure language: " + ", ".join(q.value for q in urgency))
-        elif trust not in ("registered", "staff"):
+        elif not trusted:
             status = "NEEDS_REVIEW"
         elif kind == "bank_change":
             status = "NEEDS_REVIEW"
@@ -473,14 +501,22 @@ class Intake:
         elif kind in ("supplier_invoice", "contractor_claim") and amount and inv:
             status = "VERIFIED"
             reasons.append(f"registered mailbox of {rec['name']}; amount and invoice quoted verbatim")
-            if urgency:
+            if urgency and mode["pressure"] == "hold":
                 status = "NEEDS_REVIEW"
                 reasons.append("pressure language from a registered sender; a person confirms before it is payable")
-            if "totals_do_not_add_up" in flags or "reader_disagreement" in flags or po_hold:
+            if bank:  # bank check on warn: the request is not held, and the payout still goes to the registered account
+                reasons.append("mentions new bank details; the bank-change check is warn only under the mandate: "
+                               "paid, if at all, to the bank details already registered")
+            if po_hold or any(f in flags and mode[k] == "hold" for f, k in (("totals_do_not_add_up", "totals"), ("reader_disagreement", "readers"))):
+                status = "NEEDS_REVIEW"
+            if force_review:
                 status = "NEEDS_REVIEW"
         else:
             status = "NEEDS_REVIEW"
             reasons.append("could not read an amount and an invoice reference from the text")
+        warned = sorted({mandate.FLAG_CHECK[f] for f in flags if mandate.FLAG_CHECK.get(f) and mode[mandate.FLAG_CHECK[f]] == "warn"})
+        if warned:
+            reasons.append("warn only under the mandate, not held: " + ", ".join(warned))
 
         req = IntakeRequest(
             intake_id=str(uuid4()), message_id=parsed["message_id"], received_at=parsed["received_at"],
@@ -501,13 +537,14 @@ class Intake:
         """Match the invoice to the PO it quotes; True when a person must look first."""
         from .. import procurement
 
+        mode = self._modes()
         found = procurement.find_po(text, subject)
         if found is None:
-            if self.org.standards().get("require_po", True):
+            if self.org.standards().get("require_po", True) and mode["po_open"] != "off":
                 flags.append("po_missing")
                 reasons.append("the invoice quotes no purchase order; the finance standards pay supplier invoices "
                                "only against an open PO")
-                return True
+                return mode["po_open"] == "hold"
             return False
         po_id, quoted, start, end = found
         quotes.append(Quote(field="po_number", value=po_id, quote=quoted, start=start, end=end))
@@ -519,13 +556,14 @@ class Intake:
                 pending[r.installment or r.intake_id] = pending.get(r.installment or r.intake_id, 0) + r.amount_minor
         m = procurement.match(self.org, self.payments, po_id, supplier_id=cid, currency=amount[2] if amount else None,
                               amount_minor=amount[1] if amount else None, pending=pending)
-        flags += m["flags"]
+        check = {f: mandate.FLAG_CHECK.get(f, "po_open") for f in m["flags"]}
+        flags += [f for f in m["flags"] if mode[check[f]] != "off"]
         reasons += m["reasons"]
         if m["po"] is not None:
             extra["account_code"] = m["account_code"]
             if m["installment"]:
                 extra["installment"] = m["installment"]
-        return not m["ok"]
+        return not m["ok"] and (not m["flags"] or any(mode[check[f]] == "hold" for f in m["flags"]))
 
     def ingest_record(self, bill: dict, *, source: str) -> IntakeRequest:
         """An open bill from the company's own system (sync or upload) into the same queue as emailed invoices, through
@@ -605,13 +643,13 @@ class Intake:
             if q:
                 quotes.append(q)
         if cat is None:
-            flags.append("category_unknown")
+            self._flag(flags, "category_unknown", "claims")
             reasons.append("no expense category from the finance standards is named: " + ", ".join(std["expense_categories"]))
         if spent is None:
-            flags.append("expense_date_missing")
+            self._flag(flags, "expense_date_missing", "claims")
             reasons.append("no date of the expense was found")
         elif (received - dt.date.fromisoformat(spent.value)).days > std["expense_claim_deadline_days"]:
-            flags.append("claim_past_deadline")
+            self._flag(flags, "claim_past_deadline", "claims")
             reasons.append(f"spent {spent.value}, claimed {received.isoformat()}: more than the "
                            f"{std['expense_claim_deadline_days']} days the finance standards allow")
         if cat is not None:
@@ -620,14 +658,14 @@ class Intake:
                 limit, why, qty = cap
                 quotes.append(qty)
                 if minor > limit:
-                    flags.append("above_unit_price")
+                    self._flag(flags, "above_unit_price", "unit_price")
                     reasons.append(f"{cur} {minor / 100:,.2f} claimed, unit prices allow {cur} {limit / 100:,.2f} ({why})")
         people, note = claims.approvers(self.org, staff, chain, minor, cur, std["base_currency"])
         if people:
             reasons.append("route to " + ", ".join(f"{p['name']} ({p['role'].replace('_', ' ')})" for p in people[:3])
                            + "; the claimant never approves their own claim")
         else:
-            flags.append("no_approver")
+            self._flag(flags, "no_approver", "approver")
             reasons.append("no active approver in the claimant's unit chain has a limit that covers this amount")
         if note:
             reasons.append(note)
@@ -733,7 +771,7 @@ class Intake:
                 "beneficiary_id": next(cid for cid, p in self.registry.payees.items() if p is rec),
                 "payee_name": rec["name"], "payout_method": rec.get("payout_method", "LOCAL"), "evidence_ref": ref,
                 "invoice_fingerprint": r.invoice_fingerprint, "budget_line": rec.get("budget_line"),
-                "policy_flags": [f for f in r.flags if f == "payee_bank_details_changed"],
+                "policy_flags": [f for f in r.flags if f == "payee_bank_details_changed" and self._modes()["bank_change"] == "hold"],
                 "due_date": r.due_date, "dunning_level": r.dunning_level} | self._po_terms(r))
             data["evidence"].append({"ref": ref, "subject_id": oid, "source": f"intake:email:{r.sender}",
                                      "status": "verified" if r.status == "VERIFIED" else "pending", "summary": summary})

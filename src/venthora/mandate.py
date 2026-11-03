@@ -2,15 +2,19 @@
 """The standing mandate: what VENTHORA's agent may do on its own, what it must check first, and when it must call a
 person, in seven categories, each with the policy it serves.
 
-  checks     document and evidence checks the intake runs on every request before anything is payable; they are
-             code, not settings (a few are switched by Finance standards or Document validation)
-  rules      live.MANDATES: permissions (grant), safeguards (guard) and rules that are always on (locked), each with
-             its value
+  checks     document and evidence checks the intake runs on every request before anything is payable; each has a
+             mode: hold (a failure holds the request for a person), warn (a failure is flagged, nothing is held) or
+             off (not checked)
+  rules      live.MANDATES: permissions (grant), safeguards (guard) and critical rules (locked), each with its value
   limits     every number in one place: the rule values plus the book's allocation, reserve floor, planning horizon
              and confidence band; saved here they become the standing mandate, and the Operations run starts from
              it (each run may still narrow or widen them, and the run records what was granted)
 
-The standing mandate is kept by the organisation store (kind standing_mandate); changing it is audited.
+One role holds the mandate authority (by default the super admin, the FCO): only that role changes the standing
+mandate, the authority included. A change that weakens a critical control is refused until the person changing it
+acknowledges the warning for that control; the acknowledgement is audited with the change.
+
+The standing mandate is kept by the organisation store (kind standing_mandate).
 """
 from __future__ import annotations
 
@@ -45,32 +49,63 @@ RULE_CATEGORY = {
     "recon": "control",
 }
 
-# the checks the intake runs on every request (src/venthora/intake/pipeline.py, procurement.py); flags are what a person sees
+MODES = ("hold", "warn", "off")
+MODE_LABEL = {"hold": "Hold", "warn": "Warn only", "off": "Off"}
+
+# the checks the intake runs on every request (src/venthora/intake/pipeline.py, procurement.py); flags are what a person
+# sees. critical: weakening it opens a known fraud or loss path, so the change needs an acknowledged warning.
 CHECKS: list[dict[str, Any]] = [
-    {"key": "sender", "label": "Accept a request only from the counterparty's registered mailbox",
-     "fails": "an unknown sender, or a Reply-To that points elsewhere, is quarantined", "flags": ["unknown_sender", "reply_to_mismatch"]},
+    {"key": "sender", "label": "Accept a request only from the counterparty's registered, authenticated mailbox",
+     "fails": "an unknown or unauthenticated sender, or a Reply-To that points elsewhere, is quarantined", "flags": ["unknown_sender", "reply_to_mismatch"],
+     "critical": True, "risk": "Payment-diversion fraud: an invoice from a look-alike or forged mailbox, or one whose replies go to a fraudster, is no longer quarantined. An unregistered sender is still never paid without a person."},
     {"key": "po_open", "label": "A supplier invoice quotes an open purchase order placed with the same supplier, in the same currency",
-     "fails": "held for review", "flags": ["po_missing", "po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch"],
-     "switch": "require_po", "where": "#/standards"},
+     "fails": "held for review", "flags": ["po_missing", "po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_term_mismatch"],
+     "switch": "require_po", "where": "#/standards", "critical": True,
+     "risk": "Invoices without an approved commitment can be paid: fictitious suppliers, invoices for goods nobody ordered, and invoices billed against another supplier's order."},
     {"key": "po_room", "label": "Paid, pending and this invoice together never exceed the purchase order total",
-     "fails": "held for review", "flags": ["po_exceeded"]},
+     "fails": "held for review", "flags": ["po_exceeded"], "critical": True,
+     "risk": "Spend can pass the approved commitment: overbilling and split invoices that each look small are paid."},
     {"key": "totals", "label": "Line items, tax and the invoice total add up",
-     "fails": "held for review", "flags": ["totals_do_not_add_up"]},
+     "fails": "held for review", "flags": ["totals_do_not_add_up"], "critical": True,
+     "risk": "An invoice whose total is inflated above its own lines can be paid as stated."},
     {"key": "readers", "label": "The rules reader and the AI model agree on amount, currency, invoice number and due date",
-     "fails": "held for review", "flags": ["reader_disagreement"]},
+     "fails": "held for review", "flags": ["reader_disagreement"], "critical": True,
+     "risk": "When the two readings of a document differ, the agent proceeds on one of them; a misread amount or due date can be paid."},
     {"key": "unit_price", "label": "Invoice and expense lines at or below the agreed unit prices",
-     "fails": "held for review", "flags": ["above_unit_price"], "where": "#/prices"},
+     "fails": "held for review", "flags": ["above_unit_price"], "where": "#/prices", "critical": False,
+     "risk": "Claims above the agreed unit prices are no longer marked for the approver."},
     {"key": "bank_change", "label": "A bank-details change claimed in an email is never acted on",
-     "fails": "held until a call-back on the registered number", "flags": ["payee_bank_details_changed"]},
+     "fails": "held until a call-back on the registered number", "flags": ["payee_bank_details_changed"], "critical": True,
+     "risk": "The most common business email compromise: a request to pay new bank details is no longer held for a call-back on the registered number."},
     {"key": "pressure", "label": "Urgency or secrecy pressure in a payment request is flagged",
-     "fails": "shown to the approver", "flags": ["urgency_pressure"]},
+     "fails": "held for review and shown to the approver", "flags": ["urgency_pressure"], "critical": False,
+     "risk": "Requests that push for speed or secrecy, a typical social-engineering sign, are no longer held."},
     {"key": "claims", "label": "An expense claim names a known category and the expense date, and arrives within the deadline",
-     "fails": "held for review", "flags": ["category_unknown", "expense_date_missing", "claim_past_deadline"], "where": "#/standards"},
+     "fails": "flagged for the approver (every expense claim is approved by a person)", "flags": ["category_unknown", "expense_date_missing", "claim_past_deadline"],
+     "where": "#/standards", "critical": False, "risk": "Late or unclassified expense claims are no longer marked for the approver."},
     {"key": "documents", "label": "Required supporting documents, dates and stamps are present",
-     "fails": "a failed Required rule holds the request; a Warn rule flags it", "flags": ["doc_*"], "switch": "doc_rules", "where": "#/doc-rules"},
+     "fails": "a failed Required rule holds the request; a Warn rule flags it", "flags": ["doc_*"], "switch": "doc_rules", "where": "#/doc-rules",
+     "critical": True, "risk": "Requests without the supporting documents the finance standards require (delivery note, tax invoice, receipt) can be paid."},
     {"key": "approver", "label": "Someone with the authority for the amount exists in the requester's unit chain",
-     "fails": "held: no approver", "flags": ["no_approver"], "where": "#/users"},
+     "fails": "flagged: no approver", "flags": ["no_approver"], "where": "#/users", "critical": False,
+     "risk": "Claims nobody in the unit chain may approve are no longer marked; they wait in the queue without a named approver."},
 ]
+CHECK_KEYS = {c["key"] for c in CHECKS}
+FLAG_CHECK = {f: c["key"] for c in CHECKS for f in c["flags"] if f != "doc_*"}
+
+# rules of MANDATES that are critical, and which direction loosens them (+1 = a higher value is looser)
+CRITICAL_VALUES = {"three_way": 1, "tolerance_floor": 1, "cooling": -1, "incident_wait": 1,
+                   "pay_single": 1, "pay_per_payee": 1, "pay_first": 1, "outflow_daily": 1, "outflow_weekly": 1, "convert_fx": 1, "convert_daily": 1}
+# critical rules without a value that may be switched off, with what then happens
+SWITCHABLE_CRITICAL = {
+    "duplicates": "A request that repeats an invoice already in the book or the queue is held for a person instead of rejected. A payout already sent for the same invoice is still never sent again: that lock protects against retries and cannot be switched off.",
+    "recon": "A reconciliation that does not add up still opens a case, but the book is no longer stopped: the agent keeps paying while the difference is open.",
+}
+# a rule that is how VENTHORA works rather than a setting: there is nothing to switch
+BUILT_IN = {"evidence": "Built into how VENTHORA reads documents: a field nobody can quote is never filled, so there is no unquoted claim to act on."}
+
+AUTHORITY_ROLES = {"super_admin": "Super admin (FCO)", "cfo": "CFO", "finance_manager": "Finance manager"}
+DEFAULT_AUTHORITY = "super_admin"
 
 # book-level numbers that are not rows of MANDATES: key -> (label, unit, category, min, max, help)
 BOOK_LIMITS: dict[str, tuple[str, str, str, int, int, str]] = {
@@ -82,6 +117,16 @@ BOOK_LIMITS: dict[str, tuple[str, str, str, int, int, str]] = {
 }
 
 
+class AuthorityError(PermissionError):
+    pass
+
+
+class NeedsAcknowledgement(ValueError):
+    def __init__(self, warnings: list[dict]):
+        super().__init__("critical changes need an acknowledged warning: " + ", ".join(w["key"] for w in warnings))
+        self.warnings = warnings
+
+
 def _bounds(unit: str | None) -> tuple[int, int]:
     return {"pct": (0, 10_000), "hours": (0, 2_160), "days": (0, 3_650), "level": (1, 3)}.get(unit or "", (0, 10**13))
 
@@ -89,13 +134,72 @@ def _bounds(unit: str | None) -> tuple[int, int]:
 def standing(org) -> dict:
     rec = org.get("standing_mandate", "standing_mandate") or {}
     return {"values": rec.get("values", {}), "enabled": rec.get("enabled", {}), "book": rec.get("book", {}),
-            "updated_by": rec.get("updated_by_name")}
+            "checks": rec.get("checks", {}), "authority_role": rec.get("authority_role", DEFAULT_AUTHORITY),
+            "updated_by": rec.get("updated_by_name"), "acknowledged": rec.get("acknowledged", [])}
 
 
-def save(org, body: dict, by: str) -> dict:
-    """Validate and keep the standing mandate: rule values, which permissions and safeguards are on, book numbers."""
+def check_modes(org) -> dict[str, str]:
+    """Every check's mode under the standing mandate; hold unless the mandate authority changed it."""
+    saved = (org.get("standing_mandate", "standing_mandate") or {}).get("checks", {}) if org is not None else {}
+    return {k: saved.get(k, "hold") for k in CHECK_KEYS}
+
+
+def rule_on(org, key: str) -> bool:
+    """Whether a critical rule without a value (duplicates, recon) is on under the standing mandate."""
+    if org is None:
+        return True
+    return bool(((org.get("standing_mandate", "standing_mandate") or {}).get("enabled") or {}).get(key, True))
+
+
+def _fmt(unit: str | None, v) -> str:
+    if v is None:
+        return "-"
+    return {"usd": lambda: f"USD {v / 100:,.2f}", "pct": lambda: f"{v / 100:g}%", "hours": lambda: f"{v} hours", "days": lambda: f"{v} days"}.get(unit or "", lambda: str(v))()
+
+
+def warnings(body: dict, setup: dict, org) -> list[dict]:
+    """The critical changes in `body` against what is in force now; each needs an acknowledged warning."""
+    out: list[dict] = []
+    cur = standing(org)
+    modes = check_modes(org)
     specs = {m["key"]: m for m in MANDATES}
-    values, enabled, book = {}, {}, {}
+    now = {m["key"]: m for m in setup["mandates"]}
+    for c in CHECKS:
+        new = (body.get("checks") or {}).get(c["key"])
+        if c["critical"] and new and MODES.index(new) > MODES.index(modes[c["key"]]):
+            out.append({"key": f"check:{c['key']}", "title": f"{c['label']}: {MODE_LABEL[modes[c['key']]]} to {MODE_LABEL[new]}", "risk": c["risk"]})
+    for k, v in (body.get("values") or {}).items():
+        sign, old = CRITICAL_VALUES.get(k), (now.get(k) or {}).get("value")
+        if sign and old is not None and (v - old) * sign > 0:
+            m = specs[k]
+            kind = "widens the agent's own authority" if m["kind"] == "grant" else "loosens a critical control"
+            out.append({"key": f"value:{k}", "title": f"{m['label']}: {_fmt(m['unit'], old)} to {_fmt(m['unit'], v)}",
+                        "risk": f"This {kind}. {m.get('help', '')}".strip()})
+    for k, v in (body.get("enabled") or {}).items():
+        m = specs.get(k)
+        was = bool((now.get(k) or {}).get("enabled", True))
+        if m and was and not v and (m["kind"] in ("guard", "locked")):
+            out.append({"key": f"rule:{k}", "title": f"{m['label']}: switched off",
+                        "risk": SWITCHABLE_CRITICAL.get(k, "This safeguard is no longer enforced on any run.")})
+    floor = (body.get("book") or {}).get("reserve_floor_minor")
+    if floor is not None and floor < setup["reserve_floor_minor"]:
+        out.append({"key": "book:reserve_floor_minor", "title": f"Reserve floor: {_fmt('usd', setup['reserve_floor_minor'])} to {_fmt('usd', floor)}",
+                    "risk": "Less cash is protected: the agent may spend down to the new floor."})
+    role = body.get("authority_role")
+    if role and role != cur["authority_role"]:
+        out.append({"key": "authority", "title": f"Mandate authority: {AUTHORITY_ROLES[cur['authority_role']]} to {AUTHORITY_ROLES[role]}",
+                    "risk": f"From now on only the {AUTHORITY_ROLES[role]} may change the standing mandate; the {AUTHORITY_ROLES[cur['authority_role']]} can no longer change it, or take the authority back."})
+    return out
+
+
+def save(org, body: dict, by: str, *, role: str, setup: dict) -> dict:
+    """Validate and keep the standing mandate. Only the role holding the mandate authority may save it, and every
+    critical change must be named in body['acknowledged']."""
+    cur = standing(org)
+    if role != cur["authority_role"]:
+        raise AuthorityError(f"only the {AUTHORITY_ROLES[cur['authority_role']]} holds the mandate authority; role '{role}' may read the mandate but not change it")
+    specs = {m["key"]: m for m in MANDATES}
+    values, enabled, book, checks = dict(cur["values"]), dict(cur["enabled"]), dict(cur["book"]), dict(cur["checks"])
     for k, v in (body.get("values") or {}).items():
         m = specs.get(k)
         if m is None or m["unit"] is None:
@@ -106,9 +210,21 @@ def save(org, body: dict, by: str) -> dict:
         values[k] = v
     for k, v in (body.get("enabled") or {}).items():
         m = specs.get(k)
-        if m is None or m["kind"] == "locked":
-            raise ValueError(f"{k}: always on, it cannot be switched off")
+        if m is None:
+            raise ValueError(f"{k}: unknown rule")
+        if k in BUILT_IN:
+            raise ValueError(f"{m['label']}: {BUILT_IN[k]}")
+        if m["kind"] == "locked" and k not in SWITCHABLE_CRITICAL:
+            if not v:
+                raise ValueError(f"{m['label']}: a critical rule with a value is changed through its value, not switched off")
+            continue
         enabled[k] = bool(v)
+    for k, v in (body.get("checks") or {}).items():
+        if k not in CHECK_KEYS:
+            raise ValueError(f"{k}: unknown check")
+        if v not in MODES:
+            raise ValueError(f"{k}: the mode is hold, warn or off")
+        checks[k] = v
     for k, v in (body.get("book") or {}).items():
         if k not in BOOK_LIMITS:
             raise ValueError(f"{k}: unknown limit")
@@ -118,28 +234,47 @@ def save(org, body: dict, by: str) -> dict:
         book[k] = v
     if book.get("zero_limit_below_bp", 0) >= book.get("full_confidence_bp", 10_001):
         raise ValueError("the zero-limit confidence must be below the full-limit confidence")
-    org._put("standing_mandate", {"_id": "standing_mandate", "values": values, "enabled": enabled, "book": book, "updated_by_name": by}, by)
-    return standing(org)
+    authority = body.get("authority_role") or cur["authority_role"]
+    if authority not in AUTHORITY_ROLES:
+        raise ValueError(f"the mandate authority is one of: {', '.join(AUTHORITY_ROLES)}")
+    warn = warnings(body, setup, org)
+    missing = [w for w in warn if w["key"] not in set(body.get("acknowledged") or [])]
+    if missing:
+        raise NeedsAcknowledgement(missing)
+    org._put("standing_mandate", {"_id": "standing_mandate", "values": values, "enabled": enabled, "book": book, "checks": checks,
+                                  "authority_role": authority, "updated_by_name": by, "acknowledged": [w["key"] for w in warn]}, by)
+    return standing(org) | {"warnings_acknowledged": warn}
 
 
-def view(setup: dict, org, doc_rules_on: bool) -> dict:
-    """The page: categories with their policy, checks and rules; the limits table; the approval policy."""
+def view(setup: dict, org, doc_rules_on: bool, role: str | None = None) -> dict:
+    """The page: categories with their policy, checks and rules; the limits table; the approval policy; who may change it."""
     std = org.standards()
+    st = standing(org)
+    modes = check_modes(org)
     rows = {m["key"]: m for m in setup["mandates"]}
     cats = []
     for c in CATEGORIES:
         checks = []
         if c["key"] == "documents":
             for ch in CHECKS:
-                on = {"require_po": bool(std.get("require_po", True)), "doc_rules": doc_rules_on}.get(ch.get("switch"), True)
-                checks.append(ch | {"on": on})
-        cats.append(c | {"checks": checks, "rules": [rows[k] | {"category": c["key"]} for k, cat in RULE_CATEGORY.items() if cat == c["key"] and k in rows]})
-    limits = [{"key": k, "label": lab, "unit": unit, "category": cat, "min": lo, "max": hi, "help": hlp, "value": setup.get(k), "book": True}
+                elsewhere = {"require_po": bool(std.get("require_po", True)), "doc_rules": doc_rules_on}.get(ch.get("switch"), True)
+                mode = modes[ch["key"]] if elsewhere else "off"
+                checks.append(ch | {"mode": mode, "on": mode != "off", "off_elsewhere": not elsewhere})
+        cats.append(c | {"checks": checks, "rules": [rows[k] | {"category": c["key"], "critical": k in CRITICAL_VALUES or rows[k]["kind"] == "locked",
+                                                                "switchable": k in SWITCHABLE_CRITICAL, "built_in": BUILT_IN.get(k)}
+                                                     for k, cat in RULE_CATEGORY.items() if cat == c["key"] and k in rows]})
+    limits = [{"key": k, "label": lab, "unit": unit, "category": cat, "min": lo, "max": hi, "help": hlp, "value": setup.get(k), "book": True,
+               "critical": k == "reserve_floor_minor"}
               for k, (lab, unit, cat, lo, hi, hlp) in BOOK_LIMITS.items()]
     limits += [{"key": m["key"], "label": m["label"], "unit": m["unit"], "category": RULE_CATEGORY.get(m["key"], "control"), "kind": m["kind"],
-                "min": _bounds(m["unit"])[0], "max": _bounds(m["unit"])[1], "value": m.get("value"), "enabled": m.get("enabled", True), "help": m.get("help", "")}
+                "min": _bounds(m["unit"])[0], "max": _bounds(m["unit"])[1], "value": m.get("value"), "enabled": m.get("enabled", True), "help": m.get("help", ""),
+                "critical": m["key"] in CRITICAL_VALUES or m["kind"] == "locked"}
                for m in setup["mandates"] if m["unit"] is not None]
+    limits += [{"key": k, "label": rows[k]["label"], "unit": None, "category": RULE_CATEGORY[k], "kind": "locked", "enabled": rule_on(org, k),
+                "help": why, "critical": True, "switch_only": True} for k, why in SWITCHABLE_CRITICAL.items() if k in rows]
     order = [c["key"] for c in CATEGORIES]
     limits.sort(key=lambda x: order.index(x["category"]))
     return {"categories": cats, "limits": limits, "approval_matrix": setup["approval_matrix"], "approvers": setup["approvers"],
-            "standing": standing(org), "titles": {c["key"]: c["title"] for c in CATEGORIES}}
+            "standing": st, "titles": {c["key"]: c["title"] for c in CATEGORIES}, "modes": MODE_LABEL,
+            "authority": {"role": st["authority_role"], "label": AUTHORITY_ROLES[st["authority_role"]], "roles": AUTHORITY_ROLES,
+                          "you_may_change": role == st["authority_role"] if role else None}}

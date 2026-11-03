@@ -143,9 +143,12 @@ class Executor:
             refuse("Airwallex sandbox credentials are not configured")
         if not self.bank.sandbox:
             refuse("execution is restricted to the Airwallex sandbox")
-        # A reconciliation that did not add up locks the book: no autonomous execution until a person closes the case.
+        # A reconciliation that did not add up locks the book: no autonomous execution until a person closes the case
+        # (unless the mandate authority switched the recon rule off: the case stays open, the book keeps running).
+        from ..mandate import rule_on
+
         open_cases = self.store.open_recon_cases(req.state.book_id)
-        if open_cases:
+        if open_cases and rule_on(self.org, "recon"):
             refuse(f"book {req.state.book_id} is locked by open reconciliation case(s) "
                    + ", ".join(c["case_id"][:8] for c in open_cases) + "; a person must close them first")
         plan = await self.agent.decide(req.state)

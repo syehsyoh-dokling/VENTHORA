@@ -483,34 +483,46 @@ async def live_setup(scenario: str = "demo_live"):
 
 
 @app.get("/v1/mandate")
-async def mandate_get(scenario: str = "demo_live"):
-    """The standing mandate by category: the policy each category serves, the document checks run on every request,
-    every permission and safeguard with its value, all limits in one list, and the approval policy."""
+async def mandate_get(scenario: str = "demo_live", role: str | None = None):
+    """The standing mandate by category: the policy each category serves, the document checks run on every request
+    with their mode, every permission and safeguard with its value, all limits in one list, the approval policy, and
+    which role holds the mandate authority (with `role`, whether that role may change it)."""
     from . import mandate
 
     _scenario_file(scenario)
     setup = live_session.defaults(scenario, app.state.executor, mandate.standing(app.state.org))
     rules = (await doc_rules_get())["rules"]
-    return mandate.view(setup, app.state.org, bool(rules.get("enabled")))
+    return mandate.view(setup, app.state.org, bool(rules.get("enabled")), role)
 
 
 class MandateIn(BaseModel):
     values: dict[str, int] = {}
     enabled: dict[str, bool] = {}
     book: dict[str, int] = {}
+    checks: dict[str, str] = Field(default={}, description="check key -> hold, warn or off")
+    authority_role: str | None = Field(default=None, description="hand the mandate authority to another role")
+    acknowledged: list[str] = Field(default=[], description="the warning keys the person has read and accepts")
 
 
 @app.put("/v1/mandate")
-async def mandate_put(req: MandateIn, role: str = "finance_manager", by: str = "dashboard"):
-    """Save the standing mandate; every Operations run starts from it."""
+async def mandate_put(req: MandateIn, role: str = "super_admin", by: str = "dashboard", scenario: str = "demo_live"):
+    """Save the standing mandate; every Operations run starts from it. Only the role holding the mandate authority may
+    save it. A change that weakens a critical control answers 409 with the warnings until each is acknowledged."""
     from . import mandate
 
-    who = _writer(role, by)
+    who = f"{by} ({role})"
+    setup = live_session.defaults(scenario, app.state.executor, mandate.standing(app.state.org))
     try:
-        out = await asyncio.to_thread(mandate.save, app.state.org, req.model_dump(), who)
+        out = await asyncio.to_thread(mandate.save, app.state.org, req.model_dump(), who, role=role, setup=setup)
+    except mandate.AuthorityError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except mandate.NeedsAcknowledgement as exc:
+        raise HTTPException(409, {"message": str(exc), "warnings": exc.warnings}) from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    await asyncio.to_thread(app.state.audit.append, "standing_mandate", {"by": who, "values": out["values"], "enabled": out["enabled"], "book": out["book"]})
+    await asyncio.to_thread(app.state.audit.append, "standing_mandate", {
+        "by": who, "values": out["values"], "enabled": out["enabled"], "book": out["book"], "checks": out["checks"],
+        "authority_role": out["authority_role"], "warnings_acknowledged": out["warnings_acknowledged"]})
     return out
 
 
@@ -2681,8 +2693,11 @@ async def _validate_documents(req: IntakeRequest, raw: bytes, model, *, save: bo
 
     if req.checks or req.kind not in validation.KINDS:
         return req
+    from . import mandate
+
     rules = validation.DocRules.model_validate(app.state.org.doc_rules())
-    if not rules.enabled:
+    mode = mandate.check_modes(app.state.org)["documents"]
+    if not rules.enabled or mode == "off":
         return req
     docs = await asyncio.to_thread(validation.read_documents, raw)
     received = datetime.fromisoformat(req.received_at.replace("Z", "+00:00")).date()
@@ -2696,6 +2711,8 @@ async def _validate_documents(req: IntakeRequest, raw: bytes, model, *, save: bo
     checks = validation.validate(req, docs, rules, company=app.state.org.standards().get("company_name", ""), vendor=vendor,
                                  registered_bank=bank, po=po, model=assist)
     out = validation.apply(req, checks)
+    if mode == "warn" and out.status != req.status:  # flagged for the approver, not held
+        out = out.model_copy(update={"status": req.status, "reasons": out.reasons + ["document checks are warn only under the mandate: not held"]})
     if save:
         await asyncio.to_thread(app.state.intake.store.save, out)
     return out
