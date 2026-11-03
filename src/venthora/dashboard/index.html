@@ -153,6 +153,9 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
 .wal .t{height:8px;border-radius:99px;background:color-mix(in srgb,var(--seq) 14%,transparent);overflow:hidden}.wal .t i{display:block;height:100%;border-radius:99px;background:var(--seq)}
 .kbar{display:flex;align-items:center;margin:16px 2px 10px;gap:12px;flex-wrap:wrap}
 .form [hidden],.seg[hidden],[data-wpane][hidden]{display:none}
+.ptabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 2px;flex-wrap:wrap}
+.ptabs a{padding:9px 16px;font-size:13px;font-weight:600;color:var(--ink2);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.ptabs a:hover{color:var(--ink)}.ptabs a.on{color:var(--brand2);border-bottom-color:var(--brand2)}
 .tabs{display:inline-flex;background:var(--bg,#f3f5f9);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
 .tabs button{border:0;background:transparent;padding:6px 14px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
 .tabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
@@ -267,18 +270,11 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   </div></div>
 
   <div class="mg" data-g="platform"><button type="button" class="mh"><i>⚙</i><span>Platform Setup</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
-   <a href="#/readiness" data-nav="readiness"><i>☑</i>Setup checklist<span class="cnt" id="cnt-ready"></span></a>
-   <div class="nsub">Airwallex</div>
-   <a href="#/airwallex" data-nav="airwallex" class="nin">Airwallex account</a>
-   <div class="nsub">AI agent &amp; model</div>
-   <a href="#/ai" data-nav="ai" class="nin">AI model in use</a>
-   <a href="#/ai-local" data-nav="ai-local" class="nin">Local model (vLLM)</a>
-   <a href="#/ai-keys" data-nav="ai-keys" class="nin">AI API keys</a>
-   <div class="nsub">App integration</div>
-   <a href="#/sources-sync" data-nav="sources-sync" class="nin">Sync API (old system)</a>
-   <a href="#/api-access" data-nav="api-access" class="nin">API access (other apps)</a>
-   <div class="nsub">Email sync</div>
-   <a href="#/sources-email" data-nav="sources-email" class="nin">Email sources</a>
+   <a href="#/airwallex" data-nav="airwallex"><i>◈</i>Airwallex Account</a>
+   <a href="#/ai" data-nav="ai" data-also="ai-local ai-keys"><i>✦</i>Agent (AI &amp; Model)</a>
+   <a href="#/sources-sync" data-nav="sources-sync" data-also="api-access"><i>⇅</i>App Integration</a>
+   <a href="#/sources-email" data-nav="sources-email"><i>✉</i>Email Sync</a>
+   <a href="#/readiness" data-nav="readiness"><i>☑</i>Setup Checklist<span class="cnt" id="cnt-ready"></span></a>
   </div></div>
 
   <div class="mg" data-g="system"><button type="button" class="mh"><i>☷</i><span>System Setting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
@@ -497,6 +493,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="readyList" class="empty">loading…</div>
  </section>
 
+ <section class="span12 plain" data-view="sources-sync api-access"><div class="ptabs"><a href="#/sources-sync" data-tab="sources-sync">Sync API · from the old system</a><a href="#/api-access" data-tab="api-access">API access · for other apps</a></div></section>
  <section class="span12" data-view="sources-sync">
   <h2><span>Sync API</span><span class="small muted">read master data from the old application: REST/JSON, field by field</span></h2>
   <div id="connList" class="empty">loading…</div>
@@ -600,6 +597,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <h2>Every kind of account</h2><div id="roleGuide"></div>
  </section>
 
+ <section class="span12 plain" data-view="ai ai-local ai-keys"><div class="ptabs"><a href="#/ai" data-tab="ai">Model in use</a><a href="#/ai-local" data-tab="ai-local">Local model (vLLM)</a><a href="#/ai-keys" data-tab="ai-keys">Provider API keys</a></div></section>
  <section class="span8" data-view="ai-local">
   <h2><span>Local model (vLLM)</span><span class="small muted" id="locActive"></span></h2>
   <div class="small muted">A model on your own machine or GPU server, through any OpenAI-compatible server: vLLM, Ollama, LM Studio, llama.cpp. Nothing leaves your network.</div>
@@ -918,13 +916,15 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Setup checklist","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
+ standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
- document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
- document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
- document.querySelectorAll("#mainNav .mg").forEach(g=>{g.classList.toggle("cur",!!g.querySelector(`[data-nav="${view}"]`));g.classList.remove("open")});
+ document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
+ document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
+ const lit=a=>a.dataset.nav===view||(a.dataset.also||"").split(" ").includes(view);
+ document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",lit(a)));
+ document.querySelectorAll("#mainNav .mg").forEach(g=>{g.classList.toggle("cur",[...g.querySelectorAll("[data-nav]")].some(lit));g.classList.remove("open")});
  $("#pageTitle").textContent=TITLES[view];$("#kspan").hidden=view!=="overview";document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
  if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);
