@@ -1576,6 +1576,17 @@ def _ingest_ctx() -> dict:
     return {"master": MasterStore(), "org": app.state.org, "intake": app.state.intake, "payees": app.state.executor.store}
 
 
+@app.get("/demo/legacy-erp/openapi.json", include_in_schema=False)
+async def demo_legacy_erp_openapi():
+    """The stand-in ERP describes its own API, as many finance applications do, so discovery can read it."""
+    from .sync_catalog import PUSH
+
+    data = json.loads((ROOT / "data" / "demo_legacy_erp.json").read_text(encoding="utf-8"))
+    paths = {f"/{k}": {"get": {"summary": k.replace("_", " ")}} for k in data if not k.startswith("_")}
+    paths |= {f"/inbox/{k}": {"post": {"summary": f"receive {k}"}} for k in PUSH}
+    return {"openapi": "3.0.3", "info": {"title": "Legacy ERP (demo)", "version": "1"}, "paths": paths}
+
+
 @app.get("/demo/legacy-erp/{entity}", include_in_schema=False)
 async def demo_legacy_erp(entity: str, request: Request):
     """A stand-in for the company's old ERP (fictional data in data/demo_legacy_erp.json), behind a fake API key."""
@@ -1722,6 +1733,26 @@ async def _sync_connector(connector_id: str, dry_run: bool, entity: str | None, 
         await asyncio.to_thread(app.state.audit.append, "connector_synced", {"id": connector_id, "by": who, "summary": {
             e: {k: len(v) for k, v in r.items() if isinstance(v, list)} if "error" not in r else r for e, r in reports.items()}})
     return reports
+
+
+@app.post("/v1/sources/connectors/{connector_id}/discover")
+async def connectors_discover(connector_id: str, ai: bool = True, role: str = "finance_manager", by: str = "dashboard"):
+    """Find where the application keeps each item (its OpenAPI document, else the usual path names, GET only) and
+    propose how its fields map to VENTHORA's: by name first, then the AI model for what is left. Nothing is saved:
+    a person reviews the proposal and applies it with PUT."""
+    from . import sync_discover
+    from .connectors import ConnectorStore
+
+    who = _writer(role, by)
+    raw = ConnectorStore().get_raw(connector_id)
+    if raw is None:
+        raise HTTPException(404, "no such connector")
+    model = active_model() if ai else None
+    out = await sync_discover.discover(raw, model=model)
+    out["model"] = ai_settings.describe(model) if model is not None else "names only"
+    await asyncio.to_thread(app.state.audit.append, "connector_discovered", {"id": connector_id, "by": who, "openapi": out["openapi"],
+                                                                             "found": [e for e, p in out["entities"].items() if p.get("found")]})
+    return out
 
 
 @app.post("/v1/sources/connectors/{connector_id}/push")

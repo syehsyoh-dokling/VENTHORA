@@ -120,6 +120,7 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     # data sources
     ("GET", "/v1/sources/catalog"): ("Sync catalogue", "What VENTHORA reads from a finance application and what it sends back, each with why and its fields."),
     ("POST", "/v1/sources/connectors"): ("Connect a finance application", "One line (base URL and key) and the items to read and send back; every item is ticked unless named otherwise."),
+    ("POST", "/v1/sources/connectors/{connector_id}/discover"): ("Discover and propose a mapping", "Find where the application keeps each item (its OpenAPI document, else the usual paths, GET only) and propose its field mapping by name and AI; nothing is saved."),
     ("POST", "/v1/sources/connectors/{connector_id}/push"): ("Send back now", "Write every ticked item that is new or changed since the last send; dry_run=true only counts."),
     ("GET", "/v1/sources/connectors"): ("List connectors","Connections to the old system or ERP, with what each one syncs and when it last ran."),
     ("DELETE", "/v1/sources/connectors/{connector_id}"): ("Delete a connector", "Remove a connection; synced data stays."),
