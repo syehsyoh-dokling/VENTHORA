@@ -33,6 +33,8 @@ class AirwallexStore:
         with self._connect() as c:
             c.execute("CREATE TABLE IF NOT EXISTS airwallex (id INTEGER PRIMARY KEY CHECK (id = 1), record_json TEXT NOT NULL,"
                       " updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)")
+            c.execute("CREATE TABLE IF NOT EXISTS acting (id INTEGER PRIMARY KEY CHECK (id = 1), account_id TEXT NOT NULL, name TEXT NOT NULL,"
+                      " updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)
@@ -58,6 +60,31 @@ class AirwallexStore:
     def clear(self) -> None:
         with self._lock, self._connect() as c:
             c.execute("DELETE FROM airwallex")
+
+    # -- acting for an account this platform opened (Airwallex x-on-behalf-of): no key of its own is needed --
+    def acting(self) -> dict | None:
+        with self._connect() as c:
+            r = c.execute("SELECT account_id, name, updated_at, updated_by FROM acting WHERE id = 1").fetchone()
+        return dict(r) if r else None
+
+    def act_for(self, account_id: str, name: str, by: str) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("INSERT INTO acting VALUES (1, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET account_id = excluded.account_id,"
+                      " name = excluded.name, updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+                      (account_id, name, datetime.now(UTC).isoformat(timespec="seconds"), by))
+
+    def stop_acting(self) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("DELETE FROM acting")
+
+
+def acting_for() -> str | None:
+    """The connected account VENTHORA works for (sent as x-on-behalf-of), or None for the platform's own account."""
+    try:
+        a = AirwallexStore().acting()
+    except sqlite3.Error:
+        return None
+    return a["account_id"] if a else None
 
 
 def credentials() -> tuple[str, str]:

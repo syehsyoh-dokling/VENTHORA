@@ -139,7 +139,12 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
 .wal{margin-top:10px}.wal .r{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;font-size:12.5px;padding:4px 0;font-variant-numeric:tabular-nums}
 .wal .t{height:8px;border-radius:99px;background:color-mix(in srgb,var(--seq) 14%,transparent);overflow:hidden}.wal .t i{display:block;height:100%;border-radius:99px;background:var(--seq)}
 .kbar{display:flex;align-items:center;margin:16px 2px 10px;gap:12px;flex-wrap:wrap}
-.form [hidden],.seg[hidden]{display:none}.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--shadow)}
+.form [hidden],.seg[hidden]{display:none}
+.cta{background:linear-gradient(135deg,#ff7a18,#ff3d77);color:#fff;border:0;font-weight:700;padding:9px 16px;border-radius:10px;
+ box-shadow:0 6px 18px rgba(255,61,119,.35);animation:ctaPulse 2.4s ease-in-out infinite}
+.cta:hover{filter:brightness(1.06);transform:translateY(-1px)}.cta.open{animation:none;background:var(--surface);color:var(--ink2);box-shadow:none;border:1px solid var(--line)}
+@keyframes ctaPulse{0%,100%{box-shadow:0 6px 18px rgba(255,61,119,.30)}50%{box-shadow:0 6px 26px rgba(255,61,119,.60)}}
+@media (prefers-reduced-motion:reduce){.cta{animation:none}}.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--shadow)}
 .seg button{border:0;background:transparent;padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
 .seg button.on{background:var(--brand2);color:var(--surface)}
 .k4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
@@ -524,7 +529,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <label>Environment<select id="awx-env"><option value="sandbox">Sandbox (demo and testing)</option><option value="production" disabled>Production (not in this build)</option></select></label>
   </div>
   <div class="row" style="margin-top:12px"><button class="primary" id="awxConnect">Test and connect</button><button id="awxDrop">Disconnect (use .env)</button><span class="small" id="awxMsg"></span>
-   <button id="awxNew" style="margin-left:auto">Don't have an account yet?</button></div>
+   <button id="awxNew" class="cta" style="margin-left:auto">✨ Don't have an account yet? Open one here</button></div>
   <div id="awxSignup" hidden style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
    <h3 style="margin:0 0 10px;font-size:15px">Open an Airwallex account</h3>
    <div class="form">
@@ -1487,7 +1492,8 @@ async function awxView(){try{const c=await api("/v1/airwallex/connection");
  $("#awxState").innerHTML=c.connected?`<span class="pill good">CONNECTED · ${c.sandbox?"SANDBOX":"LIVE"}</span>`:'<span class="pill critical">NOT CONNECTED</span>';
  $("#awxNow").innerHTML=`<dl class="kv"><dt>Credentials</dt><dd>${c.source==="settings"?`connected here${c.updated_by?` by ${esc(c.updated_by)}`:""}`:c.source==="env"?"from .env on this machine":"none"}${c.client_id_hint?` · client ID ${esc(c.client_id_hint)}`:""}${c.key_set?" · key set":""}</dd>
   ${c.account_name?`<dt>Account</dt><dd>${esc(c.account_name)}</dd>`:""}<dt>Wallet</dt><dd>${c.connected?`${c.currencies.length} currenc${c.currencies.length===1?"y":"ies"} held (${esc(c.currencies.join(", ")||"none")}) · ${c.global_accounts} Global Account(s)`:esc(c.error||"")}</dd>
-  <dt>API</dt><dd class="mono">${esc(c.base_url)}</dd></dl>`;
+  <dt>API</dt><dd class="mono">${esc(c.base_url)}</dd>${c.acting_for?`<dt>Working for</dt><dd><b>${esc(c.acting_for.name)}</b> <span class="mono small">${esc(c.acting_for.account_id)}</span> · opened from VENTHORA, no key of its own <button id="awxBack">Back to the main account</button></dd>`:""}</dl>`;
+ if($("#awxBack"))$("#awxBack").onclick=async()=>{try{await api(`/v1/airwallex/acting?${who()}`,{method:"DELETE"});toast("Back to the main account","good");awxView();kpis()}catch(e){toast(e.message,"critical")}};
  $("#awx-name").value=c.account_name||"";
  const ga=await settle(api("/v1/airwallex/global-accounts"));
  if(ga.ok){$("#gaOpt").innerHTML=ga.v.options.map(o=>`<option value="${o.currency}|${o.country_code}">${esc(o.label)}</option>`).join("");
@@ -1498,12 +1504,14 @@ async function awxView(){try{const c=await api("/v1/airwallex/connection");
  catch(e){$("#awxNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 const SU_COUNTRIES=[["SG","Singapore"],["ID","Indonesia"],["MY","Malaysia"],["HK","Hong Kong"],["AU","Australia"],["NZ","New Zealand"],["GB","United Kingdom"],["US","United States"],["DE","Germany"],["NL","Netherlands"],["FR","France"],["JP","Japan"],["CN","China"],["CA","Canada"],["AE","United Arab Emirates"]];
 $("#su-country").innerHTML=SU_COUNTRIES.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
-$("#awxNew").onclick=()=>{const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"Don't have an account yet?":"Close";if(!box.hidden){suList();$("#su-biz").focus()}};
+$("#awxNew").onclick=()=>{const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"✨ Don't have an account yet? Open one here":"Close";
+ $("#awxNew").classList.toggle("open",!box.hidden);if(!box.hidden){suList();$("#su-biz").focus()}};
 $("#su-type").onchange=()=>{const biz=$("#su-type").value==="BUSINESS";document.querySelectorAll(".su-biz").forEach(e=>e.hidden=!biz);document.querySelectorAll(".su-ind").forEach(e=>e.hidden=biz)};
 async function suList(){const r=await settle(api("/v1/airwallex/accounts"));if(!r.ok){$("#suList").innerHTML="";return}
  $("#suList").innerHTML=r.v.items.length?`<h3 class="small muted" style="margin:6px 0">Accounts opened from VENTHORA</h3>`+table([{h:"Name",f:a=>`<b>${esc(a.name)}</b><div class="small muted">${esc(a.type||"")} · ${esc(a.country||"")}</div>`},
   {h:"Contact",f:a=>`<span class="small">${esc(a.email||"-")}</span>`},{h:"Status",f:a=>`<span class="pill ${a.status==="ACTIVE"?"good":a.status==="SUSPENDED"?"critical":"warn"}">${esc(a.status||"-")}</span>`},
-  {h:"",f:a=>a.status==="CREATED"?`<button data-sub="${esc(a.id)}">Submit for verification</button>`:""}],r.v.items):"";
+  {h:"",f:a=>a.status==="CREATED"?`<button data-sub="${esc(a.id)}">Submit for verification</button>`:a.status==="ACTIVE"?`<button class="primary" data-use="${esc(a.id)}">Use this account</button>`:""}],r.v.items):"";
+  $("#suList").querySelectorAll("[data-use]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.use}/use?${who()}`,{method:"POST"});toast("VENTHORA now works for this account","good");awxView();kpis()}catch(e){toast(e.message,"critical")}});
  $("#suList").querySelectorAll("[data-sub]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.sub}/submit?${who()}`,{method:"POST"});toast("Submitted to Airwallex","good");suList()}catch(e){toast(e.message,"critical")}})}
 $("#suGo").onclick=async()=>{const biz=$("#su-type").value==="BUSINESS";$("#suMsg").textContent="asking Airwallex…";
  const body={legal_entity_type:$("#su-type").value,business_name:biz?$("#su-biz").value.trim():"",first_name:biz?"":$("#su-first").value.trim(),last_name:biz?"":$("#su-last").value.trim(),

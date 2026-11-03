@@ -200,14 +200,25 @@ class Airwallex:
                 self._expires_at = _parse_time(body["expires_at"]).timestamp()
         return {"Authorization": f"Bearer {self._token}"}
 
-    async def _request(self, method: str, path: str, *, json: dict | None = None, params: dict | None = None, once: bool = False):
+    def _acting(self) -> str | None:
+        if self._fixed is not None:
+            return None
+        from ..airwallex_settings import acting_for
+
+        return acting_for()
+
+    async def _request(self, method: str, path: str, *, json: dict | None = None, params: dict | None = None, once: bool = False,
+                       own: bool = False):
         """Send with retries. Safe for writes because callers always pass a fixed request_id; once=True for a write that
-        has none (opening an account): a lost answer is reported, never sent again, so nothing is created twice."""
+        has none (opening an account): a lost answer is reported, never sent again, so nothing is created twice. When
+        VENTHORA works for an account the platform opened, every call carries x-on-behalf-of with that account's ID
+        (the platform's own credentials, no key of the account's); own=True is a call about the platform's own accounts."""
         last: Exception | None = None
+        obo = None if own else self._acting()
         for attempt in range(self._max_attempts):
             try:
                 res = await self._client.request(method, path, json=json, params=params,
-                                                 headers=await self._auth_headers())
+                                                 headers=await self._auth_headers() | ({"x-on-behalf-of": obo} if obo else {}))
             except httpx.TransportError as exc:
                 last = AirwallexError(f"transport error: {type(exc).__name__}")
                 if once:
@@ -314,19 +325,19 @@ class Airwallex:
     # -- accounts opened through this platform (Airwallex connected accounts) ---------------------------------
 
     async def list_accounts(self) -> list[dict]:
-        body = await self._request("GET", "/api/v1/accounts")
+        body = await self._request("GET", "/api/v1/accounts", own=True)
         return body.get("items", body) if isinstance(body, dict) else body
 
     async def create_account(self, body: dict) -> dict:
         """Open an account under this platform (status CREATED); Airwallex then verifies it after submit."""
-        return await self._request("POST", "/api/v1/accounts/create", json=body, once=True)
+        return await self._request("POST", "/api/v1/accounts/create", json=body, once=True, own=True)
 
     async def get_account(self, account_id: str) -> dict:
-        return await self._request("GET", f"/api/v1/accounts/{account_id}")
+        return await self._request("GET", f"/api/v1/accounts/{account_id}", own=True)
 
     async def submit_account(self, account_id: str) -> dict:
         """Hand the account to Airwallex's verification (KYC / KYB); status becomes SUBMITTED."""
-        return await self._request("POST", f"/api/v1/accounts/{account_id}/submit", json={})
+        return await self._request("POST", f"/api/v1/accounts/{account_id}/submit", json={}, own=True)
 
     # -- write tools ---------------------------------------------------------
 

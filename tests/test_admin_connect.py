@@ -133,3 +133,40 @@ def test_open_an_airwallex_account_from_the_dashboard(client, monkeypatch):
     r = client.post("/v1/airwallex/accounts", json=ok | {"legal_entity_type": "INDIVIDUAL", "first_name": "Ana", "last_name": "Lim"})
     assert r.status_code == 502 and "cannot onboard individual accounts" in r.json()["detail"] and "enable it" in r.json()["detail"]
     assert client.post("/v1/airwallex/accounts?role=treasury_analyst", json=ok).status_code == 403
+
+
+def test_work_for_an_opened_account_without_a_key_of_its_own(client, monkeypatch):
+    import asyncio
+
+    import httpx
+
+    from venthora.airwallex_settings import AirwallexStore
+    from venthora.gateways.airwallex import SANDBOX_URL
+
+    seen = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path.endswith("/authentication/login"):
+            return httpx.Response(200, json={"token": "t", "expires_at": "2099-01-01T00:00:00+0000"})
+        seen.append((req.url.path, req.headers.get("x-on-behalf-of")))
+        return httpx.Response(200, json={"items": []})
+
+    monkeypatch.setenv("AIRWALLEX_CLIENT_ID", "platform-client")
+    monkeypatch.setenv("AIRWALLEX_API_KEY", "platform-key")
+    bank = Airwallex(base_url=SANDBOX_URL, client=httpx.AsyncClient(base_url=SANDBOX_URL, transport=httpx.MockTransport(handler)), backoff_s=0)
+    AirwallexStore().act_for("acct_abc", "Venthora Demo Trading", "test")
+    asyncio.run(bank.list_global_accounts())
+    asyncio.run(bank.list_accounts())
+    AirwallexStore().stop_acting()
+    asyncio.run(bank.list_global_accounts())
+    assert seen == [("/api/v1/global_accounts", "acct_abc"), ("/api/v1/accounts", None), ("/api/v1/global_accounts", None)]
+
+    async def get_account(self, account_id):
+        return {"id": account_id, "status": "CREATED" if account_id == "acct_new" else "ACTIVE",
+                "account_details": {"legal_entity_type": "BUSINESS", "business_details": {"business_name": "Venthora Demo Trading"}}}
+    monkeypatch.setattr(Airwallex, "get_account", get_account)
+    r = client.post("/v1/airwallex/accounts/acct_new/use")
+    assert r.status_code == 409 and "must verify it" in r.json()["detail"]
+    r = client.post("/v1/airwallex/accounts/acct_ok/use")
+    assert r.status_code == 200 and r.json()["acting_for"]["account_id"] == "acct_ok"
+    assert client.delete("/v1/airwallex/acting").json()["acting_for"] is None

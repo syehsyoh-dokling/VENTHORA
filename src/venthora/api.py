@@ -2303,7 +2303,8 @@ async def airwallex_connection():
 
     out = airwallex_settings.public()
     bank = app.state.agent.proof.airwallex
-    out |= {"sandbox": bank.sandbox, "base_url": bank.base_url, "connected": False, "currencies": [], "global_accounts": 0}
+    out |= {"sandbox": bank.sandbox, "base_url": bank.base_url, "connected": False, "currencies": [], "global_accounts": 0,
+            "acting_for": airwallex_settings.AirwallexStore().acting()}
     if not bank.configured:
         return out | {"error": "no Airwallex credentials: connect an account below, or set them in .env"}
     try:
@@ -2472,3 +2473,34 @@ async def airwallex_submit_account(account_id: str, role: str = "finance_manager
         raise _airwallex_refusal(exc) from exc
     await asyncio.to_thread(app.state.audit.append, "airwallex_account_submitted", {"by": who, "id": account_id})
     return _account_row(acct)
+
+
+@app.post("/v1/airwallex/accounts/{account_id}/use")
+async def airwallex_use_account(account_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Work for an account opened from VENTHORA: every call then carries x-on-behalf-of with its ID, on the platform's
+    own credentials, so the new account needs no API key of its own. Only an ACTIVE (verified) account can be used."""
+    from . import airwallex_settings
+
+    who = _connector(role, by)
+    try:
+        row = _account_row(await _bank().get_account(account_id))
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+    if row["status"] != "ACTIVE":
+        raise HTTPException(409, f"{row['name']} is {row['status']}: Airwallex must verify it (ACTIVE) before VENTHORA can work for it")
+    await asyncio.to_thread(airwallex_settings.AirwallexStore().act_for, account_id, row["name"], who)
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "airwallex_acting_for", {"by": who, "account_id": account_id, "name": row["name"]})
+    return await airwallex_connection()
+
+
+@app.delete("/v1/airwallex/acting")
+async def airwallex_stop_acting(role: str = "finance_manager", by: str = "dashboard"):
+    """Back to the platform's own account."""
+    from . import airwallex_settings
+
+    who = _connector(role, by)
+    await asyncio.to_thread(airwallex_settings.AirwallexStore().stop_acting)
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "airwallex_acting_stopped", {"by": who})
+    return await airwallex_connection()
