@@ -14,7 +14,7 @@ import sqlite3
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -192,15 +192,24 @@ class Standards(BaseModel):
     petty_cash_limit_minor: int = Field(default=50_000, ge=0, le=10**10)
     expense_claim_deadline_days: int = Field(default=30, ge=1, le=365)
     document_retention_years: int = Field(default=7, ge=1, le=30)
-    fx_rate_source: Literal["airwallex", "ecb"] = "airwallex"
+    fx_rate_source: Literal["airwallex", "ecb", "central_bank", "other"] = "airwallex"
     expense_categories: list[str] = Field(default_factory=lambda: ["Payroll", "Logistics", "Suppliers", "Contractors",
                                                                    "Software", "Travel", "Office", "Marketing"])
     require_po: bool = Field(default=True, description="a supplier invoice is payable only against an open purchase order it quotes")
+    # every other choice (framework, controls, tax, audit, sector rules) by its key in finance_standards.FIELDS
+    policies: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("base_currency")
     @classmethod
     def check_currency(cls, v: str) -> str:
         return _ccy(v)
+
+    @field_validator("policies")
+    @classmethod
+    def check_policies(cls, v: dict) -> dict:
+        from .finance_standards import check
+
+        return check(v)
 
 
 SCHEMA = """
@@ -536,8 +545,11 @@ class OrgStore:
         return sorted(people, key=lambda u: (order[u["unit_id"]], roles.index(u["role"])))
 
     def standards(self) -> dict:
+        from .finance_standards import BY_KEY, defaults
+
         rec = self.get("standards", "standards") or Standards().model_dump()
-        return {k: v for k, v in rec.items() if k != "_id"}
+        saved = {k: v for k, v in (rec.get("policies") or {}).items() if k in BY_KEY}  # a key the catalog dropped is ignored
+        return {k: v for k, v in rec.items() if k != "_id"} | {"policies": defaults() | saved}
 
     def budget_policy(self) -> dict:
         from .budget_allocation import BudgetPolicy

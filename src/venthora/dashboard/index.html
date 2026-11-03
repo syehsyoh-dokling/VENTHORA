@@ -477,7 +477,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
 
  <section class="span8" data-view="standards">
-  <h2><span>Finance standards</span><span class="row"><button class="primary" id="saveStd">Save</button><span class="small muted" id="stdMeta"></span></span></h2>
+  <h2><span>Finance standards</span><span class="row"><label class="check small"><input type="checkbox" id="stdMine"> only what concerns my organisation</label><button class="primary" id="saveStd">Save</button><span class="small muted" id="stdMeta"></span></span></h2>
+  <div class="small muted" style="margin-bottom:8px">Every organisation: a large, listed or small company, a state-owned enterprise, a government agency, an NGO, foundation or charity, a cooperative, a Sharia-compliant entity. Choose the <b>Type of organisation</b> first: fields for other kinds of organisation stay dimmed with <b>None</b>. <span class="chip">enforced</span> VENTHORA checks it on every request; <span class="chip">recorded</span> kept with the standards for approvers, auditors and the AI agent, not checked automatically yet.</div>
   <div id="stdForm" class="form"></div>
  </section>
  <section class="span4" data-view="standards">
@@ -1321,25 +1322,40 @@ async function pricesView(){try{await loadOrg();const sel=$("#priceCat"),cur=sel
 $("#addPrice").onclick=async()=>{await loadOrg();openForm("Add unit price",PRICE_FIELDS(),{currency:ORG.standards.base_currency,valid_from:new Date().toISOString().slice(0,10)},"prices",pricesView)};
 
 const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
-async function standardsView(){try{const [s,rep]=await Promise.all([api("/v1/org/standards"),api("/v1/reporting/config")]);
- $("#stdForm").innerHTML=`<label>Company name<input id="sd-company_name" value="${esc(s.company_name)}"></label>
-  <label>Base currency<input id="sd-base_currency" maxlength="3" value="${esc(s.base_currency)}"></label>
-  <label>Fiscal year starts<select id="sd-fiscal_year_start_month">${MONTHS.map((m,i)=>`<option value="${i+1}" ${s.fiscal_year_start_month===i+1?"selected":""}>${m}</option>`).join("")}</select></label>
-  <label>Default payment terms (days)<input id="sd-default_payment_terms_days" type="number" min="0" max="365" value="${s.default_payment_terms_days}"></label>
-  <label>Invoice matching<select id="sd-invoice_matching"><option value="three_way" ${s.invoice_matching==="three_way"?"selected":""}>Three-way (order, receipt, invoice)</option><option value="two_way" ${s.invoice_matching==="two_way"?"selected":""}>Two-way (order, invoice)</option></select></label>
-  <label>Petty cash limit (base currency)<input id="sd-petty_cash_limit_minor" type="number" step="0.01" min="0" value="${(s.petty_cash_limit_minor/100).toFixed(2)}"></label>
-  <label>Expense claims within (days)<input id="sd-expense_claim_deadline_days" type="number" min="1" max="365" value="${s.expense_claim_deadline_days}"></label>
-  <label>Keep documents (years)<input id="sd-document_retention_years" type="number" min="1" max="30" value="${s.document_retention_years}"></label>
-  <label>FX rate source<select id="sd-fx_rate_source"><option value="airwallex" ${s.fx_rate_source==="airwallex"?"selected":""}>Airwallex live rates</option><option value="ecb" ${s.fx_rate_source==="ecb"?"selected":""}>ECB reference rates</option></select></label>
-  <label style="grid-column:1/-1">Expense categories (comma separated)<input id="sd-expense_categories" value="${esc(s.expense_categories.join(", "))}"></label>`;
+// Finance standards: one catalog (GET /v1/org/standards/catalog) draws the form; sector fields default to None
+let STDCAT=null,STDVAL=null;
+const stdVal=f=>f.store==="top"?STDVAL[f.key]:STDVAL.policies[f.key];
+function stdInput(f){const v=stdVal(f),id=`sd-${f.key}`;switch(f.kind){
+ case "select":return `<select id="${id}">${f.options.map(([o,l])=>`<option value="${esc(o)}" ${v===o?"selected":""}>${esc(l)}</option>`).join("")}</select>`;
+ case "multi":return `<div id="${id}" class="row" style="flex-wrap:wrap;gap:4px 14px;padding:6px 0">${f.options.map(([o,l])=>`<label class="check small"><input type="checkbox" value="${esc(o)}" ${(v||[]).includes(o)?"checked":""}> ${esc(l)}</label>`).join("")}</div>`;
+ case "bool":return `<select id="${id}"><option value="1" ${v?"selected":""}>Yes</option><option value="" ${v?"":"selected"}>No</option></select>`;
+ case "month":return `<select id="${id}">${MONTHS.map((m,i)=>`<option value="${i+1}" ${v===i+1?"selected":""}>${m}</option>`).join("")}</select>`;
+ case "money":case "percent":return `<input id="${id}" type="number" step="0.01" min="0" ${f.kind==="percent"?'max="100"':""} value="${((v||0)/100).toFixed(2)}">`;
+ case "int":return `<input id="${id}" type="number" min="${f.min??0}" max="${f.max??""}" value="${v??""}">`;
+ case "list":return `<input id="${id}" value="${esc((v||[]).join(", "))}">`;
+ case "currency":return `<input id="${id}" maxlength="3" value="${esc(v||"")}">`;
+ default:return `<input id="${id}" value="${esc(v??"")}">`}}
+function stdRead(f){const el=$(`#sd-${f.key}`);switch(f.kind){
+ case "multi":return [...el.querySelectorAll("input:checked")].map(x=>x.value);
+ case "bool":return !!el.value;case "month":case "int":return +el.value;
+ case "money":case "percent":return Math.round(parseFloat(el.value||"0")*100);
+ case "list":return el.value.split(",").map(x=>x.trim()).filter(Boolean);
+ default:return el.value}}
+function stdDim(){const et=$("#sd-entity_type")?.value,ent=STDCAT.entity_types.find(e=>e.key===et)||{sectors:[]},only=$("#stdMine").checked;
+ document.querySelectorAll("#stdForm [data-sectors]").forEach(el=>{const sec=el.dataset.sectors.split(","),mine=sec.includes("all")||sec.some(x=>ent.sectors.includes(x));
+  el.style.opacity=mine?"":".55";el.hidden=only&&!mine;el.querySelector(".stdFor").textContent=mine||sec.includes("all")?"":" · not your type of organisation: leave None"});
+ document.querySelectorAll("#stdForm [data-section]").forEach(h=>{h.hidden=only&&![...document.querySelectorAll(`#stdForm [data-in="${h.dataset.section}"]`)].some(x=>!x.hidden)})}
+async function standardsView(){try{const [s,rep,cat]=await Promise.all([api("/v1/org/standards"),api("/v1/reporting/config"),STDCAT||api("/v1/org/standards/catalog")]);STDCAT=cat;STDVAL=s;
+ $("#stdForm").innerHTML=cat.sections.map(sec=>`<h3 class="small" data-section="${sec.key}" style="grid-column:1/-1;margin:14px 0 0;padding-bottom:4px;border-bottom:1px solid var(--line,#e3e8f0);text-transform:uppercase;letter-spacing:.04em">${esc(sec.label)}</h3>`
+  +cat.fields.filter(f=>f.section===sec.key).map(f=>{const generic=f.sectors.includes("all");
+   return `<label data-sectors="${f.sectors.join(",")}" data-in="${sec.key}" ${f.wide||f.kind==="multi"?'style="grid-column:1/-1"':""}><span>${esc(f.label)} <span class="chip" title="${f.enforced?"VENTHORA checks it on every request":"kept with the standards for approvers, auditors and the AI agent; not checked automatically yet"}">${f.enforced?"enforced":"recorded"}</span>${generic?"":` <span class="chip">${esc(f.sectors.map(x=>cat.sectors[x]).join(" · "))}</span>`}</span>${stdInput(f)}${f.help?`<span class="small muted">${esc(f.help)}</span>`:""}<span class="small muted stdFor"></span></label>`}).join("")).join("");
+ $("#sd-entity_type").onchange=stdDim;stdDim();
  $("#stdRep").innerHTML=`<dl class="kv"><dt>Time zone</dt><dd>${esc(rep.timezone)}</dd><dt>Cut-off</dt><dd>day ${esc(rep.cutoff_day)} at ${esc(rep.cutoff_time)}</dd><dt>Reporting in</dt><dd>${esc(rep.reporting_currency)}</dd></dl>
   <p class="muted">Payments are booked to a period by their payment instant in this time zone. The cut-off is changed by an admin through the reporting API.</p>`}
  catch(e){$("#stdForm").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-$("#saveStd").onclick=async()=>{const g=k=>$(`#sd-${k}`).value;
- const body={company_name:g("company_name"),base_currency:g("base_currency"),fiscal_year_start_month:+g("fiscal_year_start_month"),default_payment_terms_days:+g("default_payment_terms_days"),
-  invoice_matching:g("invoice_matching"),petty_cash_limit_minor:Math.round(parseFloat(g("petty_cash_limit_minor")||"0")*100),expense_claim_deadline_days:+g("expense_claim_deadline_days"),
-  document_retention_years:+g("document_retention_years"),fx_rate_source:g("fx_rate_source"),expense_categories:g("expense_categories").split(",").map(x=>x.trim()).filter(Boolean)};
- try{await api(`/v1/org/standards?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#stdMeta").textContent=`saved by ${actor().name}`;toast("Finance standards saved","good")}
+$("#stdMine").onchange=()=>STDCAT&&stdDim();
+$("#saveStd").onclick=async()=>{const body={policies:{}};STDCAT.fields.forEach(f=>{if(f.store==="top")body[f.key]=stdRead(f);else body.policies[f.key]=stdRead(f)});
+ try{STDVAL=await api(`/v1/org/standards?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#stdMeta").textContent=`saved by ${actor().name}`;toast("Finance standards saved","good")}
  catch(e){$("#stdMeta").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 // ---- purchase orders, spending, projects & accounts -------------------------------------------------------------------

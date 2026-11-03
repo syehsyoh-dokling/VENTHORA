@@ -1766,6 +1766,15 @@ async def org_standards():
     return app.state.org.standards()
 
 
+@app.get("/v1/org/standards/catalog")
+async def org_standards_catalog():
+    """Every finance standard VENTHORA knows: sections, fields, options, which organisations each concerns, and
+    whether VENTHORA enforces it or records it."""
+    from .finance_standards import catalog
+
+    return catalog()
+
+
 @app.put("/v1/org/standards")
 async def set_org_standards(s: Standards, role: str = "finance_manager", by: str = "dashboard"):
     who = _writer(role, by)
