@@ -446,12 +446,13 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 ## The menu
 
-Daily work sits on top: **Overview**, **Treasury**, **Payments**, **Organisation** (people and the admin team) and
-**Assurance**. What is set up once and changed only now and then is folded away below: **Platform setup** (the setup
-checklist, the Airwallex account, the AI agent and model, app integration through the Sync API and API access, email
-sync) and **System setting** (datasets, the finance SOP: standards, document validation, mandate; budget allocation;
-Airwallex webhooks, with a Setup tab and a Received events tab; the organisation's structure: offices, projects and
-accounts, unit prices). The pages below are named as they appear there.
+The side menu shows only its main items: **Dashboard**, **Workflow**, **Payment** (operations run, intake, purchase
+orders, payees, executions, payment reports, receiving accounts), **Mandate & Reporting** (plan and proof, budget and
+mandate, books, reporting periods, spending, run reports, checks), **User Management** (people and roles, the admin
+team), **Platform Setup** (setup checklist, Airwallex account, AI agent and model, app integration, email sync) and
+**System Setting** (datasets, finance SOP, budget allocation, webhooks, organisation structure). A group opens below
+its item on hover, or on a click or tap; one at a time, and the group of the page in view stays marked. A group
+shows how many items inside it wait for a person.
 
 ## The overview
 

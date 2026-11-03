@@ -92,11 +92,17 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600}
 .nav nav a.on{background:rgba(79,139,255,.24);color:#fff;box-shadow:inset 3px 0 0 #7fb0ff}
 .nav nav i{font-style:normal;width:18px;text-align:center;opacity:.9}
 .nav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:#8ea2cf;margin:14px 10px 3px;font-weight:700}
-.nav .ngrp{margin-top:6px;border-top:1px solid rgba(255,255,255,.08)}
-.nav .ngrp>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:4px 0 2px}
-.nav .ngrp>summary::-webkit-details-marker{display:none}
-.nav .ngrp>summary::after{content:"▸";font-size:11px;transition:transform .15s}.nav .ngrp[open]>summary::after{transform:rotate(90deg)}
-.nav .ngrp>summary:hover{color:#fff}
+.nav .mg{margin:1px 0}
+.nav .mh{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;background:transparent;color:var(--heroMuted);
+ font:inherit;font-weight:600;font-size:13.5px;border-radius:9px;cursor:pointer;text-align:left}
+.nav .mh:hover,.nav .mg.open>.mh{background:rgba(255,255,255,.07);color:#fff}
+.nav .mh i{font-style:normal;width:18px;text-align:center;opacity:.9}.nav .mh span:first-of-type{flex:1}
+.nav .mh .chev{font-size:11px;opacity:.7;transition:transform .15s}.nav .mg.open>.mh .chev{transform:rotate(90deg)}
+.nav .mg.cur>.mh{color:#fff;box-shadow:inset 3px 0 0 #7fb0ff;background:rgba(79,139,255,.16)}
+.nav .mg .ms{display:none;padding:2px 0 6px 10px;margin-left:8px;border-left:1px solid rgba(255,255,255,.10)}
+.nav .mg.open .ms{display:block}
+@media (hover:hover){.nav .mg:hover .ms{display:block}.nav .mg:hover>.mh .chev{transform:rotate(90deg)}}
+.nav a.mtop{font-weight:600}
 .nav .nsub{font-size:11px;color:#b9c6e6;margin:9px 10px 1px 12px;font-weight:600}
 .nav nav a.nin{padding:5px 10px 5px 26px;font-size:12.5px}
 .nav .cnt{margin-left:auto;background:#f5a524;color:#1b1300;font-size:11px;font-weight:700;border-radius:999px;padding:0 7px;line-height:18px}.nav .cnt:empty{display:none}
@@ -231,31 +237,36 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 <div class="app">
 <aside class="nav" id="nav">
  <a class="brand" href="#/overview"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>VENTHORA</b><small>Treasury on Airwallex</small></span></a>
- <nav>
-  <a href="#/overview" data-nav="overview"><i>◧</i>Overview</a>
-  <div class="grp">Treasury</div>
-  <a href="/live"><i>▶</i>Operations run<span class="ext">↗</span></a>
-  <a href="/flow"><i>⇢</i>Workflow<span class="ext">↗</span></a>
-  <a href="#/plan" data-nav="plan"><i>◇</i>Plan &amp; proof</a>
-  <a href="#/budget" data-nav="budget"><i>▤</i>Budget &amp; mandate</a>
-  <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
-  <a href="#/receiving" data-nav="receiving"><i>⇩</i>Receiving accounts</a>
-  <a href="#/reporting" data-nav="reporting"><i>◷</i>Reporting periods</a>
-  <a href="#/spending" data-nav="spending"><i>▦</i>Spending</a>
-  <div class="grp">Payments</div>
-  <a href="#/intake" data-nav="intake"><i>✉</i>Intake<span class="cnt" id="cnt-intake"></span></a>
-  <a href="#/pos" data-nav="pos"><i>▣</i>Purchase orders</a>
-  <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Payment reports</a>
-  <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
-  <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
-  <a href="#/runs" data-nav="runs"><i>☰</i>Run reports</a>
-  <div class="grp">Organisation</div>
-  <a href="#/users" data-nav="users"><i>⌂</i>User management</a>
-  <a href="#/admins" data-nav="admins"><i>♛</i>Admin team</a>
-  <div class="grp">Assurance</div>
-  <a href="#/assurance" data-nav="assurance"><i>✓</i>Checks &amp; resilience</a>
+ <nav id="mainNav">
+  <a href="#/overview" data-nav="overview" class="mtop"><i>◧</i>Dashboard</a>
+  <a href="/flow" class="mtop"><i>⇢</i>Workflow<span class="ext">↗</span></a>
 
-  <details class="ngrp" id="ngPlatform"><summary class="grp">Platform setup</summary>
+  <div class="mg" data-g="payment"><button type="button" class="mh"><i>⇄</i><span>Payment</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <a href="/live"><i>▶</i>Operations run<span class="ext">↗</span></a>
+   <a href="#/intake" data-nav="intake"><i>✉</i>Intake<span class="cnt" id="cnt-intake"></span></a>
+   <a href="#/pos" data-nav="pos"><i>▣</i>Purchase orders</a>
+   <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
+   <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
+   <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Payment reports</a>
+   <a href="#/receiving" data-nav="receiving"><i>⇩</i>Receiving accounts</a>
+  </div></div>
+
+  <div class="mg" data-g="mandate"><button type="button" class="mh"><i>⚖</i><span>Mandate &amp; Reporting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <a href="#/plan" data-nav="plan"><i>◇</i>Plan &amp; proof</a>
+   <a href="#/budget" data-nav="budget"><i>▤</i>Budget &amp; mandate</a>
+   <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
+   <a href="#/reporting" data-nav="reporting"><i>◷</i>Reporting periods</a>
+   <a href="#/spending" data-nav="spending"><i>▦</i>Spending</a>
+   <a href="#/runs" data-nav="runs"><i>☰</i>Run reports</a>
+   <a href="#/assurance" data-nav="assurance"><i>✓</i>Checks &amp; resilience</a>
+  </div></div>
+
+  <div class="mg" data-g="users"><button type="button" class="mh"><i>⌂</i><span>User Management</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <a href="#/users" data-nav="users"><i>☺</i>People &amp; roles</a>
+   <a href="#/admins" data-nav="admins"><i>♛</i>Admin team</a>
+  </div></div>
+
+  <div class="mg" data-g="platform"><button type="button" class="mh"><i>⚙</i><span>Platform Setup</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/readiness" data-nav="readiness"><i>☑</i>Setup checklist<span class="cnt" id="cnt-ready"></span></a>
    <div class="nsub">Airwallex</div>
    <a href="#/airwallex" data-nav="airwallex" class="nin">Airwallex account</a>
@@ -268,9 +279,9 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/api-access" data-nav="api-access" class="nin">API access (other apps)</a>
    <div class="nsub">Email sync</div>
    <a href="#/sources-email" data-nav="sources-email" class="nin">Email sources</a>
-  </details>
+  </div></div>
 
-  <details class="ngrp" id="ngSystem"><summary class="grp">System setting</summary>
+  <div class="mg" data-g="system"><button type="button" class="mh"><i>☷</i><span>System Setting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <div class="nsub">Dataset</div>
    <a href="#/sources-upload" data-nav="sources-upload" class="nin">Upload dataset</a>
    <div class="nsub">Finance SOP</div>
@@ -287,12 +298,12 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/offices" data-nav="offices" class="nin">Country offices</a>
    <a href="#/codes" data-nav="codes" class="nin">Projects &amp; accounts</a>
    <a href="#/prices" data-nav="prices" class="nin">Unit prices</a>
-  </details>
+  </div></div>
  </nav>
  <div class="actor"><label class="small muted" for="actor">Acting as</label><select id="actor"></select></div>
 </aside>
 <div class="content">
-<header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><h1 id="pageTitle">Overview</h1>
+<header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><h1 id="pageTitle">Dashboard</h1>
  <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><a class="go" href="/live">Operations run ▸</a></span></header>
 <main>
  <!-- ===== Overview: charts and notifications only ===== -->
@@ -575,7 +586,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="receiving">
   <h2><span>Receiving accounts</span><span class="row"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="Customer receipts"><button id="gaOpen">Open another account</button></span></h2>
   <div class="small muted">Bank details in your name at Airwallex, one per currency. Give them to customers on invoices: they pay by a local
-   transfer, and the money lands in the wallet as a deposit (it shows on the Overview as cash in).</div>
+   transfer, and the money lands in the wallet as a deposit (it shows on the Dashboard as cash in).</div>
   <div id="gaList" class="empty" style="margin-top:12px">loading…</div>
  </section>
 
@@ -905,7 +916,7 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
+const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
  standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Setup checklist","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
@@ -913,10 +924,15 @@ const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>alloc
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
- const here=document.querySelector(`.ngrp [data-nav="${view}"]`);if(here)here.closest(".ngrp").open=true;
+ document.querySelectorAll("#mainNav .mg").forEach(g=>{g.classList.toggle("cur",!!g.querySelector(`[data-nav="${view}"]`));g.classList.remove("open")});
  $("#pageTitle").textContent=TITLES[view];$("#kspan").hidden=view!=="overview";document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
  if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);
+document.querySelectorAll("#mainNav .mh").forEach(h=>h.onclick=()=>{const g=h.parentElement,was=g.classList.contains("open");
+ document.querySelectorAll("#mainNav .mg").forEach(x=>x.classList.remove("open"));if(!was)g.classList.add("open")});
+function menuCounts(){document.querySelectorAll("#mainNav .mg").forEach(g=>{const n=[...g.querySelectorAll(".ms .cnt")].reduce((a,c)=>a+(+c.textContent||0),0);
+ const b=g.querySelector(".mh .cnt");if(b&&b.textContent!==(n?String(n):""))b.textContent=n?String(n):""})}
+new MutationObserver(menuCounts).observe(document.getElementById("mainNav"),{subtree:true,childList:true,characterData:true});
 $("#menuBtn").onclick=()=>$("#nav").classList.toggle("open");
 
 let ACTORS=[{role:"finance_manager",name:"Dana Finch",label:"Dana Finch · Finance manager"}];
