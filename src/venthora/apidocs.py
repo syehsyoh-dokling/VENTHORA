@@ -1,0 +1,168 @@
+# ruff: noqa: E501
+"""The public face of the API: one version prefix, a written title and description for every public endpoint,
+and the internal endpoints (demo scenarios, evidence suites, the operations console) kept out of it.
+
+``publish(app)`` runs once, after every route is declared:
+
+* an endpoint still under ``/api/...`` gets its ``/v1/...`` path (ALIASES); the old path keeps working for the
+  dashboard but leaves the schema, so other applications see one prefix;
+* an INTERNAL endpoint leaves the schema and the catalogue, and API keys cannot call it (apiaccess.scope_for);
+* every public endpoint takes its title and description from DOCS; tests/test_api_access.py fails when a new
+  public endpoint has none.
+"""
+from __future__ import annotations
+
+ALIASES = {
+    "/api/airwallex/balances": "/v1/airwallex/balances",
+    "/api/audit": "/v1/audit",
+    "/api/budget": "/v1/budgets/pipeline",
+    "/api/status": "/v1/status",
+}
+
+# the dashboard's own machinery and the evidence suites: not a contract for other applications
+INTERNAL = ("/api/live", "/api/runs", "/api/sandbox", "/api/scenarios", "/api/groundtruth", "/api/matrix",
+            "/api/airwallex/global-accounts", "/v1/intake/plan", "/v1/intake/state")
+
+
+def is_internal(path: str) -> bool:
+    return any(path == p or path.startswith(p + "/") for p in INTERNAL)
+
+
+# (method, path) -> (title, description)
+DOCS: dict[tuple[str, str], tuple[str, str]] = {
+    # treasury
+    ("GET", "/v1/airwallex/balances"): ("Airwallex balances", "The available balance per currency in minor units (cents), read live from the Airwallex wallet."),
+    ("GET", "/v1/airwallex/accounts"): ("List opened accounts", "Airwallex connected accounts opened from VENTHORA, with their verification status, read live from Airwallex."),
+    ("POST", "/v1/airwallex/accounts"): ("Open an Airwallex account", "Create a connected account for a business or person; the same call works on the sandbox and in production."),
+    ("POST", "/v1/airwallex/accounts/{account_id}/submit"): ("Submit an account for verification", "Hand an opened account to Airwallex's KYC/KYB review."),
+    ("POST", "/v1/airwallex/accounts/{account_id}/use"): ("Work for an opened account", "Make every following Airwallex call act for this verified account (x-on-behalf-of), on the platform's credentials."),
+    ("DELETE", "/v1/airwallex/acting"): ("Stop working for an opened account", "Return to the platform's own Airwallex account."),
+    ("GET", "/v1/airwallex/global-accounts"): ("List Global Accounts", "Local bank details per currency that customers pay into, with their status."),
+    ("POST", "/v1/airwallex/global-accounts"): ("Open a Global Account", "Open local bank details in a currency so customers can pay by local transfer."),
+    ("GET", "/v1/audit"): ("Audit log", "The append-only audit trail (SHA-256 hash chain): who did what and when, newest first, with an integrity check of the chain."),
+    ("GET", "/v1/executions"): ("List executions", "Every plan execution with its status and the transfers it made."),
+    ("POST", "/v1/executions"): ("Execute an approved plan", "Run quote, conversion, transfers and settlement checks for an approved plan; each step passes the budget and approval gates first."),
+    ("GET", "/v1/executions/{execution_id}"): ("Get an execution", "One execution step by step: quotes, conversions, transfers and their Airwallex status."),
+    ("POST", "/v1/executions/{execution_id}/resume"): ("Resume an execution", "Continue an execution that waited for a person or for Airwallex, from the step where it stopped."),
+    ("GET", "/v1/incidents"): ("List incidents", "Transfers that did not arrive, with the decision taken on each."),
+    ("POST", "/v1/incidents"): ("Report an incident", "Report a sent transfer that did not arrive; VENTHORA decides to wait, replace or escalate and records why."),
+    ("POST", "/v1/incidents/decide"): ("Decide an incident (dry run)", "What VENTHORA would decide for a failure type and its finality, without recording anything."),
+    ("GET", "/v1/incidents/{incident_id}"): ("Get an incident", "One incident with its timeline and decision."),
+    ("GET", "/v1/ledger"): ("List ledger books", "Every book with its cash, committed, expense and FX balances per currency."),
+    ("POST", "/v1/ledger/eval"): ("Evaluate postings (dry run)", "The balances and refusals a set of postings would produce, without writing them."),
+    ("GET", "/v1/ledger/{book_id}"): ("Get a ledger book", "One book's balances and postings."),
+    ("POST", "/v1/ledger/{book_id}/adjust"): ("Adjust a ledger book", "Record a person's correction to a book, such as an unreported bank charge; it is audited."),
+    ("POST", "/v1/plans"): ("Create a payment plan", "Turn obligations and balances into a plan of conversions and transfers, verified by the independent engines."),
+    ("POST", "/v1/plans/challenge"): ("Challenge a recommendation", "Check an outside recommendation against the same engines and say where it breaks a rule."),
+    ("POST", "/v1/plans/replan"): ("Replan after new information", "Recalculate only the decisions that new information affects; the rest of the plan stays."),
+    ("GET", "/v1/recon-cases"): ("List reconciliation cases", "Reconciliations that did not add up; an open case blocks payments from its book."),
+    ("POST", "/v1/recon-cases/{case_id}/close"): ("Close a reconciliation case", "Close a case once a person has explained the difference; the book is unblocked."),
+    ("GET", "/v1/treasury/overview"): ("Treasury overview", "Available balance with its value in the major currencies, pending payments, cash in and out, and pending actions."),
+    ("GET", "/v1/treasury/position"): ("Cash position", "The wallet now and what is about to change it: committed payments, expected receipts and the forecast."),
+    # payables
+    ("POST", "/v1/approvals/eval"): ("Approval chain (dry run)", "Who must approve a payment of a given amount, office and type under the approval matrix."),
+    ("GET", "/v1/intake"): ("List payment requests", "Invoices, claims and payment orders in the queue, each with its checks and the transfers that settled it."),
+    ("POST", "/v1/intake/emails"): ("Submit an emailed invoice", "Submit one raw email (RFC 822); the sender, attachments and documents are checked before it enters the queue."),
+    ("POST", "/v1/intake/payment-orders"): ("Create a payment order", "Add an internal payment order to the same queue and checks as emailed invoices."),
+    ("POST", "/v1/intake/{intake_id}/review"): ("Review a payment request", "A person verifies or rejects a request held by a check, with a note; audited."),
+    ("GET", "/v1/payees"): ("List payees", "Every payee with status, bank-details fingerprint, cooling period and verification."),
+    ("POST", "/v1/payees/eval"): ("Payee lifecycle (dry run)", "The payee record a sequence of lifecycle events would produce, without saving it."),
+    ("GET", "/v1/payees/{beneficiary_id}"): ("Get a payee", "One payee with its history of bank-detail changes and verifications."),
+    ("POST", "/v1/payees/{beneficiary_id}/bank-change"): ("Record a bank-detail change", "The payee becomes CHANGED and cannot be paid until a new call-back verifies the details."),
+    ("POST", "/v1/payees/{beneficiary_id}/reinstate"): ("Reinstate a payee", "Back to NEW: a call-back is required before the next payment."),
+    ("POST", "/v1/payees/{beneficiary_id}/suspend"): ("Suspend a payee", "No payment goes to this payee until it is reinstated."),
+    ("POST", "/v1/payees/{beneficiary_id}/verify"): ("Verify a payee", "Record the call-back in which a finance manager confirmed the bank details with the payee."),
+    ("GET", "/v1/procurement/purchase-orders"): ("List purchase orders", "Every PO with what is paid (term by term), in flight and still open; a PO is never paid beyond its total."),
+    ("GET", "/v1/procurement/spending"): ("Spending by office and project", "Paid spend by office, project, account code and payee for a period."),
+    # receivables
+    ("GET", "/v1/aging"): ("Aging report", "Every obligation of a book as of a date, in aging buckets."),
+    ("POST", "/v1/aging/eval"): ("Aging (dry run)", "The aging buckets a set of invoices would fall into on a date."),
+    # budget and reporting
+    ("GET", "/v1/budgets/pipeline"): ("Budget pipeline", "For a book: planned, granted, realized, paying now and committed, per budget line."),
+    ("POST", "/v1/budget-allocation/check"): ("Check a payment against the budget", "What the execution gate would say about one payment now; nothing is booked."),
+    ("GET", "/v1/budget-allocation/policy"): ("Get the budget policy", "Enforcement, active period type, fiscal-year start, cut-off and sync schedule."),
+    ("PUT", "/v1/budget-allocation/policy"): ("Set the budget policy", "Change enforcement, period type, cut-off or sync schedule; audited."),
+    ("GET", "/v1/budget-allocation/status"): ("Budget status", "Every allocation of a period with what was spent and what is left."),
+    ("POST", "/v1/budget-allocation/sync"): ("Sync budget spend now", "Run the daily or monthly budget sync immediately instead of waiting for its schedule."),
+    ("POST", "/v1/budgets/{period}/close"): ("Close a budget period", "Issue the period's statement at cut-off: plan, realized and variance per line."),
+    ("GET", "/v1/budgets/{period}/cutoff"): ("Get a closed period", "The statement issued when the period was closed; 404 while it is still open."),
+    ("POST", "/v1/budgets/{period}/{line}/grant"): ("Grant budget", "A person raises a budget line's mandate in answer to a request; the role decides how much."),
+    ("GET", "/v1/reporting/config"): ("Get reporting settings", "Cut-off day and time, timezone, reporting currency and rate fallback."),
+    ("PUT", "/v1/reporting/config"): ("Set reporting settings", "Change the cut-off, reporting currency or rate fallback; audited."),
+    ("POST", "/v1/reporting/eval"): ("Reporting period (dry run)", "Which period and report a posting would belong to under the current cut-off."),
+    ("GET", "/v1/reporting/periods/{period}"): ("Period report", "Monthly spend by payment date and the invoice statement for a period, in the reporting currency."),
+    ("POST", "/v1/reporting/periods/{period}/rates"): ("Record closing rates", "Store the period's closing FX rates from Airwallex's rates, for the period report."),
+    ("GET", "/v1/reports/payments"): ("Payment report", "Every paid payment, running (today, week, month, quarter) and accumulated (month to year)."),
+    ("GET", "/v1/reports/purchase-orders"): ("PO reconciliation report", "Every PO against what was paid, in flight and invoiced, with any over- or under-payment."),
+    ("GET", "/v1/tenants"): ("List tenants", "Every tenant with its books, allowed payees and limits."),
+    ("POST", "/v1/tenants/eval"): ("Resolve a book (dry run)", "Which tenant a book id belongs to under a registry."),
+    # organisation
+    ("GET", "/v1/org/account-code"): ("Check an account code", "Validate an account code (office cost centre . project . account) and name each part."),
+    ("GET", "/v1/org/allocation-tree"): ("Allocation tree", "Offices, projects and accounts as a tree with their budget allocations for a period (default 2026)."),
+    ("GET", "/v1/org/standards"): ("Get finance standards", "Company name, base currency, fiscal year, payment terms, invoice matching, petty-cash limit, claim deadline, retention, FX source and expense categories."),
+    ("PUT", "/v1/org/standards"): ("Set finance standards", "Change the finance SOP; audited."),
+    ("GET", "/v1/org/{collection}"): ("List organisation records", "Units, people, projects, accounts, mailboxes and other master records of one collection."),
+    ("POST", "/v1/org/{collection}"): ("Save an organisation record", "Create or update one record of a collection; the role decides what may change."),
+    ("DELETE", "/v1/org/{collection}/{record_id}"): ("Delete an organisation record", "Remove one record of a collection; audited."),
+    # data sources
+    ("GET", "/v1/sources/connectors"): ("List connectors", "Connections to the old system or ERP, with what each one syncs and when it last ran."),
+    ("DELETE", "/v1/sources/connectors/{connector_id}"): ("Delete a connector", "Remove a connection; synced data stays."),
+    ("PUT", "/v1/sources/connectors/{connector_id}"): ("Save a connector", "Create or change a connection to the old system or ERP."),
+    ("POST", "/v1/sources/connectors/{connector_id}/sync"): ("Run a sync", "Read every enabled entity from the source and write it; dry_run=true only reports what would change."),
+    ("GET", "/v1/sources/fields"): ("Import fields", "The fields each entity takes and how a cell is read, for building import files."),
+    ("GET", "/v1/sources/master/{entity}"): ("List master data", "The synced or imported records of one entity."),
+    ("GET", "/v1/sources/readiness"): ("Readiness", "Every setting and data set VENTHORA needs, and whether it is real, imported or still missing."),
+    ("GET", "/v1/sources/runs"): ("List sync runs", "Every sync and import with its counts of created, updated and rejected records."),
+    ("POST", "/v1/sources/uploads"): ("Upload a file", "Upload a CSV, Excel or PDF file as the raw body; the reply says which entity it holds."),
+    ("POST", "/v1/sources/uploads/{upload_id}/commit"): ("Import an upload", "Write the previewed records of an upload."),
+    ("POST", "/v1/sources/uploads/{upload_id}/preview"): ("Preview an upload", "What the import would create, update or reject, without writing it."),
+    # settings
+    ("GET", "/v1/settings/documents"): ("Get document rules", "The document-validation rules and the catalogue of document types and checks."),
+    ("PUT", "/v1/settings/documents"): ("Set document rules", "Change required documents, checks and limits; audited."),
+    ("GET", "/v1/webhooks/events"): ("Received webhook events", "The latest events Airwallex and the mail service pushed, with how each was handled."),
+    ("GET", "/v1/webhooks/status"): ("Webhook status", "Whether each inbound channel is configured and when it last received an event."),
+    # system
+    ("GET", "/health"): ("Health", "Liveness: status, version and server time."),
+    ("GET", "/v1/status"): ("Service status", "Which engines, authorities and connections are active."),
+    # developer
+    ("GET", "/v1/developer/catalog"): ("API catalogue", "Every public endpoint with its area and the scope a key needs."),
+    ("GET", "/v1/developer/keys"): ("List API keys", "Every key with its scopes, role, status and use; never the key itself."),
+    ("POST", "/v1/developer/keys"): ("Create an API key", "The key is in this response only; VENTHORA keeps its hash."),
+    ("POST", "/v1/developer/keys/{key_id}/revoke"): ("Revoke an API key", "The application using it is refused at once."),
+    ("GET", "/v1/developer/keys/{key_id}/requests"): ("Key request log", "The latest calls made with one key: time, method, path, status and duration."),
+    ("GET", "/v1/airwallex/connection"): ("Airwallex connection", "Which Airwallex account VENTHORA works on; secrets are never returned."),
+    ("PUT", "/v1/airwallex/connection"): ("Connect Airwallex", "Save and test Airwallex credentials."),
+    ("DELETE", "/v1/airwallex/connection"): ("Disconnect Airwallex", "Forget the saved account; VENTHORA falls back to the server's configured credentials."),
+    ("GET", "/v1/settings/ai"): ("Get AI model settings", "The model in use and which provider keys are set; secrets are never returned."),
+    ("PUT", "/v1/settings/ai"): ("Set the AI model", "Choose rules only, a self-hosted model or a provider."),
+    ("PUT", "/v1/settings/ai/keys/{provider}"): ("Save a provider key", "Keep a provider's API key and preferred model in the vault."),
+    ("DELETE", "/v1/settings/ai/keys/{provider}"): ("Delete a provider key", "Remove a provider's key from the vault."),
+    ("POST", "/v1/settings/ai/models"): ("List provider models", "The model ids the chosen server or provider offers."),
+    ("POST", "/v1/settings/ai/test"): ("Test the AI model", "One short request to the chosen model, to prove the address, key and model."),
+    # inbound
+    ("POST", "/webhooks/airwallex"): ("Airwallex webhook", "Airwallex pushes deposit, transfer and conversion status changes here, signed with the webhook secret."),
+    ("POST", "/webhooks/email"): ("Inbound email webhook", "The mail service pushes invoices and claims emailed to the company's inbound address."),
+}
+
+
+def publish(app) -> None:
+    from fastapi.routing import APIRoute
+
+    for route in list(app.routes):
+        if not isinstance(route, APIRoute) or not route.include_in_schema:
+            continue
+        if is_internal(route.path):
+            route.include_in_schema = False
+            continue
+        new = ALIASES.get(route.path)
+        if new:
+            route.include_in_schema = False  # the old path keeps working for the dashboard
+            app.add_api_route(new, route.endpoint, methods=sorted(route.methods), name=f"{route.name}_v1",
+                              response_model=route.response_model)
+    for route in app.routes:
+        if isinstance(route, APIRoute) and route.include_in_schema:
+            for method in route.methods:
+                doc = DOCS.get((method, route.path))
+                if doc:
+                    route.summary, route.description = doc
+    app.openapi_schema = None

@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
+import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from typing import Annotated
@@ -22,7 +23,7 @@ load_env()
 
 from pydantic import BaseModel, Field  # noqa: E402
 
-from . import ai_settings, apiaccess, webhooks  # noqa: E402
+from . import ai_settings, apiaccess, apidocs, webhooks  # noqa: E402
 from . import live as live_session  # noqa: E402
 from .aging import evaluate as aging_evaluate  # noqa: E402
 from .ai_settings import active_model  # noqa: E402
@@ -125,6 +126,44 @@ app = FastAPI(title="VENTHORA", version=__version__, lifespan=lifespan,
 
 
 @app.middleware("http")
+async def idempotency(request: Request, call_next):
+    """A write that carries an Idempotency-Key is answered once: a retry with the same key and body gets the stored
+    response (Idempotent-Replayed: true), the same key with another body is refused (422). Declared before
+    api_keys, so it runs inside it: the key is already verified and the caller's role already replaced."""
+    idem = (request.headers.get("idempotency-key") or "").strip()
+    if not idem or request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+        return await call_next(request)
+    if len(idem) > 255:
+        return JSONResponse({"detail": "Idempotency-Key is longer than 255 characters"}, status_code=400)
+    body = await request.body()
+    owner = getattr(request.state, "api_key", None) or "local"
+    fingerprint = hashlib.sha256(b"\n".join([request.method.encode(), request.url.path.encode(),
+                                              request.scope.get("query_string", b""), body])).hexdigest()
+    keys = request.app.state.keys
+    state, stored = await asyncio.to_thread(keys.idem_begin, owner, idem, fingerprint)
+    if state == "conflict":
+        return JSONResponse({"detail": "this Idempotency-Key was already used with a different request"}, status_code=422)
+    if state == "busy":
+        return JSONResponse({"detail": "a request with this Idempotency-Key is still being processed"}, status_code=409)
+    if state == "replay":
+        return Response(stored["body"], status_code=stored["status"], media_type=stored["content_type"],
+                        headers={"Idempotent-Replayed": "true"})
+    try:
+        response = await call_next(request)
+        raw = b"".join([chunk async for chunk in response.body_iterator])
+    except Exception:
+        await asyncio.to_thread(keys.idem_drop, owner, idem)
+        raise
+    if response.status_code >= 500:
+        await asyncio.to_thread(keys.idem_drop, owner, idem)
+    else:
+        await asyncio.to_thread(keys.idem_finish, owner, idem, response.status_code, raw,
+                                response.headers.get("content-type", "application/json"))
+    headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+    return Response(raw, status_code=response.status_code, headers=headers)
+
+
+@app.middleware("http")
 async def api_keys(request: Request, call_next):
     """Requests carrying an API key (Settings → API access) are held to its scopes and act with its role.
 
@@ -136,23 +175,31 @@ async def api_keys(request: Request, call_next):
     path, method = request.url.path, request.method
     if path.startswith(apiaccess.NO_KEY):
         return await call_next(request)  # the webhooks authenticate themselves
-    key = await asyncio.to_thread(request.app.state.keys.verify, token)
+    keys = request.app.state.keys
+    key = await asyncio.to_thread(keys.verify, token)
     if key is None:
         return JSONResponse({"detail": "invalid, expired or revoked API key"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})
+    started = time.perf_counter()
+
+    async def logged(response):
+        await asyncio.to_thread(keys.log, key["key_id"], method, path, response.status_code,
+                                int((time.perf_counter() - started) * 1000), request.client.host if request.client else "")
+        return response
+
     if path.startswith(apiaccess.NEVER_BY_KEY):
-        return JSONResponse({"detail": "API keys are managed only from VENTHORA itself"}, status_code=403)
+        return await logged(JSONResponse({"detail": "this endpoint is managed only from VENTHORA itself"}, status_code=403))
     if not path.startswith(apiaccess.OPEN_WITH_KEY):
         need = apiaccess.scope_for(method, path)
         if need is None:
-            return JSONResponse({"detail": "this endpoint is not available to API keys"}, status_code=403)
+            return await logged(JSONResponse({"detail": "this endpoint is not available to API keys"}, status_code=403))
         if need not in key["scopes"]:
-            return JSONResponse({"detail": f"the key lacks the scope {need}"}, status_code=403)
+            return await logged(JSONResponse({"detail": f"the key lacks the scope {need}"}, status_code=403))
     # the key's role and name replace whatever the caller sent
     q = [(k, v) for k, v in parse_qsl(request.scope.get("query_string", b"").decode()) if k not in ("role", "by")]
     q += [("role", key["role"]), ("by", f"api:{key['name']}")]
     request.scope["query_string"] = urlencode(q).encode()
     request.state.api_key = key["key_id"]
-    return await call_next(request)
+    return await logged(await call_next(request))
 
 
 def _execution_done(result) -> None:
@@ -1924,9 +1971,18 @@ async def developer_catalog(request: Request):
     return {"areas": areas, "roles": list(apiaccess.ROLES), "endpoints": apiaccess.catalog(app.openapi()),
             "auth": {"header": "Authorization: Bearer <key>", "alternative": "X-API-Key: <key>",
                      "read": "GET and .../eval calls", "write": "every other call",
-                     "role": "the key's role and name replace the role and by query parameters"},
+                     "role": "the key's role and name replace the role and by query parameters",
+                     "idempotency": f"send Idempotency-Key on a write to make retries safe (kept {apiaccess.IDEMPOTENCY_HOURS} h)",
+                     "errors": "every refusal is JSON {\"detail\": ...} with the HTTP status"},
             "openapi": "/openapi.json", "docs": "/docs",
             "gateway": {"command": "python scripts/webhook_gateway.py --api", "note": "forwards the API only for requests carrying a key"}}
+
+
+@app.get("/v1/developer/keys/{key_id}/requests")
+async def developer_key_requests(key_id: str, limit: int = Query(50, ge=1, le=1000)):
+    if await asyncio.to_thread(app.state.keys.get, key_id) is None:
+        raise HTTPException(404, "unknown key")
+    return await asyncio.to_thread(app.state.keys.requests, key_id, limit)
 
 
 @app.get("/v1/developer/keys")
@@ -2535,3 +2591,6 @@ async def airwallex_stop_acting(role: str = "finance_manager", by: str = "dashbo
     app.state.position_cache = None
     await asyncio.to_thread(app.state.audit.append, "airwallex_acting_stopped", {"by": who})
     return await airwallex_connection()
+
+
+apidocs.publish(app)  # last: one /v1 prefix, written docs, internal endpoints out of the schema

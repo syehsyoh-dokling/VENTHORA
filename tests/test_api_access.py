@@ -95,3 +95,46 @@ def test_gateway_forwards_the_api_only_with_a_key():
     up2 = httpx.AsyncClient(base_url="http://api", transport=httpx.MockTransport(handler))
     with StarletteClient(create_app(client=up2)) as gw:  # without --api the API stays unreachable
         assert gw.get("/v1/org/units", headers={"X-API-Key": "vth_ab_cd"}).status_code == 404
+
+
+def test_the_public_api_is_one_prefix_with_written_docs(client):
+    from venthora import apidocs
+
+    eps = client.get("/v1/developer/catalog").json()["endpoints"]
+    assert all(e["path"].startswith(("/v1/", "/webhooks/")) or e["path"] == "/health" for e in eps)
+    missing = [(e["method"], e["path"]) for e in eps if (e["method"], e["path"]) not in apidocs.DOCS]
+    assert not missing, f"write a title and description in apidocs.DOCS for {missing}"
+    by = {(e["method"], e["path"]): e for e in eps}
+    assert by[("GET", "/v1/airwallex/balances")]["summary"] == "Airwallex balances"
+    assert not any(apidocs.is_internal(e["path"]) for e in eps)  # demo and evidence machinery stay out
+    paths = client.get("/openapi.json").json()["paths"]
+    assert "/v1/status" in paths and "/api/status" not in paths and "/api/scenarios" not in paths
+    assert client.get("/api/status").status_code == 200 and client.get("/v1/status").status_code == 200  # the old path still works
+
+
+def test_keys_cannot_reach_internal_endpoints_or_the_ai_vault(client):
+    h = {"X-API-Key": _key(client, ["treasury:read", "system:read", "settings:write"])["key"]}
+    assert client.get("/v1/status", headers=h).status_code == 200
+    assert client.get("/api/scenarios", headers=h).status_code == 403
+    assert client.get("/api/groundtruth", headers=h).status_code == 403
+    assert client.put("/v1/settings/ai/keys/openai", headers=h, json={"api_key": "sk-x"}).status_code == 403
+
+
+def test_idempotency_key_answers_a_write_once(client):
+    k = _key(client, ["organisation:write", "organisation:read"], role="finance_manager")
+    h = {"X-API-Key": k["key"], "Idempotency-Key": "order-42"}
+    body = {"address": "ap@acme.example", "purpose": "invoices"}
+    first = client.post("/v1/org/mailboxes", headers=h, json=body)
+    again = client.post("/v1/org/mailboxes", headers=h, json=body)
+    assert first.status_code == again.status_code == 200 and again.json() == first.json()
+    assert again.headers.get("idempotent-replayed") == "true" and "idempotent-replayed" not in first.headers
+    other = client.post("/v1/org/mailboxes", headers=h, json=body | {"purpose": "claims"})
+    assert other.status_code == 422 and "different request" in other.json()["detail"]
+    assert client.post("/v1/org/mailboxes", headers={**h, "Idempotency-Key": "x" * 300}, json=body).status_code == 400
+    # the request log of the key
+    client.get("/v1/treasury/position", headers={"X-API-Key": k["key"]})  # refused: no treasury scope
+    log = client.get(f"/v1/developer/keys/{k['key_id']}/requests").json()
+    assert [r["status"] for r in log[:5]] == [403, 400, 422, 200, 200]
+    assert log[0]["path"] == "/v1/treasury/position" and all(r["ms"] >= 0 for r in log)
+    assert client.get("/v1/developer/keys/nope/requests").status_code == 404
+    assert client.get(f"/v1/developer/keys/{k['key_id']}/requests", headers={"X-API-Key": k["key"]}).status_code == 403

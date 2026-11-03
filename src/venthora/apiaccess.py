@@ -12,7 +12,12 @@ bot) gets an API key from Settings → API access and sends it as ``Authorizatio
 * expiry   optional; a revoked or expired key is refused.
 
 Only a SHA-256 of the key is stored; the key itself is shown once, when it is created. Keys can never manage
-keys (``/v1/developer/keys``), and the inbound webhooks keep their own authentication.
+keys (``/v1/developer/keys``), the bank connection or the AI provider vault, and the inbound webhooks keep their
+own authentication. Internal endpoints (apidocs.INTERNAL) are not for keys at all.
+
+Every call made with a key is logged (``api_requests``, the last 1,000 per key). A write that carries an
+``Idempotency-Key`` header is answered once: a retry with the same key and body gets the stored response,
+a retry with another body is refused (``idempotency``, kept 24 hours).
 """
 from __future__ import annotations
 
@@ -27,13 +32,14 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
 
+from .apidocs import is_internal
 from .config import data_path
 
 # area → (label, what it covers, path prefixes). Longest prefix wins.
 AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "treasury": ("Treasury and payments", "plans, executions, position, ledger, incidents, Airwallex balances",
                  ("/v1/plans", "/v1/executions", "/v1/treasury", "/v1/incidents", "/v1/ledger", "/v1/recon-cases",
-                  "/api/airwallex", "/v1/airwallex", "/api/sandbox", "/api/scenarios", "/api/live", "/api/runs", "/api/audit")),
+                  "/api/airwallex", "/v1/airwallex", "/api/audit", "/v1/audit")),
     "payables": ("Payables", "intake of invoices and claims, payees and bank details, purchase orders, approvals",
                  ("/v1/intake", "/v1/payees", "/v1/procurement", "/v1/approvals")),
     "receivables": ("Receivables", "customer invoices and ageing", ("/v1/aging",)),
@@ -44,10 +50,10 @@ AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "sources": ("Data sources", "connectors, sync, uploads, master data, readiness", ("/v1/sources",)),
     "settings": ("Settings and integrations", "AI model, webhook status and events", ("/v1/settings", "/v1/webhooks")),
     "system": ("Health and evidence", "health, status, ground-truth suites, scenario matrix",
-               ("/health", "/api/status", "/api/groundtruth", "/api/matrix")),
+               ("/health", "/api/status", "/v1/status")),
 }
 NO_KEY = ("/webhooks/",)               # inbound push channels: their own signatures and secrets
-NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection")  # a key cannot manage keys or the bank connection
+NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection", "/v1/settings/ai")  # keys, the bank connection, the AI vault
 OPEN_WITH_KEY = ("/openapi.json", "/docs", "/v1/developer/catalog")
 ROLES = ("auditor", "treasury_analyst", "finance_manager", "cfo", "admin")  # the dashboard's roles; auditor is read only
 
@@ -66,6 +72,8 @@ def access_of(method: str, path: str) -> str:
 
 
 def scope_for(method: str, path: str) -> str | None:
+    if is_internal(path):
+        return None
     area = area_of(path)
     return f"{area}:{access_of(method, path)}" if area else None
 
@@ -100,7 +108,16 @@ CREATE TABLE IF NOT EXISTS api_keys (
   key_id TEXT PRIMARY KEY, name TEXT NOT NULL, hash TEXT NOT NULL, hint TEXT NOT NULL, scopes TEXT NOT NULL,
   role TEXT NOT NULL, created_at TEXT NOT NULL, created_by TEXT NOT NULL, expires_at TEXT, revoked_at TEXT,
   last_used_at TEXT, calls INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS api_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, key_id TEXT NOT NULL, at TEXT NOT NULL, method TEXT NOT NULL, path TEXT NOT NULL,
+  status INTEGER NOT NULL, ms INTEGER NOT NULL, client TEXT NOT NULL DEFAULT '');
+CREATE INDEX IF NOT EXISTS api_requests_key ON api_requests (key_id, id);
+CREATE TABLE IF NOT EXISTS idempotency (
+  owner TEXT NOT NULL, idem_key TEXT NOT NULL, fingerprint TEXT NOT NULL, created_at TEXT NOT NULL,
+  status INTEGER, body BLOB, content_type TEXT, PRIMARY KEY (owner, idem_key));
 """
+LOG_KEEP = 1000
+IDEMPOTENCY_HOURS = 24
 
 
 def _now() -> datetime:
@@ -173,6 +190,49 @@ class KeyStore:
                 return None
             c.execute("UPDATE api_keys SET last_used_at = ?, calls = calls + 1 WHERE key_id = ?", (_now().isoformat(timespec="seconds"), parts[1]))
         return rec
+
+
+    # -- request log -----------------------------------------------------------------------------------------------
+    def log(self, key_id: str, method: str, path: str, status: int, ms: int, client: str = "") -> None:
+        with self._lock, self._connect() as c:
+            c.execute("INSERT INTO api_requests (key_id, at, method, path, status, ms, client) VALUES (?,?,?,?,?,?,?)",
+                      (key_id, _now().isoformat(timespec="seconds"), method, path[:300], status, ms, client[:64]))
+            c.execute("DELETE FROM api_requests WHERE key_id = ? AND id <= (SELECT id FROM api_requests WHERE key_id = ? ORDER BY id DESC LIMIT 1 OFFSET ?)",
+                      (key_id, key_id, LOG_KEEP))
+
+    def requests(self, key_id: str, limit: int = 50) -> list[dict]:
+        with self._connect() as c:
+            rows = c.execute("SELECT at, method, path, status, ms, client FROM api_requests WHERE key_id = ? ORDER BY id DESC LIMIT ?",
+                             (key_id, max(1, min(limit, LOG_KEEP)))).fetchall()
+        return [dict(r) for r in rows]
+
+    # -- idempotency -------------------------------------------------------------------------------------------------
+    def idem_begin(self, owner: str, idem_key: str, fingerprint: str) -> tuple[str, dict | None]:
+        """("new", None) the first time; ("replay", stored) for a finished retry with the same body;
+        ("conflict", None) for the same key with another body; ("busy", None) while the first is still running."""
+        cutoff = (_now() - timedelta(hours=IDEMPOTENCY_HOURS)).isoformat(timespec="seconds")
+        with self._lock, self._connect() as c:
+            c.execute("DELETE FROM idempotency WHERE created_at < ?", (cutoff,))
+            r = c.execute("SELECT * FROM idempotency WHERE owner = ? AND idem_key = ?", (owner, idem_key)).fetchone()
+            if r is None:
+                c.execute("INSERT INTO idempotency (owner, idem_key, fingerprint, created_at) VALUES (?,?,?,?)",
+                          (owner, idem_key, fingerprint, _now().isoformat(timespec="seconds")))
+                return "new", None
+            if r["fingerprint"] != fingerprint:
+                return "conflict", None
+            if r["status"] is None:
+                return "busy", None
+            return "replay", {"status": r["status"], "body": r["body"], "content_type": r["content_type"]}
+
+    def idem_finish(self, owner: str, idem_key: str, status: int, body: bytes, content_type: str) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("UPDATE idempotency SET status = ?, body = ?, content_type = ? WHERE owner = ? AND idem_key = ?",
+                      (status, body, content_type, owner, idem_key))
+
+    def idem_drop(self, owner: str, idem_key: str) -> None:
+        """A failed attempt (5xx) is forgotten, so the client may retry it."""
+        with self._lock, self._connect() as c:
+            c.execute("DELETE FROM idempotency WHERE owner = ? AND idem_key = ?", (owner, idem_key))
 
 
 def token_of(headers) -> str | None:

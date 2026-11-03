@@ -1479,17 +1479,29 @@ $("#addBox").onclick=()=>openForm("Add mailbox",BOX_FIELDS(),{purpose:"invoices"
 let CAT=null;
 const METHOD_TONE={GET:"good",POST:"warn",PUT:"warn",PATCH:"warn",DELETE:"critical"};
 const curlOf=e=>{const url=location.origin+e.path;const auth=e.scope===null?"":' -H "Authorization: Bearer $VENTHORA_KEY"';
- return e.method==="GET"?`curl${auth} "${url}"`:`curl -X ${e.method}${auth} -H "content-type: application/json" -d '{}' "${url}"`};
+ return e.method==="GET"?`curl${auth} "${url}"`:`curl -X ${e.method}${auth} -H "Idempotency-Key: $(uuidgen)" -H "content-type: application/json" -d '{}' "${url}"`};
+// a result shown in a row under the one that asked for it (Try, Requests); a second click closes it
+function rowPanel(btn,html){const tr=btn.closest("tr"),next=tr.nextElementSibling;
+ if(next&&next.classList.contains("rowpanel")&&next.dataset.for===btn.dataset.panel){next.remove();return null}
+ if(next&&next.classList.contains("rowpanel"))next.remove();
+ const row=document.createElement("tr");row.className="rowpanel";row.dataset.for=btn.dataset.panel;row.innerHTML=`<td colspan="${tr.children.length}">${html}</td>`;tr.after(row);return row}
 async function apiView(){try{const [keys,cat]=await Promise.all([api("/v1/developer/keys"),CAT?Promise.resolve(CAT):api("/v1/developer/catalog")]);CAT=cat;
  $("#keyTable").innerHTML=table([{h:"Application",f:k=>`<b>${esc(k.name)}</b><div class="mono small muted">${esc(k.hint)}</div>`},
   {h:"Scopes",f:k=>k.scopes.map(s=>`<span class="chip">${esc(s)}</span>`).join(" ")},{h:"Role",f:k=>esc(k.role)},
   {h:"Status",f:k=>`<span class="pill ${k.status==="active"?"good":"critical"}">${esc(k.status.toUpperCase())}</span>${k.expires_at?`<div class="small muted">until ${esc(k.expires_at.slice(0,10))}</div>`:""}`},
   {h:"Used",f:k=>`${k.calls} call(s)<div class="small muted">${k.last_used_at?esc(k.last_used_at.slice(0,16).replace("T"," "))+" UTC":"never"}</div>`},
-  {h:"",f:k=>k.status==="active"?`<button data-revoke="${esc(k.key_id)}">Revoke</button>`:""}],keys,"no key yet: only this dashboard can call VENTHORA");
+  {h:"",f:k=>`<span class="row" style="flex-wrap:nowrap"><button data-log="${esc(k.key_id)}" data-panel="log-${esc(k.key_id)}">Requests</button>${k.status==="active"?`<button data-revoke="${esc(k.key_id)}">Revoke</button>`:""}</span>`}],keys,"no key yet: only this dashboard can call VENTHORA");
+ $("#keyTable").querySelectorAll("[data-log]").forEach(b=>b.onclick=async()=>{const row=rowPanel(b,'<span class="small muted">loading…</span>');if(!row)return;
+  try{const log=await api(`/v1/developer/keys/${b.dataset.log}/requests?limit=50`);
+   row.firstChild.innerHTML=log.length?table([{h:"Time (UTC)",f:r=>`<span class="mono small">${esc(r.at.slice(0,19).replace("T"," "))}</span>`},{h:"Call",f:r=>`<span class="pill ${METHOD_TONE[r.method]||""}">${esc(r.method)}</span> <span class="mono small">${esc(r.path)}</span>`},
+    {h:"Status",f:r=>`<span class="pill ${r.status<300?"good":r.status<500?"warn":"critical"}">${r.status}</span>`},{h:"Time",f:r=>`${r.ms} ms`},{h:"From",f:r=>`<span class="mono small">${esc(r.client||"-")}</span>`}],log)
+    :'<span class="small muted">no call logged for this key yet</span>'}catch(e){row.firstChild.innerHTML=`<div class="err">${esc(e.message)}</div>`}});
  $("#keyTable").querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{if(!confirm("Revoke this key? The application using it stops working at once."))return;
   try{await api(`/v1/developer/keys/${b.dataset.revoke}/revoke?${who()}`,{method:"POST"});toast("Key revoked","good");apiView()}catch(e){toast(e.message,"critical")}});
  $("#apiHow").innerHTML=`<dl class="kv"><dt>Base URL</dt><dd><code>${esc(location.origin)}</code> here; from outside, the gateway's tunnel host</dd>
-  <dt>Header</dt><dd><code>Authorization: Bearer vth_…</code> or <code>X-API-Key</code></dd><dt>Read</dt><dd>GET and …/eval calls</dd><dt>Write</dt><dd>every other call</dd>
+  <dt>Header</dt><dd><code>Authorization: Bearer vth_…</code> or <code>X-API-Key</code></dd><dt>Read</dt><dd>GET and the dry-run <code>…/eval</code> calls</dd><dt>Write</dt><dd>every other call</dd>
+  <dt>Retries</dt><dd>send <code>Idempotency-Key: &lt;uuid&gt;</code> on a write: a retry with the same key returns the first answer, never a second payment</dd>
+  <dt>Errors</dt><dd>JSON <code>{"detail": …}</code> with the HTTP status: 401 bad key, 403 scope, 409/422 conflict or invalid</dd>
   <dt>Role</dt><dd>the key's role and name replace <code>role</code> and <code>by</code>; the audit log shows <code>api:&lt;name&gt;</code></dd></dl>
   <ol style="padding-left:18px;line-height:1.7;margin:12px 0 0"><li>Create a key with only the areas the app needs.</li><li>Expose the API with <code>${esc(cat.gateway.command)}</code> and a tunnel; it forwards only requests that carry a key.</li>
   <li>Give the app the key and <a href="/openapi.json" target="_blank">openapi.json</a> (or the <a href="/docs" target="_blank">interactive docs</a>).</li></ol>`;
@@ -1500,10 +1512,14 @@ function epView(){if(!CAT)return;const area=$("#epArea").value,q=$("#epFilter").
  const eps=CAT.endpoints.filter(e=>(!area||e.area===area)&&(!q||(e.path+" "+e.summary+" "+e.description).toLowerCase().includes(q)));
  $("#epCount").textContent=`${eps.length} of ${CAT.endpoints.length}`;const groups={};eps.forEach(e=>(groups[e.area]=groups[e.area]||[]).push(e));
  $("#epList").innerHTML=Object.entries(groups).map(([g,es])=>`<h3 class="small muted" style="margin:14px 0 6px">${esc(label[g]||g)}${CAT.areas.find(a=>a.area===g)?` · <span class="small">${esc(CAT.areas.find(a=>a.area===g).covers)}</span>`:""}</h3>`+
-  table([{h:"Method",f:e=>`<span class="pill ${METHOD_TONE[e.method]}">${e.method}</span>`},{h:"Path",f:e=>`<span class="mono">${esc(e.path)}</span>${e.params.length?`<div class="small muted">${e.params.map(p=>esc(p.name)+(p.required?"*":"")).join(", ")}</div>`:""}`},
-   {h:"What it does",f:e=>`${esc(e.summary)}${e.description?`<div class="small muted">${esc(e.description)}</div>`:""}`},
+  table([{h:"Method",f:e=>`<span class="pill ${METHOD_TONE[e.method]}">${e.method}</span>`},{h:"Path",f:e=>{const ps=e.params.filter(p=>p.name!=="role"&&p.name!=="by");return `<span class="mono">${esc(e.path).split("/").join("/<wbr>")}</span>${ps.length?`<div class="small muted">${ps.map(p=>esc(p.name)+(p.required?"*":"")).join(", ")}</div>`:""}`}},
+   {h:"What it does",f:e=>`<div style="min-width:260px"><b>${esc(e.summary)}</b>${e.description?`<div class="small muted">${esc(e.description)}</div>`:""}</div>`},
    {h:"Key needs",f:e=>e.scope?`<span class="chip">${esc(e.scope)}</span>`:'<span class="small muted">no key</span>'},
-   {h:"",f:e=>`<button data-curl="${esc(curlOf(e))}" style="white-space:nowrap">curl</button>`}],es)).join("")||'<div class="empty">nothing matches</div>';
+   {h:"",f:e=>`<span class="row" style="flex-wrap:nowrap">${e.method==="GET"&&!e.path.includes("{")?`<button data-try="${esc(e.path)}" data-panel="try-${esc(e.path)}">Try</button>`:""}<button data-curl="${esc(curlOf(e))}" style="white-space:nowrap">curl</button></span>`}],es)).join("")||'<div class="empty">nothing matches</div>';
+ $("#epList").querySelectorAll("[data-try]").forEach(b=>b.onclick=async()=>{const row=rowPanel(b,'<span class="small muted">calling…</span>');if(!row)return;const t0=performance.now();
+  try{const r=await fetch(b.dataset.try);const txt=await r.text();let out=txt;try{out=JSON.stringify(JSON.parse(txt),null,2)}catch(e){}
+   row.firstChild.innerHTML=`<div class="small muted" style="margin-bottom:4px">live answer · <span class="pill ${r.ok?"good":"warn"}">${r.status}</span> · ${Math.round(performance.now()-t0)} ms${out.length>6000?" · first 6,000 characters":""}</div><pre class="mono small" style="max-height:320px;overflow:auto;margin:0;white-space:pre-wrap">${esc(out.slice(0,6000))}</pre>`}
+  catch(e){row.firstChild.innerHTML=`<div class="err">${esc(e.message)}</div>`}});
  $("#epList").querySelectorAll("[data-curl]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.curl);toast("curl copied","good")}catch(e){prompt("Copy:",b.dataset.curl)}})}
 $("#epArea").onchange=epView;$("#epFilter").oninput=epView;
 $("#addKey").onclick=async()=>{CAT=CAT||await api("/v1/developer/catalog");$("#dlgTitle").textContent="Create API key";$("#dlgErr").textContent="";
