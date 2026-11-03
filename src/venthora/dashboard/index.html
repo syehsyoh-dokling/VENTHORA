@@ -2001,7 +2001,11 @@ document.querySelectorAll("#mdtTabs [data-mtab]").forEach(b=>b.onclick=()=>{docu
  document.querySelectorAll("[data-mpane]").forEach(p=>p.hidden=p.dataset.mpane!==b.dataset.mtab)});
 async function mandateView(){const seq=window.__mdtSeq=(window.__mdtSeq||0)+1;try{const d=await api(`/v1/mandate?role=${encodeURIComponent(actor().role)}`);if(seq!==window.__mdtSeq)return;MDT=d;const on=$("#mdtTabs .on")?.dataset.mtab||"cat";
  const can=d.authority.you_may_change,dis=can?"":"disabled",crit='<span class="chip" style="color:var(--critical);border-color:var(--critical)">critical</span>';
- const rule=m=>{const [w,t]=MST(m);return `<tr><td style="width:130px"><span class="pill ${t}">${w}</span></td><td>${esc(m.label)} ${m.critical&&!m.built_in?crit:""}<div class="small muted">${esc(m.built_in||m.help||"")}</div></td><td class="num nw"><b>${m.unit?esc(mval(m)):""}</b></td></tr>`};
+ const summary=c=>{const rs=c.rules.filter(r=>!r.built_in),bi=c.rules.filter(r=>r.built_in);
+   return `${rs.length?`<div class="row" style="justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);gap:8px;flex-wrap:wrap">
+    <div class="small" style="flex:1;min-width:260px"><span class="muted">In force now:</span> ${rs.map(r=>{const [w,t]=MST(r);return `<span class="chip" title="${esc(r.label)}" style="margin:2px 2px 2px 0">${esc(r.short)}: <b class="${t==="good"?"":"err"}">${r.unit?esc(mval(r)):w.toLowerCase()}</b>${r.unit&&r.enabled===false?' <b class="err">revoked</b>':""}</span>`}).join("")}</div>
+    <button data-mgo="${esc(c.key)}" class="nw">${can?"Change in Limits and thresholds ›":"See in Limits and thresholds ›"}</button></div>`:""}
+    ${bi.map(r=>`<div class="small muted" style="margin-top:6px"><span class="pill good">BUILT IN</span> ${esc(r.label)}: ${esc(r.built_in)}</div>`).join("")}`};
  const modeSel=c=>c.off_elsewhere?`<span class="pill warn">OFF</span>`:`<select data-mchk="${esc(c.key)}" ${dis} style="width:118px">${Object.entries(d.modes).map(([k,l])=>`<option value="${k}" ${c.mode===k?"selected":""}>${l}</option>`).join("")}</select>`;
  const check=c=>`<tr><td style="width:130px">${modeSel(c)}</td><td>${esc(c.label)} ${c.critical?crit:""}<div class="small muted">If it fails: ${esc(c.fails)}${c.off_elsewhere?" · switched off in "+(c.switch==="require_po"?"Finance standards":"Document validation"):""}</div></td>
    <td class="small">${c.flags.map(f=>`<span class="chip mono">${esc(f)}</span>`).join(" ")}${c.where?` <a href="${esc(c.where)}" class="nw">Set ›</a>`:""}</td></tr>`;
@@ -2013,11 +2017,11 @@ async function mandateView(){const seq=window.__mdtSeq=(window.__mdtSeq||0)+1;tr
  const cat=d.categories.map((c,i)=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><b>${i+1} · ${esc(c.title)}</b><span class="small muted">${c.checks.length?`${c.checks.length} checks · `:""}${c.rules.length} rule(s)</span></div>
    <div class="small" style="margin:4px 0 8px"><b>Policy:</b> ${esc(c.policy)}</div>
    ${c.checks.length?`<h3 class="small muted" style="margin:8px 0 4px">Checked on every request, before anything is payable</h3>${hint}<table class="tbl"><tbody>${c.checks.map(check).join("")}</tbody></table>`:""}
-   ${c.rules.length?`${c.checks.length?'<h3 class="small muted" style="margin:10px 0 4px">Rules with a value</h3>':""}<table class="tbl"><tbody>${c.rules.map(rule).join("")}</tbody></table>`:""}
+   ${c.rules.length?summary(c):""}
    ${c.key==="approval"?`<div class="small">${d.approval_matrix.map(t=>`<b>${esc(t.name)}</b>: from ${usd(t.min_total_minor)}, ${t.approvals_required} approval(s) by ${esc(t.roles.map(r=>ROLES[r]||r).join(" or "))}`).join(" · ")} · <a href="#" onclick="document.querySelector('[data-mtab=apr]').click();return false">Open approval policy ›</a></div>`:""}</div>`).join("");
  const lead=l=>l.book?`<span class="pill good">BOOK</span>`:l.kind==="locked"&&!l.switch_only?`<span class="pill good">ON</span>`:`<label class="check small"><input type="checkbox" data-men="${esc(l.key)}" ${l.enabled?"checked":""} ${dis}> ${l.kind==="grant"?"granted":"enforced"}</label>`;
  const lim=`<div class="small muted" style="margin-bottom:8px">Every number of the mandate in one place. A permission that is switched off is <b>revoked</b>: that action then always waits for a person. A safeguard switched off is not enforced. A critical rule is changed through its value; widening a limit or loosening a critical rule asks for confirmation.</div>
-  ${Object.entries(d.titles).map(([k,t])=>{const ls=d.limits.filter(l=>l.category===k);return ls.length?`<h3 class="small" style="margin:14px 0 4px;text-transform:uppercase;letter-spacing:.04em">${esc(t)}</h3><table class="tbl"><tbody>${ls.map(l=>`<tr>
+  ${Object.entries(d.titles).map(([k,t])=>{const ls=d.limits.filter(l=>l.category===k);return ls.length?`<h3 class="small" id="mlim-${esc(k)}" style="margin:14px 0 4px;text-transform:uppercase;letter-spacing:.04em;scroll-margin-top:80px">${esc(t)}</h3><table class="tbl"><tbody>${ls.map(l=>`<tr>
    <td style="width:110px">${lead(l)}</td>
    <td>${esc(l.label)} ${l.critical?crit:""}<div class="small muted">${esc(l.help||"")}</div></td>
    <td class="nw" style="width:210px">${l.switch_only?"":`<input type="number" data-mval="${esc(l.key)}" data-book="${l.book?1:""}" step="${l.unit==="usd"?"0.01":l.unit==="pct"?"0.1":"1"}" value="${mIn(l)}" style="width:130px" ${dis}> <span class="small muted">${MUNIT[l.unit]||""}</span>`}</td></tr>`).join("")}</tbody></table>`:""}).join("")}`;
@@ -2032,6 +2036,8 @@ async function mandateView(){const seq=window.__mdtSeq=(window.__mdtSeq||0)+1;tr
   document.querySelectorAll("[data-mchk]").forEach(el=>body.checks[el.dataset.mchk]=el.value);
   if($("#mdtAuth").value!==MDT.authority.role)body.authority_role=$("#mdtAuth").value;
   mandateSave(body)};
+ document.querySelectorAll("[data-mgo]").forEach(b=>b.onclick=()=>{document.querySelector('[data-mtab="lim"]').click();
+  const h=$(`#mlim-${b.dataset.mgo}`);if(h)h.scrollIntoView({behavior:"smooth",block:"start"})});
  document.querySelectorAll("[data-mswitch]").forEach(b=>b.onclick=()=>{$("#actor").value=b.dataset.mswitch;$("#actor").onchange()})}
  catch(e){$("#mandateView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 // a 409 names every critical change; the person ticks each one in the dialog and the same body goes again, acknowledged

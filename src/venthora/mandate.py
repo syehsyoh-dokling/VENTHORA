@@ -49,6 +49,19 @@ RULE_CATEGORY = {
     "recon": "control",
 }
 
+# short names for the category summary; the full label is on the Limits and thresholds tab
+SHORT = {
+    "three_way": "Three-way match tolerance", "tolerance_floor": "Tolerance floor", "duplicates": "No double payment",
+    "pay_first": "First payment to a payee", "cooling": "Cooling period after a bank change",
+    "pay_single": "Single payout", "pay_per_payee": "Per payee, per period", "outflow_daily": "Outflow per 24 h",
+    "outflow_weekly": "Outflow per 7 days", "budget_auto": "Spend within budget shares", "risk": "Reserve breach risk",
+    "convert_fx": "FX conversion", "convert_daily": "FX sold per 24 h", "rely_receipts": "Rely on expected receipts",
+    "fx_open": "Open FX position", "hedge": "Hedge cover",
+    "overdue": "Overdue escalation", "late_interest": "Late-interest escalation", "dunning": "Reminder level escalation",
+    "late_rate": "Default late interest", "incident_wait": "Unconfirmed transfer escalation",
+    "recon": "Stop the book on a reconciliation difference", "evidence": "Evidence quoted verbatim",
+}
+
 MODES = ("hold", "warn", "off")
 MODE_LABEL = {"hold": "Hold", "warn": "Warn only", "off": "Off"}
 
@@ -260,7 +273,7 @@ def view(setup: dict, org, doc_rules_on: bool, role: str | None = None) -> dict:
                 elsewhere = {"require_po": bool(std.get("require_po", True)), "doc_rules": doc_rules_on}.get(ch.get("switch"), True)
                 mode = modes[ch["key"]] if elsewhere else "off"
                 checks.append(ch | {"mode": mode, "on": mode != "off", "off_elsewhere": not elsewhere})
-        cats.append(c | {"checks": checks, "rules": [rows[k] | {"category": c["key"], "critical": k in CRITICAL_VALUES or rows[k]["kind"] == "locked",
+        cats.append(c | {"checks": checks, "rules": [rows[k] | {"category": c["key"], "short": SHORT[k], "critical": k in CRITICAL_VALUES or rows[k]["kind"] == "locked",
                                                                 "switchable": k in SWITCHABLE_CRITICAL, "built_in": BUILT_IN.get(k)}
                                                      for k, cat in RULE_CATEGORY.items() if cat == c["key"] and k in rows]})
     limits = [{"key": k, "label": lab, "unit": unit, "category": cat, "min": lo, "max": hi, "help": hlp, "value": setup.get(k), "book": True,
@@ -272,6 +285,9 @@ def view(setup: dict, org, doc_rules_on: bool, role: str | None = None) -> dict:
                for m in setup["mandates"] if m["unit"] is not None]
     limits += [{"key": k, "label": rows[k]["label"], "unit": None, "category": RULE_CATEGORY[k], "kind": "locked", "enabled": rule_on(org, k),
                 "help": why, "critical": True, "switch_only": True} for k, why in SWITCHABLE_CRITICAL.items() if k in rows]
+    limits += [{"key": m["key"], "label": m["label"], "unit": None, "category": RULE_CATEGORY.get(m["key"], "control"), "kind": m["kind"],
+                "enabled": m.get("enabled", True), "help": m.get("help", ""), "critical": False, "switch_only": True}
+               for m in setup["mandates"] if m["unit"] is None and m["kind"] != "locked"]
     order = [c["key"] for c in CATEGORIES]
     limits.sort(key=lambda x: order.index(x["category"]))
     return {"categories": cats, "limits": limits, "approval_matrix": setup["approval_matrix"], "approvers": setup["approvers"],
