@@ -547,7 +547,7 @@ class OrgStore:
     def standards(self) -> dict:
         from .finance_standards import BY_KEY, defaults
 
-        rec = self.get("standards", "standards") or Standards().model_dump()
+        rec = Standards().model_dump() | (self.get("standards", "standards") or {})  # a field added later takes its default
         saved = {k: v for k, v in (rec.get("policies") or {}).items() if k in BY_KEY}  # a key the catalog dropped is ignored
         return {k: v for k, v in rec.items() if k != "_id"} | {"policies": defaults() | saved}
 

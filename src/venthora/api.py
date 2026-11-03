@@ -476,8 +476,42 @@ async def flow_page():
 async def live_setup(scenario: str = "demo_live"):
     """The mandate form, filled with the platform's current settings: allocation, reserve, every permission and safeguard,
     budget lines, approvers and the approval matrix, payees, the reporting cut-off, and the requests received."""
+    from . import mandate
+
     _scenario_file(scenario)
-    return live_session.defaults(scenario, app.state.executor)
+    return live_session.defaults(scenario, app.state.executor, mandate.standing(app.state.org))
+
+
+@app.get("/v1/mandate")
+async def mandate_get(scenario: str = "demo_live"):
+    """The standing mandate by category: the policy each category serves, the document checks run on every request,
+    every permission and safeguard with its value, all limits in one list, and the approval policy."""
+    from . import mandate
+
+    _scenario_file(scenario)
+    setup = live_session.defaults(scenario, app.state.executor, mandate.standing(app.state.org))
+    rules = (await doc_rules_get())["rules"]
+    return mandate.view(setup, app.state.org, bool(rules.get("enabled")))
+
+
+class MandateIn(BaseModel):
+    values: dict[str, int] = {}
+    enabled: dict[str, bool] = {}
+    book: dict[str, int] = {}
+
+
+@app.put("/v1/mandate")
+async def mandate_put(req: MandateIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Save the standing mandate; every Operations run starts from it."""
+    from . import mandate
+
+    who = _writer(role, by)
+    try:
+        out = await asyncio.to_thread(mandate.save, app.state.org, req.model_dump(), who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "standing_mandate", {"by": who, "values": out["values"], "enabled": out["enabled"], "book": out["book"]})
+    return out
 
 
 @app.post("/api/live/start")

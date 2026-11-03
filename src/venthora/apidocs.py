@@ -113,6 +113,8 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("GET", "/v1/org/account-code"): ("Check an account code", "Validate an account code (office cost centre . project . account) and name each part."),
     ("GET", "/v1/org/allocation-tree"): ("Allocation tree", "Offices, projects and accounts as a tree with their budget allocations for a period (default 2026)."),
     ("GET", "/v1/org/standards"): ("Get finance standards", "Framework, payment controls, cash and FX, tax, records and audit, and the sector rules (listed, public, NGO, cooperative, Sharia) the organisation follows."),
+    ("GET", "/v1/mandate"): ("Get the standing mandate", "What the agent may do on its own, what it checks first and when it calls a person, by category, with every limit."),
+    ("PUT", "/v1/mandate"): ("Set the standing mandate", "Change limits and which permissions and safeguards are on; audited. Every Operations run starts from it."),
     ("GET", "/v1/org/standards/catalog"): ("Finance standards catalog", "Every finance standard with its options, the organisations it concerns and whether VENTHORA enforces it."),
     ("PUT", "/v1/org/standards"): ("Set finance standards", "Change the finance SOP; audited."),
     ("GET", "/v1/org/{collection}"): ("List organisation records", "Units, people, projects, accounts, mailboxes and other master records of one collection."),

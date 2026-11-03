@@ -717,7 +717,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
 
  <section class="span12" data-view="mandate">
-  <h2><span>Mandate &amp; policy</span><span class="small muted">thresholds live in policy code; the mandate is granted per run on the Operations page</span></h2>
+  <h2><span>Mandate &amp; policy</span><span class="tabs" id="mdtTabs"><button data-mtab="cat" class="on">1 · Mandate by category</button><button data-mtab="lim">2 · Limits and thresholds</button><button data-mtab="apr">3 · Approval policy</button></span></h2>
+  <div class="small" style="margin-bottom:12px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>The mandate is the authority the finance team gives VENTHORA's agent.</b> Inside it the agent checks, plans and pays on its own; outside it, it stops and asks a person. It has three parts: the <b>checks</b> every request must pass before anything is payable, the <b>permissions and safeguards</b> with their limits, and the <b>approval policy</b> for everything else. Every run on the Operations page starts from this standing mandate and records exactly what was granted.</div>
   <div id="mandateView" class="empty">loading…</div>
  </section>
  <section class="span12" data-view="mandate">
@@ -1987,16 +1988,37 @@ $("#aiTest").onclick=async()=>{$("#aiMsg").textContent="testing…";try{const r=
 $("#aiSave").onclick=async()=>{try{await aiPost("/v1/settings/ai","PUT");toast("AI model saved","good");await aiView();$("#aiMsg").innerHTML='<span class="pill good">SAVED</span>'}
  catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
-const mval=m=>m.value==null?"per line":m.unit==="usd"?usd(m.value):m.unit==="pct"?`${(m.value/100).toFixed(m.value%100?1:0)}%`:m.unit==="days"?`${m.value} days`:String(m.value);
-async function mandateView(){try{const d=await api("/api/live/setup");
- const kinds={grant:"Agent may, on its own",guard:"Safeguard: a person is called",locked:"Always locked"};
- const group=k=>d.mandates.filter(m=>m.kind===k);
- $("#mandateView").innerHTML=`<div class="tiles">${[["Allocation",usd(d.allocation_minor),"ring-fenced from the wallet"],["Reserve floor",usd(d.reserve_floor_minor),"never spent"],["Horizon",`${d.horizon_hours} h`,"planning window"],
-   ["FX limit at full confidence",`${d.full_confidence_bp/100}%`,`zero below ${d.zero_limit_below_bp/100}%`]].map(([k,v,x])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:18px">${esc(v)}</div><div class="d">${esc(x)}</div></div>`).join("")}</div>
-  ${Object.entries(kinds).filter(([k])=>group(k).length).map(([k,l])=>`<h3 class="small muted" style="margin:16px 0 6px">${l}</h3>${table([{h:"Rule",f:m=>`${esc(m.label)}<div class="small muted">${esc(m.help||"")}</div>`},{h:"Value",num:1,f:m=>`<b>${esc(mval(m))}</b>`}],group(k))}`).join("")}
-  <div class="two"><div><h3 class="small muted" style="margin:0 0 6px">Approval matrix</h3>${table([{h:"Tier",f:t=>esc(t.name)},{h:"From",num:1,f:t=>usd(t.min_total_minor)},{h:"Approvals",num:1,f:t=>t.approvals_required},{h:"Roles",f:t=>esc(t.roles.map(r=>ROLES[r]||r).join(", "))}],d.approval_matrix)}
-   <div class="small muted" style="margin-top:6px">Two approvals come from two different people; the requester never approves their own request.</div></div>
-   <div><h3 class="small muted" style="margin:0 0 6px">Approvers</h3>${table([{h:"Name",f:a=>esc(a.name)},{h:"Role",f:a=>esc(ROLES[a.role]||a.role)}],d.approvers)}</div></div>`}
+const mval=m=>m.value==null?"per line":m.unit==="usd"?usd(m.value):m.unit==="pct"?`${(m.value/100).toFixed(m.value%100?1:0)}%`:m.unit==="days"?`${m.value} days`:m.unit==="hours"?`${m.value} h`:m.unit==="level"?`level ${m.value}`:String(m.value);
+const MST=m=>m.kind==="locked"?["ALWAYS ON","good"]:m.kind==="grant"?(m.enabled?["GRANTED","good"]:["REVOKED","critical"]):(m.enabled?["SAFEGUARD ON","good"]:["SAFEGUARD OFF","warn"]);
+const MUNIT={usd:"USD",pct:"%",hours:"hours",days:"days",level:"level"};
+const mIn=l=>l.unit==="usd"||l.unit==="pct"?(l.value??0)/100:(l.value??0),mOut=(l,v)=>l.unit==="usd"||l.unit==="pct"?Math.round(parseFloat(v||"0")*100):parseInt(v||"0",10);
+let MDT=null;
+document.querySelectorAll("#mdtTabs [data-mtab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#mdtTabs [data-mtab]").forEach(x=>x.classList.toggle("on",x===b));
+ document.querySelectorAll("[data-mpane]").forEach(p=>p.hidden=p.dataset.mpane!==b.dataset.mtab)});
+async function mandateView(){try{const d=await api("/v1/mandate");MDT=d;const on=$("#mdtTabs .on")?.dataset.mtab||"cat";
+ const rule=m=>{const [w,t]=MST(m);return `<tr><td style="width:120px"><span class="pill ${t}">${w}</span></td><td>${esc(m.label)}<div class="small muted">${esc(m.help||"")}</div></td><td class="num nw"><b>${m.unit?esc(mval(m)):""}</b></td></tr>`};
+ const check=c=>`<tr><td style="width:120px"><span class="pill ${c.on?"good":"warn"}">${c.on?"ALWAYS ON":"OFF"}</span></td><td>${esc(c.label)}<div class="small muted">If it fails: ${esc(c.fails)}${c.on?"":" · switched off in "+(c.switch==="require_po"?"Finance standards":"Document validation")}</div></td>
+   <td class="small">${c.flags.map(f=>`<span class="chip mono">${esc(f)}</span>`).join(" ")}${c.where?` <a href="${esc(c.where)}" class="nw">Set ›</a>`:""}</td></tr>`;
+ const cat=d.categories.map((c,i)=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><b>${i+1} · ${esc(c.title)}</b><span class="small muted">${c.checks.length?`${c.checks.length} checks · `:""}${c.rules.length} rule(s)</span></div>
+   <div class="small" style="margin:4px 0 8px"><b>Policy:</b> ${esc(c.policy)}</div>
+   ${c.checks.length?`<h3 class="small muted" style="margin:8px 0 4px">Checked on every request, before anything is payable</h3><table class="tbl"><tbody>${c.checks.map(check).join("")}</tbody></table>`:""}
+   ${c.rules.length?`${c.checks.length?'<h3 class="small muted" style="margin:10px 0 4px">Rules with a value</h3>':""}<table class="tbl"><tbody>${c.rules.map(rule).join("")}</tbody></table>`:""}
+   ${c.key==="approval"?`<div class="small">${d.approval_matrix.map(t=>`<b>${esc(t.name)}</b>: from ${usd(t.min_total_minor)}, ${t.approvals_required} approval(s) by ${esc(t.roles.map(r=>ROLES[r]||r).join(" or "))}`).join(" · ")} · <a href="#" onclick="document.querySelector('[data-mtab=apr]').click();return false">Open approval policy ›</a></div>`:""}</div>`).join("");
+ const lim=`<div class="small muted" style="margin-bottom:8px">Every number of the mandate in one place. A permission that is switched off is <b>revoked</b>: that action then always waits for a person. A safeguard switched off is not enforced. Rules marked always on keep their value but cannot be switched off.</div>
+  ${Object.entries(d.titles).map(([k,t])=>{const ls=d.limits.filter(l=>l.category===k);return ls.length?`<h3 class="small" style="margin:14px 0 4px;text-transform:uppercase;letter-spacing:.04em">${esc(t)}</h3><table class="tbl"><tbody>${ls.map(l=>`<tr>
+   <td style="width:110px">${l.book||l.kind==="locked"?`<span class="pill good">${l.book?"BOOK":"ALWAYS ON"}</span>`:`<label class="check small"><input type="checkbox" data-men="${esc(l.key)}" ${l.enabled?"checked":""}> ${l.kind==="grant"?"granted":"enforced"}</label>`}</td>
+   <td>${esc(l.label)}<div class="small muted">${esc(l.help||"")}</div></td>
+   <td class="nw" style="width:210px"><input type="number" data-mval="${esc(l.key)}" data-book="${l.book?1:""}" step="${l.unit==="usd"?"0.01":l.unit==="pct"?"0.1":"1"}" value="${mIn(l)}" style="width:130px"> <span class="small muted">${MUNIT[l.unit]||""}</span></td></tr>`).join("")}</tbody></table>`:""}).join("")}
+  <div class="row" style="margin-top:12px"><button class="primary" id="mdtSave">Save standing mandate</button><span class="small" id="mdtMsg">${d.standing.updated_by?`last saved by ${esc(d.standing.updated_by)}`:"not saved yet: the scenario's values apply"}</span></div>`;
+ const apr=`<div class="two"><div><h3 class="small muted" style="margin:0 0 6px">Approval matrix</h3>${table([{h:"Tier",f:t=>esc(t.name)},{h:"From",num:1,f:t=>usd(t.min_total_minor)},{h:"Approvals",num:1,f:t=>t.approvals_required},{h:"Roles",f:t=>esc(t.roles.map(r=>ROLES[r]||r).join(", "))},{h:"Also for",f:t=>esc((t.reasons||[]).map(x=>x.replaceAll("_"," ")).join(", ")||"-")}],d.approval_matrix)}
+   <ul class="small" style="margin:8px 0 0;padding-left:18px;line-height:1.7"><li>Two approvals come from two different people.</li><li>The requester never approves their own request.</li><li>An approver's limit is set per person in <a href="#/users">People &amp; roles</a>; the unit chain decides who may approve.</li><li>The run grants the matrix on the Operations page and records it.</li></ul></div>
+   <div><h3 class="small muted" style="margin:0 0 6px">Approvers for the run</h3>${table([{h:"Name",f:a=>esc(a.name)},{h:"Role",f:a=>esc(ROLES[a.role]||a.role)}],d.approvers)}</div></div>`;
+ $("#mandateView").innerHTML=`<div data-mpane="cat" ${on==="cat"?"":"hidden"}>${cat}</div><div data-mpane="lim" ${on==="lim"?"":"hidden"}>${lim}</div><div data-mpane="apr" ${on==="apr"?"":"hidden"}>${apr}</div>`;
+ $("#mdtSave").onclick=async()=>{const body={values:{},enabled:{},book:{}};
+  document.querySelectorAll("[data-mval]").forEach(el=>{const l=MDT.limits.find(x=>x.key===el.dataset.mval);(el.dataset.book?body.book:body.values)[l.key]=mOut(l,el.value)});
+  document.querySelectorAll("[data-men]").forEach(el=>body.enabled[el.dataset.men]=el.checked);
+  try{await api(`/v1/mandate?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast("Standing mandate saved","good");mandateView()}
+  catch(e){$("#mdtMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
  catch(e){$("#mandateView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 
 const WH_EVENTS=["deposit.pending","deposit.settled","deposit.rejected","deposit.reversed","payout.transfer.processing","payout.transfer.sent","payout.transfer.paid","payout.transfer.failed","conversion.settled","conversion.cancelled"];

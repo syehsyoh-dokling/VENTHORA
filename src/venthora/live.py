@@ -76,10 +76,14 @@ MANDATES: list[dict] = [
      "policy": "max_late_interest_exposure_minor", "off": None, "help": "Accrued plus projected over the horizon, for what is left unpaid."},
     {"key": "dunning", "kind": "guard", "label": "Call a person when a payee's reminder reaches level (1 reminder, 2 second, 3 final notice)", "unit": "level", "value": 3,
      "policy": "dunning_escalation_level", "off": None, "help": "Read from the payee's own emails."},
+    {"key": "incident_wait", "kind": "locked", "label": "Call a person when a transfer stays unconfirmed by the bank for more than", "unit": "hours", "value": 48,
+     "policy": "incident_wait_hours", "help": "The transfer becomes an incident; at most one replacement is ever sent."},
     {"key": "late_rate", "kind": "locked", "label": "Default late-payment interest when the contract states none, per year", "unit": "pct", "value": 800,
      "policy": "late_interest_bp_default", "help": "Used for the aging report and exposure."},
     {"key": "three_way", "kind": "locked", "label": "Pay an invoice only within its contract (three-way match tolerance)", "unit": "pct", "value": 50,
      "policy": "amount_tolerance_bp", "help": "Above the tolerance a person decides."},
+    {"key": "tolerance_floor", "kind": "locked", "label": "Three-way match tolerance, never less than", "unit": "usd", "value": 500,
+     "policy": "amount_tolerance_minor", "help": "The larger of this amount and the percentage applies."},
     {"key": "cooling", "kind": "locked", "label": "After a payee changes bank details: call-back on the registered number, then a cooling period of", "unit": "hours", "value": 72,
      "policy": "payee_cooling_hours", "help": "No payment at all until the call-back; a person approves every payment until the cooling period has passed."},
     {"key": "duplicates", "kind": "locked", "label": "Never pay the same invoice, or the same instalment, twice", "unit": None, "value": None, "policy": None,
@@ -171,8 +175,9 @@ def incoming(raw: dict, box: dict, upto: str | None) -> list[dict]:
     return rows
 
 
-def defaults(scenario: str, executor: Executor) -> dict:
-    """The mandate form, filled with the platform's current settings."""
+def defaults(scenario: str, executor: Executor, standing: dict | None = None) -> dict:
+    """The mandate form, filled with the platform's current settings; the standing mandate (mandate.py), when one is
+    saved, replaces the scenario's values and switches."""
     raw, box = _scenario(scenario)
     st = raw["state"]
     pol = st["policy"]
@@ -192,13 +197,20 @@ def defaults(scenario: str, executor: Executor) -> dict:
         row["enabled"] = True
         if m.get("policy") and m["policy"] in pol and m["unit"] is not None:
             row["value"] = pol[m["policy"]]
+        if m["key"] in (standing or {}).get("values", {}):
+            row["value"] = standing["values"][m["key"]]
+        if m["kind"] != "locked" and m["key"] in (standing or {}).get("enabled", {}):
+            row["enabled"] = bool(standing["enabled"][m["key"]])
         mandates.append(row)
     budget = st.get("budget") or {}
+    book = (standing or {}).get("book", {})
     return {"scenario": scenario, "goal": (raw.get("goal") or {}).get("text", ""), "book_name": raw.get("book_name", st["book_id"]),
-            "tenant_name": raw.get("tenant_name", ""), "allocation_minor": st["balances"]["USD"], "reserve_floor_minor": pol["reserve_floor_minor"],
-            "horizon_hours": pol.get("planning_horizon_hours", 72), "period_type": "monthly",
+            "tenant_name": raw.get("tenant_name", ""), "allocation_minor": book.get("allocation_minor", st["balances"]["USD"]),
+            "reserve_floor_minor": book.get("reserve_floor_minor", pol["reserve_floor_minor"]),
+            "horizon_hours": book.get("horizon_hours", pol.get("planning_horizon_hours", 72)), "period_type": "monthly",
             "periods": {k: period_of(k, today) for k in ("monthly", "quarterly", "annual")},
-            "full_confidence_bp": pol.get("full_confidence_bp", 9000), "zero_limit_below_bp": pol.get("zero_limit_below_bp", 5000),
+            "full_confidence_bp": book.get("full_confidence_bp", pol.get("full_confidence_bp", 9000)),
+            "zero_limit_below_bp": book.get("zero_limit_below_bp", pol.get("zero_limit_below_bp", 5000)),
             "mandates": mandates,
             "budget": [{"line": ln["line"], "amount_minor": ln["amount_minor"], "auto_share_bp": ln.get("auto_share_bp", 10_000),
                         "alert_share_bp": ln.get("alert_share_bp", 8_000), "require_approval_on_alert": ln.get("require_approval_on_alert", False),
