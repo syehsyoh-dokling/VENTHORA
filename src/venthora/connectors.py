@@ -12,11 +12,17 @@ old system's names to VENTHORA's. A mapping value is a source path with optional
 Transforms: major (a decimal amount to minor units), int, upper, lower, nospace, date (to YYYY-MM-DD), split (a
 comma- or semicolon-separated text to a list). Every synced row then goes through the same validation as an upload
 (masterdata.py); a row that does not fit is rejected with its reason, never half-written.
+
+The other way, ``push`` names what VENTHORA writes back (sync_catalog.PUSH: payments made, journal entries, PO
+balances, payee verification, request decisions, budget usage). Each record is POSTed (or PUT) as
+``{"type", "id", "data"}`` with an Idempotency-Key of its id and content, and only when it is new or changed since
+the last successful send (``connector_push``), so a retry or a second run never books anything twice.
 """
 from __future__ import annotations
 
 import base64
 import datetime as dt
+import hashlib
 import json
 import re
 import sqlite3
@@ -29,6 +35,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator
 
 from .config import data_path
+from .sync_catalog import PUSH
 
 ENTITY_NAMES = ("unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line", "tenant_book")
 
@@ -38,6 +45,12 @@ class EntityMap(BaseModel):
     path: str = Field(min_length=1, max_length=200)
     items_path: str = Field(default="", max_length=100, description="where the list sits in the reply, e.g. data.items")
     mapping: dict[str, str] = Field(default_factory=dict)
+
+
+class PushMap(BaseModel):
+    enabled: bool = True
+    path: str = Field(min_length=1, max_length=200)
+    method: Literal["POST", "PUT"] = "POST"
 
 
 class Auth(BaseModel):
@@ -54,7 +67,8 @@ class Connector(BaseModel):
     base_url: str = Field(min_length=8, max_length=300)
     auth: Auth = Field(default_factory=Auth)
     entities: dict[str, EntityMap] = Field(default_factory=dict)
-    schedule_minutes: int = Field(default=0, ge=0, le=1440, description="0 = only when a person presses Sync")
+    push: dict[str, PushMap] = Field(default_factory=dict, description="what VENTHORA writes back (sync_catalog.PUSH)")
+    schedule_minutes: int = Field(default=0, ge=0, le=1440, description="0 = only when a person presses Sync; 1 = every minute")
 
     @field_validator("base_url")
     @classmethod
@@ -71,6 +85,14 @@ class Connector(BaseModel):
         bad = [k for k in v if k not in ENTITY_NAMES]
         if bad:
             raise ValueError(f"unknown entity {bad[0]}; one of {', '.join(ENTITY_NAMES)}")
+        return v
+
+    @field_validator("push")
+    @classmethod
+    def known_push(cls, v):
+        bad = [k for k in v if k not in PUSH]
+        if bad:
+            raise ValueError(f"unknown item to send back {bad[0]}; one of {', '.join(PUSH)}")
         return v
 
 
@@ -118,7 +140,7 @@ def demo_connector(base_url: str) -> Connector:
             "period": "Period", "line": "Line|lower", "amount_minor": "Amount|major", "auto_share_bp": "Auto|int", "alert_share_bp": "Alert|int"}),
         "tenant_book": EntityMap(path="books", items_path="items", mapping={
             "tenant": "Tenant|lower", "tenant_name": "TenantName", "book": "Book", "allowed_payees": "Payees|split", "approvers": "Approvers"}),
-    })
+    }, push={k: PushMap(path=f"inbox/{k}") for k in PUSH})
 
 
 ORDER = ("unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line",
@@ -133,6 +155,11 @@ class ConnectorStore:
         with self._connect() as c:
             c.execute("CREATE TABLE IF NOT EXISTS connectors (connector_id TEXT PRIMARY KEY, record_json TEXT NOT NULL, secret TEXT,"
                       " updated_at TEXT NOT NULL, last_sync_at TEXT, last_report_json TEXT)")
+            c.execute("CREATE TABLE IF NOT EXISTS connector_push (connector_id TEXT NOT NULL, item TEXT NOT NULL, record_id TEXT NOT NULL,"
+                      " hash TEXT, sent_at TEXT, status INTEGER, error TEXT, PRIMARY KEY (connector_id, item, record_id))")
+            cols = {r[1] for r in c.execute("PRAGMA table_info(connectors)")}
+            if "last_push_json" not in cols:
+                c.execute("ALTER TABLE connectors ADD COLUMN last_push_json TEXT")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)
@@ -157,7 +184,8 @@ class ConnectorStore:
         if r is None:
             return None
         return json.loads(r["record_json"]) | {"_secret": r["secret"] or "", "_last_sync_at": r["last_sync_at"],
-                                                "_last_report": json.loads(r["last_report_json"]) if r["last_report_json"] else None}
+                                                "_last_report": json.loads(r["last_report_json"]) if r["last_report_json"] else None,
+                                                "_last_push": json.loads(r["last_push_json"]) if r["last_push_json"] else None}
 
     def public(self, cid: str) -> dict | None:
         raw = self.get_raw(cid)
@@ -166,7 +194,8 @@ class ConnectorStore:
         s = raw.pop("_secret")
         raw["auth"]["secret_set"] = bool(s)
         raw["auth"]["secret_hint"] = f"…{s[-4:]}" if len(s) >= 8 else ("set" if s else None)
-        raw["last_sync_at"], raw["last_report"] = raw.pop("_last_sync_at"), raw.pop("_last_report")
+        raw["last_sync_at"], raw["last_report"], raw["last_push"] = raw.pop("_last_sync_at"), raw.pop("_last_report"), raw.pop("_last_push")
+        raw.setdefault("push", {})
         return raw
 
     def list(self) -> list[dict]:
@@ -176,7 +205,31 @@ class ConnectorStore:
 
     def delete(self, cid: str) -> bool:
         with self._lock, self._connect() as con:
+            con.execute("DELETE FROM connector_push WHERE connector_id = ?", (cid,))
             return con.execute("DELETE FROM connectors WHERE connector_id = ?", (cid,)).rowcount == 1
+
+    # -- what was sent back ----------------------------------------------------------------------------------------
+    def sent_hashes(self, cid: str, item: str) -> dict[str, str]:
+        with self._connect() as con:
+            return {r["record_id"]: r["hash"] for r in con.execute(
+                "SELECT record_id, hash FROM connector_push WHERE connector_id = ? AND item = ? AND error IS NULL", (cid, item))}
+
+    def record_push(self, cid: str, item: str, record_id: str, digest: str | None, status: int | None, error: str | None) -> None:
+        """A success stores the content hash; a failure keeps the last good hash, so the record is sent again."""
+        now = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+        with self._lock, self._connect() as con:
+            if error is None:
+                con.execute("INSERT INTO connector_push VALUES (?,?,?,?,?,?,NULL) ON CONFLICT(connector_id, item, record_id) DO UPDATE SET"
+                            " hash = excluded.hash, sent_at = excluded.sent_at, status = excluded.status, error = NULL",
+                            (cid, item, record_id, digest, now, status))
+            else:
+                con.execute("INSERT INTO connector_push VALUES (?,?,?,NULL,?,?,?) ON CONFLICT(connector_id, item, record_id) DO UPDATE SET"
+                            " sent_at = excluded.sent_at, status = excluded.status, error = excluded.error",
+                            (cid, item, record_id, now, status, error[:300]))
+
+    def record_push_report(self, cid: str, report: dict) -> None:
+        with self._lock, self._connect() as con:
+            con.execute("UPDATE connectors SET last_push_json = ? WHERE connector_id = ?", (json.dumps(report, default=str), cid))
 
     def record_sync(self, cid: str, report: dict) -> None:
         with self._lock, self._connect() as con:
@@ -288,3 +341,44 @@ async def fetch(raw: dict, entity: str, client=None) -> tuple[list[dict], list[s
             rows.append({"_error": str(exc)})
         ids.append(str(it.get("id") or it.get("Id") or it.get("ID") or "") or None)
     return rows, ids
+
+
+def digest(record: dict) -> str:
+    return hashlib.sha256(json.dumps(record, sort_keys=True, default=str).encode()).hexdigest()
+
+
+async def send(raw: dict, item: str, records: list[tuple[str, dict]], store: ConnectorStore, dry_run: bool = False,
+               client=None, limit: int = 200) -> dict:
+    """Write the new or changed records of one item to the other application; the unchanged ones are skipped."""
+    import httpx
+
+    pm = raw["push"][item]
+    sent = store.sent_hashes(raw["connector_id"], item)
+    todo = [(rid, rec, digest(rec)) for rid, rec in records if sent.get(rid) != digest(rec)]
+    report = {"records": len(records), "unchanged": len(records) - len(todo), "sent": 0, "failed": 0, "errors": []}
+    if dry_run:
+        return report | {"would_send": len(todo), "sample": [rec for _, rec, _ in todo[:2]]}
+    own = client is None
+    client = client or httpx.AsyncClient(timeout=30)
+    url = raw["base_url"] + "/" + pm["path"].lstrip("/")
+    try:
+        for rid, rec, h in todo[:limit]:
+            headers = headers_for(raw) | {"Idempotency-Key": f"venthora-{item}-{rid}-{h[:16]}", "content-type": "application/json"}
+            try:
+                res = await client.request(pm.get("method", "POST"), url, headers=headers, json={"type": item, "id": rid, "data": rec})
+                if res.status_code < 300:
+                    store.record_push(raw["connector_id"], item, rid, h, res.status_code, None)
+                    report["sent"] += 1
+                    continue
+                error, status = f"HTTP {res.status_code}: {res.text[:160]}", res.status_code
+            except httpx.HTTPError as exc:
+                error, status = f"{type(exc).__name__}: {str(exc)[:160]}", None
+            store.record_push(raw["connector_id"], item, rid, None, status, error)
+            report["failed"] += 1
+            if len(report["errors"]) < 3:
+                report["errors"].append(f"{rid}: {error}")
+    finally:
+        if own:
+            await client.aclose()
+    report["left"] = max(0, len(todo) - limit)
+    return report

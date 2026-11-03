@@ -496,7 +496,20 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 
  <section class="span12 plain" data-view="sources-sync api-access"><div class="ptabs"><a href="#/sources-sync" data-tab="sources-sync">Sync API · from the old system</a><a href="#/api-access" data-tab="api-access">API access · for other apps</a></div></section>
  <section class="span12" data-view="sources-sync">
-  <h2><span>Sync API</span><span class="small muted">read master data from the old application: REST/JSON, field by field</span></h2>
+  <h2><span>Connect your finance application</span><span class="small muted">accounting, ERP or reporting tool with an API: one line, then tick what flows each way</span></h2>
+  <div class="form" id="cnNew">
+   <label>Application<input id="cnx-name" maxlength="80" placeholder="e.g. Our accounting system"></label>
+   <label>Keep in sync<select id="cnx-sched"><option value="1" selected>Every minute (realtime)</option><option value="5">Every 5 minutes</option><option value="15">Every 15 minutes</option><option value="60">Every hour</option><option value="0">Only when I press Sync</option></select></label>
+   <label style="grid-column:1/-1">Connection (one line: base URL, then the key)<input id="cnx-line" type="password" autocomplete="off" spellcheck="false" placeholder="https://erp.example.com/api  Bearer eyJ…   ·   or   X-Api-Key: abc123   ·   or   https://user:password@host/api"></label>
+  </div>
+  <div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:12px">
+   <div><div class="row" style="justify-content:space-between"><b>VENTHORA reads</b><span class="small"><a href="#" data-all="pull">all</a> · <a href="#" data-none="pull">none</a></span></div><div id="cnx-pull" class="small"></div></div>
+   <div><div class="row" style="justify-content:space-between"><b>VENTHORA sends back</b><span class="small"><a href="#" data-all="push">all</a> · <a href="#" data-none="push">none</a></span></div><div id="cnx-push" class="small"></div></div>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="primary" id="cnxGo">Connect</button><span class="small" id="cnxMsg"></span></div>
+ </section>
+ <section class="span12" data-view="sources-sync">
+  <h2><span>Connected applications</span><span class="small muted">read, write back and keep in sync; field names can be mapped per item</span></h2>
   <div id="connList" class="empty">loading…</div>
  </section>
  <section class="span12" data-view="sources-sync">
@@ -1402,17 +1415,58 @@ const ENT_LABEL={vendor:"Vendors",customer:"Customers",po:"Purchase orders",bill
 const rep1=r=>r.error?`<span class="err">${esc(r.error)}</span>`:`<span class="pill good">${r.created.length} new</span> <span class="pill">${r.updated.length} updated</span> <span class="pill">${r.unchanged.length} unchanged</span> ${r.rejected.length?`<span class="pill critical">${r.rejected.length} rejected</span>`:""}`
  +(r.rejected.length?`<div class="small err">${r.rejected.slice(0,4).map(x=>`row ${x.row}${x.external_id?` (${esc(x.external_id)})`:""}: ${esc(x.error)}`).join("<br>")}</div>`:"")
  +((r.followed||[]).length?`<div class="small muted">${r.followed.slice(0,6).map(esc).join("<br>")}</div>`:"");
-async function syncView(){try{const cs=await api("/v1/sources/connectors");
- $("#connList").innerHTML=cs.map(c=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><div><b>${esc(c.name)}</b> <span class="mono small muted">${esc(c.base_url)}</span>
-  <div class="small muted">auth ${esc(c.auth.type)}${c.auth.secret_set?` · secret ${esc(c.auth.secret_hint)}`:""} · ${c.last_sync_at?`last sync ${esc(c.last_sync_at.slice(0,16).replace("T"," "))} UTC`:"never synced"} · ${Object.keys(c.entities).length} entities</div></div>
-  <div class="row"><button data-cedit="${esc(c.connector_id)}">Edit mapping</button><button data-csync="${esc(c.connector_id)}" data-dry="1">Dry run</button><button class="primary" data-csync="${esc(c.connector_id)}">Sync now</button></div></div>
-  <div id="cres-${esc(c.connector_id)}" style="margin-top:8px">${c.last_report?table([{h:"Entity",f:([e])=>esc(ENT_LABEL[e]||e)},{h:"Last sync",f:([,r])=>rep1(r)}],Object.entries(c.last_report)):""}</div></div>`).join("")||'<div class="empty">no connector</div>';
+let SCAT=null;
+// one checklist row: the item, why VENTHORA needs it or what the other side gets, and the fields (on hover)
+const chkRow=(dir,it,on,cid="")=>`<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0" title="${esc(it.fields.join(", "))}"><input type="checkbox" data-dir="${dir}" data-key="${esc(it.key)}"${cid?` data-cid="${esc(cid)}"`:""} ${on?"checked":""}>
+ <span><b>${esc(it.label)}</b><span class="muted"> · ${esc(it.why)}</span></span></label>`;
+const pushRep=r=>r.error?`<span class="err">${esc(r.error)}</span>`:r.would_send!==undefined?`${r.would_send} to send · ${r.unchanged} unchanged`
+ :`${r.sent} sent · ${r.unchanged} unchanged${r.failed?` · <span class="err">${r.failed} failed</span>`:""}${(r.errors||[]).length?`<div class="small err">${r.errors.map(esc).join("<br>")}</div>`:""}`;
+const SCHED={0:"only on demand",1:"every minute",5:"every 5 min",15:"every 15 min",60:"every hour"};
+async function connSave(c){const body={name:c.name,base_url:c.base_url,entities:c.entities,push:c.push||{},schedule_minutes:c.schedule_minutes||0,
+  auth:{type:c.auth.type,header_name:c.auth.header_name,username:c.auth.username,secret:null}};
+ return api(`/v1/sources/connectors/${c.connector_id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}
+async function syncView(){try{const [cs,cat]=await Promise.all([api("/v1/sources/connectors"),SCAT?Promise.resolve(SCAT):api("/v1/sources/catalog")]);SCAT=cat;
+ if(!$("#cnx-pull").children.length){$("#cnx-pull").innerHTML=cat.pull.map(it=>chkRow("pull",it,true)).join("");$("#cnx-push").innerHTML=cat.push.map(it=>chkRow("push",it,true)).join("")}
+ $("#connList").innerHTML=cs.map(c=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><b>${esc(c.name)}</b> <span class="mono small muted">${esc(c.base_url)}</span>
+  <div class="small muted">auth ${esc(c.auth.type)}${c.auth.secret_set?` · key ${esc(c.auth.secret_hint)}`:""} · ${c.last_sync_at?`last sync ${esc(c.last_sync_at.slice(0,16).replace("T"," "))} UTC`:"never synced"}
+   · <select data-csched="${esc(c.connector_id)}" class="small">${Object.entries(SCHED).map(([m,l])=>`<option value="${m}" ${+m===(c.schedule_minutes||0)?"selected":""}>${l}</option>`).join("")}</select></div></div>
+  <div class="row"><button data-cedit="${esc(c.connector_id)}">Map fields</button><button data-csync="${esc(c.connector_id)}" data-dry="1">Dry run</button><button class="primary" data-csync="${esc(c.connector_id)}">Read now</button><button class="primary" data-cpush="${esc(c.connector_id)}">Send back now</button>${c.connector_id==="legacy-erp-demo"?`<button data-cinbox="${esc(c.connector_id)}">What the demo ERP received</button>`:""}</div></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:8px">
+   <div class="small"><b>Reads</b>${cat.pull.map(it=>chkRow("pull",it,(c.entities[it.key]||{}).enabled!==false&&!!c.entities[it.key],c.connector_id)).join("")}</div>
+   <div class="small"><b>Sends back</b>${cat.push.map(it=>chkRow("push",it,!!(c.push||{})[it.key]&&c.push[it.key].enabled!==false,c.connector_id)).join("")}</div></div>
+  <div id="cres-${esc(c.connector_id)}" style="margin-top:8px">${c.last_report?table([{h:"Read",f:([e])=>esc(ENT_LABEL[e]||e)},{h:"Last read",f:([,r])=>rep1(r)}],Object.entries(c.last_report)):""}</div>
+  <div id="cpush-${esc(c.connector_id)}" style="margin-top:8px">${c.last_push?table([{h:"Sent back",f:([e])=>esc((cat.push.find(x=>x.key===e)||{}).label||e)},{h:`Last send · ${esc((c.last_push._at||"").slice(0,16).replace("T"," "))} UTC`,f:([,r])=>pushRep(r)}],Object.entries(c.last_push).filter(([k])=>k!=="_at")):""}</div></div>`).join("")||'<div class="empty">no application connected yet</div>';
+ $("#connList").querySelectorAll("input[data-cid]").forEach(x=>x.onchange=async()=>{const c=cs.find(y=>y.connector_id===x.dataset.cid),k=x.dataset.key,it=(x.dataset.dir==="pull"?cat.pull:cat.push).find(i=>i.key===k);
+  if(x.dataset.dir==="pull")c.entities[k]=c.entities[k]?{...c.entities[k],enabled:x.checked}:{enabled:x.checked,path:it.path,items_path:"",mapping:Object.fromEntries(it.fields.map(f=>[f,f]))};
+  else{c.push=c.push||{};c.push[k]=c.push[k]?{...c.push[k],enabled:x.checked}:{enabled:x.checked,path:it.path,method:"POST"}}
+  try{await connSave(c);toast(`${it.label}: ${x.checked?"on":"off"}`,"good")}catch(e){x.checked=!x.checked;toast(e.message,"critical")}});
+ $("#connList").querySelectorAll("[data-csched]").forEach(x=>x.onchange=async()=>{const c=cs.find(y=>y.connector_id===x.dataset.csched);c.schedule_minutes=+x.value;
+  try{await connSave(c);toast(`Kept in sync ${SCHED[x.value]}`,"good")}catch(e){toast(e.message,"critical")}});
+ $("#connList").querySelectorAll("[data-cpush]").forEach(b=>b.onclick=async()=>{const id=b.dataset.cpush;$(`#cpush-${id}`).innerHTML='<div class="empty">sending back…</div>';
+  try{const r=await api(`/v1/sources/connectors/${id}/push?${who()}`,{method:"POST"});
+   $(`#cpush-${id}`).innerHTML=table([{h:"Sent back",f:([e])=>esc((cat.push.find(x=>x.key===e)||{}).label||e)},{h:"Result",f:([,x])=>pushRep(x)}],Object.entries(r.reports));toast("Sent back","good")}
+  catch(e){$(`#cpush-${id}`).innerHTML=`<div class="err">${esc(e.message)}</div>`}});
+ $("#connList").querySelectorAll("[data-cinbox]").forEach(b=>b.onclick=async()=>{const id=b.dataset.cinbox;try{const got=await api("/demo/legacy-erp-inbox?limit=30");
+  $(`#cpush-${id}`).innerHTML=got.length?table([{h:"Received (UTC)",f:r=>`<span class="mono small">${esc(r.at.slice(0,19).replace("T"," "))}</span>`},{h:"Item",f:r=>esc((cat.push.find(x=>x.key===r.item)||{}).label||r.item)},
+   {h:"Record",f:r=>`<span class="mono small">${esc(r.body.id)}</span>`},{h:"Idempotency-Key",f:r=>`<span class="mono small">${esc((r.idempotency_key||"").slice(0,40))}</span>`}],got)
+   :'<div class="empty">the demo ERP has received nothing yet: press Send back now</div>'}catch(e){toast(e.message,"critical")}});
  $("#connList").querySelectorAll("[data-csync]").forEach(b=>b.onclick=async()=>{const id=b.dataset.csync,dry=!!b.dataset.dry;$(`#cres-${id}`).innerHTML='<div class="empty">reading the old system…</div>';
   try{const r=await api(`/v1/sources/connectors/${id}/sync?dry_run=${dry}&${who()}`,{method:"POST"});
    $(`#cres-${id}`).innerHTML=(dry?'<div class="small muted">dry run: nothing written</div>':"")+table([{h:"Entity",f:([e])=>esc(ENT_LABEL[e]||e)},{h:dry?"Would":"Result",f:([,x])=>rep1(x)}],Object.entries(r.reports));
    if(!dry){toast("Sync finished","good");mdView();readinessView()}}catch(e){$(`#cres-${id}`).innerHTML=`<div class="err">${esc(e.message)}</div>`}});
  $("#connList").querySelectorAll("[data-cedit]").forEach(b=>b.onclick=()=>connForm(cs.find(c=>c.connector_id===b.dataset.cedit)));
  mdView()}catch(e){$("#connList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+document.querySelectorAll("#cnNew ~ .grid2 [data-all],#cnNew ~ .grid2 [data-none]").forEach(a=>a.onclick=ev=>{ev.preventDefault();
+ const dir=a.dataset.all||a.dataset.none;$(`#cnx-${dir}`).querySelectorAll("input").forEach(x=>x.checked=!!a.dataset.all)});
+$("#cnxGo").onclick=async()=>{const pick=dir=>[...$(`#cnx-${dir}`).querySelectorAll("input:checked")].map(x=>x.dataset.key);
+ const body={name:$("#cnx-name").value.trim(),connection:$("#cnx-line").value.trim(),pull:pick("pull"),push:pick("push"),schedule_minutes:+$("#cnx-sched").value};
+ if(!body.name){$("#cnxMsg").innerHTML='<span class="err">name the application</span>';return}
+ $("#cnxMsg").textContent="connecting…";
+ try{const c=await api(`/v1/sources/connectors?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  $("#cnx-line").value="";$("#cnxMsg").innerHTML=`<span class="pill good">CONNECTED</span> ${esc(c.name)}: press <b>Dry run</b> to see what it would read`;await syncView();
+  const r=await api(`/v1/sources/connectors/${c.connector_id}/sync?dry_run=true&${who()}`,{method:"POST"});
+  $(`#cres-${c.connector_id}`).innerHTML='<div class="small muted">first look, nothing written:</div>'+table([{h:"Read",f:([e])=>esc(ENT_LABEL[e]||e)},{h:"Would",f:([,x])=>rep1(x)}],Object.entries(r.reports))}
+ catch(e){$("#cnxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 function connForm(c){$("#dlgTitle").textContent=`Connector · ${c.name}`;$("#dlgErr").textContent="";
  $("#dlgBody").innerHTML=`<label>Name<input id="cn-name" value="${esc(c.name)}"></label><label>Base URL<input id="cn-url" value="${esc(c.base_url)}"></label>
   <label>Auth<select id="cn-auth">${["none","bearer","basic","header"].map(t=>`<option ${t===c.auth.type?"selected":""}>${t}</option>`).join("")}</select></label>
@@ -1421,7 +1475,7 @@ function connForm(c){$("#dlgTitle").textContent=`Connector · ${c.name}`;$("#dlg
   <label style="grid-column:1/-1">Entities and field mapping (JSON: path, items_path, mapping target → "source|transform")<textarea id="cn-ent" spellcheck="false" style="min-height:240px;font:12px ui-monospace,Consolas,monospace">${esc(JSON.stringify(c.entities,null,1))}</textarea></label>`;
  $("#dlg").showModal();
  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();let ents;try{ents=JSON.parse($("#cn-ent").value)}catch(e){$("#dlgErr").textContent="the mapping is not valid JSON: "+e.message;return}
-  const body={name:$("#cn-name").value,base_url:$("#cn-url").value,entities:ents,auth:{type:$("#cn-auth").value,header_name:$("#cn-hdr").value,username:$("#cn-user").value,secret:$("#cn-secret").value||null}};
+  const body={name:$("#cn-name").value,base_url:$("#cn-url").value,entities:ents,push:c.push||{},schedule_minutes:c.schedule_minutes||0,auth:{type:$("#cn-auth").value,header_name:$("#cn-hdr").value,username:$("#cn-user").value,secret:$("#cn-secret").value||null}};
   try{await api(`/v1/sources/connectors/${c.connector_id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Connector saved","good");syncView()}catch(e){$("#dlgErr").textContent=e.message}}}
 const MD_COLS={unit:[["unit_id","Unit"],["name","Name"],["kind","Kind"],["parent_id","Under"],["cost_centre","Cost centre"],["payment_limit_minor","Pay limit"],["_source","Source"]],
  user:[["name","Name"],["email","Email"],["role","Role"],["unit_id","Unit"],["approval_limit_minor","Approval limit"],["_source","Source"]],

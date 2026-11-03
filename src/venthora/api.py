@@ -93,8 +93,9 @@ async def lifespan(app: FastAPI):
     await asyncio.to_thread(_warm_horizon)
     pending = asyncio.create_task(webhooks.confirm_pending(app.state.webhooks, app.state.agent.proof.airwallex, app.state.hub.publish))
     scheduler = asyncio.create_task(_budget_scheduler()) if env("VENTHORA_BUDGET_SCHEDULER", "1") != "0" else None
+    syncer = asyncio.create_task(_sync_scheduler()) if env("VENTHORA_SYNC_SCHEDULER", "1") != "0" else None
     yield
-    for task in (pending, scheduler):
+    for task in (pending, scheduler, syncer):
         if task is not None:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -1601,10 +1602,63 @@ async def connectors_list(request: Request):
     if not store.list():  # a fresh install shows the demo connector to the stand-in ERP, ready to sync
         store.save(demo)
     raw = store.get_raw(demo.connector_id)
-    if raw is not None and set(demo.entities) - set(raw["entities"]):  # entities added since it was saved
-        add = {k: v for k, v in demo.entities.items() if k not in raw["entities"]}
-        store.save(Connector.model_validate(raw | {"entities": raw["entities"] | add}))
+    if raw is not None and (set(demo.entities) - set(raw["entities"]) or set(demo.push) - set(raw.get("push") or {})):
+        add = {k: v for k, v in demo.entities.items() if k not in raw["entities"]}  # entities and push items added since
+        push = {k: v for k, v in demo.push.items() if k not in (raw.get("push") or {})}
+        store.save(Connector.model_validate(raw | {"entities": raw["entities"] | add, "push": (raw.get("push") or {}) | push}))
     return store.list()
+
+
+class ConnectIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80, description="the application, e.g. our accounting system")
+    connection: str = Field(min_length=8, max_length=800, description="one line: the API's base URL, then its key")
+    pull: list[str] | None = Field(None, description="entities to read; default every one")
+    push: list[str] | None = Field(None, description="items to send back; default every one")
+    schedule_minutes: int = Field(1, ge=0, le=1440, description="1 = every minute (the default); 0 = only on demand")
+
+
+@app.get("/v1/sources/catalog")
+async def sources_catalog():
+    """What VENTHORA reads from a finance application and what it sends back, each with why and its fields."""
+    from .sync_catalog import PULL, PUSH
+
+    return {"pull": [{"key": k, "label": lbl, "why": why, "path": path, "fields": list(f)} for k, (lbl, why, path, f) in PULL.items()],
+            "push": [{"key": k, "label": lbl, "why": why, "path": path, "fields": list(f)} for k, (lbl, why, path, f) in PUSH.items()],
+            "connection": {"format": "<base URL> <credential>", "credential": ["Bearer <token>", "<Header-Name>: <value>", "<token>",
+                                                                                "https://user:password@host/... (basic)"]}}
+
+
+@app.post("/v1/sources/connectors")
+async def connectors_create(body: ConnectIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Connect a finance application with one line: base URL and key. Every item is read and sent back unless unticked;
+    the other application's field names default to VENTHORA's and can be mapped afterwards."""
+    import re as _re
+
+    from .connectors import Auth, Connector, ConnectorStore, EntityMap, PushMap
+    from .sync_catalog import PULL, PUSH, default_mapping, parse_connection
+
+    who = _writer(role, by)
+    try:
+        base_url, auth = parse_connection(body.connection)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    unknown = [k for k in (body.pull or []) if k not in PULL] + [k for k in (body.push or []) if k not in PUSH]
+    if unknown:
+        raise HTTPException(422, f"unknown item {unknown[0]}")
+    pull = set(PULL if body.pull is None else body.pull)
+    push = set(PUSH if body.push is None else body.push)
+    store = ConnectorStore()
+    slug = _re.sub(r"[^a-z0-9]+", "-", body.name.lower()).strip("-")[:30] or "app"
+    cid, n = slug if len(slug) >= 2 else f"app-{slug}", 2
+    while store.get_raw(cid) is not None:
+        cid, n = f"{slug}-{n}", n + 1
+    c = Connector(connector_id=cid, name=body.name, base_url=base_url, auth=Auth(**auth), schedule_minutes=body.schedule_minutes,
+                  entities={k: EntityMap(enabled=k in pull, path=PULL[k][2], items_path="", mapping=default_mapping(k)) for k in PULL},
+                  push={k: PushMap(enabled=k in push, path=PUSH[k][2]) for k in PUSH})
+    out = await asyncio.to_thread(store.save, c)
+    await asyncio.to_thread(app.state.audit.append, "connector_saved", {"id": cid, "by": who, "base_url": base_url,
+                                                                        "pull": sorted(pull), "push": sorted(push)})
+    return out
 
 
 @app.put("/v1/sources/connectors/{connector_id}")
@@ -1668,6 +1722,113 @@ async def _sync_connector(connector_id: str, dry_run: bool, entity: str | None, 
         await asyncio.to_thread(app.state.audit.append, "connector_synced", {"id": connector_id, "by": who, "summary": {
             e: {k: len(v) for k, v in r.items() if isinstance(v, list)} if "error" not in r else r for e, r in reports.items()}})
     return reports
+
+
+@app.post("/v1/sources/connectors/{connector_id}/push")
+async def connectors_push(connector_id: str, dry_run: bool = False, item: str | None = None, role: str = "finance_manager",
+                          by: str = "dashboard"):
+    """Send back every ticked item that is new or changed since the last successful send (dry_run=true only counts)."""
+    from .connectors import ConnectorStore
+
+    who = _writer(role, by)
+    if ConnectorStore().get_raw(connector_id) is None:
+        raise HTTPException(404, "no such connector")
+    return {"connector_id": connector_id, "dry_run": dry_run, "reports": await _push_connector(connector_id, dry_run, item, who)}
+
+
+def _pick(row: dict, fields) -> dict:
+    return {f: row.get(f) for f in fields}
+
+
+async def _push_records(item: str) -> list[tuple[str, dict]]:
+    """The records of one item, each with its stable id, from VENTHORA's own books."""
+    from .sync_catalog import PUSH
+
+    fields = PUSH[item][3]
+    if item in ("payment", "journal"):
+        rows, _, _ = await asyncio.to_thread(_report_rows)
+        if item == "payment":
+            return [(r["transfer_id"], _pick(r, fields)) for r in rows if r.get("transfer_id")]
+        return [(r["transfer_id"], {"entry_id": f"je-{r['transfer_id']}", "date": r.get("paid_on"), "currency": r["currency"],
+                                    "memo": f"Payment to {r.get('payee') or r.get('payee_id')} · {r.get('obligation_id') or ''}".strip(" ·"),
+                                    "lines": [{"account": r.get("account_code") or "unallocated", "debit_minor": r["amount_minor"]},
+                                              {"account": f"bank:{r['currency']}", "credit_minor": r["amount_minor"]}]})
+                for r in rows if r.get("transfer_id")]
+    if item == "po_balance":
+        return [(p["po_id"], _pick(p, fields)) for p in await po_reconciliation_report()]
+    if item == "payee_status":
+        return [(p["beneficiary_id"], _pick(p | {"payee_id": p["beneficiary_id"]}, fields)) for p in await list_payees()]
+    if item == "request_status":
+        out = []
+        for r in await list_intake():
+            d = r.model_dump() if hasattr(r, "model_dump") else dict(r)
+            out.append((d["intake_id"], _pick(d | {"request_id": d["intake_id"]}, fields)))
+        return out
+    if item == "budget_usage":
+        st = await budget_allocation_status()
+        return [(a["alloc_id"], _pick(a | {"allocation_id": a["alloc_id"]}, fields)) for a in st.get("allocations", [])]
+    raise ValueError(f"unknown item {item}")
+
+
+async def _push_connector(connector_id: str, dry_run: bool, item: str | None, who: str) -> dict:
+    from .connectors import ConnectorStore, send
+    from .sync_catalog import PUSH
+
+    store = ConnectorStore()
+    raw = store.get_raw(connector_id)
+    reports = {}
+    for it in PUSH:
+        pm = (raw.get("push") or {}).get(it)
+        if not pm or not pm.get("enabled", True) or (item and it != item):
+            continue
+        try:
+            reports[it] = await send(raw, it, await _push_records(it), store, dry_run=dry_run)
+        except Exception as exc:  # noqa: BLE001 - shown on the page; the next run tries again
+            reports[it] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+    if not dry_run:
+        await asyncio.to_thread(store.record_push_report, connector_id, reports | {"_at": datetime.now(UTC).isoformat(timespec="seconds")})
+        if any(r.get("sent") for r in reports.values()):
+            await asyncio.to_thread(app.state.audit.append, "connector_pushed", {"id": connector_id, "by": who, "sent": {
+                k: r.get("sent", 0) for k, r in reports.items()}})
+    return reports
+
+
+async def _sync_scheduler(every_s: float = 60.0) -> None:
+    """Every connector with a schedule is read and written back on time: schedule_minutes=1 is every minute."""
+    from .connectors import ConnectorStore
+
+    while True:
+        await asyncio.sleep(every_s)
+        with contextlib.suppress(Exception):  # a failed run is retried on the next tick; its report is on the page
+            now = datetime.now(UTC)
+            for c in await asyncio.to_thread(ConnectorStore().list):
+                minutes = c.get("schedule_minutes") or 0
+                last = datetime.fromisoformat(c["last_sync_at"]) if c.get("last_sync_at") else None
+                if minutes and (last is None or (now - last).total_seconds() >= minutes * 60 - 5):
+                    await _sync_connector(c["connector_id"], False, None, "scheduler (sync)")
+                    await _push_connector(c["connector_id"], False, None, "scheduler (sync)")
+
+
+@app.post("/demo/legacy-erp/inbox/{item}", include_in_schema=False)
+async def demo_legacy_erp_inbox(item: str, request: Request):
+    """The stand-in ERP receives what VENTHORA sends back, so the demo shows both directions."""
+    from .connectors import DEMO_KEY
+
+    if request.headers.get("x-legacy-key") != DEMO_KEY:
+        raise HTTPException(401, "bad API key")
+    inbox = getattr(app.state, "demo_inbox", None)
+    if inbox is None:
+        inbox = app.state.demo_inbox = []
+    body = await request.json()
+    inbox.append({"item": item, "at": datetime.now(UTC).isoformat(timespec="seconds"), "idempotency_key": request.headers.get("idempotency-key"),
+                  "body": body})
+    del inbox[:-500]
+    return {"received": body.get("id")}
+
+
+@app.get("/demo/legacy-erp-inbox", include_in_schema=False)
+async def demo_legacy_erp_inbox_list(limit: int = Query(50, ge=1, le=500)):
+    return list(reversed(getattr(app.state, "demo_inbox", [])[-limit:]))
 
 
 @app.get("/v1/sources/master/{entity}")

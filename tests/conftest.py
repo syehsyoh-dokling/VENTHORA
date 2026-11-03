@@ -10,6 +10,7 @@ import pytest
 # credentials or webhook secret, whichever test happens to import the API first.
 os.environ["VENTHORA_NO_DOTENV"] = "1"
 os.environ["VENTHORA_BUDGET_SCHEDULER"] = "0"  # the daily / monthly budget sync never runs on its own in a test
+os.environ["VENTHORA_SYNC_SCHEDULER"] = "0"  # nor does the connector sync
 
 SCENARIOS = Path(__file__).resolve().parents[1] / "data" / "scenarios"
 ISOLATED_ENV = ["AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "AIRWALLEX_BASE_URL", "AIRWALLEX_GLOBAL_ACCOUNT_ID",

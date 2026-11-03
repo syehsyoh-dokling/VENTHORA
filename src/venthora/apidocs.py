@@ -114,7 +114,10 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("POST", "/v1/org/{collection}"): ("Save an organisation record", "Create or update one record of a collection; the role decides what may change."),
     ("DELETE", "/v1/org/{collection}/{record_id}"): ("Delete an organisation record", "Remove one record of a collection; audited."),
     # data sources
-    ("GET", "/v1/sources/connectors"): ("List connectors", "Connections to the old system or ERP, with what each one syncs and when it last ran."),
+    ("GET", "/v1/sources/catalog"): ("Sync catalogue", "What VENTHORA reads from a finance application and what it sends back, each with why and its fields."),
+    ("POST", "/v1/sources/connectors"): ("Connect a finance application", "One line (base URL and key) and the items to read and send back; every item is ticked unless named otherwise."),
+    ("POST", "/v1/sources/connectors/{connector_id}/push"): ("Send back now", "Write every ticked item that is new or changed since the last send; dry_run=true only counts."),
+    ("GET", "/v1/sources/connectors"): ("List connectors","Connections to the old system or ERP, with what each one syncs and when it last ran."),
     ("DELETE", "/v1/sources/connectors/{connector_id}"): ("Delete a connector", "Remove a connection; synced data stays."),
     ("PUT", "/v1/sources/connectors/{connector_id}"): ("Save a connector", "Create or change a connection to the old system or ERP."),
     ("POST", "/v1/sources/connectors/{connector_id}/sync"): ("Run a sync", "Read every enabled entity from the source and write it; dry_run=true only reports what would change."),
