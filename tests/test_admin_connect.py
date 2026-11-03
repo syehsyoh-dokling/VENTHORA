@@ -97,7 +97,8 @@ def test_a_key_vault_per_ai_provider(client):
     r = client.put("/v1/settings/ai/keys/custom", json={"api_key": "zzzzzzzz3333"})
     assert r.status_code == 422 and "base URL" in r.json()["detail"]
     s = client.get("/v1/settings/ai").json()
-    assert s["keys"]["anthropic"] == {"key_set": True, "key_hint": "…1111", "model": "claude-sonnet-5-5", "base_url": ""}
+    assert s["keys"]["anthropic"] == {"key_set": True, "key_hint": "…1111", "model": "claude-sonnet-5-5", "base_url": "",
+                                         "workspace_id": ""}
     assert "aaaaaaaa1111" not in str(s) and s["mode"] == "rules"  # saving a key does not switch the model in use
     # switching to a provider takes its key from the vault: no key in the request
     r = client.put("/v1/settings/ai", json={"mode": "provider", "provider": {"name": "anthropic", "model": "claude-sonnet-5-5"}, "consent_external": True})
@@ -180,3 +181,24 @@ def test_work_for_an_opened_account_without_a_key_of_its_own(client, monkeypatch
     r = client.post("/v1/airwallex/accounts/acct_ok/use")
     assert r.status_code == 200 and r.json()["acting_for"]["account_id"] == "acct_ok"
     assert client.delete("/v1/airwallex/acting").json()["acting_for"] is None
+
+
+def test_an_anthropic_key_without_a_workspace_names_one(client, monkeypatch):
+    import anthropic
+
+    from venthora import ai_settings
+
+    seen = {}
+
+    class Fake:
+        def __init__(self, **kw):
+            seen.update(kw)
+    monkeypatch.setattr(anthropic, "AsyncAnthropic", Fake)
+    m = ai_settings.model_for({"mode": "provider", "provider": {"name": "anthropic", "model": "claude-sonnet-5-5", "api_key": "sk-x",
+                                                                 "workspace_id": " wrkspc_01ABC "}})
+    m._client()
+    assert seen["default_headers"] == {"anthropic-workspace-id": "wrkspc_01ABC"}
+    ai_settings.model_for({"mode": "provider", "provider": {"name": "anthropic", "model": "m", "api_key": "k"}})._client()
+    assert seen["default_headers"] is None  # a key scoped to a workspace sends no header
+    assert client.put("/v1/settings/ai/keys/anthropic", json={"api_key": "sk-ant-aaaaaaaa1111", "workspace_id": "wrkspc_01ABC"}).status_code == 200
+    assert client.get("/v1/settings/ai").json()["keys"]["anthropic"]["workspace_id"] == "wrkspc_01ABC"

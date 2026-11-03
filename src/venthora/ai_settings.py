@@ -106,6 +106,7 @@ class Provider(BaseModel):
     api_key: str | None = Field(default=None, max_length=500, description="write-only; None keeps the stored key")
     clear_api_key: bool = False
     base_url: str = Field(default="", max_length=300, description="only for an other OpenAI-compatible service")
+    workspace_id: str = Field(default="", max_length=80, description="Anthropic only: for a key that is not scoped to a workspace")
 
     @field_validator("name")
     @classmethod
@@ -169,8 +170,10 @@ class AIStore:
             pv["api_key"] = new.strip() if new else slot.get("api_key", "")
             if pv["api_key"]:
                 keys[pv["name"]] = {"api_key": pv["api_key"], "model": pv["model"] or slot.get("model", ""),
-                                    "base_url": pv["base_url"] or slot.get("base_url", "")}
+                                    "base_url": pv["base_url"] or slot.get("base_url", ""),
+                                    "workspace_id": pv.get("workspace_id") or slot.get("workspace_id", "")}
         pv["base_url"] = pv["base_url"] or slot.get("base_url", "")
+        pv["workspace_id"] = pv.get("workspace_id") or slot.get("workspace_id", "")
         rec["keys"] = keys
         return rec
 
@@ -187,7 +190,7 @@ class AIStore:
             return AISettings().model_dump() | {"keys": {}}
         return {k: v for k, v in raw.items() if not k.startswith("_")}
 
-    def save_key(self, name: str, api_key: str | None, model: str, base_url: str, by: str) -> dict:
+    def save_key(self, name: str, api_key: str | None, model: str, base_url: str, by: str, workspace_id: str = "") -> dict:
         """Keep a provider's key in the vault without switching to it (a new key replaces, None keeps the old one)."""
         rec = self.current()
         keys = dict(rec.get("keys") or {})
@@ -197,11 +200,12 @@ class AIStore:
             raise ValueError(f"paste the {PROVIDERS[name]['label']} API key")
         if PROVIDERS[name].get("custom") and not (base_url or old.get("base_url")):
             raise ValueError("an other OpenAI-compatible service needs its base URL")
-        keys[name] = {"api_key": key, "model": model or old.get("model", ""), "base_url": _url(base_url) or old.get("base_url", "")}
+        keys[name] = {"api_key": key, "model": model or old.get("model", ""), "base_url": _url(base_url) or old.get("base_url", ""),
+                      "workspace_id": workspace_id.strip() or old.get("workspace_id", "")}
         rec["keys"] = keys
         if rec.get("provider", {}).get("name") == name:  # the active provider follows its new key
             rec["provider"] = rec["provider"] | {"api_key": key, "model": keys[name]["model"] or rec["provider"].get("model", ""),
-                                                 "base_url": keys[name]["base_url"]}
+                                                 "base_url": keys[name]["base_url"], "workspace_id": keys[name]["workspace_id"]}
         self._write(rec, by)
         return public(self)
 
@@ -257,11 +261,11 @@ def public(store: AIStore) -> dict:
     return {"source": "settings", "mode": raw["mode"],
             "self_hosted": {"endpoint": sh["endpoint"], "model": sh["model"], "token_set": bool(sh["token"]), "token_hint": _hint(sh["token"])},
             "provider": {"name": pv["name"], "model": pv["model"], "key_set": bool(pv["api_key"]), "key_hint": _hint(pv["api_key"]),
-                         "base_url": pv.get("base_url", "")},
+                         "base_url": pv.get("base_url", ""), "workspace_id": pv.get("workspace_id", "")},
             "consent_external": raw.get("consent_external", False), "timeout_s": raw.get("timeout_s", 60.0),
             "updated_at": raw["_updated_at"], "updated_by": raw["_updated_by"], "providers": PROVIDERS,
             "keys": {n: {"key_set": bool(k.get("api_key")), "key_hint": _hint(k.get("api_key", "")), "model": k.get("model", ""),
-                         "base_url": k.get("base_url", "")} for n, k in (raw.get("keys") or {}).items()}}
+                         "base_url": k.get("base_url", ""), "workspace_id": k.get("workspace_id", "")} for n, k in (raw.get("keys") or {}).items()}}
 
 
 def model_for(rec: dict | None):
@@ -275,7 +279,7 @@ def model_for(rec: dict | None):
     if rec["mode"] == "provider":
         p = rec["provider"]
         if PROVIDERS[p["name"]]["api"] == "anthropic":
-            return AnthropicModel(api_key=p["api_key"], model=p["model"], timeout_s=timeout)
+            return AnthropicModel(api_key=p["api_key"], model=p["model"], timeout_s=timeout, workspace_id=p.get("workspace_id", ""))
         return ChatModel(endpoint=p.get("base_url") or PROVIDERS[p["name"]]["base_url"], model=p["model"], token=p["api_key"], timeout_s=timeout)
     return ChatModel(endpoint="", model="")
 

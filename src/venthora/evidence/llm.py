@@ -58,8 +58,15 @@ class AnthropicModel:
     """Claude through the official Anthropic SDK (optional dependency: pip install "anthropic>=1,<2").
     Same surface as ChatModel: `configured` and `complete(messages)`, so every reader works with either."""
 
-    def __init__(self, api_key: str, model: str, timeout_s: float = 60.0):
-        self.api_key, self.model, self.timeout_s = api_key, model, timeout_s
+    def __init__(self, api_key: str, model: str, timeout_s: float = 60.0, workspace_id: str = ""):
+        self.api_key, self.model, self.timeout_s, self.workspace_id = api_key, model, timeout_s, workspace_id.strip()
+
+    def _client(self):
+        import anthropic
+
+        # A key that is not scoped to a workspace must name one on every request (anthropic-workspace-id).
+        headers = {"anthropic-workspace-id": self.workspace_id} if self.workspace_id else None
+        return anthropic.AsyncAnthropic(api_key=self.api_key, timeout=self.timeout_s, max_retries=1, default_headers=headers)
 
     @property
     def configured(self) -> bool:
@@ -74,7 +81,7 @@ class AnthropicModel:
             raise LLMUnavailable('the Anthropic SDK is not installed: pip install "anthropic>=1,<2"') from exc
         system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         turns = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
-        client = anthropic.AsyncAnthropic(api_key=self.api_key, timeout=self.timeout_s, max_retries=1)
+        client = self._client()
         try:
             # Thinking counts against max_tokens, so the reader's short answers get room; effort low suits a short
             # extraction. fallbacks="default": a declined request is re-run on a fallback model in the same call.
@@ -89,6 +96,10 @@ class AnthropicModel:
         except anthropic.RateLimitError as exc:
             raise LLMUnavailable("Anthropic rate limit reached") from exc
         except anthropic.APIStatusError as exc:
+            if "not scoped to a workspace" in str(exc.message):
+                raise LLMUnavailable("this Anthropic API key belongs to no workspace: enter the workspace ID (Claude "
+                                     "Console → Settings → Workspaces, it starts with wrkspc_), or create the key inside a "
+                                     "workspace") from exc
             raise LLMUnavailable(f"Anthropic HTTP {exc.status_code}: {exc.message}") from exc
         except anthropic.APIConnectionError as exc:
             raise LLMUnavailable(f"cannot reach Anthropic: {type(exc).__name__}") from exc
@@ -99,9 +110,7 @@ class AnthropicModel:
         return "".join(b.text for b in res.content if b.type == "text")
 
     async def list_models(self) -> list[str]:
-        import anthropic
-
-        client = anthropic.AsyncAnthropic(api_key=self.api_key, timeout=self.timeout_s, max_retries=1)
+        client = self._client()
         try:
             return [m.id async for m in client.models.list()]
         finally:

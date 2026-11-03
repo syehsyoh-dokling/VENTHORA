@@ -624,6 +624,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <label>Model<span class="mpick"><select id="k-model-sel"></select><input id="k-model" placeholder="model id" autocomplete="off" hidden></span></label>
    <label id="k-base-l" style="grid-column:1/-1">Base URL<input id="k-base" placeholder="https://…/v1"></label>
    <label style="grid-column:1/-1">Paste API key<input id="k-key" type="password" autocomplete="off" placeholder="paste the key"></label>
+   <label id="k-ws-l" style="grid-column:1/-1">Workspace ID (only if the key belongs to no workspace)<input id="k-ws" placeholder="wrkspc_… (Claude Console → Settings → Workspaces)"></label>
    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="k-consent"> <span id="k-consent-t"></span></label>
   </div>
   <div class="row" style="margin-top:12px"><button id="kSave">Save key</button><button id="kList">List models</button><button id="kTest">Test</button><button class="primary" id="kUse">Save and use this provider</button><span class="small" id="kMsg"></span></div>
@@ -649,6 +650,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <label>Provider<select id="ai-provider"></select></label>
    <label>Model<span class="mpick"><select id="ai-model-sel"></select><input id="ai-prov-model" placeholder="model id" autocomplete="off" hidden></span></label>
    <label style="grid-column:1/-1">Paste API key<input id="ai-key" type="password" autocomplete="off"></label>
+   <label id="ai-ws-l" style="grid-column:1/-1">Workspace ID (only if the key belongs to no workspace)<input id="ai-ws" placeholder="wrkspc_… (Claude Console → Settings → Workspaces)"></label>
    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="ai-consent"> <span id="ai-consent-text"></span></label>
   </div>
   <datalist id="aiModelList"></datalist>
@@ -1640,9 +1642,9 @@ $("#locTest").onclick=async()=>{$("#locMsg").textContent="testing…";try{const 
  $("#locMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> answered in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#locUse").onclick=async()=>{try{await aiSend("/v1/settings/ai",locBody(),"PUT");toast("Local model in use","good");localView()}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 let KV=null;
-const kBody=(mode)=>({mode,consent_external:$("#k-consent").checked,provider:{name:$("#k-prov").value,model:$("#k-model").value.trim(),api_key:$("#k-key").value||null,base_url:$("#k-base").value.trim()},self_hosted:KV?{endpoint:KV.self_hosted.endpoint,model:KV.self_hosted.model,token:null}:{}});
+const kBody=(mode)=>({mode,consent_external:$("#k-consent").checked,provider:{name:$("#k-prov").value,model:$("#k-model").value.trim(),api_key:$("#k-key").value||null,base_url:$("#k-base").value.trim(),workspace_id:$("#k-ws").value.trim()},self_hosted:KV?{endpoint:KV.self_hosted.endpoint,model:KV.self_hosted.model,token:null}:{}});
 function kShow(){const p=$("#k-prov").value,info=(KV.providers[p]||{}),saved=KV.keys[p];
- $("#k-base-l").style.display=info.custom?"":"none";$("#k-key").placeholder=saved?`saved (${saved.key_hint}); blank keeps it`:"paste the key";
+ $("#k-base-l").style.display=info.custom?"":"none";$("#k-ws-l").hidden=p!=="anthropic";$("#k-ws").value=saved?.workspace_id||"";$("#k-key").placeholder=saved?`saved (${saved.key_hint}); blank keeps it`:"paste the key";
  pickModels("k-model-sel","k-model",info.suggested,saved?.model||(p===KV.provider.name?KV.provider.model:"")||info.default||"");$("#k-base").value=saved?.base_url||"";
  $("#k-consent-t").textContent=`Email and PDF text will be sent to ${info.label||p} to be read. I am allowed to share it.`}
 async function keysView(){try{KV=await api("/v1/settings/ai");const cur=$("#k-prov").value;
@@ -1654,7 +1656,7 @@ async function keysView(){try{KV=await api("/v1/settings/ai");const cur=$("#k-pr
  $("#kSaved").querySelectorAll("[data-kdel]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete this key from VENTHORA?"))return;try{await api(`/v1/settings/ai/keys/${b.dataset.kdel}?${who()}`,{method:"DELETE"});keysView()}catch(e){toast(e.message,"critical")}});
  $("#kMsg").textContent=""}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
 $("#k-prov").onchange=()=>{$("#k-key").value="";kShow()};
-$("#kSave").onclick=async()=>{try{await aiSend(`/v1/settings/ai/keys/${$("#k-prov").value}`,{api_key:$("#k-key").value||null,model:$("#k-model").value.trim(),base_url:$("#k-base").value.trim()},"PUT");
+$("#kSave").onclick=async()=>{try{await aiSend(`/v1/settings/ai/keys/${$("#k-prov").value}`,{api_key:$("#k-key").value||null,model:$("#k-model").value.trim(),base_url:$("#k-base").value.trim(),workspace_id:$("#k-ws").value.trim()},"PUT");
  toast("Key saved","good");keysView()}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#kList").onclick=async()=>{$("#kMsg").textContent="asking the provider…";try{const r=await aiSend("/v1/settings/ai/models",kBody("provider"));pickModels("k-model-sel","k-model",[...r.models,...((KV.providers[$("#k-prov").value]||{}).suggested||[])],$("#k-model").value.trim());
  $("#kMsg").textContent=`${r.models.length} model(s) offered`}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
@@ -1665,19 +1667,19 @@ $("#kUse").onclick=async()=>{try{await aiSend("/v1/settings/ai",kBody("provider"
 // ---- Settings → AI model -----------------------------------------------------------------------------------------
 let AI=null;
 const aiMode=()=>(document.querySelector('input[name="aiMode"]:checked')||{}).value||"rules";
-function aiShow(){const m=aiMode();$("#aiSelf").style.display=m==="self_hosted"?"":"none";$("#aiProv").style.display=m==="provider"?"":"none";
+function aiShow(){const m=aiMode();$("#ai-ws-l").hidden=$("#ai-provider").value!=="anthropic";$("#aiSelf").style.display=m==="self_hosted"?"":"none";$("#aiProv").style.display=m==="provider"?"":"none";
  const pv=$("#ai-provider").value,lab=(AI&&AI.providers[pv]||{}).label||pv;
  $("#ai-consent-text").textContent=`Email and PDF text will be sent to ${lab} to be read. I am allowed to share it.`;
  $("#aiList").style.display=$("#aiTest").style.display=m==="rules"?"none":""}
 function aiBody(){const m=aiMode();return {mode:m,consent_external:$("#ai-consent").checked,
  self_hosted:{endpoint:$("#ai-endpoint").value.trim(),model:$("#ai-self-model").value.trim(),token:$("#ai-token").value||null},
- provider:{name:$("#ai-provider").value,model:$("#ai-prov-model").value.trim(),api_key:$("#ai-key").value||null}}}
+ provider:{name:$("#ai-provider").value,model:$("#ai-prov-model").value.trim(),api_key:$("#ai-key").value||null,workspace_id:$("#ai-ws").value.trim()}}}
 async function aiView(){try{AI=await api("/v1/settings/ai");
  $("#ai-provider").innerHTML=Object.entries(AI.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join("");
  document.querySelectorAll('input[name="aiMode"]').forEach(r=>{r.checked=r.value===AI.mode;r.onchange=()=>{$("#aiMsg").textContent="";aiShow()}});
  $("#ai-endpoint").value=AI.self_hosted.endpoint||"";$("#ai-self-model").value=AI.self_hosted.model||"";$("#ai-token").value="";
  $("#ai-token").placeholder=AI.self_hosted.token_set?`saved (${AI.self_hosted.token_hint||"set"}); leave blank to keep`:"only if the server asks for one";
- $("#ai-provider").value=AI.provider.name;pickModels("ai-model-sel","ai-prov-model",(AI.providers[AI.provider.name]||{}).suggested,AI.provider.model||"");$("#ai-key").value="";
+ $("#ai-ws").value=AI.provider.workspace_id||"";$("#ai-provider").value=AI.provider.name;pickModels("ai-model-sel","ai-prov-model",(AI.providers[AI.provider.name]||{}).suggested,AI.provider.model||"");$("#ai-key").value="";
  $("#ai-key").placeholder=AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";
  $("#ai-consent").checked=!!AI.consent_external;
  $("#ai-provider").onchange=()=>{$("#ai-key").placeholder=$("#ai-provider").value===AI.provider.name&&AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";

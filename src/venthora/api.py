@@ -1480,6 +1480,7 @@ class AIKeyIn(BaseModel):
     api_key: str | None = Field(None, max_length=500)
     model: str = Field("", max_length=200)
     base_url: str = Field("", max_length=300)
+    workspace_id: str = Field("", max_length=80)
 
 
 @app.put("/v1/settings/ai/keys/{provider}")
@@ -1489,7 +1490,7 @@ async def ai_key_save(provider: str, body: AIKeyIn, role: str = "finance_manager
     if provider not in ai_settings.PROVIDERS:
         raise HTTPException(404, "unknown provider")
     try:
-        out = await asyncio.to_thread(ai_settings.AIStore().save_key, provider, body.api_key, body.model, body.base_url, who)
+        out = await asyncio.to_thread(ai_settings.AIStore().save_key, provider, body.api_key, body.model, body.base_url, who, body.workspace_id)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "ai_key_saved", {"by": who, "provider": provider, "model": body.model})  # never the key
