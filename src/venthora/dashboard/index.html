@@ -998,7 +998,7 @@ function actorsFill(){const keep=(()=>{try{return localStorage.getItem("venthora
 async function loadActors(){try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
  const rank=["super_admin","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
  ACTORS=us.sort((a,b)=>rank.indexOf(a.role)-rank.indexOf(b.role)||a.name.localeCompare(b.name)).map(u=>({role:u.role,name:u.name,label:`${u.name} · ${R[u.role]||u.role}`}));
- if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill()}catch(e){actorsFill()}}
+ if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();if(location.hash==="#/mandate")mandateView()}catch(e){actorsFill()}}
 actorsFill();loadActors();
 $("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")mandateView()};
 const actor=()=>ACTORS[+$("#actor").value]||ACTORS[0];
@@ -1999,7 +1999,7 @@ const mIn=l=>l.unit==="usd"||l.unit==="pct"?(l.value??0)/100:(l.value??0),mOut=(
 let MDT=null;
 document.querySelectorAll("#mdtTabs [data-mtab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#mdtTabs [data-mtab]").forEach(x=>x.classList.toggle("on",x===b));
  document.querySelectorAll("[data-mpane]").forEach(p=>p.hidden=p.dataset.mpane!==b.dataset.mtab)});
-async function mandateView(){try{const d=await api(`/v1/mandate?role=${encodeURIComponent(actor().role)}`);MDT=d;const on=$("#mdtTabs .on")?.dataset.mtab||"cat";
+async function mandateView(){const seq=window.__mdtSeq=(window.__mdtSeq||0)+1;try{const d=await api(`/v1/mandate?role=${encodeURIComponent(actor().role)}`);if(seq!==window.__mdtSeq)return;MDT=d;const on=$("#mdtTabs .on")?.dataset.mtab||"cat";
  const can=d.authority.you_may_change,dis=can?"":"disabled",crit='<span class="chip" style="color:var(--critical);border-color:var(--critical)">critical</span>';
  const rule=m=>{const [w,t]=MST(m);return `<tr><td style="width:130px"><span class="pill ${t}">${w}</span></td><td>${esc(m.label)} ${m.critical&&!m.built_in?crit:""}<div class="small muted">${esc(m.built_in||m.help||"")}</div></td><td class="num nw"><b>${m.unit?esc(mval(m)):""}</b></td></tr>`};
  const modeSel=c=>c.off_elsewhere?`<span class="pill warn">OFF</span>`:`<select data-mchk="${esc(c.key)}" ${dis} style="width:118px">${Object.entries(d.modes).map(([k,l])=>`<option value="${k}" ${c.mode===k?"selected":""}>${l}</option>`).join("")}</select>`;
@@ -2007,7 +2007,7 @@ async function mandateView(){try{const d=await api(`/v1/mandate?role=${encodeURI
    <td class="small">${c.flags.map(f=>`<span class="chip mono">${esc(f)}</span>`).join(" ")}${c.where?` <a href="${esc(c.where)}" class="nw">Set ›</a>`:""}</td></tr>`;
  const auth=`<div class="tile" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Mandate authority: ${esc(d.authority.label)}</b>
    <div class="small muted">Only this role changes the standing mandate, including every check, limit and switch below. Every change is audited; a change that weakens a critical control must be confirmed first.</div>
-   <div class="small" style="margin-top:4px">${can?`You (${esc(actor().name)}) hold the mandate authority.`:`You (${esc(actor().name)}, ${esc(ROLES[actor().role]||actor().role)}) may read the mandate but not change it.`}</div></div>
+   <div class="small" style="margin-top:4px">${can?`You (${esc(actor().name)}) hold the mandate authority.`:`You (${esc(actor().name)}, ${esc(ROLES[actor().role]||actor().role)}) may read the mandate but not change it.${(h=>h?` <button class="primary" data-mswitch="${ACTORS.indexOf(h)}" style="margin-left:6px">Act as ${esc(h.name)} (${esc(d.authority.label)})</button>`:` Nobody active holds the ${esc(d.authority.label)} role; add one in <a href="#/users">People &amp; roles</a>.`)(ACTORS.find(a=>a.role===d.authority.role))}`}</div></div>
    <label class="small">Hand the authority to <select id="mdtAuth" ${dis}>${Object.entries(d.authority.roles).map(([k,l])=>`<option value="${k}" ${k===d.authority.role?"selected":""}>${esc(l)}</option>`).join("")}</select></label></div>`;
  const hint=`<div class="small muted" style="margin:0 0 8px"><b>Hold</b>: a failure holds the request for a person. <b>Warn only</b>: a failure is flagged for the approver, nothing is held. <b>Off</b>: not checked.</div>`;
  const cat=d.categories.map((c,i)=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><b>${i+1} · ${esc(c.title)}</b><span class="small muted">${c.checks.length?`${c.checks.length} checks · `:""}${c.rules.length} rule(s)</span></div>
@@ -2031,7 +2031,8 @@ async function mandateView(){try{const d=await api(`/v1/mandate?role=${encodeURI
   document.querySelectorAll("[data-men]").forEach(el=>body.enabled[el.dataset.men]=el.checked);
   document.querySelectorAll("[data-mchk]").forEach(el=>body.checks[el.dataset.mchk]=el.value);
   if($("#mdtAuth").value!==MDT.authority.role)body.authority_role=$("#mdtAuth").value;
-  mandateSave(body)}}
+  mandateSave(body)};
+ document.querySelectorAll("[data-mswitch]").forEach(b=>b.onclick=()=>{$("#actor").value=b.dataset.mswitch;$("#actor").onchange()})}
  catch(e){$("#mandateView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 // a 409 names every critical change; the person ticks each one in the dialog and the same body goes again, acknowledged
 async function mandateSave(body){$("#mdtMsg").textContent="saving…";
