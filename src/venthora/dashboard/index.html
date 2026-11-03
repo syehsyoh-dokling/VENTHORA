@@ -525,12 +525,43 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="upResult" style="margin-top:14px"></div>
  </section>
 
+ <section class="span12" data-view="sources-email">
+  <h2><span>How email reaches VENTHORA</span><span class="small muted">three ways; use one or all of them</span></h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px" class="small">
+   <div class="tile"><b>1 · A mail service pushes it</b><div class="muted" style="margin-top:4px">Suppliers write to, or copy, an address the company sets for VENTHORA. The mail service (Postmark, Mailgun, SendGrid, Cloudflare, …) posts each email the moment it arrives. Realtime.</div></div>
+   <div class="tile"><b>2 · VENTHORA reads an inbox</b><div class="muted" style="margin-top:4px">Connect an existing mailbox (Gmail, Microsoft 365, Yahoo, iCloud, Zoho, any IMAP). VENTHORA reads new mail on a schedule, every minute by default, and marks or moves what it read.</div></div>
+   <div class="tile"><b>3 · Staff order payments by email</b><div class="muted" style="margin-top:4px">People ticked below may ask VENTHORA to pay a registered vendor by email. The order joins the queue and a different person approves it; email never pays by itself.</div></div>
+  </div>
+ </section>
+ <section class="span12" data-view="sources-email">
+  <h2><span>Inboxes VENTHORA reads</span><span class="row"><span class="small muted">IMAP, with an app password or an OAuth 2.0 token</span><button class="primary" id="addInbox">Connect inbox</button></span></h2>
+  <div id="inboxTable" class="empty">loading…</div>
+ </section>
  <section class="span8" data-view="sources-email">
-  <h2><span>Email sources</span><span class="row"><span class="small muted">the inbound addresses VENTHORA reads, and what each takes</span><button class="primary" id="addBox">Add mailbox</button></span></h2>
+  <h2><span>Addresses mail services post to</span><span class="row"><span class="small muted">push: the address, what it takes and which service posts it</span><button class="primary" id="addBox">Add address</button></span></h2>
   <div id="boxTable" class="empty">loading…</div>
  </section>
  <section class="span4" data-view="sources-email">
-  <h2>Connect the mail service</h2><div id="boxHow" class="small"></div>
+  <h2>Connect a mail service</h2>
+  <label class="small" style="display:block;margin-bottom:8px">Service<select id="pushSvc" style="width:100%"></select></label>
+  <div id="boxHow" class="small"></div>
+ </section>
+ <section class="span12" data-view="sources-email">
+  <h2><span>Who may send what</span><span class="row"><button class="primary" id="polSave">Save</button><span class="small" id="polMsg"></span></span></h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
+   <div class="small">
+    <b>Vendors</b><div class="muted" id="vendSenders" style="margin:4px 0 12px"></div>
+    <b>Payment orders by email</b>
+    <label class="check" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" id="pol-orders"> People ticked below may order vendor payments by email</label>
+    <label style="display:block;margin:6px 0">Company domains (staff orders only from these; blank = any)<input id="pol-domains" placeholder="acme.com, acme.co.id" style="width:100%"></label>
+    <label class="check" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" id="pol-auth"> The receiving server must have authenticated the sender (SPF, DKIM or DMARC pass)</label>
+    <label style="display:block;margin:6px 0">Subject tag an order must carry (blank = none)<input id="pol-tag" maxlength="30" placeholder="[PAY]" style="width:100%"></label>
+    <label class="check" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" id="pol-unknown"> Flag mail sent to an address that is not configured</label>
+    <b style="display:block;margin-top:12px">Always, whatever is ticked</b>
+    <ul style="padding-left:18px;margin:4px 0;line-height:1.6" class="muted"><li>an unknown sender asking for money, or a forged one, is quarantined: visible, never payable</li><li>new bank details wait for a call-back on the registered number</li><li>an order by email is approved by someone other than who sent it</li><li>the same invoice is never paid twice</li></ul>
+   </div>
+   <div class="small"><b>People who may order vendor payments by email</b><div class="muted" style="margin:4px 0 6px">From User management; their own mailbox only. Tick to allow, untick to stop.</div><div id="staffOrders"></div></div>
+  </div>
  </section>
 
  <section class="span8" data-view="api-access">
@@ -1113,7 +1144,7 @@ const UNIT_FIELDS=()=>[{k:"name",l:"Name",req:1},{k:"kind",l:"Type",opts:Object.
  {k:"country",l:"Country (ISO 2)",max:2},{k:"currency",l:"Local currency",max:3},{k:"timezone",l:"Time zone"},{k:"cost_centre",l:"Cost centre"},
  {k:"payment_limit_minor",l:"Agent pays alone up to (USD, blank = parent's)",money:1,nullable:1},{k:"active",l:"Active",check:1}];
 const USER_FIELDS=()=>[{k:"name",l:"Full name",req:1},{k:"email",l:"Email",type:"email",req:1},{k:"role",l:"Role",opts:Object.entries(ROLES)},{k:"unit_id",l:"Unit",opts:unitOpts()},
- {k:"approval_limit_minor",l:"Approval limit (USD)",money:1},{k:"active",l:"Active",check:1}];
+ {k:"approval_limit_minor",l:"Approval limit (USD)",money:1},{k:"may_order_by_email",l:"May order vendor payments by email",check:1,off:1},{k:"active",l:"Active",check:1}];
 async function orgUsers(){try{await loadOrg();const units=unitTree();
  $("#unitsTree").innerHTML=table([{h:"Unit",f:u=>`${u.depth?`<span class="tree">${"&nbsp;&nbsp;&nbsp;".repeat(u.depth-1)}└─ </span>`:""}<b>${esc(u.name)}</b>${u.active?"":' <span class="small muted">inactive</span>'}`},
   {h:"Type",f:u=>`<span class="chip ${u.kind}">${KIND[u.kind]}</span>`},{h:"Country",f:u=>esc(u.country||"-")},{h:"Currency",f:u=>esc(u.currency)},{h:"Time zone",f:u=>`<span class="small">${esc(u.timezone)}</span>`},
@@ -1133,7 +1164,7 @@ $("#addUser").onclick=async()=>{await loadOrg();openForm("Add person",USER_FIELD
 // generic record form in a dialog; the server checks every rule and its message is shown as is
 function openForm(title,fields,rec,col,after){rec={...(rec||{})};$("#dlgTitle").textContent=title;$("#dlgErr").textContent="";
  $("#dlgBody").innerHTML=fields.map(f=>{const v=rec[f.k];const id=`fld-${f.k}`;
-  if(f.check)return `<label class="check"><input type="checkbox" id="${id}" ${v!==false?"checked":""}> ${esc(f.l)}</label>`;
+  if(f.check)return `<label class="check"><input type="checkbox" id="${id}" ${(f.off?v===true:v!==false)?"checked":""}> ${esc(f.l)}</label>`;
   if(f.opts)return `<label>${esc(f.l)}<select id="${id}">${f.opts.map(([o,l])=>`<option value="${esc(o)}" ${String(v??"")===String(o)?"selected":""}>${esc(l)}</option>`).join("")}</select></label>`;
   const val=f.money?(v!=null?(v/100).toFixed(2):""):(v??"");
   return `<label>${esc(f.l)}<input id="${id}" type="${f.money?"number":f.type||"text"}" ${f.money?'step="0.01" min="0"':""} ${f.max?`maxlength="${f.max}"`:""} ${f.req?"required":""} ${f.list?`list="${f.list}"`:""} value="${esc(val)}"></label>`}).join("")
@@ -1543,19 +1574,91 @@ $("#upGo").onclick=async()=>{const files=[...$("#upFile").files];if(!files.lengt
  $("#upMsg").innerHTML=`${UPS.length} of ${files.length} file(s) read · check each mapping, then commit each or all`;$("#upAll").disabled=!UPS.length};
 $("#upAll").onclick=async()=>{let n=0;for(const {card,up} of UPS){if(!up.done&&await upCommit(card,up))n++}toast(`${n} file(s) committed`,"good");readinessView()};
 
-const BOX_FIELDS=()=>[{k:"address",l:"Inbound address",req:1},{k:"purpose",l:"Takes",opts:[["invoices","Supplier invoices"],["claims","Staff expense claims"],["remittances","Customer remittances"],["any","Anything"]]},
- {k:"provider",l:"Mail service",opts:[["postmark","Postmark inbound (JSON)"],["raw","Raw RFC 822 (any service)"]]},{k:"note",l:"Note"},{k:"active",l:"Active",check:1}];
+const PURPOSES=[["invoices","Supplier invoices"],["claims","Staff expense claims"],["remittances","Customer remittances"],["payment_orders","Payment orders from staff"],["any","Anything"]];
+const BOX_FIELDS=()=>[{k:"address",l:"Inbound address",req:1},{k:"purpose",l:"Takes",opts:PURPOSES},
+ {k:"provider",l:"Mail service",opts:(EMAILCFG?.push_providers||[{key:"postmark",label:"Postmark"},{key:"raw",label:"Raw RFC 822"}]).map(p=>[p.key,p.label])},{k:"note",l:"Note"},{k:"active",l:"Active",check:1}];
 let BOXES=[];
-async function emailView(){try{const [b,st]=await Promise.all([api("/v1/org/mailboxes"),api("/v1/webhooks/status")]);BOXES=b;
+let EMAILCFG=null,PUSHBASE="";
+const IB_SCHED={0:"only on demand",1:"every minute",5:"every 5 min",15:"every 15 min",60:"every hour"};
+async function emailView(){try{const [b,st,cfg,users]=await Promise.all([api("/v1/org/mailboxes"),api("/v1/webhooks/status"),api("/v1/settings/email"),api("/v1/org/users")]);BOXES=b;EMAILCFG=cfg;
+ const sub=(st.subscriptions||[])[0];PUSHBASE=sub?new URL(sub.url).origin:"";
+ // inboxes VENTHORA reads
+ $("#inboxTable").innerHTML=table([{h:"Inbox",f:i=>`<b class="mono">${esc(i.address)}</b>${i.active?"":' <span class="small muted">paused</span>'}<div class="small muted">${esc((cfg.presets.find(p=>p.key===i.provider)||{}).label||i.provider)} · ${esc(i.resolved.host)}:${i.resolved.port} · ${esc(i.auth==="oauth2"?"OAuth 2.0":"app password")}${i.secret_set?" "+esc(i.secret_hint):' <span class="err">no secret</span>'}</div>`},
+  {h:"Reads",f:i=>`<span class="mono small">${esc(i.folder)}</span><div class="small muted">${i.only_unread?"unread":"all"} · then ${i.after==="move"?"move to "+esc(i.move_to):i.after==="leave"?"leave":"mark read"}</div>`},
+  {h:"Takes",f:i=>`<span class="chip">${esc((PURPOSES.find(x=>x[0]===i.purpose)||[,i.purpose])[1])}</span>`},{h:"When",f:i=>esc(IB_SCHED[i.schedule_minutes]||`every ${i.schedule_minutes} min`)},
+  {h:"Last read",f:i=>i.last_poll_at?`<span class="small">${esc(i.last_poll_at.slice(0,16).replace("T"," "))} UTC</span><div class="small ${i.last_report?.error?"err":"muted"}">${i.last_report?.error?esc(i.last_report.error):`${i.last_report?.fetched??0} new · ${(i.last_report?.queued||[]).length} queued`}</div>`:'<span class="small muted">never</span>'},
+  {h:"",f:i=>`<span class="row" style="flex-wrap:nowrap"><button data-ibtest="${esc(i.inbox_id)}">Test</button><button class="primary" data-ibfetch="${esc(i.inbox_id)}">Fetch now</button><button data-ibedit="${esc(i.inbox_id)}">Edit</button><button data-ibdel="${esc(i.inbox_id)}">Remove</button></span>`}],
+  cfg.inboxes,"no inbox yet: press Connect inbox to let VENTHORA read a mailbox");
+ $("#inboxTable").querySelectorAll("[data-ibtest]").forEach(b=>b.onclick=async()=>{try{const r=await api(`/v1/settings/email/inboxes/${b.dataset.ibtest}/test`,{method:"POST"});toast(`Signed in: ${r.messages} message(s) in ${r.folder}, ${r.unread} unread`,"good")}catch(e){toast(e.message,"critical")}});
+ $("#inboxTable").querySelectorAll("[data-ibfetch]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/v1/settings/email/inboxes/${b.dataset.ibfetch}/fetch?${who()}`,{method:"POST"});
+  toast(r.error?r.error:`${r.fetched} new email(s), ${r.queued.length} in the queue`,r.error?"critical":"good");emailView()}catch(e){toast(e.message,"critical")}finally{b.disabled=false}});
+ $("#inboxTable").querySelectorAll("[data-ibedit]").forEach(b=>b.onclick=()=>inboxForm(cfg.inboxes.find(i=>i.inbox_id===b.dataset.ibedit)));
+ $("#inboxTable").querySelectorAll("[data-ibdel]").forEach(b=>b.onclick=async()=>{if(!confirm("Stop reading this inbox? What was read stays in the queue."))return;
+  try{await api(`/v1/settings/email/inboxes/${b.dataset.ibdel}?${who()}`,{method:"DELETE"});toast("Inbox removed","good");emailView()}catch(e){toast(e.message,"critical")}});
+ // who may send what
+ const pol=cfg.policy;$("#pol-orders").checked=pol.orders_by_email;$("#pol-domains").value=pol.company_domains.join(", ");$("#pol-auth").checked=pol.require_authentication;
+ $("#pol-tag").value=pol.order_tag;$("#pol-unknown").checked=pol.flag_unknown_mailbox;
+ $("#vendSenders").innerHTML=`${cfg.senders.vendors_with_mailboxes} vendor(s) have registered mailboxes (vendor master: Sync API, upload or entry). Mail from any other address that asks for money is quarantined.`;
+ $("#staffOrders").innerHTML=table([{h:"",f:u=>`<input type="checkbox" data-uorder="${esc(u.user_id)}" ${u.may_order_by_email?"checked":""}>`},{h:"Person",f:u=>`<b>${esc(u.name)}</b><div class="small muted mono">${esc(u.email)}</div>`},
+  {h:"Role",f:u=>esc((ROLES[u.role]||u.role))}],cfg.senders.staff,"no active person in User management");
+ $("#staffOrders").querySelectorAll("[data-uorder]").forEach(x=>x.onchange=async()=>{const u=users.find(y=>y.user_id===x.dataset.uorder);
+  try{await api(`/v1/org/users?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...u,may_order_by_email:x.checked})});u.may_order_by_email=x.checked;
+   toast(`${u.name} ${x.checked?"may":"may no longer"} order vendor payments by email`,"good")}catch(e){x.checked=!x.checked;toast(e.message,"critical")}});
+ // push services
+ if(!$("#pushSvc").options.length){$("#pushSvc").innerHTML=cfg.push_providers.map(p=>`<option value="${esc(p.key)}">${esc(p.label)}</option>`).join("");$("#pushSvc").onchange=pushHow}
+ 
  $("#boxTable").innerHTML=table([{h:"Address",f:m=>`<b class="mono">${esc(m.address)}</b>${m.active?"":' <span class="small muted">inactive</span>'}`},{h:"Takes",f:m=>`<span class="chip">${esc(m.purpose)}</span>`},
   {h:"Service",f:m=>esc(m.provider)},{h:"Note",f:m=>`<span class="small">${esc(m.note||"")}</span>`},{h:"",f:m=>rowActs("mailboxes",m.mailbox_id)}],b,"no mailbox yet: every inbound email is read, and none is checked against an address");
  wireActs($("#boxTable"),"mailboxes",()=>BOXES,"mailbox_id",BOX_FIELDS,emailView);
- const ok=st.inbound_email.secret_configured;
- $("#boxHow").innerHTML=`<dl class="kv"><dt>Endpoint</dt><dd><code>POST /webhooks/email</code></dd><dt>Secret</dt><dd>${ok?"set (VENTHORA_INBOUND_EMAIL_SECRET)":'<span class="err">not set: mail is refused</span>'}</dd><dt>Reader</dt><dd>${esc(st.inbound_email.reader||"rules")}</dd></dl>
-  <ol style="padding-left:18px;line-height:1.7;margin:12px 0 0"><li>Run the gateway and a tunnel (see Webhooks &amp; integrations).</li><li>In Postmark, Server → Inbound → webhook URL: <code>https://postmark:&lt;secret&gt;@&lt;tunnel-host&gt;/webhooks/email</code></li>
-  <li>Forward or point each address above to the Postmark inbound address.</li><li>Mail to an address not listed is still read, and flagged; an invoice sent to the claims address waits for a person.</li></ol>`}
+ READER=st.inbound_email.reader||"rules";pushHow()}
  catch(e){$("#boxTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-$("#addBox").onclick=()=>openForm("Add mailbox",BOX_FIELDS(),{purpose:"invoices",provider:"postmark",active:true},"mailboxes",emailView);
+let READER="rules";
+function pushHow(){if(!EMAILCFG)return;const p=EMAILCFG.push_providers.find(x=>x.key===$("#pushSvc").value)||EMAILCFG.push_providers[0];
+ const host=PUSHBASE?PUSHBASE.replace(/^https?:\/\//,""):"&lt;tunnel-host&gt;";const plain=`https://${host}/webhooks/email`;
+ const url=p.key==="postmark"?`https://postmark:&lt;secret&gt;@${host}/webhooks/email`:`https://venthora:&lt;secret&gt;@${host}/webhooks/email`;
+ const how=esc(p.how).replace("{url}",`<code>${url}</code>`).replace("{url_mime}",`<code>${url}/mime</code>`).replace("{plain}",plain).replace(/\{\{/g,"{").replace(/\}\}/g,"}");
+ const ok=EMAILCFG.push.secret_configured;
+ $("#boxHow").innerHTML=`<dl class="kv"><dt>Posts to</dt><dd><code>POST ${esc(EMAILCFG.push.path)}</code>${PUSHBASE?` at <span class="mono">${esc(host)}</span>`:" through the gateway and a tunnel"}</dd>
+  <dt>Format</dt><dd>${esc(p.format)}</dd><dt>Secret</dt><dd>${ok?"set (VENTHORA_INBOUND_EMAIL_SECRET), as the basic-auth password or the X-Venthora-Secret header":'<span class="err">not set: mail is refused</span>'}</dd><dt>Reader</dt><dd>${esc(READER)}</dd></dl>
+  <ol style="padding-left:18px;line-height:1.7;margin:12px 0 0"><li>${how}</li><li>Add the address under <b>Addresses mail services post to</b> with what it takes.</li>
+  <li>Suppliers write to it or copy it. Mail to an address not listed is ${EMAILCFG.policy.flag_unknown_mailbox?"read and flagged":"read"}; an invoice sent to the claims address waits for a person.</li></ol>`}
+function inboxForm(i){const cfg=EMAILCFG,isNew=!i;i=i||{provider:"gmail",purpose:"invoices",folder:"INBOX",only_unread:true,after:"mark_read",move_to:"VENTHORA/Processed",since_days:7,schedule_minutes:1,active:true,security:"ssl",port:993,auth:"password"};
+ $("#dlgTitle").textContent=isNew?"Connect inbox":`Inbox · ${i.address}`;$("#dlgErr").textContent="";
+ const o=(arr,cur)=>arr.map(([v,l])=>`<option value="${esc(v)}" ${String(v)===String(cur)?"selected":""}>${esc(l)}</option>`).join("");
+ $("#dlgBody").innerHTML=`<label>Mail provider<select id="ib-provider">${o(cfg.presets.map(p=>[p.key,p.label]),i.provider)}</select></label>
+  <label>Inbox address<input id="ib-address" type="email" required value="${esc(i.address||"")}" placeholder="ap@company.com" ${isNew?"":"readonly"}></label>
+  <div id="ib-help" class="small muted" style="grid-column:1/-1"></div>
+  <label>Sign in with<select id="ib-auth">${o([["password","App password"],["oauth2","OAuth 2.0 access token"]],i.auth)}</select></label>
+  <label>Username (blank = the address)<input id="ib-user" value="${esc(i.username||"")}"></label>
+  <label style="grid-column:1/-1"><span id="ib-secret-l">App password</span><input id="ib-secret" type="password" autocomplete="off" placeholder="${i.secret_set?`saved (${esc(i.secret_hint)}); blank keeps it`:"paste it here"}"></label>
+  <label>IMAP host<input id="ib-host" value="${esc(i.host||"")}"></label>
+  <label>Port<input id="ib-port" type="number" min="1" max="65535" value="${esc(i.port||993)}"></label>
+  <label>Security<select id="ib-sec">${o([["ssl","SSL/TLS"],["starttls","STARTTLS"]],i.security)}</select></label>
+  <label>Folder<input id="ib-folder" value="${esc(i.folder||"INBOX")}"></label>
+  <label>Read<select id="ib-unread">${o([["1","only unread mail"],["0","all mail in the folder"]],i.only_unread?"1":"0")}</select></label>
+  <label>First read goes back (days)<input id="ib-since" type="number" min="1" max="365" value="${esc(i.since_days||7)}"></label>
+  <label>After reading<select id="ib-after">${o([["mark_read","mark as read"],["move","move to a folder"],["leave","leave as it is"]],i.after)}</select></label>
+  <label id="ib-move-l">Move to folder<input id="ib-move" value="${esc(i.move_to||"VENTHORA/Processed")}"></label>
+  <label>Takes<select id="ib-purpose">${o(PURPOSES,i.purpose)}</select></label>
+  <label>Read<select id="ib-sched">${o(Object.entries(IB_SCHED),i.schedule_minutes)}</select></label>
+  <label class="check" style="grid-column:1/-1"><input type="checkbox" id="ib-active" ${i.active!==false?"checked":""}> Active</label>`;
+ const fill=()=>{const p=cfg.presets.find(x=>x.key===$("#ib-provider").value);$("#ib-help").textContent=p.help;
+  if(isNew||!i.host){$("#ib-host").placeholder=p.host||"imap.example.com"}if(isNew){$("#ib-port").value=p.port;$("#ib-sec").value=p.security;$("#ib-auth").value=p.auth}
+  $("#ib-host").required=$("#ib-provider").value==="other";$("#ib-secret-l").textContent=$("#ib-auth").value==="oauth2"?"OAuth 2.0 access token":"App password";$("#ib-move-l").hidden=$("#ib-after").value!=="move"};
+ $("#ib-provider").onchange=fill;$("#ib-auth").onchange=fill;$("#ib-after").onchange=fill;fill();
+ $("#dlg").showModal();
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();const v=k=>$(`#ib-${k}`).value.trim();
+  const address=v("address").toLowerCase();const id=i.inbox_id||address.replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40);
+  const body={address,provider:v("provider"),auth:v("auth"),username:v("user"),secret:$("#ib-secret").value||null,host:v("host"),port:+v("port")||993,security:v("sec"),
+   folder:v("folder")||"INBOX",only_unread:v("unread")==="1",since_days:+v("since")||7,after:v("after"),move_to:v("move")||"VENTHORA/Processed",purpose:v("purpose"),schedule_minutes:+v("sched"),active:$("#ib-active").checked};
+  try{await api(`/v1/settings/email/inboxes/${id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();
+   toast("Inbox saved: press Test to sign in","good");emailView()}catch(e){$("#dlgErr").textContent=e.message}}}
+$("#addInbox").onclick=()=>{if(EMAILCFG)inboxForm(null)};
+$("#polSave").onclick=async()=>{const body={orders_by_email:$("#pol-orders").checked,company_domains:$("#pol-domains").value.split(/[,\s]+/).filter(Boolean),
+  require_authentication:$("#pol-auth").checked,order_tag:$("#pol-tag").value.trim(),flag_unknown_mailbox:$("#pol-unknown").checked};
+ try{await api(`/v1/settings/email/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#polMsg").innerHTML='<span class="pill good">SAVED</span>';emailView()}
+ catch(e){$("#polMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#addBox").onclick=()=>openForm("Add address",BOX_FIELDS(),{purpose:"invoices",provider:"postmark",active:true},"mailboxes",emailView);
 
 // ---- Settings → API access ------------------------------------------------------------------------------------------
 let CAT=null;

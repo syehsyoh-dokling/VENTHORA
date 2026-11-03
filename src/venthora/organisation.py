@@ -120,14 +120,14 @@ class Mailbox(BaseModel):
     """An inbound address the mail service posts to /webhooks/email, and what may arrive there."""
     mailbox_id: str | None = Field(default=None, max_length=40)
     address: str = Field(min_length=3, max_length=200, pattern=r"^[^@\s]+@[^@\s]+$")
-    purpose: Literal["invoices", "claims", "remittances", "any"] = "any"
-    provider: Literal["postmark", "raw"] = "postmark"
+    purpose: Literal["invoices", "claims", "remittances", "payment_orders", "any"] = "any"
+    provider: Literal["postmark", "mailgun", "sendgrid", "cloudflare", "raw", "other"] = "postmark"
     note: str = Field(default="", max_length=200)
     active: bool = True
 
 
 PURPOSE_KINDS = {"invoices": {"supplier_invoice", "contractor_claim", "bank_change"}, "claims": {"expense_claim"},
-                 "remittances": {"remittance_notice"}}
+                 "remittances": {"remittance_notice"}, "payment_orders": {"supplier_invoice", "contractor_claim"}}
 
 
 class User(BaseModel):
@@ -137,6 +137,7 @@ class User(BaseModel):
     role: Role
     unit_id: str
     approval_limit_minor: int = Field(default=0, ge=0, le=10**13)
+    may_order_by_email: bool = Field(default=False, description="may ask VENTHORA to pay a vendor by email (Settings → Email)")
     active: bool = True
 
 

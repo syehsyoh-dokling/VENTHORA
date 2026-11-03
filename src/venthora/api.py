@@ -8,7 +8,7 @@ import hashlib
 import json
 import time
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode
 
@@ -930,6 +930,10 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
     proposals = await reader.read(parsed["text"], parsed["subject"], datetime.fromisoformat(parsed["received_at"]).date(),
                                   model) if model.configured else {}
     req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals)
+    if req.trust == "staff" and not dry_run:
+        order, req = await _email_order(req, raw)
+        if order is not None:
+            return order
     if "po_unknown" in req.flags and req.po_number and not dry_run:
         req = await _po_from_sources(req, raw, fps, proposals)
     req = await _validate_documents(req, raw, model, save=not dry_run)
@@ -1027,16 +1031,31 @@ async def payment_order(body: PaymentOrderIn, role: str = "finance_manager", by:
     registered, the PO must match (pulled from a connected source when VENTHORA does not have it), duplicates are
     refused, attached documents are validated. It always waits for a person other than the one who asked."""
     import base64
-    import uuid
     from email.message import EmailMessage
-
-    from .intake.documents import attachments_of
-    from .intake.models import Attachment
 
     person = next((u for u in app.state.org.list("user") if u.get("active", True)
                    and by.strip().lower() in (u["name"].lower(), u["email"].lower())), None)
     if person is None:
         raise HTTPException(403, f"{by} is not an active person in User management; only people of the organisation may ask for a payment")
+    msg = EmailMessage()  # the attachments as one message, so documents are read and validated like an email's
+    msg["From"] = person["email"]
+    msg["Subject"] = f"Payment order {body.invoice_no.upper()}"
+    msg.set_content(f"Payment order {body.invoice_no.upper()} for {body.vendor_id}. {body.description}")
+    for a in body.attachments:
+        main, _, sub = a.content_type.partition("/")
+        msg.add_attachment(base64.b64decode(a.base64), maintype=main or "application", subtype=sub or "octet-stream", filename=a.name)
+    return await _payment_order_core(body, person, msg, channel="internal", role=role)
+
+
+async def _payment_order_core(body: PaymentOrderIn, person: dict, msg, *, channel: str, role: str,
+                              note: str | None = None) -> IntakeRequest:
+    """One payment order into the queue: registered payee, matching PO (pulled from a source when missing), no
+    duplicate, validated documents, and always a different person to approve it."""
+    import uuid
+
+    from .intake.documents import attachments_of
+    from .intake.models import Attachment
+
     po_id = (body.po_number or "").strip().upper() or None
     pulled = None
     if po_id and app.state.org.get("po", po_id) is None:
@@ -1045,14 +1064,7 @@ async def payment_order(body: PaymentOrderIn, role: str = "finance_manager", by:
             "amount_minor": body.amount_minor, "currency": body.currency.upper(), "due_date": body.due_date,
             "po_number": po_id, "description": body.description}
     req = await asyncio.to_thread(app.state.intake.ingest_record, bill, source=f"internal:{person['user_id']}")
-    msg = EmailMessage()  # the attachments as one message, so documents are read and validated like an email's
-    msg["From"] = person["email"]
-    msg["Subject"] = f"Payment order {bill['invoice_no']}"
-    msg.set_content(f"Payment order {bill['invoice_no']} for {body.vendor_id}. {body.description}")
-    for a in body.attachments:
-        main, _, sub = a.content_type.partition("/")
-        msg.add_attachment(base64.b64decode(a.base64), maintype=main or "application", subtype=sub or "octet-stream", filename=a.name)
-    reasons = [f"internal payment order by {person['name']} ({person['role'].replace('_', ' ')}); a different person approves it"]
+    reasons = [note or f"internal payment order by {person['name']} ({person['role'].replace('_', ' ')}); a different person approves it"]
     if pulled and pulled[0]:
         reasons.append(f"PO {po_id} was not in VENTHORA; pulled from {pulled[0]}")
     elif pulled:
@@ -1065,10 +1077,64 @@ async def payment_order(body: PaymentOrderIn, role: str = "finance_manager", by:
     await asyncio.to_thread(app.state.intake.store.save, req)
     req = await _validate_documents(req, msg.as_bytes(), active_model(), save=True)
     app.state.position_cache = None
-    app.state.hub.publish("intake", {"channel": "internal"} | req.model_dump(include={
+    app.state.hub.publish("intake", {"channel": channel} | req.model_dump(include={
         "intake_id", "kind", "status", "trust", "sender", "counterparty_name", "amount_minor", "currency", "invoice_no", "reader", "flags"}))
-    await asyncio.to_thread(app.state.audit.append, "payment_order", req.model_dump(exclude={"text"}) | {"by": f"{person['name']} ({role})"})
+    await asyncio.to_thread(app.state.audit.append, "payment_order", req.model_dump(exclude={"text"}) | {"by": f"{person['name']} ({role})",
+                                                                                                        "channel": channel})
     return req
+
+
+async def _email_order(req: IntakeRequest, raw: bytes) -> tuple[IntakeRequest | None, IntakeRequest]:
+    """An email from a person of the organisation that asks to pay a registered vendor (it names the vendor, an
+    invoice and an amount) becomes a payment order, when Settings → Email allows it and the person is ticked
+    "may order vendor payments by email". It never pays by itself: a different person approves it. Returns the
+    (order, the email's own request); order is None when the email is not an order or may not be one, and the
+    request then says why."""
+    from email import policy as _policy
+    from email.parser import BytesParser
+
+    from .email_settings import EmailStore
+    from .intake.claims import employee
+    from .procurement import find_po
+
+    claimed = app.state.intake.registry.claimed(req.subject, req.text or "")
+    if not claimed or claimed[2] == "payer" or not (req.amount_minor and req.currency):
+        return None, req  # not an order to pay a vendor
+    cid, rec, _ = claimed
+    person = employee(app.state.org, req.sender)
+    pol = await asyncio.to_thread(EmailStore().policy)
+    domain = req.sender.rsplit("@", 1)[-1].lower()
+    passes = [k for k, v in (req.authentication or {}).items() if str(v).lower() == "pass"]
+    refuse = None
+    if not pol["orders_by_email"]:
+        refuse = "payment orders by email are turned off (Settings → Email)"
+    elif person is None or not person.get("may_order_by_email"):
+        refuse = f"{req.sender} may not order vendor payments by email (User management → may order vendor payments by email)"
+    elif pol["company_domains"] and domain not in pol["company_domains"]:
+        refuse = f"{domain} is not a company domain ({', '.join(pol['company_domains'])})"
+    elif pol["require_authentication"] and not passes:
+        refuse = "the receiving server did not authenticate the sender (no SPF, DKIM or DMARC pass)"
+    elif pol["order_tag"] and pol["order_tag"].lower() not in (req.subject or "").lower():
+        refuse = f"the subject does not carry {pol['order_tag']}"
+    elif not req.invoice_no:
+        refuse = "an order must name the invoice or reference to pay"
+    if refuse:
+        out = req.model_copy(update={"flags": [*req.flags, "email_order_refused"], "status": "NEEDS_REVIEW" if req.status == "VERIFIED" else req.status,
+                                     "reasons": [*req.reasons, f"asks to pay {rec['name']}, but {refuse}"]})
+        await asyncio.to_thread(app.state.intake.store.save, out)
+        return None, out
+    po = find_po(req.text or "", req.subject or "")  # the same reading as an emailed invoice
+    terms = int(app.state.org.standards().get("default_payment_terms_days", 30))
+    due = req.due_date or (datetime.now(UTC).date() + timedelta(days=terms)).isoformat()
+    body = PaymentOrderIn(vendor_id=cid, invoice_no=req.invoice_no, amount_minor=req.amount_minor, currency=req.currency, due_date=due,
+                          po_number=po[0] if po else None, description=(req.subject or "")[:300])
+    msg = BytesParser(policy=_policy.default).parsebytes(raw)
+    order = await _payment_order_core(body, person, msg, channel="email", role=person["role"],
+                                      note=f"payment order by email from {person['name']} ({person['role'].replace('_', ' ')}); a different person approves it")
+    original = req.model_copy(update={"status": "DUPLICATE", "duplicate_of": order.intake_id, "flags": [*req.flags, "became_payment_order"],
+                                      "reasons": [*req.reasons, f"became payment order {order.invoice_no} ({order.intake_id})"]})
+    await asyncio.to_thread(app.state.intake.store.save, original)
+    return order, original
 
 
 @app.post("/webhooks/email")
@@ -1087,6 +1153,7 @@ async def inbound_email(request: Request):
         password = base64.b64decode(auth[6:]).decode().split(":", 1)[1] if auth.lower().startswith("basic ") else ""
     except (ValueError, IndexError):
         password = ""
+    password = password or request.headers.get("x-venthora-secret", "")  # a Worker or script that sets a header
     if not hmac.compare_digest(password.encode(), secret.encode()):
         await asyncio.to_thread(app.state.audit.append, "inbound_email_refused", {"reason": "bad credentials"})
         raise HTTPException(401, "bad credentials", headers={"WWW-Authenticate": "Basic"})
@@ -1099,6 +1166,8 @@ async def inbound_email(request: Request):
             from .intake.documents import postmark_to_eml
 
             raw = postmark_to_eml(json.loads(body))
+        elif ctype == "multipart/form-data":  # SendGrid Inbound Parse (raw) sends "email"; Mailgun /mime sends "body-mime"
+            raw = _form_field(request.headers.get("content-type", ""), body, ("email", "body-mime"))
         else:
             raw = body
     except (ValueError, TypeError) as exc:
@@ -1108,7 +1177,25 @@ async def inbound_email(request: Request):
     return {"intake_id": req.intake_id, "kind": req.kind, "status": req.status}
 
 
-def _route_mailbox(req: IntakeRequest, raw: bytes) -> IntakeRequest:
+# Mailgun sends the full message (body-mime) only to a URL that ends in "mime"
+app.add_api_route("/webhooks/email/mime", inbound_email, methods=["POST"], name="inbound_email_mime")
+
+
+def _form_field(content_type: str, body: bytes, names: tuple[str, ...]) -> bytes:
+    """One field of a multipart/form-data body, read with the standard email parser (no extra library)."""
+    from email import policy
+    from email.parser import BytesParser
+
+    form = BytesParser(policy=policy.default).parsebytes(b"Content-Type: " + content_type.encode() + b"\r\n\r\n" + body)
+    fields = {p.get_param("name", header="content-disposition"): p for p in form.iter_parts()} if form.is_multipart() else {}
+    for n in names:
+        if n in fields:
+            got = fields[n].get_payload(decode=True)
+            return got if got is not None else str(fields[n].get_payload()).encode()
+    raise ValueError(f"no {' or '.join(names)} field in the form")
+
+
+def _route_mailbox(req: IntakeRequest, raw: bytes, inboxes: list[dict] | None = None) -> IntakeRequest:
     """Settings → Email sources: which inbound address the email was sent to, and whether it belongs there
     (an invoice sent to the claims address waits for a person). No configured mailboxes: nothing changes."""
     from email import policy
@@ -1117,14 +1204,20 @@ def _route_mailbox(req: IntakeRequest, raw: bytes) -> IntakeRequest:
 
     from .organisation import PURPOSE_KINDS
 
-    boxes = [m for m in app.state.org.list("mailbox") if m.get("active", True)]
+    inboxes = inboxes or []  # an inbox VENTHORA read: the mail is there, whatever its To says
+
+    boxes = [m for m in app.state.org.list("mailbox") if m.get("active", True)] + inboxes
     if not boxes:
         return req
     msg = BytesParser(policy=policy.default).parsebytes(raw, headersonly=True)
     to = {a.lower() for _, a in getaddresses(msg.get_all("To", []) + msg.get_all("Cc", []) + msg.get_all("Delivered-To", []))}
-    box = next((m for m in boxes if m["address"] in to), None)
+    box = next((m for m in boxes if m["address"].lower() in to), None) or (inboxes[0] if inboxes else None)
     flags, reasons, status = list(req.flags), list(req.reasons), req.status
     if box is None:
+        from .email_settings import EmailStore
+
+        if not EmailStore().policy()["flag_unknown_mailbox"]:  # Settings → Email: the person chose not to flag it
+            return req
         flags.append("unknown_mailbox")
         reasons.append("sent to an address that is not one of the configured mailboxes: " + ", ".join(sorted(to)[:3]))
     elif box["purpose"] != "any" and req.kind != "unknown" and req.kind not in PURPOSE_KINDS[box["purpose"]]:
@@ -1135,6 +1228,118 @@ def _route_mailbox(req: IntakeRequest, raw: bytes) -> IntakeRequest:
     out = req.model_copy(update={"mailbox": box["address"] if box else None, "flags": flags, "reasons": reasons, "status": status})
     app.state.intake.store.save(out)
     return out
+
+
+# ---- Settings → Email: how mail reaches VENTHORA, who may send what, the inboxes VENTHORA reads ----
+@app.get("/v1/settings/email")
+async def email_settings_get():
+    """The policy, the inboxes VENTHORA reads (secrets never returned), the providers to pick from, and the push address."""
+    from .email_settings import PRESETS, PUSH_PROVIDERS, EmailStore
+
+    store = EmailStore()
+    users = [{"user_id": u["user_id"], "name": u["name"], "email": u["email"], "role": u["role"], "may_order_by_email": bool(u.get("may_order_by_email"))}
+             for u in app.state.org.list("user") if u.get("active", True)]
+    vendors = sum(1 for _, r in app.state.intake.registry.payees.items() if r.get("contacts"))
+    return {"policy": await asyncio.to_thread(store.policy), "inboxes": await asyncio.to_thread(store.inboxes),
+            "presets": [{"key": k} | v for k, v in PRESETS.items()], "push_providers": [{"key": k} | v for k, v in PUSH_PROVIDERS.items()],
+            "push": {"path": "/webhooks/email", "secret_configured": bool(env("VENTHORA_INBOUND_EMAIL_SECRET"))},
+            "senders": {"staff": users, "vendors_with_mailboxes": vendors}}
+
+
+@app.put("/v1/settings/email/policy")
+async def email_policy_put(body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    from .email_settings import EmailPolicy, EmailStore
+
+    who = _writer(role, by)
+    try:
+        pol = EmailPolicy.model_validate(body)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    out = await asyncio.to_thread(EmailStore().save_policy, pol, who)
+    await asyncio.to_thread(app.state.audit.append, "email_policy_saved", {"by": who} | out)
+    return out
+
+
+@app.put("/v1/settings/email/inboxes/{inbox_id}")
+async def email_inbox_put(inbox_id: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    """Connect or change an inbox VENTHORA reads; the password or token is write-only (blank keeps the saved one)."""
+    from .email_settings import EmailStore, Inbox
+
+    who = _writer(role, by)
+    try:
+        ib = Inbox.model_validate(body | {"inbox_id": inbox_id})
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    out = await asyncio.to_thread(EmailStore().save_inbox, ib)
+    await asyncio.to_thread(app.state.audit.append, "email_inbox_saved", {"by": who, "inbox": inbox_id, "address": ib.address,
+                                                                          "provider": ib.provider, "host": out["resolved"]["host"]})
+    return out
+
+
+@app.delete("/v1/settings/email/inboxes/{inbox_id}")
+async def email_inbox_delete(inbox_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    from .email_settings import EmailStore
+
+    who = _writer(role, by)
+    if not await asyncio.to_thread(EmailStore().delete_inbox, inbox_id):
+        raise HTTPException(404, "no such inbox")
+    await asyncio.to_thread(app.state.audit.append, "email_inbox_deleted", {"by": who, "inbox": inbox_id})
+    return {"deleted": inbox_id}
+
+
+@app.post("/v1/settings/email/inboxes/{inbox_id}/test")
+async def email_inbox_test(inbox_id: str):
+    """Sign in and open the folder: how many messages and how many unread. Nothing is read or changed."""
+    from .email_settings import EmailStore, MailboxError, test_inbox
+
+    raw = await asyncio.to_thread(EmailStore().raw, inbox_id)
+    if raw is None:
+        raise HTTPException(404, "no such inbox")
+    try:
+        return await asyncio.to_thread(test_inbox, raw)
+    except MailboxError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.post("/v1/settings/email/inboxes/{inbox_id}/fetch")
+async def email_inbox_fetch(inbox_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Read the new mail of an inbox now, instead of waiting for its schedule."""
+    from .email_settings import EmailStore
+
+    who = _writer(role, by)
+    if await asyncio.to_thread(EmailStore().raw, inbox_id) is None:
+        raise HTTPException(404, "no such inbox")
+    return await _poll_inbox(inbox_id, who)
+
+
+async def _poll_inbox(inbox_id: str, who: str) -> dict:
+    """New mail of one inbox through the intake, then marked read, moved or left, as the inbox says."""
+    from .email_settings import EmailStore, MailboxError, fetch_new, finish
+
+    store = EmailStore()
+    raw = await asyncio.to_thread(store.raw, inbox_id)
+    report: dict = {"fetched": 0, "queued": [], "error": None}
+    try:
+        msgs = await asyncio.to_thread(fetch_new, raw, await asyncio.to_thread(store.seen, inbox_id))
+        report["fetched"] = len(msgs)
+        done = []
+        for uid, mid, body in msgs:
+            try:
+                req = await _ingest(body, None, False, channel="inbox")
+                req = await asyncio.to_thread(_route_mailbox, req, body, [{"address": raw["address"], "purpose": raw["purpose"]}])
+                report["queued"].append({"intake_id": req.intake_id, "kind": req.kind, "status": req.status, "sender": req.sender,
+                                         "subject": (req.subject or "")[:80]})
+                await asyncio.to_thread(store.mark_seen, inbox_id, mid, req.intake_id)
+                done.append(uid)
+            except HTTPException as exc:  # one bad message does not stop the rest; it is read again next time
+                report.setdefault("skipped", []).append(f"{mid}: {exc.detail}")
+        await asyncio.to_thread(finish, raw, done)
+    except MailboxError as exc:
+        report["error"] = str(exc)
+    await asyncio.to_thread(store.record_poll, inbox_id, report)
+    if report["queued"]:
+        await asyncio.to_thread(app.state.audit.append, "email_inbox_read", {"by": who, "inbox": inbox_id, "queued": len(report["queued"])})
+    return report
 
 
 # -- ground truth ------------------------------------------------------------------------------
@@ -1825,7 +2030,8 @@ async def _push_connector(connector_id: str, dry_run: bool, item: str | None, wh
 
 
 async def _sync_scheduler(every_s: float = 60.0) -> None:
-    """Every connector with a schedule is read and written back on time: schedule_minutes=1 is every minute."""
+    """Every connector with a schedule is read and written back on time (schedule_minutes=1 is every minute), and
+    every inbox VENTHORA reads is read on its own schedule."""
     from .connectors import ConnectorStore
 
     while True:
@@ -1838,6 +2044,15 @@ async def _sync_scheduler(every_s: float = 60.0) -> None:
                 if minutes and (last is None or (now - last).total_seconds() >= minutes * 60 - 5):
                     await _sync_connector(c["connector_id"], False, None, "scheduler (sync)")
                     await _push_connector(c["connector_id"], False, None, "scheduler (sync)")
+        with contextlib.suppress(Exception):
+            from .email_settings import EmailStore
+
+            now = datetime.now(UTC)
+            for ib in await asyncio.to_thread(EmailStore().inboxes):
+                minutes = ib.get("schedule_minutes") or 0
+                last = datetime.fromisoformat(ib["last_poll_at"]) if ib.get("last_poll_at") else None
+                if ib.get("active", True) and minutes and (last is None or (now - last).total_seconds() >= minutes * 60 - 5):
+                    await _poll_inbox(ib["inbox_id"], "scheduler (email)")
 
 
 @app.post("/demo/legacy-erp/inbox/{item}", include_in_schema=False)

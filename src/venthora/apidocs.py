@@ -150,6 +150,12 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("GET", "/v1/airwallex/connection"): ("Airwallex connection", "Which Airwallex account VENTHORA works on; secrets are never returned."),
     ("PUT", "/v1/airwallex/connection"): ("Connect Airwallex", "Save and test Airwallex credentials."),
     ("DELETE", "/v1/airwallex/connection"): ("Disconnect Airwallex", "Forget the saved account; VENTHORA falls back to the server's configured credentials."),
+    ("GET", "/v1/settings/email"): ("Get email settings", "Who may send what, the inboxes VENTHORA reads (secrets never returned), the mail providers to pick from, and the push address."),
+    ("PUT", "/v1/settings/email/policy"): ("Set the email policy", "Payment orders by email on or off, company domains, sender authentication and the subject tag."),
+    ("PUT", "/v1/settings/email/inboxes/{inbox_id}"): ("Connect an inbox", "An IMAP mailbox VENTHORA reads on a schedule: provider preset or any server, app password or OAuth 2.0 token, folder and what to do after reading."),
+    ("DELETE", "/v1/settings/email/inboxes/{inbox_id}"): ("Remove an inbox", "VENTHORA stops reading it; what was read stays in the queue."),
+    ("POST", "/v1/settings/email/inboxes/{inbox_id}/test"): ("Test an inbox", "Sign in and open the folder: messages and unread; nothing is read or changed."),
+    ("POST", "/v1/settings/email/inboxes/{inbox_id}/fetch"): ("Read an inbox now", "Read the new mail now instead of waiting for the schedule."),
     ("GET", "/v1/settings/ai"): ("Get AI model settings", "The model in use and which provider keys are set; secrets are never returned."),
     ("PUT", "/v1/settings/ai"): ("Set the AI model", "Choose rules only, a self-hosted model or a provider."),
     ("PUT", "/v1/settings/ai/keys/{provider}"): ("Save a provider key", "Keep a provider's API key and preferred model in the vault."),
@@ -158,7 +164,8 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("POST", "/v1/settings/ai/test"): ("Test the AI model", "One short request to the chosen model, to prove the address, key and model."),
     # inbound
     ("POST", "/webhooks/airwallex"): ("Airwallex webhook", "Airwallex pushes deposit, transfer and conversion status changes here, signed with the webhook secret."),
-    ("POST", "/webhooks/email"): ("Inbound email webhook", "The mail service pushes invoices and claims emailed to the company's inbound address."),
+    ("POST", "/webhooks/email"): ("Inbound email webhook", "A mail service pushes each email sent to the company's VENTHORA address: Postmark JSON, the raw message, or a multipart form (SendGrid, Mailgun); basic auth or X-Venthora-Secret."),
+    ("POST", "/webhooks/email/mime"): ("Inbound email webhook (Mailgun)", "The same, at the URL Mailgun needs to post the full message (body-mime)."),
 }
 
 
