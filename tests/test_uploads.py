@@ -126,18 +126,18 @@ def test_a_constant_fills_a_column_the_file_lacks(client):
     assert client.get("/v1/sources/master/customer").json()[0]["currency"] == "USD"
 
 
-def test_the_checklist_says_what_one_flow_needs(client):
+def test_the_checklist_judges_platform_setup_only(client):
     r = client.get("/v1/sources/readiness").json()
     items = {i["name"]: i for i in r["items"]}
     assert all(i["state"] in ("done", "required", "optional") and i["need"] in ("required", "optional") and i["fix"].startswith("#/") for i in r["items"])
     assert all(i["todo"] for i in r["items"] if i["state"] != "done") and all(not i["todo"] for i in r["items"] if i["state"] == "done")
     cred = items["Airwallex sandbox credentials"]  # no bank in a test: red, with what to do and where
     assert (cred["state"], cred["need"], cred["fix"]) == ("required", "required", "#/airwallex") and "client ID" in cred["todo"]
-    assert items["Money in the Airwallex wallet"]["state"] == "required"
+    # transactions are judged on their own pages, not here
+    assert not {"Money in the Airwallex wallet", "A verified payee", "Purchase orders", "Open bills (AP)", "Receivables (AR)"} & set(items)
+    assert not any(n.startswith("Budget for ") for n in items)
     assert items["AI model"]["need"] == "optional" and items["AI model"]["state"] in ("done", "optional")  # never red
     assert items["Customers"]["state"] in ("done", "optional")
-    assert items["Someone to approve, other than who asks"]["state"] == "done"  # the seed has approvers
-    assert items["A way for payment requests to arrive"]["state"] == "done" and "payment orders from the dashboard" in items["A way for payment requests to arrive"]["detail"]
+    assert items["An approver other than who asks"]["state"] == "done"  # the seed has approvers
+    assert items["A channel for payment requests"]["state"] == "done" and "payment orders from the dashboard" in items["A channel for payment requests"]["detail"]
     assert r["ready"] is False and r["states"]["required"] == sum(1 for i in r["items"] if i["state"] == "required")
-    po = items["Purchase orders"]
-    assert po["need"] == "required" and "require a PO" in po["todo"] or po["state"] == "done"  # Finance standards require a PO

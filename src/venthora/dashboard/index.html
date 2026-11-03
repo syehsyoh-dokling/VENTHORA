@@ -490,7 +490,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
 
  <section class="span12" data-view="readiness">
-  <h2><span>Setup checklist</span><span class="small muted" id="readyMeta">what VENTHORA needs to run on real data instead of placeholders</span></h2>
+  <h2><span>Setup checklist</span><span class="small muted" id="readyMeta">platform setup: what must be configured before VENTHORA can run</span></h2>
   <div id="readyList" class="empty">loading…</div>
  </section>
 
@@ -1434,13 +1434,13 @@ $("#newOrder").onclick=async()=>{const sup=await suppliers();let pos=[];try{pos=
    toast(`Payment order ${esc(r.invoice_no)}: ${esc(r.status.toLowerCase().replace("_"," "))}`,r.status==="NEEDS_REVIEW"?"warn":"serious");intake()}catch(e){$("#dlgErr").textContent=e.message}}};
 
 // ---- Settings → data sources ---------------------------------------------------------------------------------------
-// green: done; red: one payment flow cannot run without it; yellow: optional, still open. Each open item says what to do.
+// green: done; red: the platform cannot run without it; yellow: optional, still open. Each open item says what to do.
 const STATE_TONE={done:"good",required:"critical",optional:"warn"},STATE_WORD={done:"DONE",required:"REQUIRED",optional:"OPTIONAL"};
 async function readinessView(){try{const r=await api("/v1/sources/readiness");const groups={};r.items.forEach(i=>(groups[i.group]=groups[i.group]||[]).push(i));
  $("#readyMeta").innerHTML=`<span class="pill good">${r.states.done} done</span> <span class="pill critical">${r.states.required} required to do</span> <span class="pill warn">${r.states.optional} optional open</span>`;
  $("#cnt-ready").textContent=r.states.required||"";
- const banner=r.ready?`<div class="tile" style="border-color:var(--good,#1a7f4b);margin-bottom:10px"><b>Ready for a payment flow.</b> <span class="small muted">Every required item is done: a request can arrive, be checked, approved by someone else, paid at Airwallex and confirmed.${r.states.optional?` ${r.states.optional} optional item(s) would make it better.`:""}</span></div>`
-  :`<div class="tile" style="border-color:var(--critical,#c62828);margin-bottom:10px"><b>${r.states.required} required item(s) before a payment can run.</b> <span class="small muted">Open each red item below; the link goes where it is set.</span></div>`;
+ const banner=r.ready?`<div class="tile" style="border-color:var(--good,#1a7f4b);margin-bottom:10px"><b>Platform setup complete.</b> <span class="small muted">Every required setting is in place.${r.states.optional?` ${r.states.optional} optional item(s) would make it better.`:""}</span></div>`
+  :`<div class="tile" style="border-color:var(--critical,#c62828);margin-bottom:10px"><b>${r.states.required} required setup item(s) still open.</b> <span class="small muted">Open each red item below; the link goes where it is set.</span></div>`;
  $("#readyList").innerHTML=banner+Object.entries(groups).map(([g,its])=>`<h3 class="small muted" style="margin:14px 0 6px">${esc(g)}</h3>`+table([
   {h:"Status",f:i=>`<span class="pill ${STATE_TONE[i.state]}">${STATE_WORD[i.state]}</span>`},
   {h:"What",f:i=>`<b>${esc(i.name)}</b>${i.need==="optional"?' <span class="small muted">optional</span>':""}${i.status==="placeholder"?' <span class="chip" title="the flow runs on the demo seed or data/*.json">demo data</span>':""}`},
