@@ -1434,12 +1434,18 @@ $("#newOrder").onclick=async()=>{const sup=await suppliers();let pos=[];try{pos=
    toast(`Payment order ${esc(r.invoice_no)}: ${esc(r.status.toLowerCase().replace("_"," "))}`,r.status==="NEEDS_REVIEW"?"warn":"serious");intake()}catch(e){$("#dlgErr").textContent=e.message}}};
 
 // ---- Settings → data sources ---------------------------------------------------------------------------------------
-const READY_TONE={ok:"good",placeholder:"warn",missing:"critical"};
+// green: done; red: one payment flow cannot run without it; yellow: optional, still open. Each open item says what to do.
+const STATE_TONE={done:"good",required:"critical",optional:"warn"},STATE_WORD={done:"DONE",required:"REQUIRED",optional:"OPTIONAL"};
 async function readinessView(){try{const r=await api("/v1/sources/readiness");const groups={};r.items.forEach(i=>(groups[i.group]=groups[i.group]||[]).push(i));
- $("#readyMeta").innerHTML=`<span class="pill good">${r.summary.ok} real</span> <span class="pill warn">${r.summary.placeholder} placeholder</span> <span class="pill critical">${r.summary.missing} missing</span>`;
- $("#cnt-ready").textContent=(r.summary.missing+r.summary.placeholder)||"";
- $("#readyList").innerHTML=Object.entries(groups).map(([g,its])=>`<h3 class="small muted" style="margin:14px 0 6px">${esc(g)}</h3>`+table([{h:"Status",f:i=>`<span class="pill ${READY_TONE[i.status]}">${esc(i.status==="ok"?"REAL":i.status.toUpperCase())}</span>`},
-  {h:"What",f:i=>`<b>${esc(i.name)}</b>`},{h:"Where it comes from",f:i=>`<span class="small">${esc(i.detail)}</span>`},{h:"",f:i=>`<a href="${esc(i.fix)}">Fix ›</a>`}],its)).join("")}
+ $("#readyMeta").innerHTML=`<span class="pill good">${r.states.done} done</span> <span class="pill critical">${r.states.required} required to do</span> <span class="pill warn">${r.states.optional} optional open</span>`;
+ $("#cnt-ready").textContent=r.states.required||"";
+ const banner=r.ready?`<div class="tile" style="border-color:var(--good,#1a7f4b);margin-bottom:10px"><b>Ready for a payment flow.</b> <span class="small muted">Every required item is done: a request can arrive, be checked, approved by someone else, paid at Airwallex and confirmed.${r.states.optional?` ${r.states.optional} optional item(s) would make it better.`:""}</span></div>`
+  :`<div class="tile" style="border-color:var(--critical,#c62828);margin-bottom:10px"><b>${r.states.required} required item(s) before a payment can run.</b> <span class="small muted">Open each red item below; the link goes where it is set.</span></div>`;
+ $("#readyList").innerHTML=banner+Object.entries(groups).map(([g,its])=>`<h3 class="small muted" style="margin:14px 0 6px">${esc(g)}</h3>`+table([
+  {h:"Status",f:i=>`<span class="pill ${STATE_TONE[i.state]}">${STATE_WORD[i.state]}</span>`},
+  {h:"What",f:i=>`<b>${esc(i.name)}</b>${i.need==="optional"?' <span class="small muted">optional</span>':""}${i.status==="placeholder"?' <span class="chip" title="the flow runs on the demo seed or data/*.json">demo data</span>':""}`},
+  {h:"Now",f:i=>`<span class="small">${esc(i.detail)}</span>${i.todo?`<div class="small ${i.state==="required"?"err":"muted"}" style="margin-top:3px">${esc(i.todo)}</div>`:""}`},
+  {h:"",f:i=>`<a href="${esc(i.fix)}" style="white-space:nowrap">${i.state==="done"?"Open ›":i.state==="required"?"<b>Fix ›</b>":"Set up ›"}</a>`}],its)).join("")}
  catch(e){$("#readyList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 
 const ENT_LABEL={vendor:"Vendors",customer:"Customers",po:"Purchase orders",bill:"Open bills",receivable:"Receivables",budget_line:"Budget lines",tenant_book:"Tenant books"};

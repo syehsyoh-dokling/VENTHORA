@@ -2187,8 +2187,12 @@ async def upload_commit(upload_id: str, req: UploadMapping, role: str = "finance
 
 @app.get("/v1/sources/readiness")
 async def readiness():
-    """Every setting and data set VENTHORA needs, and whether it is real (from the company: sync, upload or a person),
-    still a placeholder (the demo seed or the data/*.json files), or missing; with where to fix it."""
+    """What one payment flow needs (a request arrives, is checked, approved by someone else, paid at Airwallex and
+    confirmed) and what only makes it better. Each item says whether it is done, still required, or optional and
+    open, what to do, and where; `status` also tells real data (from the company) from a placeholder (the demo
+    seed or the data/*.json files)."""
+    from .email_settings import EmailStore
+    from .intake.claims import APPROVER_ROLES
     from .masterdata import MasterStore
     from .reporting import load_config
 
@@ -2206,54 +2210,122 @@ async def readiness():
 
     items = []
 
-    def add(group, name, status, detail, fix):
-        items.append({"group": group, "name": name, "status": status, "detail": detail, "fix": fix})
+    def add(group, name, status, detail, fix, *, need="required", todo=""):
+        """status: ok (real) / placeholder (demo data, the flow runs on it) / missing."""
+        state = "done" if status == "ok" else ("required" if need == "required" and status == "missing" else "optional")
+        items.append({"group": group, "name": name, "status": status, "need": need, "state": state, "detail": detail,
+                      "todo": "" if state == "done" else todo, "fix": fix})
 
+    # 1. connections: the bank, its confirmations, the AI reader
     bank = app.state.agent.proof.airwallex
     add("Connections", "Airwallex sandbox credentials", "ok" if bank.configured else "missing",
-        "AWX_CLIENT_ID / AWX_API_KEY in .env" if bank.configured else "set AWX_CLIENT_ID and AWX_API_KEY in .env", "#/integrations")
+        "AWX_CLIENT_ID / AWX_API_KEY in .env" if bank.configured else "not set", "#/airwallex",
+        todo="Connect the Airwallex account (client ID and API key); without it nothing can be paid.")
     add("Connections", "Airwallex webhooks", "ok" if webhooks.secret() else "missing",
-        "secret set; subscribe with scripts/register_webhook.py" if webhooks.secret() else "run scripts/register_webhook.py with the tunnel URL", "#/integrations")
-    boxes = [m for m in org.list("mailbox") if m.get("active", True)]
-    inbound = bool(env("VENTHORA_INBOUND_EMAIL_SECRET"))
-    add("Connections", "Inbound email", "ok" if inbound and boxes else ("placeholder" if inbound else "missing"),
-        (f"{len(boxes)} mailbox(es): " + ", ".join(m["address"] for m in boxes[:3])) if boxes else
-        ("secret set, no mailbox configured yet" if inbound else "set VENTHORA_INBOUND_EMAIL_SECRET and add a mailbox"), "#/sources-email")
+        "secret set; subscribe with scripts/register_webhook.py" if webhooks.secret() else "no webhook secret", "#/integrations",
+        todo="Set the webhook secret and subscribe the tunnel URL, so a payment is confirmed PAID the moment Airwallex says so.")
     m = active_model()
-    add("Connections", "AI model (optional)", "ok", ai_settings.describe(m) if m.configured else "rules only: the deterministic readers decide", "#/ai")
+    add("Connections", "AI model", "ok" if m.configured else "missing", ai_settings.describe(m) if m.configured else "rules only",
+        "#/ai", need="optional", todo="Optional: a model reads invoices and PDFs better; the rules decide without one.")
+
+    # 2. money and payees: something to pay from, someone verified to pay
+    balance = None
+    if bank.configured:
+        with contextlib.suppress(Exception):  # a slow or failing bank leaves the item open, never the page
+            bal = await asyncio.wait_for(bank.balances_minor(), 8)
+            balance = {c: v for c, v in bal.items() if v > 0}
+    add("Money and payees", "Money in the Airwallex wallet", "ok" if balance else "missing",
+        (", ".join(f"{c} {v / 100:,.2f}" for c, v in sorted(balance.items())[:4]) + (" …" if len(balance) > 4 else "")) if balance
+        else ("could not read the balance" if bank.configured and balance is None else "no balance above zero"), "#/receiving",
+        todo="Top up the wallet (a deposit to a collection account, or on the sandbox Simulate deposit); a payment needs funds.")
     n_vendor_real, n_payees = real("vendor"), len(reg.payees)
     payable = sum(1 for p in store.list_payees() if p["status"] in ("VERIFIED", "ACTIVE"))
-    add("Master data", "Vendors and bank details", "ok" if n_vendor_real else "placeholder",
-        f"{n_payees} vendors ({n_vendor_real} from the company's data, {n_payees - n_vendor_real} from data/payees.json); {payable} verified and payable",
-        "#/sources-sync")
-    add("Master data", "Customers", "ok" if real("customer") else "placeholder",
-        f"{len(reg.payers)} customers ({real('customer')} from the company's data)", "#/sources-sync")
+    add("Money and payees", "Vendors and bank details", "ok" if n_vendor_real else ("placeholder" if n_payees else "missing"),
+        f"{n_payees} vendors ({n_vendor_real} from the company's data, {n_payees - n_vendor_real} from data/payees.json)", "#/sources-sync",
+        todo="Bring in the vendors with their bank details: Sync API, an upload, or by hand." if not n_payees else
+        "The flow runs on the demo vendors; sync or upload your own to replace them.")
+    add("Money and payees", "A verified payee", "ok" if payable else "missing", f"{payable} payee(s) verified and payable", "#/payees",
+        todo="Verify a payee: confirm its bank details by a call-back on the registered number, then press Verify.")
+
+    # 3. requests and approval: a way in, and a second person
+    people = [u for u in org.list("user") if u.get("active", True)]
+    approvers = [u for u in people if u["role"] in APPROVER_ROLES]
+    two = len(people) >= 2 and bool(approvers)
+    add("Requests and approval", "Someone to approve, other than who asks", "ok" if two else "missing",
+        f"{len(people)} active people, {len(approvers)} who may approve ({', '.join(u['name'] for u in approvers[:3])})" if people else "no person yet",
+        "#/users", todo="Add at least two active people, one of them a finance manager, country finance lead or CFO: "
+                        "nobody approves their own request.")
+    boxes = [b for b in org.list("mailbox") if b.get("active", True)]
+    inboxes = [i for i in await asyncio.to_thread(EmailStore().inboxes) if i.get("active", True) and i.get("secret_set")]
+    push_ok = bool(env("VENTHORA_INBOUND_EMAIL_SECRET")) and bool(boxes)
+    from .connectors import ConnectorStore
+
+    bills_by_api = [c["name"] for c in ConnectorStore().list() if (c.get("entities", {}).get("bill") or {}).get("enabled")]
+    ways = (["email pushed to " + ", ".join(b["address"] for b in boxes[:2])] if push_ok else []) + \
+           ([f"{len(inboxes)} inbox(es) VENTHORA reads"] if inboxes else []) + ([f"bills from {', '.join(bills_by_api[:2])}"] if bills_by_api else []) + \
+           (["payment orders from the dashboard"] if people else [])
+    add("Requests and approval", "A way for payment requests to arrive", "ok" if ways else "missing", "; ".join(ways) or "none",
+        "#/sources-email", todo="Connect an inbox or a mail service, sync bills from the finance application, or add people "
+                                "who can enter payment orders.")
+    add("Requests and approval", "Email intake", "ok" if push_ok or inboxes else "missing",
+        "; ".join([f"{len(boxes)} pushed address(es)"] * bool(push_ok) + [f"{len(inboxes)} inbox(es)"] * bool(inboxes)) or "not connected",
+        "#/sources-email", need="optional", todo="Optional: let suppliers email invoices (a mail service or an inbox VENTHORA reads).")
+    rules = (await doc_rules_get())["rules"]
+    add("Requests and approval", "Document validation", "ok" if rules.get("enabled") else "missing",
+        "on: required documents, dates and stamps are checked" if rules.get("enabled") else "off", "#/doc-rules", need="optional",
+        todo="Optional: check that every invoice comes with its required documents, sensible dates and a stamp.")
+
+    # 4. master data
+    std = org.standards()
     po_real, po_all = org_real("po")
-    add("Master data", "Purchase orders", "ok" if po_real else "placeholder", f"{po_all} POs ({po_real} not from the demo seed)", "#/pos")
+    po_need = "required" if std.get("require_po") else "optional"
+    add("Master data", "Purchase orders", "ok" if po_real else ("placeholder" if po_all else "missing"),
+        f"{po_all} POs ({po_real} not from the demo seed)" + ("; Finance standards require a PO for every supplier invoice" if po_need == "required" else ""),
+        "#/pos", need=po_need, todo="Add or sync purchase orders (supplier invoices are paid only against an open PO), "
+                                    "or turn off \"require a PO\" in Finance standards.")
+    add("Master data", "Customers", "ok" if real("customer") else "placeholder",
+        f"{len(reg.payers)} customers ({real('customer')} from the company's data)", "#/sources-sync", need="optional",
+        todo="Optional: customers, to match money that arrives to who sent it.")
     add("Master data", "Open bills (AP)", "ok" if real("bill") else "placeholder",
-        f"{real('bill')} from the company's system; the rest arrive by email", "#/sources-sync")
+        f"{real('bill')} from the company's system; the rest arrive by email", "#/sources-sync", need="optional",
+        todo="Optional: sync open bills so nothing has to arrive by email first.")
     add("Master data", "Receivables (AR)", "ok" if real("receivable") else "placeholder",
-        f"{real('receivable')} open customer invoices from the company's system", "#/sources-sync")
+        f"{real('receivable')} open customer invoices from the company's system", "#/sources-sync", need="optional",
+        todo="Optional: receivables, for the cash forecast and aging.")
+
+    # 5. plan and policy
+    pol = org.budget_policy()
+    limited = pol["enforcement"] != "no_limit"
     period = datetime.now(UTC).strftime("%Y-%m")
     lines = [ln for ln in master.list("budget_line") if ln["period"] == period]
+    allocs = len(org.list("allocation"))
+    add("Plan and policy", "Budget allocation", "ok" if (not limited or allocs) else "missing",
+        "No limit: every unit pays from the balance" if not limited else f"Limited per allocation, {allocs} allocations", "#/budget-policy",
+        need="required" if limited else "optional", todo="Budgets are enforced but none is allocated: allocate a budget, or choose No limit.")
     add("Plan and policy", f"Budget for {period}", "ok" if lines else "placeholder",
-        f"{len(lines)} lines synced or uploaded" if lines else "data/budgets.json (demo lines)", "#/sources-upload")
+        f"{len(lines)} lines synced or uploaded" if lines else "data/budgets.json (demo lines)", "#/sources-upload", need="optional",
+        todo="Optional: this month's budget lines, synced or uploaded.")
     add("Plan and policy", "Tenant books", "ok" if real("tenant_book") else "placeholder",
-        f"{real('tenant_book')} books from the company's data; the rest from data/tenants.json", "#/mandate")
+        f"{real('tenant_book')} books from the company's data; the rest from data/tenants.json", "#/mandate", need="optional",
+        todo="Optional: which entity each book belongs to, its payees and approvers.")
     rep = load_config()
     add("Plan and policy", "Reporting cut-off", "ok" if getattr(rep, "set_by", None) not in (None, "", "seed") else "placeholder",
-        f"day {rep.cutoff_day} {rep.cutoff_time} {rep.timezone}, reporting in {rep.reporting_currency}", "#/standards")
-    for kind, label in (("unit", "Organisation units (offices, branches)"), ("user", "People and approval limits"),
-                        ("project", "Projects"), ("account", "Chart of accounts"), ("price", "Unit prices")):
+        f"day {rep.cutoff_day} {rep.cutoff_time} {rep.timezone}, reporting in {rep.reporting_currency}", "#/standards", need="optional",
+        todo="Optional: the defaults work; set your own cut-off day, time and reporting currency.")
+
+    # 6. organisation
+    for kind, label, need in (("unit", "Organisation units (offices, branches)", "required"), ("user", "People and approval limits", "required"),
+                              ("project", "Projects", "optional"), ("account", "Chart of accounts", "optional"), ("price", "Unit prices", "optional")):
         r, a = org_real(kind)
-        add("Organisation", label, "ok" if r else "placeholder",
-            f"{a} records ({r} synced, uploaded or entered by a person; the rest are the demo seed)", "#/sources-sync")
-    pol = org.budget_policy()
-    add("Plan and policy", "Budget allocation", "ok",
-        "No limit: every unit pays from the balance" if pol["enforcement"] == "no_limit"
-        else f"Limited per allocation, {len(org.list('allocation'))} allocations", "#/budget-policy")
+        add("Organisation", label, "ok" if r else ("placeholder" if a else "missing"),
+            f"{a} records ({r} synced, uploaded or entered by a person; the rest are the demo seed)", "#/users" if kind == "user" else "#/sources-sync",
+            need=need, todo=(f"Add {label.lower()}: sync, upload or by hand." if not a else
+                             f"The flow runs on the demo {label.lower()}; sync or upload your own to replace them.")
+            if need == "required" else f"Optional: {label.lower()}, synced or uploaded.")
+
     summary = {s: sum(1 for i in items if i["status"] == s) for s in ("ok", "placeholder", "missing")}
-    return {"summary": summary, "items": items}
+    states = {s: sum(1 for i in items if i["state"] == s) for s in ("done", "required", "optional")}
+    return {"summary": summary, "states": states, "ready": states["required"] == 0, "items": items}
 
 
 @app.get("/v1/sources/runs")
