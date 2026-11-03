@@ -1627,7 +1627,9 @@ $("#su-country").innerHTML=SU_COUNTRIES.map(([c,n])=>`<option value="${c}">${esc
 $("#awxNew").onclick=()=>{const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"✨ Don't have an account yet? Open one here":"Close";
  $("#awxNew").classList.toggle("open",!box.hidden);if(!box.hidden){suList();$("#su-biz").focus()}};
 $("#su-type").onchange=()=>{const biz=$("#su-type").value==="BUSINESS";document.querySelectorAll(".su-biz").forEach(e=>e.hidden=!biz);document.querySelectorAll(".su-ind").forEach(e=>e.hidden=biz)};
-async function suList(){const r=await settle(api("/v1/airwallex/accounts"));if(!r.ok){$("#suList").innerHTML="";return}
+async function suList(expect="",tries=6){const r=await settle(api("/v1/airwallex/accounts"));if(!r.ok){$("#suList").innerHTML="";return}
+ if(expect&&tries>0&&!r.v.items.some(a=>a.id===expect)){if(!r.v.items.length)$("#suList").innerHTML='<div class="small muted">waiting for Airwallex to list the new account…</div>';
+  setTimeout(()=>suList(expect,tries-1),1500);if(!r.v.items.length)return}
  $("#suList").innerHTML=r.v.items.length?`<h3 class="small muted" style="margin:6px 0">Accounts opened from VENTHORA</h3>`+table([{h:"Name",f:a=>`<b>${esc(a.name)}</b><div class="small muted">${esc(a.type||"")} · ${esc(a.country||"")}</div>`},
   {h:"Contact",f:a=>`<span class="small">${esc(a.email||"-")}</span>`},{h:"Status",f:a=>`<span class="pill ${a.status==="ACTIVE"?"good":a.status==="SUSPENDED"?"critical":"warn"}">${esc(a.status||"-")}</span>`},
   {h:"",f:a=>a.status==="CREATED"?`<button data-sub="${esc(a.id)}">Submit for verification</button>`:a.status==="ACTIVE"?`<button class="primary" data-use="${esc(a.id)}">Use this account</button>`:""}],r.v.items):"";
@@ -1637,7 +1639,7 @@ $("#suGo").onclick=async()=>{const biz=$("#su-type").value==="BUSINESS";$("#suMs
  const body={legal_entity_type:$("#su-type").value,business_name:biz?$("#su-biz").value.trim():"",first_name:biz?"":$("#su-first").value.trim(),last_name:biz?"":$("#su-last").value.trim(),
   country_code:$("#su-country").value,email:$("#su-email").value.trim(),mobile:$("#su-mobile").value.trim(),agreed_to_terms_and_conditions:$("#su-terms").checked,agreed_to_data_usage:$("#su-data").checked};
  try{const a=await api(`/v1/airwallex/accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
-  $("#suMsg").innerHTML=`<span class="pill good">${esc(a.status)}</span> account ${esc(a.id)} opened; submit it for verification below`;toast("Airwallex account created","good");suList()}
+  $("#suMsg").innerHTML=`<span class="pill good">${esc(a.status)}</span> account ${esc(a.id)} opened; submit it for verification below`;toast("Airwallex account created","good");suList(a.id)}
  catch(e){$("#suMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#awxConnect").onclick=async()=>{$("#awxMsg").textContent="logging in to Airwallex…";
  try{await api(`/v1/airwallex/connection?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({client_id:$("#awx-cid").value.trim(),api_key:$("#awx-key").value||null,account_name:$("#awx-name").value.trim(),environment:$("#awx-env").value})});
