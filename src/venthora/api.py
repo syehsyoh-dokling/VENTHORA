@@ -2389,3 +2389,86 @@ async def airwallex_open_global_account(body: GlobalAccountIn, role: str = "fina
     await asyncio.to_thread(app.state.audit.append, "global_account_opened", {"by": who, "currency": body.currency.upper(),
                                                                             "country_code": body.country_code.upper(), "id": g.get("id")})
     return _ga_row(g)
+
+
+# ---- Airwallex account → "Don't have an account yet?": open one through the platform's connected accounts ----
+class AccountSignUp(BaseModel):
+    """What Airwallex needs to open an account: who it is for, where, a contact, and the two agreements."""
+    legal_entity_type: str = Field("BUSINESS", pattern="^(BUSINESS|INDIVIDUAL)$")
+    business_name: str = Field("", max_length=200, description="the registered company name (business)")
+    first_name: str = Field("", max_length=100, description="individual")
+    last_name: str = Field("", max_length=100, description="individual")
+    country_code: str = Field(min_length=2, max_length=2)
+    email: str = Field(min_length=3, max_length=200, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    mobile: str = Field("", max_length=40)
+    agreed_to_terms_and_conditions: bool = False
+    agreed_to_data_usage: bool = False
+
+
+def _account_row(a: dict) -> dict:
+    d = a.get("account_details") or {}
+    bd, idv = d.get("business_details") or {}, d.get("individual_details") or {}
+    name = bd.get("business_name") or " ".join(filter(None, (idv.get("first_name"), idv.get("last_name")))) or "-"
+    country = ((bd.get("registration_address") or {}).get("country_code") or (idv.get("residential_address") or {}).get("country_code"))
+    return {"id": a.get("id"), "status": a.get("status"), "type": d.get("legal_entity_type"), "name": name, "country": country,
+            "email": (a.get("primary_contact") or {}).get("email"), "created_at": a.get("created_at"),
+            "next_action": (a.get("next_action") or {}).get("type") if isinstance(a.get("next_action"), dict) else a.get("next_action")}
+
+
+def _airwallex_refusal(exc: AirwallexError) -> HTTPException:
+    msg = str(exc)
+    hint = (" Airwallex has not enabled account opening (connected accounts) on this platform account yet; ask the Airwallex team to enable it."
+            if "cannot onboard" in msg else "")
+    return HTTPException(502, f"Airwallex: {msg}.{hint}")
+
+
+@app.get("/v1/airwallex/accounts")
+async def airwallex_accounts():
+    """Accounts opened from VENTHORA (Airwallex connected accounts), read from Airwallex itself."""
+    try:
+        return {"items": [_account_row(a) for a in await _bank().list_accounts()], "environment": "sandbox" if _bank().sandbox else "production"}
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+
+
+@app.post("/v1/airwallex/accounts")
+async def airwallex_open_account(body: AccountSignUp, role: str = "finance_manager", by: str = "dashboard"):
+    """Open an Airwallex account from VENTHORA. The same call works on the sandbox and in production: only the
+    Airwallex base URL differs (AIRWALLEX_BASE_URL). Airwallex then verifies the business or person."""
+    who = _connector(role, by)
+    if not (body.agreed_to_terms_and_conditions and body.agreed_to_data_usage):
+        raise HTTPException(422, "the account holder must agree to Airwallex's terms and conditions and to its data usage")
+    if body.legal_entity_type == "BUSINESS" and not body.business_name.strip():
+        raise HTTPException(422, "enter the registered company name")
+    if body.legal_entity_type == "INDIVIDUAL" and not (body.first_name.strip() and body.last_name.strip()):
+        raise HTTPException(422, "enter the first and last name")
+    cc = body.country_code.upper()
+    details = ({"legal_entity_type": "BUSINESS", "business_details": {"business_name": body.business_name.strip(), "registration_address": {"country_code": cc}}}
+               if body.legal_entity_type == "BUSINESS" else
+               {"legal_entity_type": "INDIVIDUAL", "individual_details": {"first_name": body.first_name.strip(), "last_name": body.last_name.strip(),
+                                                                          "residential_address": {"country_code": cc}}})
+    contact = {"email": body.email.strip()} | ({"mobile": body.mobile.strip()} if body.mobile.strip() else {})
+    payload = {"account_details": details, "primary_contact": contact,
+               "customer_agreements": {"agreed_to_terms_and_conditions": True, "agreed_to_data_usage": True}}
+    try:
+        acct = await _bank().create_account(payload)
+    except AirwallexError as exc:
+        await asyncio.to_thread(app.state.audit.append, "airwallex_account_refused", {"by": who, "type": body.legal_entity_type, "country": cc,
+                                                                                    "reason": str(exc)[:200]})
+        raise _airwallex_refusal(exc) from exc
+    row = _account_row(acct)
+    await asyncio.to_thread(app.state.audit.append, "airwallex_account_opened", {"by": who, "id": row["id"], "status": row["status"],
+                                                                               "type": row["type"], "country": cc})
+    return row
+
+
+@app.post("/v1/airwallex/accounts/{account_id}/submit")
+async def airwallex_submit_account(account_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Hand an opened account to Airwallex's verification."""
+    who = _connector(role, by)
+    try:
+        acct = await _bank().submit_account(account_id)
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+    await asyncio.to_thread(app.state.audit.append, "airwallex_account_submitted", {"by": who, "id": account_id})
+    return _account_row(acct)

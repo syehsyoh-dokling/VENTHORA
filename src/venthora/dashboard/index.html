@@ -139,7 +139,7 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
 .wal{margin-top:10px}.wal .r{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;font-size:12.5px;padding:4px 0;font-variant-numeric:tabular-nums}
 .wal .t{height:8px;border-radius:99px;background:color-mix(in srgb,var(--seq) 14%,transparent);overflow:hidden}.wal .t i{display:block;height:100%;border-radius:99px;background:var(--seq)}
 .kbar{display:flex;align-items:center;margin:16px 2px 10px;gap:12px;flex-wrap:wrap}
-.seg[hidden]{display:none}.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--shadow)}
+.form [hidden],.seg[hidden]{display:none}.seg{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--shadow)}
 .seg button{border:0;background:transparent;padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
 .seg button.on{background:var(--brand2);color:var(--surface)}
 .k4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
@@ -514,29 +514,33 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="small muted" style="margin:10px 0 4px">Allowed file types</div><div class="row" id="drTypes"></div>
  </section>
 
- <section class="span8" data-view="airwallex">
-  <h2><span>Airwallex account</span><span id="awxState" class="small"></span></h2>
+ <section class="span12" data-view="airwallex">
+  <h2><span>Connect to your Airwallex account</span><span id="awxState" class="small"></span></h2>
   <div id="awxNow" class="small"></div>
-  <h3 class="small muted" style="margin:16px 0 6px">Connect your Airwallex account</h3>
-  <div class="form">
-   <label>Client ID<input id="awx-cid" autocomplete="off" placeholder="from Airwallex: Developer → API keys"></label>
+  <div class="form" style="margin-top:12px">
+   <label>Client ID<input id="awx-cid" autocomplete="off" placeholder="Airwallex → Developer → API keys"></label>
    <label>API key<input id="awx-key" type="password" autocomplete="off" placeholder="pasted once; never shown again"></label>
    <label>Account name<input id="awx-name" placeholder="e.g. Acme Group Pte Ltd"></label>
    <label>Environment<select id="awx-env"><option value="sandbox">Sandbox (demo and testing)</option><option value="production" disabled>Production (not in this build)</option></select></label>
   </div>
-  <div class="row" style="margin-top:12px"><button class="primary" id="awxConnect">Test and connect</button><button id="awxDrop">Disconnect (use .env)</button><span class="small" id="awxMsg"></span></div>
- </section>
- <section class="span4" data-view="airwallex">
-  <h2>New to Airwallex?</h2>
-  <div class="small" style="line-height:1.7">A company account is opened at Airwallex itself: it verifies the business (KYB) and its owners, which no other
-   application may do for you. Then everything else happens here.
-   <ol style="padding-left:18px;margin:8px 0">
-    <li>Open the account and complete verification at <a href="https://www.airwallex.com/" target="_blank" rel="noopener">airwallex.com</a>.</li>
-    <li>In Airwallex, <b>Developer → API keys</b>: create a key and copy the client ID and API key.</li>
-    <li>Paste them on the left: VENTHORA logs in once to check them, then keeps them.</li>
-    <li>Open the <b>Global Accounts</b> you need below: local bank details in each currency for customers and top-ups.</li>
-   </ol>
-   <span class="muted">VENTHORA executes on the Airwallex sandbox in this build.</span></div>
+  <div class="row" style="margin-top:12px"><button class="primary" id="awxConnect">Test and connect</button><button id="awxDrop">Disconnect (use .env)</button><span class="small" id="awxMsg"></span>
+   <button id="awxNew" style="margin-left:auto">Don't have an account yet?</button></div>
+  <div id="awxSignup" hidden style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+   <h3 style="margin:0 0 10px;font-size:15px">Open an Airwallex account</h3>
+   <div class="form">
+    <label>Account for<select id="su-type"><option value="BUSINESS">A company</option><option value="INDIVIDUAL">A person</option></select></label>
+    <label>Country<select id="su-country"></select></label>
+    <label class="su-biz" style="grid-column:1/-1">Registered company name<input id="su-biz" placeholder="as on the business registration"></label>
+    <label class="su-ind" hidden>First name<input id="su-first"></label>
+    <label class="su-ind" hidden>Last name<input id="su-last"></label>
+    <label>Contact email<input id="su-email" type="email" placeholder="the person who completes verification"></label>
+    <label>Mobile (optional)<input id="su-mobile" placeholder="+65 …"></label>
+    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="su-terms"> The account holder agrees to Airwallex's terms and conditions</label>
+    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="su-data"> The account holder agrees to Airwallex's data usage</label>
+   </div>
+   <div class="row" style="margin-top:12px"><button class="primary" id="suGo">Create account</button><span class="small" id="suMsg"></span></div>
+   <div id="suList" style="margin-top:12px"></div>
+  </div>
  </section>
  <section class="span12" data-view="airwallex">
   <h2><span>Global Accounts</span><span class="row"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="VENTHORA receipts"><button class="primary" id="gaOpen">Open a Global Account</button></span></h2>
@@ -1492,6 +1496,21 @@ async function awxView(){try{const c=await api("/v1/airwallex/connection");
    {h:"Bank",f:g=>esc(g.institution||"-")},{h:"Status",f:g=>`<span class="pill ${g.status==="ACTIVE"?"good":"warn"}">${esc(g.status||"-")}</span>`}],ga.v.items,"no Global Account yet: open one above")}
  else $("#gaList").innerHTML=`<div class="err">${esc(ga.e.message)}</div>`}
  catch(e){$("#awxNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+const SU_COUNTRIES=[["SG","Singapore"],["ID","Indonesia"],["MY","Malaysia"],["HK","Hong Kong"],["AU","Australia"],["NZ","New Zealand"],["GB","United Kingdom"],["US","United States"],["DE","Germany"],["NL","Netherlands"],["FR","France"],["JP","Japan"],["CN","China"],["CA","Canada"],["AE","United Arab Emirates"]];
+$("#su-country").innerHTML=SU_COUNTRIES.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
+$("#awxNew").onclick=()=>{const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"Don't have an account yet?":"Close";if(!box.hidden){suList();$("#su-biz").focus()}};
+$("#su-type").onchange=()=>{const biz=$("#su-type").value==="BUSINESS";document.querySelectorAll(".su-biz").forEach(e=>e.hidden=!biz);document.querySelectorAll(".su-ind").forEach(e=>e.hidden=biz)};
+async function suList(){const r=await settle(api("/v1/airwallex/accounts"));if(!r.ok){$("#suList").innerHTML="";return}
+ $("#suList").innerHTML=r.v.items.length?`<h3 class="small muted" style="margin:6px 0">Accounts opened from VENTHORA</h3>`+table([{h:"Name",f:a=>`<b>${esc(a.name)}</b><div class="small muted">${esc(a.type||"")} · ${esc(a.country||"")}</div>`},
+  {h:"Contact",f:a=>`<span class="small">${esc(a.email||"-")}</span>`},{h:"Status",f:a=>`<span class="pill ${a.status==="ACTIVE"?"good":a.status==="SUSPENDED"?"critical":"warn"}">${esc(a.status||"-")}</span>`},
+  {h:"",f:a=>a.status==="CREATED"?`<button data-sub="${esc(a.id)}">Submit for verification</button>`:""}],r.v.items):"";
+ $("#suList").querySelectorAll("[data-sub]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.sub}/submit?${who()}`,{method:"POST"});toast("Submitted to Airwallex","good");suList()}catch(e){toast(e.message,"critical")}})}
+$("#suGo").onclick=async()=>{const biz=$("#su-type").value==="BUSINESS";$("#suMsg").textContent="asking Airwallex…";
+ const body={legal_entity_type:$("#su-type").value,business_name:biz?$("#su-biz").value.trim():"",first_name:biz?"":$("#su-first").value.trim(),last_name:biz?"":$("#su-last").value.trim(),
+  country_code:$("#su-country").value,email:$("#su-email").value.trim(),mobile:$("#su-mobile").value.trim(),agreed_to_terms_and_conditions:$("#su-terms").checked,agreed_to_data_usage:$("#su-data").checked};
+ try{const a=await api(`/v1/airwallex/accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  $("#suMsg").innerHTML=`<span class="pill good">${esc(a.status)}</span> account ${esc(a.id)} opened; submit it for verification below`;toast("Airwallex account created","good");suList()}
+ catch(e){$("#suMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#awxConnect").onclick=async()=>{$("#awxMsg").textContent="logging in to Airwallex…";
  try{await api(`/v1/airwallex/connection?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({client_id:$("#awx-cid").value.trim(),api_key:$("#awx-key").value||null,account_name:$("#awx-name").value.trim(),environment:$("#awx-env").value})});
   $("#awx-key").value="";$("#awx-cid").value="";$("#awxMsg").innerHTML='<span class="pill good">CONNECTED</span>';toast("Airwallex account connected","good");awxView();kpis()}

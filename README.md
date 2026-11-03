@@ -422,8 +422,11 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 * **Airwallex account.** Paste the client ID and API key (Airwallex → Developer → API keys): VENTHORA logs in once
   to check them, keeps them on this machine (never shown again, only their last four characters), and uses them
-  instead of `.env`. A new company opens its Airwallex account at Airwallex itself (business verification); the
-  page links there. **Global Accounts** (local bank details per currency, for customers and top-ups) are listed and
+  instead of `.env`. **Don't have an account yet?** opens the form right below: a company or a person, the
+  country, a contact and the two agreements; VENTHORA opens the account through Airwallex's connected-accounts API
+  (status CREATED), lists it, and submits it for Airwallex's verification. The same call works in production by
+  changing `AIRWALLEX_BASE_URL`; Airwallex must have enabled account opening on the platform account (until then the
+  form shows Airwallex's own refusal). **Global Accounts** (local bank details per currency, for customers and top-ups) are listed and
   opened from the page. VENTHORA executes on the sandbox.
 * **Admin team.** The **super admin** is the FCO at head quarters: sees and may do everything. An **HQ admin** works
   company-wide; a **country office**, **branch** or **project finance admin** works only in its own unit and the

@@ -97,3 +97,39 @@ def test_a_key_vault_per_ai_provider(client):
     assert client.delete("/v1/settings/ai/keys/openai").status_code == 409  # in use
     assert "anthropic" not in client.delete("/v1/settings/ai/keys/anthropic").json()["keys"]
     assert {"deepseek", "nvidia", "dashscope", "custom"} <= set(s["providers"])
+
+
+def test_open_an_airwallex_account_from_the_dashboard(client, monkeypatch):
+    sent = []
+
+    async def create(self, body):
+        sent.append(body)
+        if body["account_details"]["legal_entity_type"] == "INDIVIDUAL":
+            raise AirwallexError("This account cannot onboard individual accounts", status=400, code="invalid_argument")
+        return {"id": "acct_1", "status": "CREATED", "account_details": body["account_details"], "primary_contact": body["primary_contact"]}
+
+    async def listing(self):
+        return [{"id": "acct_1", "status": "CREATED", "account_details": sent[0]["account_details"], "primary_contact": sent[0]["primary_contact"]}] if sent else []
+
+    async def submit(self, account_id):
+        return {"id": account_id, "status": "SUBMITTED", "account_details": sent[0]["account_details"]}
+    monkeypatch.setenv("AIRWALLEX_CLIENT_ID", "c")
+    monkeypatch.setenv("AIRWALLEX_API_KEY", "k")
+    monkeypatch.setattr(Airwallex, "create_account", create)
+    monkeypatch.setattr(Airwallex, "list_accounts", listing)
+    monkeypatch.setattr(Airwallex, "submit_account", submit)
+    base = {"legal_entity_type": "BUSINESS", "business_name": "Venthora Demo Trading Pte Ltd", "country_code": "sg", "email": "ops@venthora-demo.example"}
+    r = client.post("/v1/airwallex/accounts", json=base)
+    assert r.status_code == 422 and "terms" in r.json()["detail"] and not sent  # no agreement, nothing sent
+    ok = base | {"agreed_to_terms_and_conditions": True, "agreed_to_data_usage": True}
+    a = client.post("/v1/airwallex/accounts", json=ok).json()
+    assert (a["id"], a["status"], a["name"], a["country"]) == ("acct_1", "CREATED", "Venthora Demo Trading Pte Ltd", "SG")
+    assert sent[0] == {"account_details": {"legal_entity_type": "BUSINESS", "business_details": {"business_name": "Venthora Demo Trading Pte Ltd",
+                                                                                                 "registration_address": {"country_code": "SG"}}},
+                       "primary_contact": {"email": "ops@venthora-demo.example"},
+                       "customer_agreements": {"agreed_to_terms_and_conditions": True, "agreed_to_data_usage": True}}
+    assert client.get("/v1/airwallex/accounts").json()["items"][0]["status"] == "CREATED"
+    assert client.post("/v1/airwallex/accounts/acct_1/submit").json()["status"] == "SUBMITTED"
+    r = client.post("/v1/airwallex/accounts", json=ok | {"legal_entity_type": "INDIVIDUAL", "first_name": "Ana", "last_name": "Lim"})
+    assert r.status_code == 502 and "cannot onboard individual accounts" in r.json()["detail"] and "enable it" in r.json()["detail"]
+    assert client.post("/v1/airwallex/accounts?role=treasury_analyst", json=ok).status_code == 403
