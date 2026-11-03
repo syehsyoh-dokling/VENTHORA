@@ -146,7 +146,11 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
 .wal{margin-top:10px}.wal .r{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;font-size:12.5px;padding:4px 0;font-variant-numeric:tabular-nums}
 .wal .t{height:8px;border-radius:99px;background:color-mix(in srgb,var(--seq) 14%,transparent);overflow:hidden}.wal .t i{display:block;height:100%;border-radius:99px;background:var(--seq)}
 .kbar{display:flex;align-items:center;margin:16px 2px 10px;gap:12px;flex-wrap:wrap}
-.form [hidden],.seg[hidden]{display:none}
+.form [hidden],.seg[hidden],[data-wpane][hidden]{display:none}
+.tabs{display:inline-flex;background:var(--bg,#f3f5f9);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.tabs button{border:0;background:transparent;padding:6px 14px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
+.tabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+#whEvents td{white-space:normal;vertical-align:top}#whEvents td.nw,#whEvents .nw{white-space:nowrap}
 .cta{background:linear-gradient(135deg,#ff7a18,#ff3d77);color:#fff;border:0;font-weight:700;padding:9px 16px;border-radius:10px;
  box-shadow:0 6px 18px rgba(255,61,119,.35);animation:ctaPulse 2.4s ease-in-out infinite}
 .cta:hover{filter:brightness(1.06);transform:translateY(-1px)}.cta.open{animation:none;background:var(--surface);color:var(--ink2);box-shadow:none;border:1px solid var(--line)}
@@ -255,7 +259,6 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/readiness" data-nav="readiness"><i>☑</i>Setup checklist<span class="cnt" id="cnt-ready"></span></a>
    <div class="nsub">Airwallex</div>
    <a href="#/airwallex" data-nav="airwallex" class="nin">Airwallex account</a>
-   <a href="#/integrations" data-nav="integrations" class="nin">Webhooks</a>
    <div class="nsub">AI agent &amp; model</div>
    <a href="#/ai" data-nav="ai" class="nin">AI model in use</a>
    <a href="#/ai-local" data-nav="ai-local" class="nin">Local model (vLLM)</a>
@@ -278,6 +281,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/allocation" data-nav="allocation" class="nin">Regular based</a>
    <a href="#/allocation-project" data-nav="allocation-project" class="nin">Project based</a>
    <a href="#/budget-policy" data-nav="budget-policy" class="nin">Period, cut-off &amp; sync</a>
+   <div class="nsub">Webhooks</div>
+   <a href="#/integrations" data-nav="integrations" class="nin">Airwallex webhooks</a>
    <div class="nsub">Organisation structure</div>
    <a href="#/offices" data-nav="offices" class="nin">Country offices</a>
    <a href="#/codes" data-nav="codes" class="nin">Projects &amp; accounts</a>
@@ -660,9 +665,19 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="tenants" class="empty">loading…</div>
  </section>
 
- <section class="span12" data-view="integrations"><h2>Platform</h2><div id="platform" class="tiles"></div></section>
- <section class="span5" data-view="integrations"><h2><span>Airwallex webhooks</span><span id="whBadge"></span></h2><div id="whStatus" class="small"></div></section>
- <section class="span7" data-view="integrations"><h2><span>Received events</span><span class="small muted">the API, not the event, decides the status</span></h2><div id="whEvents" class="empty">loading…</div></section>
+ <section class="span12" data-view="integrations">
+  <h2><span>Airwallex webhooks <span id="whBadge"></span></span>
+   <span class="tabs" id="whTabs"><button data-wtab="setup" class="on">Setup</button><button data-wtab="events">Received events <span class="cnt" id="whCount"></span></button></span></h2>
+  <div class="small muted" id="whLead">Airwallex tells VENTHORA the moment a deposit, transfer or conversion changes status. Set up once; after that it works on its own.</div>
+  <div data-wpane="setup" style="margin-top:14px">
+   <div id="whStatus" class="small"></div>
+   <h3 class="small muted" style="margin:18px 0 8px">VENTHORA services</h3><div id="platform" class="tiles"></div>
+  </div>
+  <div data-wpane="events" hidden style="margin-top:14px">
+   <div class="small muted" style="margin-bottom:8px">Every event is checked, then its status is read again from Airwallex: the API, not the event, decides.</div>
+   <div id="whEvents" class="empty" style="overflow-x:auto">loading…</div>
+  </div>
+ </section>
 
  <!-- ===== Assurance ===== -->
  <section class="span12" data-view="assurance">
@@ -892,7 +907,7 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Setup checklist","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+ standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Setup checklist","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
@@ -1677,9 +1692,11 @@ async function mandateView(){try{const d=await api("/api/live/setup");
  catch(e){$("#mandateView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 
 const WH_EVENTS=["deposit.pending","deposit.settled","deposit.rejected","deposit.reversed","payout.transfer.processing","payout.transfer.sent","payout.transfer.paid","payout.transfer.failed","conversion.settled","conversion.cancelled"];
+document.querySelectorAll("#whTabs [data-wtab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#whTabs [data-wtab]").forEach(x=>x.classList.toggle("on",x===b));
+ document.querySelectorAll("[data-wpane]").forEach(p=>p.hidden=p.dataset.wpane!==b.dataset.wtab)});
 async function webhookView(){try{const [s,ev]=await Promise.all([api("/v1/webhooks/status"),api("/v1/webhooks/events?limit=50")]);
  $("#whBadge").innerHTML=s.secret_configured?'<span class="pill good">ENABLED</span>':`<span class="pill warn">SECRET NOT SET</span>`;
- const total=Object.values(s.counts).reduce((a,b)=>a+b,0);
+ const total=Object.values(s.counts).reduce((a,b)=>a+b,0);$("#whCount").textContent=total||"";
  const subs=s.subscriptions;
  $("#whStatus").innerHTML=`<dl class="kv"><dt>Airwallex calls</dt><dd>${subs==null?'<span class="muted">not readable (Airwallex not configured)</span>':subs.length?subs.map(x=>`<code>${esc(x.url)}</code> <span class="small muted">${x.events} events</span>`).join("<br>"):'<span class="err">no subscription yet</span>'}</dd>
    <dt>Private API</dt><dd><code>${esc(location.origin)}${esc(s.endpoint)}</code> <span class="small muted">never exposed</span></dd>
@@ -1695,7 +1712,7 @@ async function webhookView(){try{const [s,ev]=await Promise.all([api("/v1/webhoo
    <li>Subscribe through the Airwallex API: <code>python scripts/register_webhook.py https://&lt;tunnel-host&gt;</code>. It writes the secret to <code>.env</code> without showing it; then restart the API.</li>
    <li>Events subscribed: ${WH_EVENTS.map(e=>`<code>${e}</code>`).join(" ")}</li></ol>
   <p class="muted small">Each event is checked (signature, freshness, once only), then the record is read again from the Airwallex API, again after 2, 4 and 8 s when the push outruns it. Polling remains the fallback, and no event moves money or changes a book.</p>`;
- $("#whEvents").innerHTML=table([{h:"Received",f:e=>`<span class="small">${esc(e.received_at.slice(0,19).replace("T"," "))}</span>`},{h:"Event",f:e=>`<span class="mono">${esc(e.name)}</span>`},
+ $("#whEvents").innerHTML=table([{h:"Received",f:e=>`<span class="small nw">${esc(e.received_at.slice(0,10))}</span><div class="small muted nw">${esc(e.received_at.slice(11,19))}</div>`},{h:"Event",f:e=>`<span class="mono">${esc(e.name)}</span>`},
   {h:"Object",f:e=>`<span class="mono small">${esc((e.object_id||"-").slice(0,14))}</span>`},{h:"Event said",f:e=>esc(e.claimed_status||"-")},{h:"Airwallex API",f:e=>e.confirmed_status?`<b>${esc(e.confirmed_status)}</b>`:"-"},
   {h:"Result",f:e=>`<span class="pill ${WH_TONE[e.state]||""}">${esc(e.state)}</span>`},{h:"Note",f:e=>`<span class="small">${esc(e.note||"")}</span>`}],ev,"No events yet. They appear here, and on the overview, the moment Airwallex sends them.")}
  catch(e){$("#whStatus").innerHTML=`<div class="err">${esc(e.message)}</div>`}}

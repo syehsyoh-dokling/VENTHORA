@@ -448,9 +448,10 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 Daily work sits on top: **Overview**, **Treasury**, **Payments**, **Organisation** (people and the admin team) and
 **Assurance**. What is set up once and changed only now and then is folded away below: **Platform setup** (the setup
-checklist, Airwallex, the AI agent and model, app integration through the Sync API and API access, email sync) and
-**System setting** (datasets, the finance SOP: standards, document validation, mandate; budget allocation; the
-organisation's structure: offices, projects and accounts, unit prices). The pages below are named as they appear there.
+checklist, the Airwallex account, the AI agent and model, app integration through the Sync API and API access, email
+sync) and **System setting** (datasets, the finance SOP: standards, document validation, mandate; budget allocation;
+Airwallex webhooks, with a Setup tab and a Received events tab; the organisation's structure: offices, projects and
+accounts, unit prices). The pages below are named as they appear there.
 
 ## The overview
 
