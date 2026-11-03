@@ -105,7 +105,8 @@ def test_the_public_api_is_one_prefix_with_written_docs(client):
     missing = [(e["method"], e["path"]) for e in eps if (e["method"], e["path"]) not in apidocs.DOCS]
     assert not missing, f"write a title and description in apidocs.DOCS for {missing}"
     by = {(e["method"], e["path"]): e for e in eps}
-    assert by[("GET", "/v1/airwallex/balances")]["summary"] == "Airwallex balances"
+    assert by[("GET", "/v1/balances")]["summary"] == "Balances"
+    assert not any("airwallex" in e["path"] for e in eps if e["scope"])  # no bank provider in what apps call
     assert not any(apidocs.is_internal(e["path"]) for e in eps)  # demo and evidence machinery stay out
     paths = client.get("/openapi.json").json()["paths"]
     assert "/v1/status" in paths and "/api/status" not in paths and "/api/scenarios" not in paths
@@ -115,6 +116,8 @@ def test_the_public_api_is_one_prefix_with_written_docs(client):
 def test_keys_cannot_reach_internal_endpoints_or_the_ai_vault(client):
     h = {"X-API-Key": _key(client, ["treasury:read", "system:read", "settings:write"])["key"]}
     assert client.get("/v1/status", headers=h).status_code == 200
+    for path in ("/v1/balances", "/v1/accounts", "/v1/collection-accounts"):  # reached (the bank may be absent in tests)
+        assert client.get(path, headers=h).status_code not in (401, 403, 404), path
     assert client.get("/api/scenarios", headers=h).status_code == 403
     assert client.get("/api/groundtruth", headers=h).status_code == 403
     assert client.put("/v1/settings/ai/keys/openai", headers=h, json={"api_key": "sk-x"}).status_code == 403

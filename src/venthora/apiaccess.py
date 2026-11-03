@@ -37,8 +37,9 @@ from .config import data_path
 
 # area → (label, what it covers, path prefixes). Longest prefix wins.
 AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
-    "treasury": ("Treasury and payments", "plans, executions, position, ledger, incidents, Airwallex balances",
+    "treasury": ("Treasury and payments", "accounts, balances, plans, executions, position, ledger, incidents",
                  ("/v1/plans", "/v1/executions", "/v1/treasury", "/v1/incidents", "/v1/ledger", "/v1/recon-cases",
+                  "/v1/accounts", "/v1/balances", "/v1/collection-accounts", "/v1/acting-as",
                   "/api/airwallex", "/v1/airwallex", "/api/audit", "/v1/audit")),
     "payables": ("Payables", "intake of invoices and claims, payees and bank details, purchase orders, approvals",
                  ("/v1/intake", "/v1/payees", "/v1/procurement", "/v1/approvals")),

@@ -1,6 +1,10 @@
 # ruff: noqa: E501
-"""The public face of the API: one version prefix, a written title and description for every public endpoint,
-and the internal endpoints (demo scenarios, evidence suites, the operations console) kept out of it.
+"""The public face of the API: one version prefix, VENTHORA's own resource names (accounts, balances, collection
+accounts) rather than the bank provider's, a written title and description for every public endpoint, and the
+internal endpoints (demo scenarios, evidence suites, the operations console) kept out of it.
+
+VENTHORA is the system other applications talk to; it keeps itself in sync with the bank provider (Airwallex
+today). So the public paths name no provider, and an application does not change when the provider does.
 
 ``publish(app)`` runs once, after every route is declared:
 
@@ -13,7 +17,12 @@ and the internal endpoints (demo scenarios, evidence suites, the operations cons
 from __future__ import annotations
 
 ALIASES = {
-    "/api/airwallex/balances": "/v1/airwallex/balances",
+    "/api/airwallex/balances": "/v1/balances",
+    "/v1/airwallex/accounts": "/v1/accounts",
+    "/v1/airwallex/accounts/{account_id}/submit": "/v1/accounts/{account_id}/submit",
+    "/v1/airwallex/accounts/{account_id}/use": "/v1/accounts/{account_id}/use",
+    "/v1/airwallex/acting": "/v1/acting-as",
+    "/v1/airwallex/global-accounts": "/v1/collection-accounts",
     "/api/audit": "/v1/audit",
     "/api/budget": "/v1/budgets/pipeline",
     "/api/status": "/v1/status",
@@ -31,14 +40,14 @@ def is_internal(path: str) -> bool:
 # (method, path) -> (title, description)
 DOCS: dict[tuple[str, str], tuple[str, str]] = {
     # treasury
-    ("GET", "/v1/airwallex/balances"): ("Airwallex balances", "The available balance per currency in minor units (cents), read live from the Airwallex wallet."),
-    ("GET", "/v1/airwallex/accounts"): ("List opened accounts", "Airwallex connected accounts opened from VENTHORA, with their verification status, read live from Airwallex."),
-    ("POST", "/v1/airwallex/accounts"): ("Open an Airwallex account", "Create a connected account for a business or person; the same call works on the sandbox and in production."),
-    ("POST", "/v1/airwallex/accounts/{account_id}/submit"): ("Submit an account for verification", "Hand an opened account to Airwallex's KYC/KYB review."),
-    ("POST", "/v1/airwallex/accounts/{account_id}/use"): ("Work for an opened account", "Make every following Airwallex call act for this verified account (x-on-behalf-of), on the platform's credentials."),
-    ("DELETE", "/v1/airwallex/acting"): ("Stop working for an opened account", "Return to the platform's own Airwallex account."),
-    ("GET", "/v1/airwallex/global-accounts"): ("List Global Accounts", "Local bank details per currency that customers pay into, with their status."),
-    ("POST", "/v1/airwallex/global-accounts"): ("Open a Global Account", "Open local bank details in a currency so customers can pay by local transfer."),
+    ("GET", "/v1/balances"): ("Balances", "The available balance per currency in minor units (cents), kept in sync with the bank provider."),
+    ("GET", "/v1/accounts"): ("List accounts", "The business and personal accounts opened through VENTHORA, with their verification status."),
+    ("POST", "/v1/accounts"): ("Open an account", "Open an account for a business or person at the bank provider; the same call works on the sandbox and in production."),
+    ("POST", "/v1/accounts/{account_id}/submit"): ("Submit an account for verification", "Send an opened account to the provider's KYC/KYB review."),
+    ("POST", "/v1/accounts/{account_id}/use"): ("Work for an account", "VENTHORA acts for this verified account from now on: balances, payments and reports are its own."),
+    ("DELETE", "/v1/acting-as"): ("Stop working for an account", "VENTHORA returns to the platform's own account."),
+    ("GET", "/v1/collection-accounts"): ("List collection accounts", "The local bank details per currency that customers pay into, with their status."),
+    ("POST", "/v1/collection-accounts"): ("Open a collection account", "Open local bank details in a currency so customers can pay by local transfer."),
     ("GET", "/v1/audit"): ("Audit log", "The append-only audit trail (SHA-256 hash chain): who did what and when, newest first, with an integrity check of the chain."),
     ("GET", "/v1/executions"): ("List executions", "Every plan execution with its status and the transfers it made."),
     ("POST", "/v1/executions"): ("Execute an approved plan", "Run quote, conversion, transfers and settlement checks for an approved plan; each step passes the budget and approval gates first."),
