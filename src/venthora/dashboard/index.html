@@ -153,6 +153,7 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
 .wal .t{height:8px;border-radius:99px;background:color-mix(in srgb,var(--seq) 14%,transparent);overflow:hidden}.wal .t i{display:block;height:100%;border-radius:99px;background:var(--seq)}
 .kbar{display:flex;align-items:center;margin:16px 2px 10px;gap:12px;flex-wrap:wrap}
 .form [hidden],.seg[hidden],[data-wpane][hidden]{display:none}
+.mpick{display:flex;gap:6px}.mpick select{flex:1;min-width:0}.mpick input{flex:1;min-width:0}
 .ptabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 2px;flex-wrap:wrap}
 .ptabs a{padding:9px 16px;font-size:13px;font-weight:600;color:var(--ink2);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
 .ptabs a:hover{color:var(--ink)}.ptabs a.on{color:var(--brand2);border-bottom-color:var(--brand2)}
@@ -620,11 +621,11 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <h2><span>AI API keys</span><span class="small muted" id="keyActive"></span></h2>
   <div class="form">
    <label>Provider<select id="k-prov"></select></label>
-   <label>API key<input id="k-key" type="password" autocomplete="off" placeholder="paste the key"></label>
-   <label>Model<input id="k-model" list="kModels" placeholder="press List models, or type it"></label>
-   <label id="k-base-l">Base URL<input id="k-base" placeholder="https://…/v1"></label>
+   <label>Model<span class="mpick"><select id="k-model-sel"></select><input id="k-model" placeholder="model id" autocomplete="off" hidden></span></label>
+   <label id="k-base-l" style="grid-column:1/-1">Base URL<input id="k-base" placeholder="https://…/v1"></label>
+   <label style="grid-column:1/-1">Paste API key<input id="k-key" type="password" autocomplete="off" placeholder="paste the key"></label>
    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="k-consent"> <span id="k-consent-t"></span></label>
-  </div><datalist id="kModels"></datalist>
+  </div>
   <div class="row" style="margin-top:12px"><button id="kSave">Save key</button><button id="kList">List models</button><button id="kTest">Test</button><button class="primary" id="kUse">Save and use this provider</button><span class="small" id="kMsg"></span></div>
  </section>
  <section class="span4" data-view="ai-keys">
@@ -646,8 +647,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   </div>
   <div class="form" id="aiProv" style="margin-top:14px">
    <label>Provider<select id="ai-provider"></select></label>
-   <label>API key<input id="ai-key" type="password" autocomplete="off"></label>
-   <label style="grid-column:1/-1">Model<input id="ai-prov-model" list="aiModelList" placeholder="press List models, or type the model id"></label>
+   <label>Model<span class="mpick"><select id="ai-model-sel"></select><input id="ai-prov-model" placeholder="model id" autocomplete="off" hidden></span></label>
+   <label style="grid-column:1/-1">Paste API key<input id="ai-key" type="password" autocomplete="off"></label>
    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="ai-consent"> <span id="ai-consent-text"></span></label>
   </div>
   <datalist id="aiModelList"></datalist>
@@ -1642,8 +1643,7 @@ let KV=null;
 const kBody=(mode)=>({mode,consent_external:$("#k-consent").checked,provider:{name:$("#k-prov").value,model:$("#k-model").value.trim(),api_key:$("#k-key").value||null,base_url:$("#k-base").value.trim()},self_hosted:KV?{endpoint:KV.self_hosted.endpoint,model:KV.self_hosted.model,token:null}:{}});
 function kShow(){const p=$("#k-prov").value,info=(KV.providers[p]||{}),saved=KV.keys[p];
  $("#k-base-l").style.display=info.custom?"":"none";$("#k-key").placeholder=saved?`saved (${saved.key_hint}); blank keeps it`:"paste the key";
- $("#k-model").value=saved?.model||(p===KV.provider.name?KV.provider.model:"")||info.default||"";$("#k-base").value=saved?.base_url||"";
- $("#kModels").innerHTML=(info.suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");
+ pickModels("k-model-sel","k-model",info.suggested,saved?.model||(p===KV.provider.name?KV.provider.model:"")||info.default||"");$("#k-base").value=saved?.base_url||"";
  $("#k-consent-t").textContent=`Email and PDF text will be sent to ${info.label||p} to be read. I am allowed to share it.`}
 async function keysView(){try{KV=await api("/v1/settings/ai");const cur=$("#k-prov").value;
  $("#k-prov").innerHTML=Object.entries(KV.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}${KV.keys[k]?" ✓":""}</option>`).join("");
@@ -1656,7 +1656,7 @@ async function keysView(){try{KV=await api("/v1/settings/ai");const cur=$("#k-pr
 $("#k-prov").onchange=()=>{$("#k-key").value="";kShow()};
 $("#kSave").onclick=async()=>{try{await aiSend(`/v1/settings/ai/keys/${$("#k-prov").value}`,{api_key:$("#k-key").value||null,model:$("#k-model").value.trim(),base_url:$("#k-base").value.trim()},"PUT");
  toast("Key saved","good");keysView()}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
-$("#kList").onclick=async()=>{$("#kMsg").textContent="asking the provider…";try{const r=await aiSend("/v1/settings/ai/models",kBody("provider"));$("#kModels").innerHTML=r.models.map(m=>`<option value="${esc(m)}">`).join("");
+$("#kList").onclick=async()=>{$("#kMsg").textContent="asking the provider…";try{const r=await aiSend("/v1/settings/ai/models",kBody("provider"));pickModels("k-model-sel","k-model",[...r.models,...((KV.providers[$("#k-prov").value]||{}).suggested||[])],$("#k-model").value.trim());
  $("#kMsg").textContent=`${r.models.length} model(s) offered`}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#kTest").onclick=async()=>{$("#kMsg").textContent="testing…";try{const r=await aiSend("/v1/settings/ai/test",kBody("provider"));
  $("#kMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> ${esc(r.model)} answered in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
@@ -1677,17 +1677,24 @@ async function aiView(){try{AI=await api("/v1/settings/ai");
  document.querySelectorAll('input[name="aiMode"]').forEach(r=>{r.checked=r.value===AI.mode;r.onchange=()=>{$("#aiMsg").textContent="";aiShow()}});
  $("#ai-endpoint").value=AI.self_hosted.endpoint||"";$("#ai-self-model").value=AI.self_hosted.model||"";$("#ai-token").value="";
  $("#ai-token").placeholder=AI.self_hosted.token_set?`saved (${AI.self_hosted.token_hint||"set"}); leave blank to keep`:"only if the server asks for one";
- $("#ai-provider").value=AI.provider.name;$("#ai-prov-model").value=AI.provider.model||"";$("#ai-key").value="";
+ $("#ai-provider").value=AI.provider.name;pickModels("ai-model-sel","ai-prov-model",(AI.providers[AI.provider.name]||{}).suggested,AI.provider.model||"");$("#ai-key").value="";
  $("#ai-key").placeholder=AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";
  $("#ai-consent").checked=!!AI.consent_external;
  $("#ai-provider").onchange=()=>{$("#ai-key").placeholder=$("#ai-provider").value===AI.provider.name&&AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";
-  $("#aiModelList").innerHTML=((AI.providers[$("#ai-provider").value]||{}).suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");aiShow()};
+  const pv=AI.providers[$("#ai-provider").value]||{};pickModels("ai-model-sel","ai-prov-model",pv.suggested,$("#ai-provider").value===AI.provider.name?AI.provider.model:"");aiShow()};
  $("#aiModelList").innerHTML=((AI.providers[AI.provider.name]||{}).suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");
  $("#aiActive").textContent=`now reading with: ${AI.active}${AI.source==="env"?" (from .env)":""}${AI.updated_by?` · saved by ${AI.updated_by}`:""}`;
  $("#aiMsg").textContent="";aiShow()}catch(e){$("#aiActive").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+function pickModels(selId,inpId,models,cur){const sel=$("#"+selId),inp=$("#"+inpId);const list=[...new Set((models||[]).filter(Boolean))];
+ const has=!!cur&&list.includes(cur);
+ sel.innerHTML=list.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")+'<option value="__other">Other: type a model id…</option>';
+ if(has||(!cur&&list.length)){sel.value=has?cur:list[0];inp.value=sel.value;inp.hidden=true}else{sel.value="__other";inp.value=cur||"";inp.hidden=false}
+ sel.onchange=()=>{if(sel.value==="__other"){inp.hidden=false;inp.value="";inp.focus()}else{inp.hidden=true;inp.value=sel.value}}}
 const aiPost=(path,method="POST")=>api(`${path}?${who()}`,{method,headers:{"content-type":"application/json"},body:JSON.stringify(aiBody())});
 $("#aiList").onclick=async()=>{$("#aiMsg").textContent="asking for the model list…";try{const r=await aiPost("/v1/settings/ai/models");
- $("#aiModelList").innerHTML=r.models.map(m=>`<option value="${esc(m)}">`).join("");$("#aiMsg").textContent=`${r.models.length} model(s) offered; pick one in the model field`}
+ $("#aiModelList").innerHTML=r.models.map(m=>`<option value="${esc(m)}">`).join("");
+ if(aiMode()==="provider")pickModels("ai-model-sel","ai-prov-model",[...r.models,...((AI.providers[$("#ai-provider").value]||{}).suggested||[])],$("#ai-prov-model").value.trim());
+ $("#aiMsg").textContent=`${r.models.length} model(s) offered; pick one in the Model list`}
  catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#aiTest").onclick=async()=>{$("#aiMsg").textContent="testing…";try{const r=await aiPost("/v1/settings/ai/test");
  $("#aiMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> ${esc(r.model)} answered “${esc(r.reply)}” in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}

@@ -34,8 +34,7 @@ from .evidence.llm import AnthropicModel, ChatModel
 
 PROVIDERS: dict[str, dict] = {
     "openai": {"label": "OpenAI", "base_url": "https://api.openai.com/v1", "api": "openai"},
-    "anthropic": {"label": "Anthropic (Claude)", "base_url": "https://api.anthropic.com", "api": "anthropic",
-                  "suggested": ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5"], "default": "claude-sonnet-5-5"},
+    "anthropic": {"label": "Anthropic (Claude)", "base_url": "https://api.anthropic.com", "api": "anthropic"},
     "groq": {"label": "Groq", "base_url": "https://api.groq.com/openai/v1", "api": "openai"},
     "gemini": {"label": "Google Gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai", "api": "openai"},
     "mistral": {"label": "Mistral", "base_url": "https://api.mistral.ai/v1", "api": "openai"},
@@ -53,6 +52,30 @@ PROVIDERS: dict[str, dict] = {
     "huggingface": {"label": "Hugging Face Inference", "base_url": "https://router.huggingface.co/v1", "api": "openai"},
     "custom": {"label": "Other OpenAI-compatible service", "base_url": "", "api": "openai", "custom": True},
 }
+# The usual model ids per provider, for the dropdown; the first is the default. List models asks the provider for its
+# current list, and Other takes any id, so a model released after this list is still one choice away.
+MODELS: dict[str, list[str]] = {
+    "openai": ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini", "o4-mini"],
+    "anthropic": ["claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5", "claude-fable-5-1"],
+    "groq": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen/qwen3-32b"],
+    "gemini": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"],
+    "mistral": ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"],
+    "openrouter": ["openrouter/auto"],
+    "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+    "xai": ["grok-3", "grok-3-mini"],
+    "together": ["meta-llama/Llama-3.3-70B-Instruct-Turbo", "Qwen/Qwen2.5-72B-Instruct-Turbo"],
+    "fireworks": ["accounts/fireworks/models/llama-v3p3-70b-instruct"],
+    "cerebras": ["llama-3.3-70b", "llama3.1-8b"],
+    "nvidia": ["meta/llama-3.3-70b-instruct", "nvidia/llama-3.1-nemotron-70b-instruct"],
+    "dashscope": ["qwen-max", "qwen-plus", "qwen-turbo"],
+    "moonshot": ["kimi-k2-0711-preview", "moonshot-v1-32k", "moonshot-v1-8k"],
+    "cohere": ["command-a-03-2025", "command-r-plus", "command-r"],
+    "perplexity": ["sonar", "sonar-pro"],
+    "huggingface": ["meta-llama/Llama-3.3-70B-Instruct", "Qwen/Qwen2.5-72B-Instruct"],
+    "custom": [],
+}
+for _name, _models in MODELS.items():
+    PROVIDERS[_name] |= {"suggested": _models, "default": _models[0] if _models else ""}
 Mode = Literal["rules", "self_hosted", "provider"]
 
 
