@@ -1627,12 +1627,41 @@ $("#su-country").innerHTML=SU_COUNTRIES.map(([c,n])=>`<option value="${c}">${esc
 $("#awxNew").onclick=()=>{const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"✨ Don't have an account yet? Open one here":"Close";
  $("#awxNew").classList.toggle("open",!box.hidden);if(!box.hidden){suList();$("#su-biz").focus()}};
 $("#su-type").onchange=()=>{const biz=$("#su-type").value==="BUSINESS";document.querySelectorAll(".su-biz").forEach(e=>e.hidden=!biz);document.querySelectorAll(".su-ind").forEach(e=>e.hidden=biz)};
+let INDUSTRIES=null;
+async function kybForm(a,envName){INDUSTRIES=INDUSTRIES||await api("/v1/airwallex/industries");
+ $("#dlgTitle").textContent=`Company details · ${a.name}`;$("#dlgErr").textContent="";
+ const groups={};INDUSTRIES.forEach(i=>(groups[i.group]=groups[i.group]||[]).push(i));
+ const f=(id,label,attrs="")=>`<label>${label}<input id="kyb-${id}" ${attrs}></label>`;
+ $("#dlgBody").innerHTML=`<div class="small muted" style="grid-column:1/-1">What Airwallex needs to verify the company (KYB). The director is also recorded as its authorised person and beneficial owner.</div>
+  <label>Business structure<select id="kyb-structure">${["COMPANY","LIMITED_LIABILITY_COMPANY","PARTNERSHIP","SOLE_PROPRIETOR","TRUST","OTHER"].map(x=>`<option>${x}</option>`).join("")}</select></label>
+  ${f("reg","Registration number (UEN, company number)","required")}
+  <label style="grid-column:1/-1">Industry<select id="kyb-industry">${Object.entries(groups).map(([g,xs])=>`<optgroup label="${esc(g)}">${xs.map(x=>`<option value="${esc(x.code)}">${esc(x.name)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+  <label style="grid-column:1/-1">What the business sells<input id="kyb-desc" required></label>
+  ${f("line1","Registered address","required")}${f("suburb","Suburb / district","required")}${f("state","State / region","required")}${f("postcode","Postcode","required")}
+  ${f("rev","Expected monthly revenue",'type="number" min="0" required')}${f("revccy","Revenue currency",'value="USD" maxlength="3"')}
+  <h3 class="small muted" style="grid-column:1/-1;margin:8px 0 0">Director</h3>
+  ${f("first","First name","required")}${f("last","Last name","required")}${f("dob","Date of birth",'type="date" required')}${f("nat","Nationality (2 letters)",`maxlength="2" value="${esc(a.country||"")}"`)}
+  <label>Identity document<select id="kyb-idtype"><option value="PASSPORT">Passport</option><option value="PERSONAL_ID">National ID</option><option value="DRIVERS_LICENSE">Driver's licence</option></select></label>
+  ${envName==="sandbox"?'<div style="grid-column:1/-1"><button type="button" id="kybFill">Fill sandbox test data</button> <span class="small muted">fictional values the sandbox accepts</span></div>':""}`;
+ if($("#kybFill"))$("#kybFill").onclick=()=>{const v={reg:"202612345K",desc:"Software for finance teams",line1:"1 Raffles Place",suburb:"Downtown Core",state:"Singapore",postcode:"048616",rev:"50000",revccy:"SGD",first:"Test",last:"Director",dob:"1985-01-15",nat:a.country||"SG"};
+  Object.entries(v).forEach(([k,x])=>{$(`#kyb-${k}`).value=x});const it=INDUSTRIES.find(i=>/IT consulting/i.test(i.name));if(it)$("#kyb-industry").value=it.code};
+ $("#dlg").showModal();
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();const v=k=>$(`#kyb-${k}`).value.trim();
+  const body={business_structure:v("structure"),registration_number:v("reg"),industry_code:v("industry"),description:v("desc"),address_line1:v("line1"),suburb:v("suburb"),
+   state:v("state"),postcode:v("postcode"),monthly_revenue:+v("rev")||0,revenue_currency:v("revccy").toUpperCase()||"USD",director_first_name:v("first"),director_last_name:v("last"),
+   director_date_of_birth:v("dob"),director_nationality:v("nat").toUpperCase(),director_id_type:v("idtype")};
+  try{await api(`/v1/airwallex/accounts/${a.id}/details?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();
+   toast("Details saved at Airwallex: submit it for verification","good");suList()}catch(e){$("#dlgErr").textContent=e.message}}}
 async function suList(expect="",tries=6){const r=await settle(api("/v1/airwallex/accounts"));if(!r.ok){$("#suList").innerHTML="";return}
  if(expect&&tries>0&&!r.v.items.some(a=>a.id===expect)){if(!r.v.items.length)$("#suList").innerHTML='<div class="small muted">waiting for Airwallex to list the new account…</div>';
   setTimeout(()=>suList(expect,tries-1),1500);if(!r.v.items.length)return}
  $("#suList").innerHTML=r.v.items.length?`<h3 class="small muted" style="margin:6px 0">Accounts opened from VENTHORA</h3>`+table([{h:"Name",f:a=>`<b>${esc(a.name)}</b><div class="small muted">${esc(a.type||"")} · ${esc(a.country||"")}</div>`},
   {h:"Contact",f:a=>`<span class="small">${esc(a.email||"-")}</span>`},{h:"Status",f:a=>`<span class="pill ${a.status==="ACTIVE"?"good":a.status==="SUSPENDED"?"critical":"warn"}">${esc(a.status||"-")}</span>`},
-  {h:"",f:a=>a.status==="CREATED"?`<button data-sub="${esc(a.id)}">Submit for verification</button>`:a.status==="ACTIVE"?`<button class="primary" data-use="${esc(a.id)}">Use this account</button>`:""}],r.v.items):"";
+  {h:"",f:a=>`<span class="row" style="flex-wrap:nowrap">`+(["CREATED","ACTION_REQUIRED"].includes(a.status)?(a.type==="BUSINESS"?`<button data-kyb="${esc(a.id)}">Complete details</button>`:"")+`<button class="primary" data-sub="${esc(a.id)}">Submit for verification</button>`
+   :a.status==="SUBMITTED"?(r.v.environment==="sandbox"?`<button class="primary" data-approve="${esc(a.id)}" title="sandbox only: Airwallex's review decided at once">Approve (sandbox)</button>`:'<span class="small muted">Airwallex is reviewing it</span>')
+   :a.status==="ACTIVE"?`<button class="primary" data-use="${esc(a.id)}">Use this account</button>`:"")+`</span>`}],r.v.items):"";
+  $("#suList").querySelectorAll("[data-kyb]").forEach(b=>b.onclick=()=>kybForm(r.v.items.find(a=>a.id===b.dataset.kyb),r.v.environment));
+  $("#suList").querySelectorAll("[data-approve]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.approve}/sandbox-approve?${who()}`,{method:"POST"});toast("Approved on the sandbox: the account is ACTIVE","good");suList()}catch(e){toast(e.message,"critical")}});
   $("#suList").querySelectorAll("[data-use]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.use}/use?${who()}`,{method:"POST"});toast("VENTHORA now works for this account","good");awxView();kpis()}catch(e){toast(e.message,"critical")}});
  $("#suList").querySelectorAll("[data-sub]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.sub}/submit?${who()}`,{method:"POST"});toast("Submitted to Airwallex","good");suList()}catch(e){toast(e.message,"critical")}})}
 $("#suGo").onclick=async()=>{const biz=$("#su-type").value==="BUSINESS";$("#suMsg").textContent="asking Airwallex…";

@@ -202,3 +202,55 @@ def test_an_anthropic_key_without_a_workspace_names_one(client, monkeypatch):
     assert seen["default_headers"] is None  # a key scoped to a workspace sends no header
     assert client.put("/v1/settings/ai/keys/anthropic", json={"api_key": "sk-ant-aaaaaaaa1111", "workspace_id": "wrkspc_01ABC"}).status_code == 200
     assert client.get("/v1/settings/ai").json()["keys"]["anthropic"]["workspace_id"] == "wrkspc_01ABC"
+
+
+def test_complete_details_submit_and_approve_on_the_sandbox(client, monkeypatch):
+    state = {"status": "CREATED", "details": {"legal_entity_type": "BUSINESS", "business_details": {
+        "business_name": "Venthora Demo Trading Pte Ltd", "registration_address": {"country_code": "SG"}}}}
+    sent = {}
+
+    def acct():
+        return {"id": "acct_1", "status": state["status"], "account_details": state["details"], "primary_contact": {"email": "ops@x.example"}}
+
+    async def get(self, account_id):
+        return acct()
+
+    async def update(self, account_id, body):
+        sent["update"] = body
+        state["details"] = body["account_details"]
+        return acct()
+
+    async def submit(self, account_id):
+        if "business_structure" not in state["details"]["business_details"]:
+            raise AirwallexError("ensure is one of [COMPANY, ...]", status=400, code="validation_error")
+        state["status"] = "SUBMITTED"
+        return acct()
+
+    async def approve(self, account_id, next_status="ACTIVE"):
+        state["status"] = next_status
+        return acct()
+
+    async def industries(self):
+        return [{"name": "Professional services", "values": [{"name": "IT consulting", "value": "ICCV3_0806XX"}]}]
+    monkeypatch.setenv("AIRWALLEX_CLIENT_ID", "c")
+    monkeypatch.setenv("AIRWALLEX_API_KEY", "k")
+    for name, fn in {"get_account": get, "update_account": update, "submit_account": submit,
+                     "simulate_account_status": approve, "industry_categories": industries}.items():
+        monkeypatch.setattr(Airwallex, name, fn)
+    r = client.post("/v1/airwallex/accounts/acct_1/submit")
+    assert r.status_code == 422 and "Complete details" in r.json()["detail"]  # what is missing, and where to add it
+    assert client.get("/v1/reference/industries").json() == [{"group": "Professional services", "name": "IT consulting", "code": "ICCV3_0806XX"}]
+    details = {"registration_number": "202612345K", "industry_code": "ICCV3_0806XX", "description": "Software for finance teams",
+               "address_line1": "1 Raffles Place", "suburb": "Downtown Core", "state": "Singapore", "postcode": "048616",
+               "monthly_revenue": 50000, "revenue_currency": "sgd", "director_first_name": "Test", "director_last_name": "Director",
+               "director_date_of_birth": "1985-01-15", "director_nationality": "sg"}
+    assert client.post("/v1/accounts/acct_1/details", json=details | {"director_date_of_birth": "15/01/1985"}).status_code == 422
+    assert client.post("/v1/accounts/acct_1/details", json=details).json()["status"] == "CREATED"
+    bd, person = sent["update"]["account_details"]["business_details"], sent["update"]["account_details"]["business_person_details"][0]
+    assert bd["business_structure"] == "COMPANY" and bd["business_identifiers"] == [{"number": "202612345K", "type": "BRN", "country_code": "SG"}]
+    assert bd["account_usage"]["estimated_monthly_revenue"] == {"currency": "SGD", "amount": "50000"}
+    assert set(person["roles"]) == {"DIRECTOR", "AUTHORISED_PERSON", "BENEFICIAL_OWNER"} and person["nationality"] == "SG"
+    assert client.post("/v1/accounts/acct_1/submit").json()["status"] == "SUBMITTED"
+    assert client.post("/v1/accounts/acct_1/details", json=details).status_code == 409  # no change after submit
+    assert client.post("/v1/airwallex/accounts/acct_1/sandbox-approve").json()["status"] == "ACTIVE"
+    assert "/v1/airwallex/accounts/{account_id}/sandbox-approve" not in client.get("/openapi.json").json()["paths"]  # a sandbox tool

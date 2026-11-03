@@ -21,6 +21,8 @@ ALIASES = {
     "/v1/airwallex/accounts": "/v1/accounts",
     "/v1/airwallex/accounts/{account_id}/submit": "/v1/accounts/{account_id}/submit",
     "/v1/airwallex/accounts/{account_id}/use": "/v1/accounts/{account_id}/use",
+    "/v1/airwallex/accounts/{account_id}/details": "/v1/accounts/{account_id}/details",
+    "/v1/airwallex/industries": "/v1/reference/industries",
     "/v1/airwallex/acting": "/v1/acting-as",
     "/v1/airwallex/global-accounts": "/v1/collection-accounts",
     "/api/audit": "/v1/audit",
@@ -34,7 +36,7 @@ INTERNAL = ("/api/live", "/api/runs", "/api/sandbox", "/api/scenarios", "/api/gr
 
 
 def is_internal(path: str) -> bool:
-    return any(path == p or path.startswith(p + "/") for p in INTERNAL)
+    return any(path == p or path.startswith(p + "/") for p in INTERNAL) or path.endswith("/sandbox-approve")
 
 
 # (method, path) -> (title, description)
@@ -43,6 +45,8 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("GET", "/v1/balances"): ("Balances", "The available balance per currency in minor units (cents), kept in sync with the bank provider."),
     ("GET", "/v1/accounts"): ("List accounts", "The business and personal accounts opened through VENTHORA, with their verification status."),
     ("POST", "/v1/accounts"): ("Open an account", "Open an account for a business or person at the bank provider; the same call works on the sandbox and in production."),
+    ("POST", "/v1/accounts/{account_id}/details"): ("Complete company details", "Add the KYB details the provider needs before verification: structure, registration number, industry, address, expected revenue and the director."),
+    ("GET", "/v1/reference/industries"): ("Industry categories", "The provider's industry categories and their codes, for the company details."),
     ("POST", "/v1/accounts/{account_id}/submit"): ("Submit an account for verification", "Send an opened account to the provider's KYC/KYB review."),
     ("POST", "/v1/accounts/{account_id}/use"): ("Work for an account", "VENTHORA acts for this verified account from now on: balances, payments and reports are its own."),
     ("DELETE", "/v1/acting-as"): ("Stop working for an account", "VENTHORA returns to the platform's own account."),

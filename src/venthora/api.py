@@ -2654,6 +2654,25 @@ class AccountSignUp(BaseModel):
     agreed_to_data_usage: bool = False
 
 
+class BusinessDetailsIn(BaseModel):
+    """The KYB details Airwallex needs before a company account can be submitted for verification."""
+    business_structure: str = Field("COMPANY", pattern="^(COMPANY|PARTNERSHIP|SOLE_PROPRIETOR|LIMITED_LIABILITY_COMPANY|TRUST|OTHER)$")
+    registration_number: str = Field(min_length=3, max_length=40, description="e.g. the UEN in Singapore")
+    industry_code: str = Field(min_length=3, max_length=40, description="from GET /v1/reference/industries")
+    description: str = Field(min_length=5, max_length=500, description="what the business sells")
+    address_line1: str = Field(min_length=3, max_length=200)
+    suburb: str = Field(min_length=1, max_length=100)
+    state: str = Field(min_length=1, max_length=100)
+    postcode: str = Field(min_length=2, max_length=20)
+    monthly_revenue: int = Field(ge=0, le=10**12, description="estimated, in the currency below, major units")
+    revenue_currency: str = Field("USD", min_length=3, max_length=3)
+    director_first_name: str = Field(min_length=1, max_length=100)
+    director_last_name: str = Field(min_length=1, max_length=100)
+    director_date_of_birth: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    director_nationality: str = Field(min_length=2, max_length=2)
+    director_id_type: str = Field("PASSPORT", pattern="^(PASSPORT|DRIVERS_LICENSE|PERSONAL_ID)$")
+
+
 def _account_row(a: dict) -> dict:
     d = a.get("account_details") or {}
     bd, idv = d.get("business_details") or {}, d.get("individual_details") or {}
@@ -2711,6 +2730,66 @@ async def airwallex_open_account(body: AccountSignUp, role: str = "finance_manag
     return row
 
 
+@app.get("/v1/airwallex/industries")
+async def airwallex_industries():
+    """Airwallex's industry categories, flattened, for the KYB form."""
+    try:
+        cats = await _bank().industry_categories()
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+    return [{"group": g.get("name"), "name": v.get("name"), "code": v.get("value")} for g in cats for v in g.get("values", [])
+            if v.get("value")]
+
+
+@app.post("/v1/airwallex/accounts/{account_id}/details")
+async def airwallex_account_details(account_id: str, body: BusinessDetailsIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Add the KYB details to an opened company account: structure, registration number, industry, address, expected
+    revenue and the director who is also its authorised person and beneficial owner. Then it can be submitted."""
+    who = _connector(role, by)
+    try:
+        acct = await _bank().get_account(account_id)
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+    row = _account_row(acct)
+    if row["type"] != "BUSINESS":
+        raise HTTPException(422, "these are company (KYB) details; this account is for a person")
+    if row["status"] not in ("CREATED", "ACTION_REQUIRED"):
+        raise HTTPException(409, f"the account is {row['status']}: details can be changed only before it is submitted")
+    cc = row["country"] or "SG"
+    addr = {"address_line1": body.address_line1.strip(), "suburb": body.suburb.strip(), "state": body.state.strip(),
+            "postcode": body.postcode.strip(), "country_code": cc}
+    payload = {"account_details": {"legal_entity_type": "BUSINESS", "business_details": {
+        "business_name": row["name"], "business_structure": body.business_structure,
+        "description_of_goods_or_services": body.description.strip(), "industry_category_code": body.industry_code,
+        "operating_country": [cc], "registration_address": addr,
+        "business_identifiers": [{"number": body.registration_number.strip(), "type": "BRN", "country_code": cc}],
+        "account_usage": {"product_reference": ["MAKE_TRANSFERS"],
+                          "estimated_monthly_revenue": {"currency": body.revenue_currency.upper(), "amount": str(body.monthly_revenue)}}},
+        "business_person_details": [{
+            "first_name": body.director_first_name.strip(), "last_name": body.director_last_name.strip(),
+            "date_of_birth": body.director_date_of_birth, "nationality": body.director_nationality.upper(),
+            "roles": ["DIRECTOR", "AUTHORISED_PERSON", "BENEFICIAL_OWNER"], "residential_address": addr,
+            "identifications": {"primary": {"identification_type": body.director_id_type, "issuing_country_code": body.director_nationality.upper()}}}]}}
+    try:
+        acct = await _bank().update_account(account_id, payload)
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+    await asyncio.to_thread(app.state.audit.append, "airwallex_account_details", {"by": who, "id": account_id})
+    return _account_row(acct)
+
+
+@app.post("/v1/airwallex/accounts/{account_id}/sandbox-approve")
+async def airwallex_sandbox_approve(account_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Sandbox only: Airwallex's verification of a SUBMITTED account, decided at once (it becomes ACTIVE)."""
+    who = _connector(role, by)
+    try:
+        acct = await _bank().simulate_account_status(account_id, "ACTIVE")
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+    await asyncio.to_thread(app.state.audit.append, "airwallex_account_sandbox_approved", {"by": who, "id": account_id})
+    return _account_row(acct)
+
+
 @app.post("/v1/airwallex/accounts/{account_id}/submit")
 async def airwallex_submit_account(account_id: str, role: str = "finance_manager", by: str = "dashboard"):
     """Hand an opened account to Airwallex's verification."""
@@ -2718,6 +2797,8 @@ async def airwallex_submit_account(account_id: str, role: str = "finance_manager
     try:
         acct = await _bank().submit_account(account_id)
     except AirwallexError as exc:
+        if exc.status == 400:  # a field Airwallex still needs
+            raise HTTPException(422, f"Airwallex needs more details before verification ({exc}); press Complete details") from exc
         raise _airwallex_refusal(exc) from exc
     await asyncio.to_thread(app.state.audit.append, "airwallex_account_submitted", {"by": who, "id": account_id})
     return _account_row(acct)

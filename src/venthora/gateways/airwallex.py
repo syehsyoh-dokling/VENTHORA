@@ -339,6 +339,14 @@ class Airwallex:
         """Hand the account to Airwallex's verification (KYC / KYB); status becomes SUBMITTED."""
         return await self._request("POST", f"/api/v1/accounts/{account_id}/submit", json={}, own=True)
 
+    async def update_account(self, account_id: str, body: dict) -> dict:
+        """Add the KYB / KYC details Airwallex needs before the account can be submitted."""
+        return await self._request("POST", f"/api/v1/accounts/{account_id}/update", json=body, own=True)
+
+    async def industry_categories(self) -> list[dict]:
+        body = await self._request("GET", "/api/v1/reference/industry_categories", own=True)
+        return body.get("items", body) if isinstance(body, dict) else body
+
     # -- write tools ---------------------------------------------------------
 
     async def create_quote(self, *, sell_currency: str, buy_currency: str, buy_amount_minor: int,
@@ -401,6 +409,12 @@ class Airwallex:
         self._require_sandbox()
         return await self._request("POST", "/api/v1/simulation/deposit/create", json={
             "global_account_id": global_account_id, "amount": to_major(amount_minor), "payer_name": payer_name})
+
+    async def simulate_account_status(self, account_id: str, next_status: str = "ACTIVE") -> dict:
+        """Sandbox only: Airwallex's verification of a SUBMITTED account, decided at once (ACTIVE or SUSPENDED)."""
+        self._require_sandbox()
+        return await self._request("POST", f"/api/v1/simulation/accounts/{account_id}/update_status",
+                                   json={"next_status": next_status}, own=True)
 
     async def simulate_transfer_transition(self, transfer_id: str, next_status: str,
                                            failure_type: str | None = None) -> TransferResult:
