@@ -92,6 +92,13 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600}
 .nav nav a.on{background:rgba(79,139,255,.24);color:#fff;box-shadow:inset 3px 0 0 #7fb0ff}
 .nav nav i{font-style:normal;width:18px;text-align:center;opacity:.9}
 .nav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:#8ea2cf;margin:14px 10px 3px;font-weight:700}
+.nav .ngrp{margin-top:6px;border-top:1px solid rgba(255,255,255,.08)}
+.nav .ngrp>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:4px 0 2px}
+.nav .ngrp>summary::-webkit-details-marker{display:none}
+.nav .ngrp>summary::after{content:"▸";font-size:11px;transition:transform .15s}.nav .ngrp[open]>summary::after{transform:rotate(90deg)}
+.nav .ngrp>summary:hover{color:#fff}
+.nav .nsub{font-size:11px;color:#b9c6e6;margin:9px 10px 1px 12px;font-weight:600}
+.nav nav a.nin{padding:5px 10px 5px 26px;font-size:12.5px}
 .nav .cnt{margin-left:auto;background:#f5a524;color:#1b1300;font-size:11px;font-weight:700;border-radius:999px;padding:0 7px;line-height:18px}.nav .cnt:empty{display:none}
 .nav .ext{margin-left:auto;opacity:.55;font-size:11px}
 .nav .actor{margin-top:auto;padding:12px 8px 4px;border-top:1px solid rgba(255,255,255,.12);display:grid;gap:6px}
@@ -240,30 +247,42 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="#/runs" data-nav="runs"><i>☰</i>Run reports</a>
   <div class="grp">Organisation</div>
   <a href="#/users" data-nav="users"><i>⌂</i>User management</a>
-  <a href="#/airwallex" data-nav="airwallex" style="padding-left:34px;font-size:12.5px">Airwallex account</a>
-  <a href="#/admins" data-nav="admins" style="padding-left:34px;font-size:12.5px">Admin team</a>
-  <div class="grp">Settings</div>
-  <a href="#/readiness" data-nav="readiness"><i>☑</i>Data readiness<span class="cnt" id="cnt-ready"></span></a>
-  <a href="#/sources-sync" data-nav="sources-sync"><i>⇅</i>Sync API</a>
-  <a href="#/sources-upload" data-nav="sources-upload"><i>⇪</i>Upload dataset</a>
-  <a href="#/sources-email" data-nav="sources-email"><i>✉</i>Email sources</a>
-  <a href="#/api-access" data-nav="api-access"><i>⌘</i>API access</a>
-  <a href="#/doc-rules" data-nav="doc-rules"><i>✓</i>Document validation</a>
-  <a href="#/allocation" data-nav="budget-group"><i>◔</i>Budget allocation</a>
-  <a href="#/allocation" data-nav="allocation" style="padding-left:34px;font-size:12.5px">Regular based</a>
-  <a href="#/allocation-project" data-nav="allocation-project" style="padding-left:34px;font-size:12.5px">Project based</a>
-  <a href="#/budget-policy" data-nav="budget-policy" style="padding-left:34px;font-size:12.5px">Period, cut-off &amp; sync</a>
-  <a href="#/offices" data-nav="offices"><i>⚑</i>Country offices</a>
-  <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
-  <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
-  <a href="#/standards" data-nav="standards"><i>✎</i>Finance standards</a>
-  <a href="#/ai" data-nav="ai"><i>✦</i>AI model</a>
-  <a href="#/ai-local" data-nav="ai-local" style="padding-left:34px;font-size:12.5px">Local model (vLLM)</a>
-  <a href="#/ai-keys" data-nav="ai-keys" style="padding-left:34px;font-size:12.5px">AI API keys</a>
-  <a href="#/mandate" data-nav="mandate"><i>⚖</i>Mandate &amp; policy</a>
-  <a href="#/integrations" data-nav="integrations"><i>⚡</i>Webhooks &amp; integrations</a>
+  <a href="#/admins" data-nav="admins"><i>♛</i>Admin team</a>
   <div class="grp">Assurance</div>
   <a href="#/assurance" data-nav="assurance"><i>✓</i>Checks &amp; resilience</a>
+
+  <details class="ngrp" id="ngPlatform"><summary class="grp">Platform setup</summary>
+   <a href="#/readiness" data-nav="readiness"><i>☑</i>Setup checklist<span class="cnt" id="cnt-ready"></span></a>
+   <div class="nsub">Airwallex</div>
+   <a href="#/airwallex" data-nav="airwallex" class="nin">Airwallex account</a>
+   <a href="#/integrations" data-nav="integrations" class="nin">Webhooks</a>
+   <div class="nsub">AI agent &amp; model</div>
+   <a href="#/ai" data-nav="ai" class="nin">AI model in use</a>
+   <a href="#/ai-local" data-nav="ai-local" class="nin">Local model (vLLM)</a>
+   <a href="#/ai-keys" data-nav="ai-keys" class="nin">AI API keys</a>
+   <div class="nsub">App integration</div>
+   <a href="#/sources-sync" data-nav="sources-sync" class="nin">Sync API (old system)</a>
+   <a href="#/api-access" data-nav="api-access" class="nin">API access (other apps)</a>
+   <div class="nsub">Email sync</div>
+   <a href="#/sources-email" data-nav="sources-email" class="nin">Email sources</a>
+  </details>
+
+  <details class="ngrp" id="ngSystem"><summary class="grp">System setting</summary>
+   <div class="nsub">Dataset</div>
+   <a href="#/sources-upload" data-nav="sources-upload" class="nin">Upload dataset</a>
+   <div class="nsub">Finance SOP</div>
+   <a href="#/standards" data-nav="standards" class="nin">Finance standards</a>
+   <a href="#/doc-rules" data-nav="doc-rules" class="nin">Document validation</a>
+   <a href="#/mandate" data-nav="mandate" class="nin">Mandate &amp; policy</a>
+   <div class="nsub">Budget allocation</div>
+   <a href="#/allocation" data-nav="allocation" class="nin">Regular based</a>
+   <a href="#/allocation-project" data-nav="allocation-project" class="nin">Project based</a>
+   <a href="#/budget-policy" data-nav="budget-policy" class="nin">Period, cut-off &amp; sync</a>
+   <div class="nsub">Organisation structure</div>
+   <a href="#/offices" data-nav="offices" class="nin">Country offices</a>
+   <a href="#/codes" data-nav="codes" class="nin">Projects &amp; accounts</a>
+   <a href="#/prices" data-nav="prices" class="nin">Unit prices</a>
+  </details>
  </nav>
  <div class="actor"><label class="small muted" for="actor">Acting as</label><select id="actor"></select></div>
 </aside>
@@ -458,7 +477,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
 
  <section class="span12" data-view="readiness">
-  <h2><span>Data readiness</span><span class="small muted" id="readyMeta">what VENTHORA needs to run on real data instead of placeholders</span></h2>
+  <h2><span>Setup checklist</span><span class="small muted" id="readyMeta">what VENTHORA needs to run on real data instead of placeholders</span></h2>
   <div id="readyList" class="empty">loading…</div>
  </section>
 
@@ -873,12 +892,13 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Overview",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Data readiness","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
+ standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex account",admins:"Admin team","ai-local":"Local model (vLLM)","ai-keys":"AI API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"AI model",readiness:"Setup checklist","sources-sync":"Sync API","sources-upload":"Upload dataset","sources-email":"Email sources","api-access":"API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Webhooks & integrations",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>{},"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=s.dataset.view!==view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",a.dataset.nav===view));
+ const here=document.querySelector(`.ngrp [data-nav="${view}"]`);if(here)here.closest(".ngrp").open=true;
  $("#pageTitle").textContent=TITLES[view];$("#kspan").hidden=view!=="overview";document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
  if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);

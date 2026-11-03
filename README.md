@@ -444,6 +444,14 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
   Hugging Face, or any other OpenAI-compatible service. Save a key, list the provider's models, test, and switch
   between providers without pasting a key again.
 
+## The menu
+
+Daily work sits on top: **Overview**, **Treasury**, **Payments**, **Organisation** (people and the admin team) and
+**Assurance**. What is set up once and changed only now and then is folded away below: **Platform setup** (the setup
+checklist, Airwallex, the AI agent and model, app integration through the Sync API and API access, email sync) and
+**System setting** (datasets, the finance SOP: standards, document validation, mandate; budget allocation; the
+organisation's structure: offices, projects and accounts, unit prices). The pages below are named as they appear there.
+
 ## The overview
 
 The first row is the money at Airwallex: the available balance, what it is worth today in the major currencies and
