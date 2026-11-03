@@ -273,7 +273,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="mg" data-g="platform"><button type="button" class="mh"><i>⚙</i><span>Platform Setup</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/airwallex" data-nav="airwallex"><i>◈</i>Airwallex Account</a>
    <a href="#/ai" data-nav="ai" data-also="ai-local ai-keys"><i>✦</i>Agent (AI &amp; Model)</a>
-   <a href="#/sources-sync" data-nav="sources-sync" data-also="api-access"><i>⇅</i>App Integration</a>
+   <a href="#/api-access" data-nav="api-access" data-also="sources-sync"><i>⇅</i>App Integration</a>
    <a href="#/sources-email" data-nav="sources-email"><i>✉</i>Email Sync</a>
    <a href="#/readiness" data-nav="readiness"><i>☑</i>Setup Checklist<span class="cnt" id="cnt-ready"></span></a>
   </div></div>
@@ -494,7 +494,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="readyList" class="empty">loading…</div>
  </section>
 
- <section class="span12 plain" data-view="sources-sync api-access"><div class="ptabs"><a href="#/sources-sync" data-tab="sources-sync">Sync API · from the old system</a><a href="#/api-access" data-tab="api-access">API access · for other apps</a></div></section>
+ <section class="span12 plain" data-view="sources-sync api-access"><div class="ptabs"><a href="#/api-access" data-tab="api-access">1 · API access · other apps call VENTHORA</a><a href="#/sources-sync" data-tab="sources-sync">2 · Sync API · VENTHORA syncs your finance app</a></div></section>
  <section class="span12" data-view="sources-sync">
   <h2><span>Connect your finance application</span><span class="small muted">accounting, ERP or reporting tool with an API: one line, then tick what flows each way</span></h2>
   <div class="form" id="cnNew">
@@ -539,7 +539,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="keyTable" class="empty">loading…</div>
  </section>
  <section class="span4" data-view="api-access">
-  <h2>How another app connects</h2><div id="apiHow" class="small"></div>
+  <h2>How App Integration works</h2><div id="apiHow" class="small"></div>
  </section>
  <section class="span12" data-view="api-access">
   <h2><span>Endpoints</span><span class="row"><select id="epArea"><option value="">All areas</option></select><input id="epFilter" placeholder="filter: path or words" style="min-width:200px"><span class="small muted" id="epCount"></span></span></h2>
@@ -1580,13 +1580,29 @@ async function apiView(){try{const [keys,cat]=await Promise.all([api("/v1/develo
     :'<span class="small muted">no call logged for this key yet</span>'}catch(e){row.firstChild.innerHTML=`<div class="err">${esc(e.message)}</div>`}});
  $("#keyTable").querySelectorAll("[data-revoke]").forEach(b=>b.onclick=async()=>{if(!confirm("Revoke this key? The application using it stops working at once."))return;
   try{await api(`/v1/developer/keys/${b.dataset.revoke}/revoke?${who()}`,{method:"POST"});toast("Key revoked","good");apiView()}catch(e){toast(e.message,"critical")}});
- $("#apiHow").innerHTML=`<dl class="kv"><dt>Base URL</dt><dd><code>${esc(location.origin)}</code> here; from outside, the gateway's tunnel host</dd>
+ $("#apiHow").innerHTML=`<p style="margin:0 0 10px">Two pages, two directions. Both can run at the same time.</p>
+  <div class="tile" style="margin-bottom:10px"><b>1 · API access</b> <span class="muted">(this page)</span>: <b>other apps call VENTHORA</b>
+   <div class="muted" style="margin:4px 0 6px">Their ERP, BI dashboard or bot asks VENTHORA for data or tells it what to do. VENTHORA is the server; the app needs a key from here.</div>
+   <ol style="padding-left:18px;line-height:1.6;margin:0">
+    <li><b>Create key</b>: name the app, tick only the areas it needs (read or write per area), pick the role it acts with and an expiry. The key is shown once; VENTHORA keeps only its hash.</li>
+    <li><b>Expose the API</b> with <code>${esc(cat.gateway.command)}</code> and a tunnel: the gateway forwards only requests that carry a key; the dashboard itself stays private.</li>
+    <li><b>The app calls</b> the endpoints below with the key in a header. <b>Try</b> shows a live answer, <b>curl</b> copies a ready command, and <a href="/openapi.json" target="_blank">openapi.json</a> (or the <a href="/docs" target="_blank">interactive docs</a>) describes every call.</li>
+    <li><b>Watch and stop</b>: <b>Requests</b> shows every call made with a key; <b>Revoke</b> stops it at once.</li></ol></div>
+  <div class="tile" style="margin-bottom:10px"><b>2 · Sync API</b>: <b>VENTHORA syncs your finance app</b>
+   <div class="muted" style="margin:4px 0 6px">VENTHORA calls the company's own accounting or ERP API: it reads what it needs and writes back what it did, so nothing is typed twice. VENTHORA is the client; no key from this page is involved.</div>
+   <ol style="padding-left:18px;line-height:1.6;margin:0">
+    <li><b>Connect</b> with one line: the app's API address and its key.</li>
+    <li><b>Tick</b> what VENTHORA reads (vendors, bills, POs, budgets, …) and what it sends back (payments, journal entries, PO balances, …); everything is ticked by default.</li>
+    <li><b>Discover &amp; map</b>: VENTHORA finds each item (the app's API description, else the usual path names, read only) and proposes which of its fields is which, by name and then by the AI model; you check it and press Apply.</li>
+    <li><b>Keep in sync</b>: a dry run first, then every minute. What is read is validated before it is stored; what is sent back goes once per change, so nothing is booked twice.</li></ol>
+   <div style="margin-top:8px"><a href="#/sources-sync">Open 2 · Sync API →</a></div></div>
+  <div class="muted" style="margin-bottom:6px"><b>Which one?</b> The app fetches or pushes by itself: page 1. VENTHORA should fetch from and update the app: page 2.</div>
+  <h3 class="small muted" style="margin:12px 0 4px">Details for page 1</h3>
+  <dl class="kv"><dt>Base URL</dt><dd><code>${esc(location.origin)}</code> here; from outside, the gateway's tunnel host</dd>
   <dt>Header</dt><dd><code>Authorization: Bearer vth_…</code> or <code>X-API-Key</code></dd><dt>Read</dt><dd>GET and the dry-run <code>…/eval</code> calls</dd><dt>Write</dt><dd>every other call</dd>
   <dt>Retries</dt><dd>send <code>Idempotency-Key: &lt;uuid&gt;</code> on a write: a retry with the same key returns the first answer, never a second payment</dd>
   <dt>Errors</dt><dd>JSON <code>{"detail": …}</code> with the HTTP status: 401 bad key, 403 scope, 409/422 conflict or invalid</dd>
-  <dt>Role</dt><dd>the key's role and name replace <code>role</code> and <code>by</code>; the audit log shows <code>api:&lt;name&gt;</code></dd></dl>
-  <ol style="padding-left:18px;line-height:1.7;margin:12px 0 0"><li>Create a key with only the areas the app needs.</li><li>Expose the API with <code>${esc(cat.gateway.command)}</code> and a tunnel; it forwards only requests that carry a key.</li>
-  <li>Give the app the key and <a href="/openapi.json" target="_blank">openapi.json</a> (or the <a href="/docs" target="_blank">interactive docs</a>).</li></ol>`;
+  <dt>Role</dt><dd>the key's role and name replace <code>role</code> and <code>by</code>; the audit log shows <code>api:&lt;name&gt;</code></dd></dl>`;
  if($("#epArea").options.length===1)$("#epArea").innerHTML+=cat.areas.map(a=>`<option value="${esc(a.area)}">${esc(a.label)}</option>`).join("")+'<option value="developer">API access</option><option value="inbound">Inbound webhooks</option>';
  epView()}catch(e){$("#keyTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 function epView(){if(!CAT)return;const area=$("#epArea").value,q=$("#epFilter").value.trim().toLowerCase();
