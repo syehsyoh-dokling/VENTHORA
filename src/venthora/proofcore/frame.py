@@ -14,7 +14,7 @@ plan and ProofCore re-checks it independently:
 from __future__ import annotations
 
 from ..domain.models import Conversion, ObligationDecision, TreasuryState
-from ..domain.money import PPM, fmt
+from ..domain.money import RATE_SCALE, fmt
 from ..domain.projection import obligation_needs, project
 
 PAYING = ("PAY", "CONVERT_AND_PAY")
@@ -39,13 +39,13 @@ def build(state: TreasuryState, decisions: list[ObligationDecision], conversions
                              "needs_minor": obligation_needs(o, state), "priority": o.priority,
                              "due_in_hours": o.due_in_hours, "eligible": o.obligation_id in eligible}
                             for o in state.obligations],
-            "units": "integer minor units; rates in ppm of base per 1 unit",
+            "units": "integer minor units; rates in base units per 1 unit x 1e9",
         },
         "asked": {"one_action_per_obligation": [o.obligation_id for o in state.obligations],
                   "allowed_actions": list(ACTIONS), "minimum_conversions": "per foreign currency"},
         "formula": {
             "shortfall_c": "max(0, need_c - balance_c)",
-            "cost_base": "need_base + sum_c ceil(shortfall_c * rate_ppm_c / 1e6)",
+            "cost_base": "need_base + sum_c ceil(shortfall_c * rate_ppm_c / 1e9)",
             "constraint": "cost_base <= balance_base - reserve_floor - stress",
             "objective": "maximise strict priority (cost of non-payment), then earliest due",
         },
@@ -104,7 +104,7 @@ def check(state: TreasuryState, frame: dict, decisions: list[ObligationDecision]
         minimum = max(0, needs.get(ccy, 0) - state.balance(ccy))
         if conv["buy_amount_minor"] != minimum:
             problems.append(f"{ccy} conversion buys {conv['buy_amount_minor']}, minimum needed is {minimum}")
-        sell = -(-minimum * state.ppm_up(ccy) // PPM)
+        sell = -(-minimum * state.ppm_up(ccy) // RATE_SCALE)
         if conv["estimated_sell_minor"] != sell:
             problems.append(f"{ccy} conversion cost {conv['estimated_sell_minor']} != {sell}")
         cost += sell

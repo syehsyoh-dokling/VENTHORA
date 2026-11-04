@@ -9,12 +9,11 @@ Rates are always the live indicative Airwallex rates.
 """
 from __future__ import annotations
 
-from typing import get_args
-
-from ..domain.models import Currency, TreasuryState
+from ..domain.models import TreasuryState
+from ..fx_routes import SOURCE_CURRENCIES
 from ..gateways.airwallex import Airwallex
 
-SUPPORTED = set(get_args(Currency))
+SUPPORTED = SOURCE_CURRENCIES  # a wallet can fund a payout only in a currency Airwallex accepts as a transfer source
 
 
 async def live_rates(state: TreasuryState, bank: Airwallex, currencies) -> dict[str, str]:
@@ -27,6 +26,6 @@ async def with_live_balances_and_rates(state: TreasuryState, bank: Airwallex, *,
     if ring_fence:
         balances = {c: min(live.get(c, 0), allocation) for c, allocation in state.balances.items()}
     else:
-        balances = {c: live.get(c, 0) for c in (set(state.balances) | set(live)) & SUPPORTED}
+        balances = {c: live.get(c, 0) for c in (set(state.balances) | {c for c, v in live.items() if v > 0}) & SUPPORTED}
     rates = await live_rates(state, bank, balances)
     return TreasuryState.model_validate(state.model_dump() | {"balances": balances, "fx_to_base": rates})

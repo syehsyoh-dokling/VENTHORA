@@ -22,6 +22,7 @@ from .engines import adapters
 from .engines.horizon import HorizonResult, horizon
 from .engines.theorem import TheoremResult, _cost, classify, theorem
 from .engines.verity import VerityResult, verity
+from .fx_routes import pays_through
 from .proofcore import frame
 from .proofcore.counterfactual import counterfactuals
 from .proofcore.gate import ProofCore
@@ -118,7 +119,8 @@ class Orchestrator:
             for o in state.obligations:
                 cost = theorem_cost(state, o)
                 if o.obligation_id in chosen:
-                    foreign = any(c != state.base_currency for c in obligation_needs(o, state))
+                    foreign = (pays_through(o.currency, state.base_currency)
+                               or any(c != state.base_currency for c in obligation_needs(o, state)))
                     decisions.append(ObligationDecision(
                         obligation_id=o.obligation_id, action="CONVERT_AND_PAY" if foreign else "PAY",
                         amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=cost,

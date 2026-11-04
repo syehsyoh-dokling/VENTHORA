@@ -68,6 +68,10 @@ CREATE TABLE IF NOT EXISTS journal (
 CREATE TABLE IF NOT EXISTS closing_rates (
     period TEXT NOT NULL, currency TEXT NOT NULL, rate TEXT NOT NULL, source TEXT NOT NULL, recorded_at TEXT NOT NULL,
     PRIMARY KEY (period, currency));
+CREATE TABLE IF NOT EXISTS fx_costs (
+    ref TEXT PRIMARY KEY, kind TEXT NOT NULL, book_id TEXT, execution_id TEXT, obligation_id TEXT, at TEXT NOT NULL,
+    reporting_period TEXT NOT NULL, base_currency TEXT NOT NULL, spread_base_minor INTEGER, fee_base_minor INTEGER NOT NULL,
+    record_json TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS payees (
     beneficiary_id TEXT PRIMARY KEY, record_json TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS payee_events (
@@ -303,6 +307,23 @@ class ExecutionStore:
                       " fee_minor = MAX(fee_minor, excluded.fee_minor), transfer_id = excluded.transfer_id,"
                       " updated_at = excluded.updated_at", (fee_key, fee_minor, transfer_id, _now()))
 
+    def record_fx_cost(self, row: dict) -> None:
+        """One cost of moving money across currencies or rails, once per Airwallex ref: kind 'conversion' (a booked
+        conversion), 'pay_through' (a transfer funded in another currency, converted by Airwallex) or 'payout_fee'."""
+        keys = ("ref", "kind", "book_id", "execution_id", "obligation_id", "at", "reporting_period", "base_currency",
+                "spread_base_minor", "fee_base_minor")
+        with self._lock, self._connect() as c:
+            c.execute("INSERT OR IGNORE INTO fx_costs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                      (*(row.get(k) for k in keys[:-1]), row.get("fee_base_minor") or 0, json.dumps(row, default=str)))
+
+    def fx_costs(self, periods: list[str] | None = None) -> list[dict]:
+        q, args = "SELECT record_json FROM fx_costs", ()
+        if periods:
+            q += f" WHERE reporting_period IN ({', '.join('?' * len(periods))})"
+            args = tuple(periods)
+        with self._lock, self._connect() as c:
+            return [json.loads(r[0]) for r in c.execute(q + " ORDER BY at", args).fetchall()]
+
     def observed_fees(self) -> dict[str, int]:
         with self._lock, self._connect() as c:
             return {r["fee_key"]: r["fee_minor"] for r in c.execute("SELECT fee_key, fee_minor FROM observed_fees")}
@@ -466,6 +487,15 @@ class ExecutionStore:
             args = (po_number,)
         with self._lock, self._connect() as c:
             return [dict(r) for r in c.execute(q + " ORDER BY paid_at", args).fetchall()]
+
+    def paid_totals(self, period: str | None = None) -> dict:
+        """Every booked payment of a reporting period (or all): how many, and their base-currency cost."""
+        q, args = "SELECT COUNT(*), COALESCE(SUM(base_cost_minor), 0) FROM spend_ledger", ()
+        if period:
+            q, args = q + " WHERE reporting_period = ?", (period,)
+        with self._lock, self._connect() as c:
+            n, total = c.execute(q, args).fetchone()
+        return {"payments": n, "base_cost_minor": total}
 
     def spend_rows(self, periods: list[str] | None = None) -> list[dict]:
         """Paid spend per account code, reporting month and currency; periods None = every month."""

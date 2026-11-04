@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Airwallex sandbox client: the only code that talks to the bank.
 
 Credentials stay server-side and the model never sees them. Every method is
@@ -60,6 +61,8 @@ class Quote:
     valid_to_at: datetime | None
     usage: str
     raw: dict
+    mid_rate: Decimal | None = None  # the mid-market rate of the pair (the measure of the exchange's real cost)
+    currency_pair: str | None = None  # XY = Y per X, as Airwallex quotes it (EURUSD, USDIDR)
 
     def expired(self, now: datetime | None = None) -> bool:
         return self.valid_to_at is not None and (now or datetime.now(UTC)) >= self.valid_to_at
@@ -90,6 +93,12 @@ class TransferResult:
     failure_reason: str | None
     raw: dict
     failure_type: str | None = None  # Airwallex's typed failure code (e.g. BENEFICIARY_BANK_RETURNED)
+    source_amount_minor: int | None = None  # what left the source wallet before the fee (differs when paid through)
+
+    @property
+    def funded_minor(self) -> int:
+        """The amount taken from the source wallet for the payout itself, fee excluded, in source_currency."""
+        return self.transfer_amount_minor if self.source_amount_minor is None else self.source_amount_minor
 
     @property
     def terminal(self) -> bool:
@@ -145,7 +154,8 @@ def _transfer(body: dict) -> TransferResult:
         failure_reason=body.get("failure_reason") or failure.get("message")
         or (f"{failure['code']}: {(failure.get('details') or {}).get('type', '')}".strip(": ") if failure.get("code") else None)
         or body.get("failure_type"),
-        raw=body, failure_type=failure_type_of(body))
+        raw=body, failure_type=failure_type_of(body),
+        source_amount_minor=to_minor(body["source_amount"]) if body.get("source_amount") not in (None, "") else None)
 
 
 class Airwallex:
@@ -357,7 +367,9 @@ class Airwallex:
         return Quote(quote_id=body["quote_id"], sell_currency=body["sell_currency"], buy_currency=body["buy_currency"],
                      sell_amount_minor=to_minor(body["sell_amount"]), buy_amount_minor=to_minor(body["buy_amount"]),
                      client_rate=Decimal(str(body["client_rate"])), valid_to_at=_parse_time(body.get("valid_to_at")),
-                     usage=body.get("usage", "SINGLE_USE"), raw=body)
+                     usage=body.get("usage", "SINGLE_USE"), raw=body,
+                     mid_rate=Decimal(str(body["mid_rate"])) if body.get("mid_rate") not in (None, "") else None,
+                     currency_pair=body.get("currency_pair"))
 
     async def create_conversion(self, *, request_id: str, quote: Quote) -> ConversionResult:
         return _conversion(await self._request("POST", "/api/v1/fx/conversions/create", json={
@@ -380,10 +392,12 @@ class Airwallex:
         return body["id"]
 
     async def create_transfer(self, *, request_id: str, beneficiary_id: str, currency: str, amount_minor: int,
-                              transfer_method: str, reference: str, reason: str) -> TransferResult:
+                              transfer_method: str, reference: str, reason: str, source_currency: str | None = None) -> TransferResult:
+        """Pay `amount_minor` of `currency`; funded from `source_currency` (default: the same currency). A different
+        source means Airwallex converts inside the transfer (a currency it cannot fund a transfer from, e.g. IDR)."""
         return _transfer(await self._request("POST", "/api/v1/transfers/create", json={
             "request_id": request_id, "beneficiary_id": beneficiary_id,
-            "source_currency": currency, "transfer_currency": currency, "transfer_amount": to_major(amount_minor),
+            "source_currency": source_currency or currency, "transfer_currency": currency, "transfer_amount": to_major(amount_minor),
             "transfer_method": transfer_method, "reference": reference[:140], "reason": reason,
             "fee_paid_by": "PAYER"}))
 

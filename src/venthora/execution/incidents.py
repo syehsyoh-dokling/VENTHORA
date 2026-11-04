@@ -276,7 +276,7 @@ class IncidentCommander:
                 request_id=op["request_id"], beneficiary_id=beneficiary_id, currency=o.currency, amount_minor=o.amount_minor,
                 transfer_method=o.payout_method,
                 reference=f"{o.obligation_id} {o.invoice_fingerprint or ''} REPLACES {original.transfer_id[:8]}".strip(),
-                reason=reason)
+                reason=reason, source_currency=original.source_currency or None)  # paid through: funded as the original
         except AirwallexError as exc:
             replacement = await self.executor._recover(exc, self.bank.find_transfer, op["request_id"])
             if replacement is None:

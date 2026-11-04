@@ -16,8 +16,9 @@ from itertools import product
 from time import perf_counter
 
 from ..domain.models import Obligation, ObligationDecision, StageResult, TreasuryState
-from ..domain.money import PPM, cost_in_base
+from ..domain.money import RATE_SCALE, cost_in_base
 from ..domain.projection import obligation_needs
+from ..fx_routes import pays_through
 from .horizon import HorizonResult
 
 
@@ -107,7 +108,10 @@ def _solve_cp_sat(state: TreasuryState, items: list[Obligation], budget: int,
         shortfall = model.new_int_var(0, total, f"short_{ccy}")
         model.add(shortfall >= sum(n.get(ccy, 0) * xi for n, xi in zip(needs, x, strict=True)) - state.balance(ccy))
         cost = model.new_int_var(0, cost_in_base(total, state.ppm_up(ccy)), f"cost_{ccy}")
-        model.add(cost * PPM >= shortfall * state.ppm_up(ccy))  # integer ceiling
+        rate, scale = state.ppm_up(ccy), RATE_SCALE
+        while total * rate >= 2**61:  # keep CP-SAT in 64-bit integers: a coarser rate, always rounded up (conservative)
+            rate, scale = -(-rate // 1000), scale // 1000
+        model.add(cost * scale >= shortfall * rate)  # integer ceiling
         base_terms.append(cost)
     model.add(sum(base_terms) <= budget)
     for cap, idx in _line_caps(state, items).values():  # Budget · mandate: never propose beyond a line's mandate
@@ -213,7 +217,8 @@ def classify(state, selected, eligible, rejected, risk, exceptions=None) -> list
                              reason=f"{exceptions[o.obligation_id]}; a person must verify before any payment"))
             continue
         if o.obligation_id in chosen:
-            foreign = any(c != state.base_currency for c in obligation_needs(o, state))
+            foreign = (pays_through(o.currency, state.base_currency)
+                       or any(c != state.base_currency for c in obligation_needs(o, state)))
             decisions.append(ObligationDecision(obligation_id=o.obligation_id,
                              action="CONVERT_AND_PAY" if foreign else "PAY",
                              amount_minor=o.amount_minor, currency=o.currency, base_cost_minor=base_cost,

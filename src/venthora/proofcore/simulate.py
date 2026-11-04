@@ -31,7 +31,7 @@ from time import perf_counter
 import numpy as np
 
 from ..domain.models import TreasuryState
-from ..domain.money import PPM
+from ..domain.money import RATE_SCALE
 from ..domain.projection import obligation_needs, project
 from ..engines import horizon_m0
 
@@ -145,7 +145,7 @@ def simulate(state: TreasuryState, decisions, stress_minor: int, receivable_view
             rid, h = payload
             mask = np.floor(receipt_hour[rid]) == h
             rv = next(x for x in state.receivables if x.receivable_id == rid)
-            amount = rv.amount_minor * (state.ppm_down(rv.currency) / PPM)
+            amount = rv.amount_minor * (state.ppm_down(rv.currency) / RATE_SCALE)
             cash = cash + np.where(mask, amount, 0.0)
             path_events += int(mask.sum())
         elif kind == "stress":
@@ -160,7 +160,7 @@ def simulate(state: TreasuryState, decisions, stress_minor: int, receivable_view
                     cost += amount
                 else:
                     short = max(0.0, amount - foreign.get(ccy, 0.0))
-                    cost += short * (state.ppm_up(ccy) / PPM) * _fx_at(factors, currencies.index(ccy), hour, horizon)
+                    cost += short * (state.ppm_up(ccy) / RATE_SCALE) * _fx_at(factors, currencies.index(ccy), hour, horizon)
             can_pay = cash - cost >= floor
             cash = np.where(can_pay, cash - cost, cash)
             unfunded[payload] = ~can_pay

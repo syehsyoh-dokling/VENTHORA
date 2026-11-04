@@ -202,7 +202,8 @@ def test_a_claim_above_the_contract_value_is_checked_unless_the_delegation_ignor
 
 def test_every_airwallex_payout_currency_can_be_allowed_and_the_engine_ones_are_named(client):
     d = client.get("/v1/doa").json()
-    assert {"IDR", "JPY", "SGD", "AUD"} <= set(d["currencies"]) and d["engine_currencies"] == ["USD", "EUR", "GBP"]
+    assert {"IDR", "JPY", "SGD", "AUD", "INR", "NGN"} <= set(d["currencies"]) and d["currencies"][:3] == ["USD", "EUR", "GBP"]
+    assert d["engine_currencies"] == d["currencies"]  # the agent pays every one (converted first, or paid through from USD)
     assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"currencies": ["USD", "IDR"]}).json()["currencies"] == ["USD", "IDR"]
 
 

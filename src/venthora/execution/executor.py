@@ -30,8 +30,9 @@ from .. import ledger
 from ..audit import AuditStore
 from ..config import ROOT
 from ..domain.models import PlanResult, TreasuryState
-from ..domain.money import fmt
+from ..domain.money import cost_in_base, fmt
 from ..domain.projection import obligation_needs
+from ..fx_routes import exchange_cost, pays_through
 from ..gateways.airwallex import Airwallex, AirwallexError, ConversionResult, Quote, TransferResult
 from ..ledger import LedgerError
 from ..orchestrator import Orchestrator
@@ -277,6 +278,7 @@ class Executor:
         transfers: dict[str, tuple[str, TransferResult]] = {}  # obligation_id -> (payout_key, transfer)
         status, message = "COMPLETED", "executed and reconciled"
         self._book_id = state.book_id
+        self._state, self._eid, self._through = state, eid, {}
         claims = self._claim_all(eid, state, plan, steps)
         try:
             if claims is None:
@@ -363,6 +365,11 @@ class Executor:
                     continue
                 o = by_id[d.obligation_id]
                 fee = fees.get(f"{o.payout_method}:{o.currency}", 0)
+                if pays_through(o.currency, state.base_currency):  # funded in the base currency (the fee too)
+                    q = getattr(self, "_through", {}).get(o.obligation_id)
+                    funded = q.sell_amount_minor if q else cost_in_base(o.amount_minor, state.ppm_up(o.currency))
+                    pending.append(ledger.commit(state.base_currency, funded, fee, d.obligation_id))
+                    continue
                 pending.append(ledger.commit(o.currency, o.amount_minor, fee, d.obligation_id))
         for entry in pending:
             over = ledger.would_overdraw(journal, entry)
@@ -428,6 +435,31 @@ class Executor:
                                      f"slippage limit {fmt(limit, base)}; nothing booked, re-plan")
             quotes.append(quote)
 
+        # Paid through (IDR, INR, ...): Airwallex converts inside the transfer. A fresh quote per payout checks the rate
+        # against the plan's (same slippage limit) and gives the mid-market rate the real cost is measured against.
+        for d in plan.obligations:
+            o = by_id.get(d.obligation_id)
+            if d.action not in PAYING_ACTIONS or o is None or not pays_through(o.currency, base):
+                continue
+            if self.store.operation(eid, f"transfer:{o.obligation_id}", "transfer")["status"] in ("SUBMITTED", "SUCCEEDED"):
+                continue
+            estimate = cost_in_base(o.amount_minor, state.ppm_up(o.currency))
+            try:
+                quote = await self.bank.create_quote(sell_currency=base, buy_currency=o.currency,
+                                                     buy_amount_minor=o.amount_minor, validity="MIN_1")
+            except AirwallexError as exc:
+                steps.append(Step(kind="quote", key=f"{o.obligation_id}:{o.currency}", status="FAILED", detail={"error": str(exc)}))
+                raise Halt("FAILED", f"quote for {o.currency} (paid through from {base}) failed: {exc}") from exc
+            limit = -(-estimate * (10_000 + req.max_quote_slippage_bp) // 10_000)
+            steps.append(Step(kind="quote", key=f"{o.obligation_id}:{o.currency}", status="OK", airwallex_id=quote.quote_id, detail={
+                "paid_through": True, "sell_minor": quote.sell_amount_minor, "estimate_minor": estimate,
+                "slippage_limit_minor": limit, "client_rate": str(quote.client_rate),
+                "mid_rate": None if quote.mid_rate is None else str(quote.mid_rate), "currency_pair": quote.currency_pair}))
+            if quote.sell_amount_minor > limit:
+                raise Halt("FAILED", f"{o.currency} paid through from {base} costs {fmt(quote.sell_amount_minor, base)}, above the "
+                                     f"slippage limit {fmt(limit, base)}; nothing paid, re-plan")
+            self._through[o.obligation_id] = quote
+            base_payments += quote.sell_amount_minor - estimate
         base_spend = base_payments + sum(q.sell_amount_minor for q in quotes)
         projected = before.get(base, 0) - base_spend
         # Same rule as ProofCore: the floor binds any plan that spends base cash. A plan funded entirely
@@ -470,7 +502,37 @@ class Executor:
         if not any(e["ref"] == result.conversion_id for e in self.store.journal(self._book_id)):  # a resume posts once
             self._post(self._book_id, ledger.convert(result.sell_currency, result.sell_amount_minor, result.buy_currency,
                                                      result.buy_amount_minor, result.conversion_id), eid, steps)
+        self._record_cost("conversion", result.conversion_id, None, exchange_cost(
+            sell_ccy=result.sell_currency, sell_minor=result.sell_amount_minor, buy_ccy=result.buy_currency,
+            buy_minor=result.buy_amount_minor, pair=quote.currency_pair, mid=quote.mid_rate, client_rate=result.client_rate), None)
         return result
+
+    def _record_cost(self, kind: str, ref: str, obligation_id: str | None, exchange: dict | None, fee: tuple[str, int] | None) -> None:
+        """Reporting: what it cost to move this money, in the base currency, in the period it was moved. The spread is
+        measured against the mid-market rate of the quote (never guessed: unknown stays None); a fee in another
+        currency is valued at the state's rate."""
+        state = getattr(self, "_state", None)
+        if state is None:
+            return
+        from ..reporting import load_config, reporting_period
+
+        base = state.base_currency
+        spread = None
+        if exchange and exchange.get("spread_minor") is not None:
+            spread = exchange["spread_minor"] if exchange["sell_currency"] == base else cost_in_base(exchange["spread_minor"], state.ppm_up(exchange["sell_currency"]))
+        fee_base = 0
+        if fee and fee[1]:
+            try:
+                fee_base = fee[1] if fee[0] == base else cost_in_base(fee[1], state.ppm_up(fee[0]))
+            except KeyError:
+                fee_base = 0
+        at = datetime.now(UTC)
+        with contextlib.suppress(Exception):  # a cost record never changes the outcome of a payment
+            self.store.record_fx_cost({"ref": ref, "kind": kind, "book_id": state.book_id, "execution_id": getattr(self, "_eid", None),
+                                       "obligation_id": obligation_id, "at": at.isoformat(),
+                                       "reporting_period": reporting_period(at, load_config()), "base_currency": base,
+                                       "spread_base_minor": spread, "fee_base_minor": fee_base, "exchange": exchange,
+                                       "fee_currency": fee[0] if fee else None, "fee_minor": fee[1] if fee else 0})
 
     async def _book_conversion(self, op: dict, quote: Quote, steps: list[Step]) -> ConversionResult:
         try:
@@ -506,16 +568,27 @@ class Executor:
         if transfer is None:
             transfer = await self._create_transfer(op, o, payout_key, steps)
         self.store.update_operation(op["op_key"], "SUCCEEDED", transfer.transfer_id, transfer.raw)
-        self.store.record_fee(f"{o.payout_method}:{transfer.source_currency or o.currency}", transfer.fee_minor,
-                              transfer.transfer_id)
+        source = transfer.source_currency or o.currency
+        through = source != o.currency
+        # a paid-through payout's fee is charged in the funding currency: kept under the payout currency's key
+        self.store.record_fee(f"{o.payout_method}:{o.currency if through else source}", transfer.fee_minor, transfer.transfer_id)
         self.store.settle_payout(payout_key, "IN_FLIGHT", transfer.transfer_id)
-        self._post(state.book_id, ledger.commit(transfer.source_currency or o.currency, transfer.transfer_amount_minor,
-                                                transfer.fee_minor, transfer.transfer_id), eid, steps)
+        self._post(state.book_id, ledger.commit(source, transfer.funded_minor, transfer.fee_minor, transfer.transfer_id), eid, steps)
+        if through:
+            q = getattr(self, "_through", {}).get(o.obligation_id)
+            # the quote's mid-market rate with the quote's own pair (they belong together: XY = Y per X)
+            pair, mid = (q.currency_pair, q.mid_rate) if q is not None else (None, None)
+            self._record_cost("pay_through", transfer.transfer_id, o.obligation_id, exchange_cost(
+                sell_ccy=source, sell_minor=transfer.funded_minor, buy_ccy=o.currency, buy_minor=transfer.transfer_amount_minor,
+                pair=pair, mid=mid, client_rate=(transfer.raw.get("conversion") or {}).get("rate")), (source, transfer.fee_minor))
+        elif transfer.fee_minor:
+            self._record_cost("payout_fee", transfer.transfer_id, o.obligation_id, None, (source, transfer.fee_minor))
         steps.append(Step(kind="transfer", key=o.obligation_id, status="OK", request_id=op["request_id"],
                           airwallex_id=transfer.transfer_id, detail={
                               "status": transfer.status, "amount": fmt(o.amount_minor, o.currency),
                               "method": o.payout_method, "payer_pays_minor": transfer.amount_payer_pays_minor,
-                              "fee_minor": transfer.fee_minor}))
+                              "fee_minor": transfer.fee_minor,
+                              **({"paid_through": source, "funded_minor": transfer.funded_minor} if through else {})}))
         return payout_key, transfer
 
     async def _create_transfer(self, op: dict, o, payout_key: str, steps: list[Step]) -> TransferResult:
@@ -523,10 +596,12 @@ class Executor:
         reason = self.beneficiaries[o.beneficiary_id].get("transfer_reason", "business_expenses")
         self.store.update_operation(op["op_key"], "SUBMITTED")
         try:
+            base = self._state.base_currency if getattr(self, "_state", None) else "USD"
             return await self.bank.create_transfer(
                 request_id=op["request_id"], beneficiary_id=beneficiary_id, currency=o.currency,
                 amount_minor=o.amount_minor, transfer_method=o.payout_method,
-                reference=f"{o.obligation_id} {o.invoice_fingerprint or ''}".strip(), reason=reason)
+                reference=f"{o.obligation_id} {o.invoice_fingerprint or ''}".strip(), reason=reason,
+                source_currency=base if pays_through(o.currency, base) else None)
         except AirwallexError as exc:
             transfer = await self._recover(exc, self.bank.find_transfer, op["request_id"])
             if transfer is not None:
@@ -596,9 +671,9 @@ class Executor:
             journal = self.store.journal(self._book_id)
             ccy = t.source_currency or t.transfer_currency
             if status == "PAID" and not any(e["kind"] == "settle" and e["ref"] == t.transfer_id for e in journal):
-                self._post(self._book_id, ledger.settle(ccy, t.transfer_amount_minor, t.transfer_id), None, steps or [])
+                self._post(self._book_id, ledger.settle(ccy, t.funded_minor, t.transfer_id), None, steps or [])
             elif status == "FAILED" and not any(e["kind"] == "refund" and e["ref"] == t.transfer_id for e in journal):
-                self._post(self._book_id, ledger.refund(ccy, t.transfer_amount_minor, t.transfer_id), None, steps or [])
+                self._post(self._book_id, ledger.refund(ccy, t.funded_minor, t.transfer_id), None, steps or [])
             out[oid] = (key, t)
         return out
 
@@ -759,7 +834,7 @@ def _quote_record(q: Quote) -> dict:
     return {"quote_id": q.quote_id, "sell_currency": q.sell_currency, "buy_currency": q.buy_currency,
             "sell_amount_minor": q.sell_amount_minor, "buy_amount_minor": q.buy_amount_minor,
             "client_rate": str(q.client_rate), "valid_to_at": q.valid_to_at.isoformat() if q.valid_to_at else None,
-            "usage": q.usage}
+            "usage": q.usage, "mid_rate": None if q.mid_rate is None else str(q.mid_rate), "currency_pair": q.currency_pair}
 
 
 def _quote_from_record(r: dict) -> Quote:
@@ -767,7 +842,8 @@ def _quote_from_record(r: dict) -> Quote:
                  sell_amount_minor=r["sell_amount_minor"], buy_amount_minor=r["buy_amount_minor"],
                  client_rate=Decimal(r["client_rate"]),
                  valid_to_at=datetime.fromisoformat(r["valid_to_at"]) if r["valid_to_at"] else None,
-                 usage=r["usage"], raw={})
+                 usage=r["usage"], raw={}, mid_rate=Decimal(r["mid_rate"]) if r.get("mid_rate") else None,
+                 currency_pair=r.get("currency_pair"))
 
 
 def _conversion_record(c: ConversionResult) -> dict:

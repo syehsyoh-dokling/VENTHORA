@@ -848,7 +848,7 @@ PAYABLE_KINDS = ("supplier_invoice", "contractor_claim", "expense_claim")
 
 async def _pay_on_arrival(intake_id: str, by: str = "VENTHORA (on arrival)") -> dict:
     """A verified request paid at once when the standing mandate says so: planned alone on the live balance with the
-    Payment Priority SOP, proved, and executed only for what the plan approves on the agent's own authority. Never
+    Standard Payment Priority Policy, proved, and executed only for what the plan approves on the agent's own authority. Never
     raises: what is not paid stays in Pending payment, with the reason on the audit chain."""
     from . import autonomy, mandate
 
@@ -894,19 +894,120 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
     the due instructions the DoA lets the agent pay on its own."""
     from . import doa
 
+    tick = 0
     while True:
         await asyncio.sleep(every_s)
+        tick += 1
+        if tick % 5 == 0:
+            with contextlib.suppress(Exception):
+                await _policy_run()
         try:
             if doa.autopilot(app.state.org) and app.state.agent.proof.airwallex.configured:
                 await _doa_run([], None, "finance_manager", "VENTHORA (autopilot)")
             from . import mandate
 
             if mandate.pay_on_arrival(app.state.org) and app.state.agent.proof.airwallex.configured:  # the sweep
-                for q in [q for q in app.state.intake.store.list(500) if q.status == "VERIFIED" and not q.payment and q.kind in PAYABLE_KINDS][:20]:
+                waiting = [q for q in app.state.intake.store.list(500) if q.status == "VERIFIED" and not q.payment and q.kind in PAYABLE_KINDS]
+                for q in sorted(waiting, key=lambda q: q.received_at)[:20]:  # first in, first out
                     await _pay_on_arrival(q.intake_id, "VENTHORA (sweep)")
         except Exception as exc:  # noqa: BLE001  the next minute tries again; the failure is on the audit chain
             with contextlib.suppress(Exception):
                 await asyncio.to_thread(app.state.audit.append, "doa_autopilot_failed", {"error": str(getattr(exc, "detail", exc))[:300]})
+
+
+async def _policy_run(now: datetime | None = None) -> dict:
+    """Standard Payment Priority Policy, high priority first: plan the horizon, and pay what the policy lets the agent
+    pay now. A payment a person holds is never paid by it. Never raises; what it did and why is on the audit chain."""
+    from . import autonomy, priority_sop
+
+    org = app.state.org
+    pol = priority_sop.policy(org)
+    out: dict = {"paid": [], "deemed": [], "waiting": [], "notices": []}
+    if not (priority_sop.saved(org) or {}).get("policy") or pol["mode"] != "priority" or not app.state.agent.proof.airwallex.configured:
+        return out | {"skipped": "the policy is not high priority first, or the bank is not connected"}
+    now = now or datetime.now(UTC)
+    state, source = await _todays_state()
+    if state is None:
+        return out | {"skipped": "nothing waits for payment"}
+    holds = priority_sop.holds(org)
+    if holds:
+        left = [o for o in state.obligations if o.obligation_id not in holds]
+        if not left:
+            return out | {"skipped": "every payment is held by a person"}
+        state = state.model_copy(update={"obligations": left})
+    s = await autonomy.split(app.state.agent, state)
+    by_id = {o.obligation_id: o for o in state.obligations}
+    auto = [d for d in (s.auto_plan.obligations if s.auto_plan else []) if d.action in autonomy.PAYING]
+    if not pol["cascade"]:  # only High priority is paid by the policy; Medium and Low wait for a person
+        out["waiting"] += [{"obligation_id": d.obligation_id, "why": "the policy pays High priority only"} for d in auto if by_id[d.obligation_id].priority < 8]
+        auto = [d for d in auto if by_id[d.obligation_id].priority >= 8]
+    short = [d.obligation_id for d in s.full.obligations if d.action == "DEFER"] + ([s.stopped_for_cash] if s.stopped_for_cash else [])
+    if short and not pol["pay_what_fits"]:
+        out["waiting"] += [{"obligation_id": d.obligation_id, "why": "the balance does not cover every payment: the policy pays none"} for d in auto]
+        auto = []
+    if short and pol["notify_fco"]:
+        out["notices"].append(priority_sop.notify(org, f"short-{now.date()}-{'-'.join(sorted(short))[:120]}", "The balance does not cover every payment",
+                                                  "These payments wait in Pending payment: " + ", ".join(sorted(short))
+                                                  + ("; the payments that fit are paid in priority order." if pol["pay_what_fits"] else "; the policy pays none until all fit."),
+                                                  sorted(short)))
+    # when: a currency payment is bought FX_BEFORE_H before its deadline, at the planned rate or better; the rest now
+    due, rates = [], {}
+    for d in auto:
+        o = by_id[d.obligation_id]
+        if pol["fx_at_plan"] and o.currency != state.base_currency:
+            planned = priority_sop.planned_rate(org, o.obligation_id, o.currency, state.fx_to_base.get(o.currency))
+            if priority_sop.hours_left(o.model_dump(), now) > priority_sop.FX_BEFORE_H:
+                out["waiting"].append({"obligation_id": o.obligation_id, "why": f"bought {priority_sop.FX_BEFORE_H} h before its deadline, at the planned rate {planned}"})
+                continue
+            if planned:
+                rates[o.currency] = min(rates.get(o.currency, planned), planned, key=lambda r: float(r))
+        due.append(d.obligation_id)
+
+    async def pay(ids: list[str], approval=None, label="policy") -> dict | None:
+        paying_all = {d.obligation_id for d in s.full.obligations if d.action in autonomy.PAYING}
+        book = state.model_copy(update={"obligations": [o for o in state.obligations if o.obligation_id not in (paying_all - set(ids))]})
+        if rates:
+            book = book.model_copy(update={"fx_to_base": book.fx_to_base | {c: r for c, r in rates.items() if c in {by_id[i].currency for i in ids}}})
+        plan = await app.state.agent.decide(book)
+        pays = {d.obligation_id for d in plan.obligations if d.action in autonomy.PAYING}
+        if not set(ids) <= pays or plan.decision == "BLOCKED" or (approval is None and plan.decision != "APPROVED"):
+            return None
+        if approval is not None and plan.decision == "REQUIRES_APPROVAL":
+            req = plan.approval_requirement or {}
+            if req.get("approvals_required", 1) > 1 or getattr(getattr(state.tenancy, "config", None), "approvers", None):
+                priority_sop.notify(org, f"deemed-{ids[0]}", "Deemed approval does not cover this payment",
+                                    f"{ids[0]} needs {req.get('approvals_required', 1)} approvals or a named approver; a person must approve it before its deadline.", ids)
+                return None
+        res = await app.state.executor.execute(ExecutionRequest(
+            state=book, plan_hash=plan.plan_hash, requested_by=f"VENTHORA ({label})", approval=approval,
+            max_quote_slippage_bp=0 if rates else 100))
+        await asyncio.to_thread(app.state.audit.append, f"policy_{label}", {"obligations": ids, "execution_id": res.execution_id, "status": res.status,
+                                                                            "message": res.message[:300]})
+        if res.status not in ("COMPLETED", "IN_FLIGHT") and pol["notify_fco"]:
+            priority_sop.notify(org, f"failed-{'-'.join(ids)[:150]}", "A planned payment was not made", f"{', '.join(ids)}: {res.message[:400]}", ids)
+        return {"execution_id": res.execution_id, "status": res.status}
+
+    if due:
+        r = await pay(due)
+        if r:
+            out["paid"] = due
+            out["execution"] = r
+    if pol["deemed_approval"]:
+        from .execution.models import Approval
+
+        for h in s.held:
+            o = by_id.get(h["obligation_id"])
+            if o is None or autonomy.CASH_REASONS & set(h["reasons"]) or priority_sop.hours_left(o.model_dump(), now) > priority_sop.DEEMED_BEFORE_H:
+                continue
+            if priority_sop.hours_left(o.model_dump(), now) < 0:
+                continue  # past its deadline: a person decides
+            role = (state.policy.approver_roles or ["finance_manager"])[0]
+            r = await pay([o.obligation_id], Approval(approver="Deemed approval (Standard Payment Priority Policy)", role=role,
+                                                     note=f"no intervention {priority_sop.DEEMED_BEFORE_H} h before the deadline"), "deemed_approval")
+            if r:
+                out["deemed"].append(o.obligation_id)
+    app.state.position_cache = None
+    return out
 
 
 @app.post("/api/live/start")
@@ -3321,6 +3422,16 @@ async def reports_spend(category: str = Query("goods_services", pattern="^(payro
             "types": sorted({r["type"] for r in rows}), "totals": totals}
 
 
+@app.get("/v1/reports/fx-costs")
+async def reports_fx_costs(period: str | None = Query(None, max_length=20)):
+    """Reporting -> FX & transfer costs: every exchange (a booked conversion, or a payout Airwallex converted inside the
+    transfer) at its real cost against the mid-market rate, and every payout fee, in the base currency, per reporting
+    period; set against what the period converted and paid."""
+    from . import fx_cost_report
+
+    return await asyncio.to_thread(fx_cost_report.build, app.state.executor.store, period or None)
+
+
 @app.get("/v1/exceptions")
 async def exceptions_list():
     """Executions & incidents: everything that waits for a person, one list per kind. Empty means VENTHORA pays as
@@ -3428,11 +3539,13 @@ async def exceptions_payroll_to_review(body: ToReviewIn, role: str = "finance_ma
 class PrioritySopIn(BaseModel):
     items: list[dict] = Field(description="every category in the order wanted, each {key, level: high | medium | low}")
     late_cost: bool = Field(True, description="inside a level, a payment that costs more when late moves up one step")
+    policy: dict | None = Field(None, description="mode (fifo | priority), horizon_hours (24-120), deemed_approval, pay_what_fits, "
+                                                  "notify_fco, cascade, fx_at_plan")
 
 
 @app.get("/v1/priority-sop")
 async def priority_sop_get(role: str | None = None):
-    """System Setting -> Payment Priority SOP: every spending category with its level (High, Medium, Low), its place and
+    """System Setting -> Standard Payment Priority Policy: every spending category with its level (High, Medium, Low), its place and
     the priority it gives in the plan for the horizon; and how the payments waiting now would be ranked by it."""
     from . import mandate, priority_sop
 
@@ -3463,21 +3576,24 @@ async def priority_sop_get(role: str | None = None):
     horizon = (st.get("book") or {}).get("horizon_hours", 72)
     return {"items": rows, "levels": priority_sop.LEVELS, "bands": {k: list(v) for k, v in priority_sop.BANDS.items()}, "saved": bool(rec),
             "late_cost": priority_sop.late_cost_on(org), "top_shared": priority_sop.TOP_SHARED, "pay_on_arrival": mandate.pay_on_arrival(org),
-            "updated_by": rec.get("updated_by"), "horizon_hours": horizon, "preview": preview,
+            "updated_by": rec.get("updated_by"), "horizon_hours": priority_sop.policy(org)["horizon_hours"] if rec.get("policy") else horizon, "preview": preview,
+            "policy": priority_sop.policy(org), "policy_saved": bool(rec.get("policy")), "modes": priority_sop.MODES, "horizons": list(priority_sop.HORIZONS),
+            "timing": {"deadline_hour_utc": priority_sop.DEADLINE_HOUR_UTC, "deemed_before_h": priority_sop.DEEMED_BEFORE_H, "fx_before_h": priority_sop.FX_BEFORE_H},
+            "notices": priority_sop.notices(org), "holds": list(priority_sop.holds(org).values()),
             "authority": {"role": st["authority_role"], "you_may_change": role == st["authority_role"] if role else None}}
 
 
 @app.put("/v1/priority-sop")
 async def priority_sop_put(body: PrioritySopIn, role: str = "super_admin", by: str = "dashboard"):
-    """Save the Payment Priority SOP. Only the role holding the mandate authority may change it; from then on every plan
+    """Save the Standard Payment Priority Policy. Only the role holding the mandate authority may change it; from then on every plan
     built from the organisation's payments ranks them by it."""
     from . import mandate, priority_sop
 
     st = mandate.standing(app.state.org)
     if role != st["authority_role"]:
-        raise HTTPException(403, f"only the {mandate.AUTHORITY_ROLES[st['authority_role']]} changes the Payment Priority SOP")
+        raise HTTPException(403, f"only the {mandate.AUTHORITY_ROLES[st['authority_role']]} changes the Standard Payment Priority Policy")
     try:
-        rec = await asyncio.to_thread(priority_sop.save, app.state.org, body.items, f"{by} ({role})", body.late_cost)
+        rec = await asyncio.to_thread(priority_sop.save, app.state.org, body.items, f"{by} ({role})", body.late_cost, body.policy)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "priority_sop_saved", rec)
@@ -3487,7 +3603,7 @@ async def priority_sop_put(body: PrioritySopIn, role: str = "super_admin", by: s
 async def _todays_state() -> tuple[TreasuryState | None, dict]:
     """The organisation's book as it stands now: the payment requests waiting (verified or held for a person), the
     payroll lines ready for the pay day, the customer receipts expected, the budget; on the live Airwallex balance and
-    rates when the bank is connected (the scenario's balances otherwise), with the Payment Priority SOP applied."""
+    rates when the bank is connected (the scenario's balances otherwise), with the Standard Payment Priority Policy applied."""
     from . import doa
 
     org = app.state.org
@@ -3548,8 +3664,12 @@ async def agent_plan_today():
 
     state, source = await _todays_state()
     st = mandate.standing(app.state.org)
+    from . import priority_sop
+
+    pol = priority_sop.policy(app.state.org)
     meta = {"as_of": datetime.now(UTC).isoformat(timespec="seconds"), "source": source, "pay_on_arrival": mandate.pay_on_arrival(app.state.org),
-            "horizon_hours": (st.get("book") or {}).get("horizon_hours", 72)}
+            "horizon_hours": pol["horizon_hours"] if (priority_sop.saved(app.state.org) or {}).get("policy") else (st.get("book") or {}).get("horizon_hours", 72),
+            "policy": pol, "holds": list(priority_sop.holds(app.state.org).values()), "notices": priority_sop.notices(app.state.org)}
     if state is None:
         return meta | {"plan": None, "split": None}
     s = await autonomy.split(app.state.agent, state)
@@ -3564,7 +3684,13 @@ async def agent_plan_execute(role: str = "finance_manager", by: str = "dashboard
     from . import autonomy
 
     _writer(role, by)
+    from . import priority_sop
+
     state, source = await _todays_state()
+    holds = priority_sop.holds(app.state.org)
+    if state is not None and holds:
+        left = [o for o in state.obligations if o.obligation_id not in holds]
+        state = state.model_copy(update={"obligations": left}) if left else None
     if state is None:
         raise HTTPException(409, "nothing waits for payment")
     if source["balances"] != "live Airwallex":
@@ -3577,6 +3703,57 @@ async def agent_plan_execute(role: str = "finance_manager", by: str = "dashboard
     await asyncio.to_thread(app.state.audit.append, "agent_plan_executed", {"by": by, "execution_id": res.execution_id, "status": res.status})
     return {"paid": [d.obligation_id for d in s.auto_plan.obligations if d.action in autonomy.PAYING], "split": s.summary(),
             "execution": {"execution_id": res.execution_id, "status": res.status, "message": res.message}}
+
+
+class PlanHoldIn(BaseModel):
+    obligation_id: str = Field(min_length=1, max_length=80)
+    note: str = Field("", max_length=300)
+
+
+@app.post("/v1/agent-plan/hold")
+async def agent_plan_hold(body: PlanHoldIn, role: str = "finance_manager", by: str = "dashboard"):
+    """A person's intervention: the policy does not pay this payment (no deemed approval, no autonomous run) until released."""
+    from . import priority_sop
+
+    _writer(role, by)
+    rec = await asyncio.to_thread(priority_sop.hold, app.state.org, body.obligation_id, f"{by} ({role})", body.note)
+    await asyncio.to_thread(app.state.audit.append, "plan_hold", rec)
+    return rec
+
+
+@app.delete("/v1/agent-plan/hold/{obligation_id}")
+async def agent_plan_release(obligation_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    from . import priority_sop
+
+    _writer(role, by)
+    await asyncio.to_thread(priority_sop.release, app.state.org, obligation_id, f"{by} ({role})")
+    await asyncio.to_thread(app.state.audit.append, "plan_hold_released", {"obligation_id": obligation_id, "by": by})
+    return {"released": obligation_id}
+
+
+@app.get("/v1/notifications")
+async def notifications_list(status: str | None = Query("open", pattern="^(open|closed|all)$")):
+    """Notices for the FCO from the Standard Payment Priority Policy (balance short, a planned payment not made, ...)."""
+    from . import priority_sop
+
+    return priority_sop.notices(app.state.org, None if status == "all" else status)
+
+
+@app.post("/v1/notifications/{key}/close")
+async def notifications_close(key: str, role: str = "super_admin", by: str = "dashboard"):
+    _writer(role, by)
+    rec = app.state.org.get("notification", key)
+    if rec is None:
+        raise HTTPException(404, "no such notice")
+    app.state.org._put("notification", rec | {"status": "closed", "closed_by": f"{by} ({role})"}, by)
+    return {"closed": key}
+
+
+@app.post("/v1/agent-plan/policy-run")
+async def agent_plan_policy_run(role: str = "super_admin", by: str = "dashboard"):
+    """Run the Standard Payment Priority Policy now (the scheduler runs it every five minutes)."""
+    _writer(role, by)
+    return await _policy_run()
 
 
 @app.get("/v1/receipts")

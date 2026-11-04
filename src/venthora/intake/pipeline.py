@@ -1013,5 +1013,5 @@ class Intake:
         data["obligations"] = data["obligations"][:12]
         from .. import priority_sop
 
-        # the FCO's Payment Priority SOP gives each obligation its priority (once saved)
+        # the FCO's Standard Payment Priority Policy gives each obligation its priority (once saved)
         return priority_sop.apply(TreasuryState.model_validate(data), self.org, self.registry.payees)

@@ -130,7 +130,7 @@ UNBUDGETED_HELP = ("A payment charged to no budget line of the period (Payment â
                    "Switched off, the agent pays it on its own within the other limits.")
 
 PAY_ON_ARRIVAL = "pay_on_arrival"
-PAY_ON_ARRIVAL_LABEL = "Pay a verified request the moment it passes every check"
+PAY_ON_ARRIVAL_LABEL = "Pay a verified request the moment it passes every check (once the Standard Payment Priority Policy is saved, its priority decides: FIFO is real time)"
 PAY_ON_ARRIVAL_HELP = ("An invoice, payment order or synced bill that passes every check is planned and paid at once on the live balance, through the "
                        "treasury proof (reserve floor, limits, budget, Delegation of Authority); a sweep every minute retries what waited on cash, a rate "
                        "or a due date. Off, a verified request waits for a run or for Pay in Pending payment.")
@@ -168,8 +168,14 @@ def standing(org) -> dict:
 
 
 def pay_on_arrival(org) -> bool:
-    """Whether a verified request is paid the moment it passes every check (off until the mandate authority says so)."""
+    """Whether a verified request is paid the moment it passes every check (off until the mandate authority says so).
+    Once the Standard Payment Priority Policy is saved, its priority decides: FIFO is real time, high priority first is
+    a planned horizon."""
     try:
+        from . import priority_sop
+
+        if priority_sop.saved(org) is not None and (priority_sop.saved(org) or {}).get("policy"):
+            return priority_sop.policy(org)["mode"] == "fifo"
         return bool(standing(org)["enabled"].get(PAY_ON_ARRIVAL, False))
     except Exception:  # noqa: BLE001
         return False

@@ -25,14 +25,15 @@ import re
 from typing import Any
 
 from .domain.models import TreasuryState
+from .fx_routes import PAYOUT_CURRENCIES  # noqa: E402
 
 PAYEE_OK = ("VERIFIED", "ACTIVE")
-# Payout currencies in Airwallex's payout network (SWIFT and local clearing, from airwallex.com/guides/payout and the
-# market-coverage docs; a currency may be limited to some destinations, which the beneficiary schema checks).
-CURRENCIES = ("USD", "EUR", "GBP", "AED", "AUD", "BDT", "CAD", "CHF", "CNY", "CZK", "DKK", "HKD", "HUF", "IDR", "ILS", "INR", "JPY",
-              "KRW", "LKR", "MXN", "MYR", "NOK", "NPR", "NZD", "PHP", "PKR", "PLN", "RON", "SAR", "SEK", "SGD", "THB", "TRY", "VND", "ZAR")
-# what VENTHORA's treasury engine converts and pays today; a line in another allowed currency waits for a person
-ENGINE_CURRENCIES = ("USD", "EUR", "GBP")
+# Payout currencies in Airwallex's payout network: the account currencies the beneficiary schema accepts (fx_routes,
+# read on the sandbox 5 Nov 2026; a currency may be limited to some destinations, which the schema checks per payee).
+CURRENCIES = ("USD", "EUR", "GBP") + tuple(sorted(PAYOUT_CURRENCIES - {"USD", "EUR", "GBP"}))
+# what VENTHORA's treasury engine converts and pays: every one of them (a wallet currency is converted first, any
+# other is paid through from USD, converted in the transfer)
+ENGINE_CURRENCIES = CURRENCIES
 SCHEDULES = ("monthly", "quarterly", "annual", "per_document")
 PAY_DAYS = ("last_working_day",) + tuple(str(d) for d in range(1, 29))
 

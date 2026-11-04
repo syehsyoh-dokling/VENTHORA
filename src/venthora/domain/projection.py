@@ -7,13 +7,23 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+from ..fx_routes import pays_through
 from .models import Conversion, Obligation, TreasuryState
 from .money import cost_in_base
 
 
 def obligation_needs(o: Obligation, state: TreasuryState) -> dict[str, int]:
-    """Cash each currency wallet must supply for one payout, fees included."""
+    """Cash each currency wallet must supply for one payout, fees included. A payout Airwallex cannot fund in its own
+    currency (IDR, INR, ...) is paid through: the base wallet supplies its base cost and the fee (observed fees for
+    such a payout are recorded in the base currency, the currency the transfer is funded in)."""
     needs: dict[str, int] = defaultdict(int)
+    if pays_through(o.currency, state.base_currency):
+        base = state.base_currency
+        needs[base] += cost_in_base(o.amount_minor, state.ppm_up(o.currency))
+        needs[base] += state.policy.payout_fees_minor.get(f"{o.payout_method}:{o.currency}", 0)
+        if o.payout_method == "SWIFT" and f"SWIFT:{o.currency}" not in state.policy.payout_fees_minor:
+            needs[state.policy.swift_fee_currency] += state.policy.swift_fee_minor
+        return dict(needs)
     needs[o.currency] += o.amount_minor
     observed = state.policy.payout_fees_minor.get(f"{o.payout_method}:{o.currency}")
     if observed is not None:  # Airwallex charges the fee in the source (= payout) currency

@@ -67,10 +67,11 @@ def test_random_states_never_breach_reserve(seed):
 
 
 def test_money_rounding_is_conservative():
-    up, down = rate_ppm("1.0850001", round_up=True), rate_ppm("1.0850001", round_up=False)
-    assert (up, down) == (1_085_001, 1_085_000)
-    assert cost_in_base(1, 1_085_000) == 2
-    assert value_in_base(1, 1_085_000) == 1
+    up, down = rate_ppm("1.0850000001", round_up=True), rate_ppm("1.0850000001", round_up=False)
+    assert (up, down) == (1_085_000_001, 1_085_000_000)  # rates x 1e9: IDR 0.0000556 is 55,600, not 56 ppm
+    assert rate_ppm("0.0000556", round_up=True) == 55_600
+    assert cost_in_base(1, 1_085_000_000) == 2
+    assert value_in_base(1, 1_085_000_000) == 1
     with pytest.raises(ValueError):
         rate_ppm("-1", round_up=True)
 

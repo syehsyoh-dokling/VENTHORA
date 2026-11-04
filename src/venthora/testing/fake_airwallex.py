@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """In-memory Airwallex sandbox for tests (httpx.MockTransport handler).
 
 Models the behaviors the executor relies on: bearer auth, cash balances in major
@@ -13,6 +14,7 @@ from uuid import uuid4
 
 import httpx
 
+from ..fx_routes import SOURCE_CURRENCIES
 from ..gateways.airwallex import FAILURE_CODES
 
 SWIFT_FEE = {"EUR": Decimal("12.85")}
@@ -146,6 +148,7 @@ class FakeAirwallex:
         qid = f"q-{uuid4()}"
         self.quotes[qid] = q = {"quote_id": qid, "buy_currency": buy, "sell_currency": sell, "buy_amount": float(amount),
                                 "sell_amount": float(money(amount * rate)), "client_rate": float(rate),
+                                "mid_rate": float(self._rate(buy, sell)), "currency_pair": f"{buy}{sell}",  # XY = Y per X
                                 "valid_from_at": "2026-10-23T00:00:00+0000", "valid_to_at": "2099-01-01T00:00:00+0000",
                                 "validity": b["validity"], "usage": "SINGLE_USE", "used": False}
         return httpx.Response(201, json={k: v for k, v in q.items() if k != "used"})
@@ -189,20 +192,27 @@ class FakeAirwallex:
             return self._error(400, "duplicate_request_id")
         if "payment_currency" in b or b.get("beneficiary_id") not in self.beneficiaries:
             return self._error(400, "001")
-        ccy, amount = b["source_currency"], money(b["transfer_amount"])
-        fee = self.fees.get((b["transfer_method"], ccy), Decimal(0))
-        if self.balances.get(ccy, Decimal(0)) < amount + fee:
+        ccy, target, amount = b["source_currency"], b.get("transfer_currency", b["source_currency"]), money(b["transfer_amount"])
+        if ccy not in SOURCE_CURRENCIES:  # the real sandbox (5 Nov 2026): IDR, INR, ... cannot fund a transfer
+            return httpx.Response(400, json={"code": "validation_failed", "message": "The request failed our schema validation.",
+                                             "details": {"errors": [{"code": "016", "source": "source_currency",
+                                                                     "params": {"value_options": sorted(SOURCE_CURRENCIES)}}]}})
+        # Paid through: Airwallex converts inside the transfer at its client rate; the fee is charged in the source.
+        funded = amount if target == ccy else money(amount * (self._rate(target, ccy) + self.quote_markup))
+        fee = self.fees.get((b["transfer_method"], target if target != ccy else ccy), Decimal(0))
+        if self.balances.get(ccy, Decimal(0)) < funded + fee:
             return self._error(400, "balance_insufficient")
-        self.balances[ccy] -= amount + fee
+        self.balances[ccy] -= funded + fee
         # A charge the rail takes but does not report on the transfer (bank charge, correspondent fee): the
         # reconciliation must catch it as a discrepancy.
         self.balances[ccy] -= self.hidden_charge.get(ccy, Decimal(0))
         tid = f"t-{uuid4()}"
         self.transfer_requests[rid] = tid
         self.transfers[tid] = t = {
-            "id": tid, "request_id": rid, "status": "PROCESSING", "source_currency": ccy, "transfer_currency": ccy,
-            "transfer_amount": float(amount), "source_amount": float(amount), "fee_amount": float(fee),
-            "fee_currency": ccy, "amount_payer_pays": float(amount + fee), "transfer_method": b["transfer_method"],
+            "id": tid, "request_id": rid, "status": "PROCESSING", "source_currency": ccy, "transfer_currency": target,
+            "transfer_amount": float(amount), "source_amount": float(funded), "fee_amount": float(fee),
+            "fee_currency": ccy, "amount_payer_pays": float(funded + fee), "transfer_method": b["transfer_method"],
+            **({"conversion": {"currency_pair": f"{ccy}{target}", "rate": float(1 / self._rate(target, ccy))}} if target != ccy else {}),
             "reference": b["reference"], "reason": b["reason"], "beneficiary_id": b["beneficiary_id"]}
         return httpx.Response(201, json=t)
 
@@ -224,7 +234,7 @@ class FakeAirwallex:
             detail = "INCORRECT_ROUTING" if ft == "BENEFICIARY_BANK_RETURNED" else ft
             t.update(status="CANCELLED", failure=({"code": code} if code else {}) | {"details": {"type": detail}})
             # The amount is returned; the fee is not (guide: "budget for two SWIFT fees").
-            self.balances[t["source_currency"]] += money(t["transfer_amount"])
+            self.balances[t["source_currency"]] += money(t["source_amount"])
         else:
             t["status"] = nxt
         return httpx.Response(200, json=t)

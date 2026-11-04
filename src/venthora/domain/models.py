@@ -1,18 +1,28 @@
 # ruff: noqa: E501
 """Typed contracts shared by every engine.
 
-Money is always an integer in minor units. The planning base currency is USD;
-EUR and GBP obligations are funded by converting from the USD wallet.
+Money is always an integer in minor units. The planning base currency is USD. A payout may be in any currency
+Airwallex pays out (fx_routes.PAYOUT_CURRENCIES): one Airwallex can fund from a wallet (EUR, GBP, SGD, ...) is converted
+first and paid from that wallet; any other (IDR, INR, ...) is paid through, funded in USD and converted in the transfer.
 """
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-from .money import rate_ppm
+from .money import RATE_SCALE, rate_ppm
 
-Currency = Literal["USD", "EUR", "GBP"]
+
+def _payout_currency(ccy: str) -> str:
+    from ..fx_routes import PAYOUT_CURRENCIES
+
+    if ccy not in PAYOUT_CURRENCIES:
+        raise ValueError(f"{ccy} is not a currency Airwallex pays out")
+    return ccy
+
+
+Currency = Annotated[str, AfterValidator(_payout_currency)]
 MAX_MINOR = 10**13
 MAX_OBLIGATIONS = 12
 
@@ -351,10 +361,10 @@ class TreasuryState(StrictModel):
         return self.balances.get(ccy, 0)
 
     def ppm_up(self, ccy: str) -> int:
-        return 1_000_000 if ccy == self.base_currency else rate_ppm(self.fx_to_base[ccy], round_up=True)
+        return RATE_SCALE if ccy == self.base_currency else rate_ppm(self.fx_to_base[ccy], round_up=True)
 
     def ppm_down(self, ccy: str) -> int:
-        return 1_000_000 if ccy == self.base_currency else rate_ppm(self.fx_to_base[ccy], round_up=False)
+        return RATE_SCALE if ccy == self.base_currency else rate_ppm(self.fx_to_base[ccy], round_up=False)
 
 
 StageStatus = Literal["PASS", "FAIL", "WARN", "INFO", "SKIPPED"]

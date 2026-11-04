@@ -16,6 +16,7 @@ from ..data.ecb import fx_stress_ppm
 from ..domain.models import Obligation, StageResult, TreasuryState
 from ..domain.money import apply_ppm_up, cost_in_base, value_in_base
 from ..domain.projection import obligation_needs
+from ..fx_routes import pays_through
 from . import horizon_m0
 
 
@@ -48,6 +49,9 @@ async def horizon(state: TreasuryState, eligible: dict[str, Obligation] | None =
         pool = eligible if eligible is not None else {o.obligation_id: o for o in state.obligations}
         exposure: dict[str, int] = {}
         for o in pool.values():
+            if pays_through(o.currency, state.base_currency):  # converted in the transfer, at that day's rate
+                exposure[o.currency] = exposure.get(o.currency, 0) + o.amount_minor
+                continue
             for ccy, amount in obligation_needs(o, state).items():
                 if ccy != state.base_currency:
                     exposure[ccy] = exposure.get(ccy, 0) + amount

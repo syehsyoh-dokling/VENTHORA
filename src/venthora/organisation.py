@@ -581,7 +581,7 @@ class OrgStore:
 
         ensure_accounts(self)  # the salary account the staff charge codes name
         have = {a["code"] for a in self.list("account")}
-        for a in ACCOUNTS_V6:  # taxes and social security, debt service: their own categories of the Payment Priority SOP
+        for a in ACCOUNTS_V6:  # taxes and social security, debt service: their own categories of the Standard Payment Priority Policy
             if a["code"] not in have:
                 self._put("account", Account.model_validate(a).model_dump(), "seed")
         for uid, extra in STAFF_V3.items():

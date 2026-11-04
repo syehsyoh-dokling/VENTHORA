@@ -361,7 +361,7 @@ async def start(scenario: str, executor: Executor, audit, config: dict | None = 
     base = TreasuryState.model_validate(raw["state"])
     state, granted = apply_config(base, cfg, today)
     state = fresh_book(attach_budget(state), tag)
-    if adjust is not None:  # the organisation's Payment Priority SOP
+    if adjust is not None:  # the organisation's Standard Payment Priority Policy
         state = adjust(state)
     state = state.model_copy(update={"tenancy": state.tenancy.model_copy(update={"config": state.tenancy.config.model_copy(update={"book_id": state.book_id})})})
     if cfg.get("reporting", {}).get("editable"):

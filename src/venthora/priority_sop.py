@@ -1,5 +1,6 @@
 # ruff: noqa: E501
-"""System Setting -> Payment Priority SOP: what the FCO says is paid first when the money cannot cover everything.
+"""System Setting -> Standard Payment Priority Policy: what the FCO says is paid first when the money cannot cover
+everything, and when it is paid (FIFO in real time, or high priority first over a planned horizon).
 
 Each spending category gets a level (High, Medium, Low) and a place in the list. That becomes the priority (1-10)
 every obligation carries into the plan for the horizon (72 h by default): High 10..8, Medium 7..5, Low 4..1, in list
@@ -43,8 +44,33 @@ ACCOUNT_KEY = {"2200": "statutory", "2300": "debt_service", "6010": "wages", "60
                "1400": "cash_advance", "6900": "odc", "6100": "suppliers", "6500": "suppliers", "6600": "consultants", "7100": "suppliers"}
 
 
+MODES = {"priority": "High priority first", "fifo": "First in, first out (FIFO): real time"}
+HORIZONS = (24, 48, 72, 96, 120)
+DEADLINE_HOUR_UTC = 17  # a payment is due by 17:00 UTC on its due date: "3 h before the deadline" is 14:00 UTC
+DEEMED_BEFORE_H = 3  # no intervention this close to the deadline: the plan is deemed approved
+FX_BEFORE_H = 2  # currencies are bought this close to the deadline, at the planned rate or not at all
+POLICY_DEFAULT = {"mode": "priority", "horizon_hours": 72, "deemed_approval": False, "pay_what_fits": True,
+                  "notify_fco": True, "cascade": True, "fx_at_plan": False}
+
+
 def saved(org) -> dict | None:
     return org.get("priority_sop", "sop") if org is not None else None
+
+
+def policy(org) -> dict:
+    """The Standard Payment Priority Policy in force: how VENTHORA orders and times payments (defaults until saved)."""
+    return POLICY_DEFAULT | ((saved(org) or {}).get("policy") or {})
+
+
+def check_policy(p: dict) -> dict:
+    p = POLICY_DEFAULT | {k: v for k, v in (p or {}).items() if k in POLICY_DEFAULT}
+    if p["mode"] not in MODES:
+        raise ValueError("the priority is fifo (first in, first out, real time) or priority (high priority first)")
+    if p["horizon_hours"] not in HORIZONS:
+        raise ValueError("the plan covers the next 24, 48, 72, 96 or 120 hours")
+    for k in ("deemed_approval", "pay_what_fits", "notify_fco", "cascade", "fx_at_plan"):
+        p[k] = bool(p[k])
+    return p
 
 
 def current(org) -> list[dict]:
@@ -73,8 +99,9 @@ def priorities(org) -> dict[str, int] | None:
     return {r["key"]: r["priority"] for r in current(org)}
 
 
-def save(org, items: list[dict], by: str, late_cost: bool = True) -> dict:
-    """items: every category, in the order the FCO wants, each with its level."""
+def save(org, items: list[dict], by: str, late_cost: bool = True, policy_in: dict | None = None) -> dict:
+    """items: every category, in the order the FCO wants, each with its level; policy_in: the ordering and timing
+    rules (mode, horizon, deemed approval, short balance, cascade, FX timing)."""
     keys = [str(i.get("key")) for i in items]
     if sorted(keys) != sorted(ITEMS):
         raise ValueError("the SOP lists every category once: " + ", ".join(ITEMS))
@@ -82,7 +109,7 @@ def save(org, items: list[dict], by: str, late_cost: bool = True) -> dict:
     if bad:
         raise ValueError(f"{bad[0]}: the level is high, medium or low")
     rec = {"_id": "sop", "items": [{"key": i["key"], "level": i["level"]} for i in items], "order": keys, "updated_by": by,
-           "late_cost": bool(late_cost)}
+           "late_cost": bool(late_cost), "policy": check_policy(policy_in if policy_in is not None else policy(org))}
     org._put("priority_sop", rec, by)
     return rec
 
@@ -140,9 +167,80 @@ def apply(state, org, payees: dict):
     """The state with every obligation's priority taken from the SOP (unchanged while none is saved)."""
     if priorities(org) is None:
         return state
+    pol = policy(org)
+    if pol["mode"] == "priority":  # the plan covers the horizon the policy sets
+        state = state.model_copy(update={"policy": state.policy.model_copy(update={"planning_horizon_hours": pol["horizon_hours"]})})
     as_of = str(state.as_of)[:10] if getattr(state, "as_of", None) else None
     obls = []
     for o in state.obligations:
         _, p, _ = priority_for(org, o.model_dump(), payees, as_of)
         obls.append(o.model_copy(update={"priority": p}))
     return state.model_copy(update={"obligations": obls})
+
+
+# -- the policy at run time: deadlines, a person's hold (the intervention), the planned rate, notices to the FCO ----------
+
+def deadline(o: dict, now):
+    """When a payment is due: DEADLINE_HOUR_UTC on its due date, else now + its due_in_hours."""
+    import datetime as dt
+
+    if o.get("due_date"):
+        try:
+            d = dt.date.fromisoformat(str(o["due_date"])[:10])
+            return dt.datetime(d.year, d.month, d.day, DEADLINE_HOUR_UTC, tzinfo=dt.UTC)
+        except ValueError:
+            pass
+    return now + dt.timedelta(hours=int(o.get("due_in_hours") or 0))
+
+
+def hours_left(o: dict, now) -> float:
+    return (deadline(o, now) - now).total_seconds() / 3600
+
+
+def hold(org, obligation_id: str, by: str, note: str = "") -> dict:
+    """A person's intervention: this payment is not paid by the policy (no deemed approval, no autonomous run) until
+    the hold is released."""
+    import datetime as dt
+
+    rec = {"_id": obligation_id, "by": by, "note": note[:300], "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds")}
+    org._put("plan_hold", rec, by)
+    return rec
+
+
+def release(org, obligation_id: str, by: str) -> None:
+    rec = org.get("plan_hold", obligation_id)
+    if rec is not None:
+        org._put("plan_hold", rec | {"released_by": by, "released": True}, by)
+
+
+def holds(org) -> dict[str, dict]:
+    return {r["_id"]: r for r in org.list("plan_hold") if not r.get("released")}
+
+
+def planned_rate(org, obligation_id: str, currency: str, rate: str | None) -> str | None:
+    """The rate a currency payment was first planned at (kept once): it is bought at that value or better, never above."""
+    rec = org.get("fx_plan", obligation_id)
+    if rec is None and rate:
+        import datetime as dt
+
+        rec = {"_id": obligation_id, "currency": currency, "rate": str(rate), "planned_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds")}
+        org._put("fx_plan", rec, "VENTHORA (plan)")
+    return rec["rate"] if rec else None
+
+
+def notify(org, key: str, subject: str, body: str, refs: list[str] | None = None, to_role: str = "super_admin") -> dict:
+    """A notice for the FCO (once per key while it is open): shown in Agent plan and on the policy page."""
+    import datetime as dt
+
+    old = org.get("notification", key)
+    if old is not None and old.get("status") == "open":
+        return old
+    rec = {"_id": key, "to_role": to_role, "subject": subject[:200], "body": body[:1000], "refs": list(refs or [])[:20],
+           "status": "open", "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds")}
+    org._put("notification", rec, "VENTHORA (policy)")
+    return rec
+
+
+def notices(org, status: str | None = "open") -> list[dict]:
+    rows = [r for r in org.list("notification") if status is None or r.get("status") == status]
+    return sorted(rows, key=lambda r: r.get("at") or "", reverse=True)

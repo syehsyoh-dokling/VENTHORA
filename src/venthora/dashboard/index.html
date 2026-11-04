@@ -270,6 +270,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/rep-cash" data-nav="rep-cash"><i>¤</i>5 · Cash advance</a>
    <a href="#/rep-travel" data-nav="rep-travel"><i>✈</i>6 · Travel &amp; transport</a>
    <a href="#/rep-odc" data-nav="rep-odc"><i>◇</i>7 · Other direct cost</a>
+   <a href="#/rep-fx" data-nav="rep-fx"><i>⇆</i>8 · FX &amp; transfer costs</a>
    <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Payment reports</a>
    <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
    <a href="#/books" data-nav="books"><i>▥</i>Books &amp; segregation</a>
@@ -304,7 +305,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/standards" data-nav="standards"><i>⚑</i>Finance standards</a>
    <a href="#/doc-rules" data-nav="doc-rules"><i>✓</i>Document validation</a>
    <a href="#/mandate" data-nav="mandate"><i>⚖</i>Delegation of Authority</a>
-   <a href="#/priority-sop" data-nav="priority-sop"><i>⇅</i>Payment Priority SOP</a>
+   <a href="#/priority-sop" data-nav="priority-sop"><i>⇅</i>Standard Payment Priority Policy</a>
    <a href="#/budget-policy" data-nav="budget-policy"><i>◷</i>Period, cut-off &amp; sync</a>
    <a href="#/integrations" data-nav="integrations"><i>↯</i>Airwallex webhooks</a>
    <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
@@ -340,7 +341,11 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="small" id="apNote" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"></div>
   <div data-appane="today"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><span class="small muted" id="apSource"></span><span style="flex:1"></span>
     <button id="apRefresh">Plan again now</button><button class="primary" id="apExec">Pay the agent's part now</button></div>
-   <div id="apSplit"></div><div id="apToday" class="empty">planning…</div></div>
+   <div id="apNotices"></div><div id="apSplit"></div>
+   <h3 class="small muted" style="margin:14px 0 6px">The payments waiting now, in the order the plan takes them</h3>
+   <div class="small muted" style="margin-bottom:6px">Payments in Pending payment that passed their checks or wait for a person, ranked by the Standard Payment Priority Policy. The plan pays from the top while the money lasts above the reserve floor; the rest is deferred or escalated. <b>Hold</b> stops the policy from paying one (no deemed approval, no autonomous run) until you release it.</div>
+   <div id="apOrder"></div>
+   <h3 class="small muted" style="margin:14px 0 6px">The plan and its proof</h3><div id="apToday" class="empty">planning…</div></div>
   <div data-appane="proof" hidden><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><select id="scenario"></select>
     <button id="plan" class="primary">Plan</button><button id="planIntake" title="add the intake queue to this book, then plan">Plan with intake queue</button></div>
    <div id="planOut" class="empty">Choose a book and press Plan.</div></div>
@@ -372,6 +377,13 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="spending"><h2><span>Open commitments</span><span class="small muted">what open purchase orders may still draw</span></h2><div id="spCommit"></div></section>
 
  <!-- ===== Payments ===== -->
+ <section class="span12" data-view="rep-fx">
+  <h2><span>FX &amp; transfer costs</span><span class="row"><select id="fxPeriod"></select><button id="fxCsv">Download CSV</button></span></h2>
+  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"><b>What it cost to move the money, in the base currency.</b> Two costs, never mixed: the <b>exchange spread</b> (what was sold minus what the bought amount is worth at the mid-market rate of the Airwallex quote), for a conversion booked before a payout (EUR, GBP, SGD, ...) and for a payout Airwallex converted inside the transfer because it cannot be funded in its own currency (IDR, INR, MYR, ...); and the <b>payout fee</b> Airwallex charged. Both are set against what the period converted and paid. A spread is never guessed: without the mid-market rate it shows as not measured.</div>
+  <div id="fxTiles" class="row" style="margin:12px 0;gap:12px;flex-wrap:wrap"></div>
+  <h3 class="small muted" style="margin:12px 0 6px">By currency</h3><div id="fxByCcy" style="overflow-x:auto"></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Every exchange and fee</h3><div id="fxRows" style="overflow-x:auto" class="empty">loading…</div>
+ </section>
  <section class="span12" data-view="payment-reports">
   <h2><span>Payment reports</span><span class="row">
    <select id="prView"><option value="running">Running</option><option value="accumulated">Accumulated</option></select>
@@ -445,15 +457,14 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="spTiles" class="cm-tiles"></div><div id="spBody" class="empty">loading…</div>
  </section>
  <section class="span12" data-view="priority-sop">
-  <h2><span>Payment Priority SOP</span><span class="row"><span class="small muted" id="sopMeta"></span></span></h2>
-  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"><b>What VENTHORA pays first when the money cannot cover everything.</b>
-   Set each spending category <b>High</b>, <b>Medium</b> or <b>Low</b>, and its place in the list. This is the priority every payment carries into the plan VENTHORA builds for the next <b id="sopH">72</b> hours (the planning horizon, set in Delegation of Authority → Treasury limits): the higher one is paid first, and inside the same priority the earliest due date. High gives 10 down to 8 (the first two High categories share 10: wages and the taxes and social security withheld, by default), Medium 7 down to 5, Low 4 down to 1, in list order.
-   <div style="margin-top:6px"><b>A priority never makes a payment allowed.</b> Before any ranking, every payment must pass the checks that are always enforced: a genuine request, a registered payee whose account was confirmed by a call-back (and the cooling period after a change), an open purchase order with room, no duplicate, the documents required, the Delegation of Authority, the budget line, the reserve floor and the treasury limits. A payment that fails one is held, whatever its level.</div>
-   <div class="muted" style="margin-top:6px">The default follows international practice: wages first (ILO C95 and C173), then taxes and social security withheld, then suppliers whose non-payment stops operations; contracted services and normal suppliers next (EU Directive 2011/7/EU on late payment); what is cheapest to defer last. The full SOP is docs/PAYMENT_PRIORITY_SOP.md.</div></div>
+  <h2><span>Standard Payment Priority Policy</span><span class="row" style="gap:8px;flex-wrap:wrap"><span class="small muted" id="sopMeta"></span>
+   <button id="sopReset">Back to the standard levels</button><button class="primary" id="sopSave">Save policy</button></span></h2>
+  <div id="sopAuth"></div>
+  <div class="tile" id="sopPolicy" style="margin-bottom:12px">loading…</div>
+  <div class="small" id="sopGuide" style="padding:10px 12px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"></div>
+  <h3 class="small muted" style="margin:0 0 6px">Priority of each spending category</h3>
   <div id="sopBody" class="empty">loading…</div>
-  <h3 class="small muted" style="margin:16px 0 6px">The payments waiting now, in the order the plan takes them</h3>
-  <div class="small muted" style="margin-bottom:6px">Payments in Pending payment that passed their checks or wait for a person, ranked with the levels above as you set them (before saving too). The plan then pays from the top while the money lasts above the reserve floor; the rest is deferred to a reliable receipt or escalated.</div>
-  <div id="sopPreview"></div>
+  <div class="small" id="sopMsg" style="margin-top:8px"></div>
  </section>
  <section class="span12" data-view="pending">
   <h2><span>Pending payment</span><span class="row"><span class="small muted" id="intakeMeta"></span><button class="primary" id="newOrder">New payment order</button></span></h2>
@@ -1132,10 +1143,10 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Payment Priority SOP","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
+const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Standard Payment Priority Policy","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","rep-fx":"FX & transfer costs","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),integrations:()=>webhookView()};
 function route(){const MOVED={plan:"#/agent-plan?proof",pos:"#/intake?po",travel:"#/intake?travel",payroll:"#/executions"};const v0=(location.hash.match(/^#\/([\w-]+)/)||[])[1];if(MOVED[v0]){location.hash=MOVED[v0];return}
  const v=v0;const view=TITLES[v]?v:"overview";
@@ -1883,7 +1894,7 @@ const AP_NOTE={today:`<b>What VENTHORA would do now with the organisation's real
 function apTab(t){APTAB=t;document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.classList.toggle("on",b.dataset.aptab===t));document.querySelectorAll("[data-appane]").forEach(x=>x.hidden=x.dataset.appane!==t);$("#apNote").innerHTML=AP_NOTE[t];
  if(t==="today")apToday();else if(t==="console")apConsole()}
 document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.onclick=()=>{history.replaceState(null,"",`#/agent-plan?${b.dataset.aptab}`);apTab(b.dataset.aptab)});
-async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on the live balance…</div>';$("#apSplit").innerHTML="";
+async function apToday(){apExtras();$("#apToday").innerHTML='<div class="empty">planning on the live balance…</div>';$("#apSplit").innerHTML="";
  try{const d=await api("/v1/agent-plan");const src=d.source;
   $("#apSource").innerHTML=`${src.requests} request(s) waiting · ${src.payroll_lines} salary line(s)${src.pay_date?` for ${dmy(src.pay_date)}`:""} · balances: <b>${esc(src.balances)}</b>${src.balances_error?` <span class="muted">(${esc(src.balances_error)})</span>`:""} ${src.next_round?` · <b>${src.next_round} more in the next round</b> (one plan proves 12 at a time, the most urgent by the SOP first)`:""} · horizon ${d.horizon_hours} h · real time ${d.pay_on_arrival?'<span class="pill good">ON</span>':'<span class="pill warn">OFF</span>'}`;
   if(!d.plan){$("#apToday").innerHTML='<div class="empty">Nothing waits for payment now: every request is paid or decided. New invoices, payment orders and the next payroll appear here as they arrive.</div>';$("#apExec").disabled=true;return}
@@ -1894,7 +1905,39 @@ async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on
   $("#apSplit").innerHTML=`<div class="two" style="margin-bottom:10px"><div class="tile"><b>Paid by VENTHORA on its own now (${mine.length})</b>${mine.length?table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Action",f:x=>pill(x.action)},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)}],mine):'<div class="small muted">nothing is inside the mandate to pay alone right now</div>'}</div>
    <div class="tile"><b>Waits for a person, deferred or not paid (${held.length})</b>${held.length?table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Why",f:x=>`<span class="small">${(x.reasons||[]).map(r=>esc(String(r).replaceAll("_"," "))).join("; ")}</span>`}],held)+'<div class="small" style="margin-top:6px"><a href="#/executions">Executions &amp; incidents ›</a> · <a href="#/pending">Pending payment ›</a></div>':'<div class="small muted">nothing: the whole plan is inside the mandate</div>'}${sp.stopped_for_cash?`<div class="small" style="margin-top:6px;color:var(--warn)">stopped for cash: ${esc(String(sp.stopped_for_cash))}</div>`:""}</div></div>`;
   renderPlan(d.plan,"#apToday")}catch(e){$("#apToday").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function apExtras(){try{const sop=await api("/v1/priority-sop");
+  const holds=Object.fromEntries((sop.holds||[]).map(h=>[h._id,h]));
+  $("#apNotices").innerHTML=(sop.notices||[]).length?`<div class="tile" style="margin-bottom:10px;border-left:3px solid var(--warn)"><b>Notices for the FCO (${sop.notices.length})</b>${sop.notices.map(n=>`<div class="small" style="margin-top:6px"><b>${esc(n.subject)}</b> <span class="muted">${esc(String(n.at).slice(0,16).replace("T"," "))}</span><div>${esc(n.body)}</div><button class="small" data-apclose="${esc(n._id)}">Close</button></div>`).join("")}</div>`:"";
+  const rows=sop.preview;
+  $("#apOrder").innerHTML=table([{h:"Order",num:1,f:x=>rows.indexOf(x)+1},{h:"Payee",f:x=>`<b>${esc(x.payee)}</b><div class="small muted mono">${esc(x.obligation_id)}</div>`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)},
+   {h:"Due in",num:1,f:x=>`${x.due_in_hours} h${x.late&&x.late.length?`<div class="small" style="color:var(--critical)">${x.late.map(esc).join(", ")}</div>`:""}`},{h:"Category",f:x=>esc(x.category_label)},{h:"Priority",num:1,f:x=>`<b>${x.priority}</b>`},
+   {h:"",f:x=>holds[x.obligation_id]?`<span class="pill warn">held by ${esc(holds[x.obligation_id].by)}</span> <button class="small" data-aprelease="${esc(x.obligation_id)}">Release</button>`:`<button class="small" data-aphold="${esc(x.obligation_id)}">Hold</button>`}],rows,"nothing waits for payment now");
+  document.querySelectorAll("[data-aphold]").forEach(b=>b.onclick=async()=>{const note=prompt("Why is this payment held? (optional)")??null;if(note===null)return;
+   try{await api(`/v1/agent-plan/hold?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({obligation_id:b.dataset.aphold,note})});toast("Held: the policy will not pay it","good");apExtras()}catch(e){toast(esc(e.message),"serious")}});
+  document.querySelectorAll("[data-aprelease]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/agent-plan/hold/${encodeURIComponent(b.dataset.aprelease)}?${who()}`,{method:"DELETE"});toast("Released","good");apExtras()}catch(e){toast(esc(e.message),"serious")}});
+  document.querySelectorAll("[data-apclose]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/notifications/${encodeURIComponent(b.dataset.apclose)}/close?${who()}`,{method:"POST"});apExtras()}catch(e){toast(esc(e.message),"serious")}});
+ }catch(e){$("#apOrder").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#apRefresh").onclick=apToday;
+// ---- Reporting -> FX & transfer costs
+let FXDATA=null;
+async function fxView(){const sel=$("#fxPeriod"),cur=sel.value;$("#fxRows").innerHTML='<div class="empty">loading…</div>';
+ try{const d=await api(`/v1/reports/fx-costs${cur?`?period=${encodeURIComponent(cur)}`:""}`);FXDATA=d;const b=d.base_currency,t=d.totals;
+  sel.innerHTML=`<option value="">All periods</option>`+d.periods.map(p=>`<option${p===cur?" selected":""}>${esc(p)}</option>`).join("");
+  const bp=v=>v==null?"—":`${(v/100).toFixed(2)}%`;
+  const tile=(k,v,s)=>`<div class="tile" style="min-width:170px"><div class="small muted">${k}</div><div style="font-size:20px;font-weight:700">${v}</div>${s?`<div class="small muted">${s}</div>`:""}</div>`;
+  $("#fxTiles").innerHTML=tile("Total cost",fmt(t.total_base_minor,b),`${bp(t.cost_bp_of_paid)} of ${fmt(t.paid_base_minor,b)} paid (${t.payments} payments)`)
+   +tile("Exchange spread",fmt(t.spread_base_minor,b),`${bp(t.spread_bp_of_converted)} of ${fmt(t.converted_base_minor,b)} converted`+(t.unmeasured?` · ${t.unmeasured} not measured`:""))
+   +tile("Payout fees",fmt(t.fee_base_minor,b),"SWIFT and local transfers");
+  $("#fxByCcy").innerHTML=d.by_currency.length?table([{h:"Currency",f:x=>`<b>${esc(x.currency)}</b>`},{h:"Bought / paid",num:1,f:x=>x.bought_minor?fmt(x.bought_minor,x.currency):"—"},{h:`Converted (${b})`,num:1,f:x=>x.converted_base_minor?fmt(x.converted_base_minor,b):"—"},
+    {h:"Spread",num:1,f:x=>fmt(x.spread_base_minor,b)},{h:"Spread %",num:1,f:x=>bp(x.spread_bp)},{h:"Fees",num:1,f:x=>fmt(x.fee_base_minor,b)},{h:"Total",num:1,f:x=>`<b>${fmt(x.total_base_minor,b)}</b>`},{h:"Exchanges · payouts",f:x=>`${x.exchanges} · ${x.payouts}`}],d.by_currency):'<div class="empty">No exchange or fee in this period.</div>';
+  $("#fxRows").innerHTML=d.rows.length?table([{h:"When",f:x=>`<span class="small">${esc(String(x.at).slice(0,16).replace("T"," "))}</span>`},{h:"Kind",f:x=>`<span class="small">${esc(x.kind_label)}</span>`},{h:"Payment",f:x=>`<span class="mono small">${esc(x.obligation_id||"—")}</span>`},
+    {h:"Bought",num:1,f:x=>x.bought_minor!=null?fmt(x.bought_minor,x.currency):"—"},{h:"Sold",num:1,f:x=>x.sold_minor!=null?fmt(x.sold_minor,x.sold_currency):"—"},{h:"Client · mid rate",f:x=>x.mid_rate||x.client_rate?`<span class="small mono">${esc(x.client_rate||"—")} · ${esc(x.mid_rate||"—")} ${esc(x.currency_pair||"")}</span>`:"—"},
+    {h:"Spread",num:1,f:x=>x.kind==="payout_fee"?"—":x.spread_base_minor==null?'<span class="small muted">not measured</span>':`${fmt(x.spread_base_minor,b)} <span class="small muted">${bp(x.spread_bp)}</span>`},{h:"Fee",num:1,f:x=>x.fee_base_minor?fmt(x.fee_base_minor,b):"—"},{h:"Total",num:1,f:x=>fmt(x.total_base_minor,b)}],d.rows):'<div class="empty">Nothing was converted or paid in this period.</div>';
+ }catch(e){$("#fxRows").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#fxPeriod").onchange=fxView;
+$("#fxCsv").onclick=()=>{if(!FXDATA)return;const h=["at","period","kind","obligation_id","currency","bought_minor","sold_currency","sold_minor","client_rate","mid_rate","currency_pair","spread_base_minor","spread_bp","fee_base_minor","total_base_minor"];
+ const q=v=>v==null?"":/[",\n]/.test(String(v))?`"${String(v).replaceAll('"','""')}"`:String(v);
+ const csv=[h.join(","),...FXDATA.rows.map(r=>h.map(k=>q(r[k])).join(","))].join("\n");const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`fx-costs-${FXDATA.period||"all"}.csv`;a.click()};
 $("#apExec").onclick=async()=>{if(!confirm("Pay now the part of today's plan that is inside the mandate? It goes out on Airwallex (sandbox)."))return;$("#apExec").disabled=true;
  try{const r=await api(`/v1/agent-plan/execute?${who()}`,{method:"POST"});toast(r.paid.length?`Paid ${r.paid.length}: ${r.execution?r.execution.status:""}`:r.message,r.paid.length?"good":"warn");apToday();intake();executions()}
  catch(e){toast(esc(e.message),"serious");$("#apExec").disabled=false}};
@@ -1905,39 +1948,55 @@ async function apConsole(){let last=null;try{last=(await api("/api/live/latest")
    <li><b>Initial plan</b>: every obligation decided and proved, with the alternatives it rejected.</li><li><b>New information</b>: a new email, used only because it can be quoted word for word.</li>
    <li><b>Revised decision</b>: only the decisions the news affects change; the others stay locked.</li><li><b>Resulting state</b>: payments out on Airwallex, a deposit confirmed, the book reconciled to the cent.</li></ol></div>`}
 
-// ---- System Setting → Payment Priority SOP: High / Medium / Low and the place of each spending category
-let SOP=null,SOPROWS=[],SOPLATE=true;const SOP_BANDS={high:[10,8],medium:[7,5],low:[4,1]},SOP_TONE={high:"critical",medium:"warn",low:""};
+// ---- System Setting → Standard Payment Priority Policy: how VENTHORA orders and times payments; the level of each category
+let SOP=null,SOPROWS=[],SOPLATE=true,SOPPOL=null;const SOP_BANDS={high:[10,8],medium:[7,5],low:[4,1]},SOP_TONE={high:"critical",medium:"warn",low:""};
 function sopRank(){const shared=(SOP&&SOP.top_shared)||2;for(const [lvl,[top,floor]] of Object.entries(SOP_BANDS))SOPROWS.filter(r=>r.level===lvl).forEach((r,n)=>r.priority=Math.max(lvl==="high"?top-Math.max(n-(shared-1),0):top-n,floor))}
-async function sopView(){try{SOP=await api(`/v1/priority-sop?role=${encodeURIComponent(actor().role)}`);SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;$("#sopH").textContent=SOP.horizon_hours;sopRender()}
+async function sopView(){try{SOP=await api(`/v1/priority-sop?role=${encodeURIComponent(actor().role)}`);SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;SOPPOL={...SOP.policy};sopRender()}
  catch(e){$("#sopBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-function sopRender(){sopRank();const can=SOP.authority.you_may_change,dis=can?"":"disabled";
- $("#sopMeta").textContent=SOP.saved?`saved by ${SOP.updated_by}`:"not saved yet: each payee's own priority applies";
+function sopGuide(){const P=SOPPOL,T=SOP.timing,fifo=P.mode==="fifo";
+ return `<b>For the FCO: how to fill this in.</b>
+  <ol style="margin:6px 0 0;padding-left:18px;line-height:1.7">
+   <li><b>Choose the priority.</b> <i>First in, first out (FIFO): real time</i> pays each verified request the moment it passes every check, in the order it arrived; use it when the balance normally covers everything. <i>High priority first</i> builds a plan for the next 24 to 120 hours and pays by the levels below; use it when money can be short, or when payments are in several currencies.${fifo?"":` The plan now covers the next <b>${P.horizon_hours} hours</b>.`}</li>
+   <li><b>Tick the rules you want.</b> <i>Deemed approval</i>: a payment the plan holds for a person is approved by the policy if nobody holds or changes it ${T.deemed_before_h} hours before its deadline (${T.deadline_hour_utc}:00 UTC on the due date); a payment that needs two people or a named approver is never deemed, and you are notified instead. <i>Balance not enough</i>: pay what the balance covers in priority order, and/or keep the rest in Pending payment with a notice to you. <i>Cascade</i>: Medium is paid only when High is covered, then Low. <i>Currency timing</i>: a currency is bought ${T.fx_before_h} hours before the deadline, at the rate of the plan or better, never above it.</li>
+   <li><b>Set the level of each spending category</b> (High, Medium, Low) and move it up or down: the higher one is paid first, and inside the same priority the earliest deadline. High gives 10 down to 8 (the first two High categories share 10), Medium 7 down to 5, Low 4 down to 1.</li>
+   <li><b>Save the policy.</b> From then on every plan, and the scheduler every five minutes, follow it. To stop one payment, use <b>Hold</b> in Agent plan → Today's plan: a held payment is never paid by the policy.</li></ol>
+  <div style="margin-top:6px"><b>A priority never makes a payment allowed.</b> Every payment first passes the checks that are always enforced: a genuine request, a registered payee confirmed by call-back, an open purchase order with room, no duplicate, the documents, the Delegation of Authority, the budget line, the reserve floor and the treasury limits.</div>
+  <div class="muted" style="margin-top:6px">The standard levels follow international practice: wages first (ILO C95 and C173), then taxes and social security withheld, then suppliers whose non-payment stops operations, contracted services and normal suppliers next (EU Directive 2011/7/EU), what is cheapest to defer last (docs/PAYMENT_PRIORITY_SOP.md).</div>`}
+function sopRender(){sopRank();const can=SOP.authority.you_may_change,dis=can?"":"disabled",P=SOPPOL,fifo=P.mode==="fifo";
+ $("#sopMeta").textContent=SOP.policy_saved?`saved by ${SOP.updated_by}`:SOP.saved?`levels saved by ${SOP.updated_by}; the policy rules are not saved yet`:"not saved yet: each payee's own priority applies";
+ $("#sopSave").disabled=!can;$("#sopReset").disabled=!can;
+ $("#sopAuth").innerHTML=can?"":`<div class="small" style="margin-bottom:8px;color:var(--warn)">Only the mandate authority (${esc(SOP.authority.role.replace("_"," "))}) changes this policy; you may read it.</div>`;
+ const chk=(k,label,off)=>`<label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;${off?"opacity:.45":""}"><input type="checkbox" data-sopp="${k}" ${P[k]?"checked":""} ${dis||(off?"disabled":"")}> <span>${label}</span></label>`;
+ $("#sopPolicy").innerHTML=`<div class="row" style="gap:16px;flex-wrap:wrap;align-items:flex-end">
+   <label class="small"><b>Priority</b><br><select id="sopMode" ${dis}>${Object.entries(SOP.modes).map(([k,l])=>`<option value="${k}" ${k===P.mode?"selected":""}>${esc(l)}</option>`).join("")}</select></label>
+   ${fifo?"":`<label class="small"><b>Create a plan for the next</b><br><select id="sopHorizon" ${dis}>${SOP.horizons.map(h=>`<option value="${h}" ${h===P.horizon_hours?"selected":""}>${h} hours</option>`).join("")}</select></label>`}
+   <span class="small muted" style="flex:1;min-width:220px">${fifo?"Each verified request is paid the moment it passes every check, oldest first; the rules that need a plan are off.":`The plan covers the next ${P.horizon_hours} hours and is renewed every five minutes.`}</span></div>
+  <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:2px 18px" class="small">
+   ${chk("deemed_approval",`If there is no intervention ${SOP.timing.deemed_before_h} hours before the deadline, the plan is deemed approved`,fifo)}
+   ${chk("pay_what_fits","If the balance is not enough, pay only what it covers")}
+   ${chk("notify_fco","If the balance is not enough, the rest waits in Pending payment and the FCO is notified")}
+   ${chk("cascade","If the balance still covers it after High priority, add Medium priority, then Low priority",fifo)}
+   ${chk("fx_at_plan",`Convert currency only at the planned value, exchanged ${SOP.timing.fx_before_h} hours before the payment is due`,fifo)}</div>`;
+ $("#sopGuide").innerHTML=sopGuide();
  $("#sopBody").classList.remove("empty");
- $("#sopBody").innerHTML=`${can?"":`<div class="small" style="margin-bottom:8px;color:var(--warn)">Only the mandate authority (${esc(SOP.authority.role.replace("_"," "))}) changes this SOP; you may read it.</div>`}
-  <table><thead><tr><th class="num">#</th><th>Spending category</th><th>What falls in it</th><th>Level</th><th class="num">Priority</th><th>Why (standard)</th><th></th></tr></thead><tbody>
+ $("#sopBody").innerHTML=`<table><thead><tr><th class="num">#</th><th>Spending category</th><th>What falls in it</th><th>Level</th><th class="num">Priority</th><th>Why (standard)</th><th></th></tr></thead><tbody>
   ${SOPROWS.map((r,i)=>`<tr><td class="num">${i+1}</td><td><b>${esc(r.label)}</b></td><td class="small">${esc(r.detail)}</td>
    <td><select data-sopl="${i}" ${dis}>${Object.entries(SOP.levels).map(([k,l])=>`<option value="${k}" ${k===r.level?"selected":""}>${esc(l)}</option>`).join("")}</select>${r.level!==r.default_level?'<div class="small muted">changed</div>':""}</td>
    <td class="num"><span class="pill ${SOP_TONE[r.level]}">${r.priority}</span></td><td class="small muted">${esc(r.standard)}</td>
    <td><div class="acts"><button data-sopu="${i}" ${dis||(i===0?"disabled":"")} aria-label="Move up">↑</button><button data-sopd="${i}" ${dis||(i===SOPROWS.length-1?"disabled":"")} aria-label="Move down">↓</button></div></td></tr>`).join("")}</tbody></table>
   <div class="tile small" style="margin-top:10px"><label class="check"><input type="checkbox" id="sopLate" ${SOPLATE?"checked":""} ${dis}> <b>The cost of being late moves a payment up one step inside its level</b></label>
-   <div class="muted" style="margin-top:4px">A payment that is overdue, that the payee sent a second reminder or a final notice for, or whose contract charges late interest of 8% a year or more (EU Directive 2011/7/EU: the reference rate plus 8 points) goes one step up, never above the top of its level.</div></div>
-  <div class="tile small" style="margin-top:8px">${SOP.pay_on_arrival?'<span class="pill good">ON</span> <b>Real time:</b> a verified request that passes every check is paid the moment it arrives, in the order above when the money is short; a sweep every minute retries what waited.'
-   :'<span class="pill warn">OFF</span> <b>Real time is off:</b> a verified request waits for a run, or for Pay in Pending payment.'} Switched in <a href="#/mandate" id="sopToDoa">Delegation of Authority → Treasury limits and controls → Limits and thresholds</a> ("Pay a verified request the moment it passes every check").</div>
-  <div class="row" style="margin-top:10px;gap:8px"><button class="primary" id="sopSave" ${dis}>Save Payment Priority SOP</button><button id="sopReset" ${dis}>Back to the standard levels</button><span class="small" id="sopMsg"></span></div>`;
- const pr=Object.fromEntries(SOPROWS.map(r=>[r.key,r.priority]));
- const top=Object.fromEntries(SOPROWS.map(r=>[r.key,SOP_BANDS[r.level][0]]));
- const rows=SOP.preview.map(x=>({...x,priority:pr[x.category]+(SOPLATE&&x.late&&x.late.length&&pr[x.category]<top[x.category]?1:0)})).sort((a,b)=>b.priority-a.priority||a.due_in_hours-b.due_in_hours);
- $("#sopPreview").innerHTML=table([{h:"Order",num:1,f:x=>rows.indexOf(x)+1},{h:"Payee",f:x=>`<b>${esc(x.payee)}</b><div class="small muted mono">${esc(x.obligation_id)}</div>`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)},
-  {h:"Due in",num:1,f:x=>`${x.due_in_hours} h${x.late&&x.late.length?`<div class="small" style="color:var(--critical)">${x.late.map(esc).join(", ")}</div>`:""}`},{h:"Category",f:x=>esc(x.category_label)},{h:"Priority",num:1,f:x=>`<b>${x.priority}</b>${x.payee_priority!=null&&x.payee_priority!==x.priority?`<div class="small muted">payee's own ${x.payee_priority}</div>`:""}`}],rows,"nothing waits for payment now");
+   <div class="muted" style="margin-top:4px">A payment that is overdue, that the payee sent a second reminder or a final notice for, or whose contract charges late interest of 8% a year or more (EU Directive 2011/7/EU: the reference rate plus 8 points) goes one step up, never above the top of its level.</div></div>`;
+ $("#sopMode").onchange=()=>{SOPPOL.mode=$("#sopMode").value;sopRender()};
+ if($("#sopHorizon"))$("#sopHorizon").onchange=()=>{SOPPOL.horizon_hours=+$("#sopHorizon").value;sopRender()};
+ document.querySelectorAll("[data-sopp]").forEach(el=>el.onchange=()=>{SOPPOL[el.dataset.sopp]=el.checked;sopRender()});
  document.querySelectorAll("[data-sopl]").forEach(el=>el.onchange=()=>{SOPROWS[+el.dataset.sopl].level=el.value;sopRender()});
  $("#sopLate").onchange=()=>{SOPLATE=$("#sopLate").checked;sopRender()};
- $("#sopToDoa").onclick=()=>{setTimeout(()=>{const t=document.querySelector('[data-dtab="ctl"]');if(t)t.click();setTimeout(()=>{const l=document.querySelector('[data-mtab="lim"]');if(l)l.click()},600)},600)};
  const mv=(i,d)=>{const j=i+d;[SOPROWS[i],SOPROWS[j]]=[SOPROWS[j],SOPROWS[i]];sopRender()};
- document.querySelectorAll("[data-sopu]").forEach(b=>b.onclick=()=>mv(+b.dataset.sopu,-1));document.querySelectorAll("[data-sopd]").forEach(b=>b.onclick=()=>mv(+b.dataset.sopd,1));
- $("#sopReset").onclick=()=>{const order=SOP.items.map(r=>r.key);SOPROWS.sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));SOPROWS.forEach(r=>r.level=r.default_level);sopRender()};
- $("#sopSave").onclick=async()=>{$("#sopMsg").textContent="saving…";
-  try{SOP=await api(`/v1/priority-sop?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({items:SOPROWS.map(r=>({key:r.key,level:r.level})),late_cost:SOPLATE})});
-   SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;toast("Payment Priority SOP saved: every plan ranks payments by it","good");sopRender()}catch(e){$("#sopMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+ document.querySelectorAll("[data-sopu]").forEach(b=>b.onclick=()=>mv(+b.dataset.sopu,-1));document.querySelectorAll("[data-sopd]").forEach(b=>b.onclick=()=>mv(+b.dataset.sopd,1));}
+$("#sopReset").onclick=()=>{if(!SOP)return;const order=SOP.items.map(r=>r.key);SOPROWS.sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));SOPROWS.forEach(r=>r.level=r.default_level);sopRender()};
+$("#sopSave").onclick=async()=>{$("#sopMsg").textContent="saving…";
+ try{SOP=await api(`/v1/priority-sop?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({items:SOPROWS.map(r=>({key:r.key,level:r.level})),late_cost:SOPLATE,policy:SOPPOL})});
+  SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;SOPPOL={...SOP.policy};$("#sopMsg").textContent="";toast("Standard Payment Priority Policy saved: every plan follows it","good");sopRender()}catch(e){$("#sopMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 // ---- Executions & incidents: everything that waits for a person. Empty: VENTHORA pays as normal.
 let EX=null,EXTAB="pay";
@@ -2962,7 +3021,7 @@ async function doaView(){const seq=window.__doaSeq=(window.__doaSeq||0)+1;try{co
     ${["consultants","travel","office","cash_advance"].includes(c.key)?"":fld("Pay day",`<select id="dp-pay_day" ${dis}>${opt(d.pay_days,pol.pay_day,x=>x==="last_working_day"?"Last working day":`Day ${x}`)}</select>`)}
     ${fld("Payout currencies allowed",msel("dp-currencies",d.currencies.map(x=>[x,x]),pol.currencies,dis,"choose currencies"))}</div>
    ${pol.benefits?benefitList(d.benefit_catalog,pol.benefits,dis):""}${c.key==="consultants"?consultantBox(d,pol,dis):""}${c.key==="travel"?travelChecklist(d,pol,dis):""}${c.key==="office"?officeBox(d,pol,dis):""}${c.key==="cash_advance"?cashBox(d,pol,dis):""}
-   <div class="small muted" style="margin-top:8px">Each payment goes in the currency of the payee's own registered account, when the delegation allows that currency. The agent converts and pays ${esc(d.engine_currencies.join(", "))} on its own today; a payment in another allowed currency is prepared for a person.</div>
+   <div class="small muted" style="margin-top:8px">Each payment goes in the currency of the payee's own registered account, when the delegation allows that currency. The agent pays every allowed currency on its own: a currency Airwallex funds from a wallet (EUR, GBP, SGD, ...) is converted first, any other (IDR, INR, MYR, ...) is paid from USD and converted inside the transfer; every exchange is reported at its real cost in Reporting → FX &amp; transfer costs.</div>
    <div class="row" style="margin-top:10px"><button class="primary" id="dpSave" ${dis}>Save policy</button><span class="small" id="dpMsg">${pol.updated_by?`last saved by ${esc(pol.updated_by)}`:"not saved yet: the default policy applies"}</span></div>
    <h3 class="small muted" style="margin:14px 0 6px">This period</h3>
    <div class="small">${["consultants","travel","office","cash_advance"].includes(c.key)?"":n.period?`${esc(n.period)} · pay date ${esc(n.pay_date)} · ${n.due?"<b>due</b>":"not due yet"}`:"paid per approved document"}${n.reasons.map(r=>`<div>· ${esc(r)}</div>`).join("")}</div></div>`;
