@@ -655,7 +655,9 @@ async def doa_registers():
     org = app.state.org
     reg = app.state.intake.registry.payees
     return {"registers": sorted(org.list("payroll_register"), key=lambda r: r["period"], reverse=True),
-            "people": [{"user_id": u["user_id"], "name": u["name"], "role": u["role"], "payee_id": u.get("payee_id")} for u in org.list("user") if u.get("active", True)],
+            "people": [{"user_id": u["user_id"], "name": u["name"], "role": u["role"], "payee_id": u.get("payee_id"), "salary_minor": u.get("salary_minor"),
+                        "salary_currency": u.get("salary_currency"), "charge_code": u.get("charge_code"), "contract_end": u.get("contract_end")}
+                       for u in org.list("user") if u.get("active", True)],
             "accounts": [{"id": k, "name": v["name"], "currency": v.get("currency"), "status": _payee_status(k)} for k, v in reg.items()]}
 
 
@@ -2502,6 +2504,90 @@ async def demo_legacy_erp_inbox_list(limit: int = Query(50, ge=1, le=500)):
     return list(reversed(getattr(app.state, "demo_inbox", [])[-limit:]))
 
 
+# ---- Users & Beneficiaries: vendors, consultants and customers, every field a payment or a receipt reads ----------
+def _masked(b: dict | None) -> dict | None:
+    if not b:
+        return None
+    return b | {k: ("•••• " + b[k][-4:]) for k in ("account_number", "iban") if b.get(k)}
+
+
+@app.get("/v1/beneficiaries")
+async def beneficiaries_list(kind: str = Query("vendor", pattern="^(vendor|consultant|employee|customer)$")):
+    """Every vendor or consultant VENTHORA may pay (or every customer it receives from), with what a payment reads:
+    the registered mailboxes, the call-back number, currency, payout method, priority, budget line, the bank details
+    (masked), the address, the lifecycle status, and the purchase orders or contracts held against it."""
+    from .masterdata import MasterStore, bank_from_payload
+
+    reg = app.state.intake.registry
+    if kind == "customer":
+        master = {c["customer_id"]: c for c in MasterStore().list("customer")}
+        return [{"id": k, "name": v["name"], "currency": v["currency"], "contacts": v.get("contacts", []), "domains": v.get("domains", []),
+                 "aliases": v.get("aliases", []), "history": v.get("history"), "source": "dashboard or sync" if k in master else "data/payees.json"}
+                for k, v in sorted(reg.payers.items(), key=lambda x: x[1]["name"])]
+    master = {v["vendor_id"]: v for v in MasterStore().list("vendor")}
+    bens = app.state.executor.beneficiaries
+    pos = app.state.org.list("po")
+    out = []
+    for k, v in sorted(reg.payees.items(), key=lambda x: x[1]["name"]):
+        m = master.get(k) or {}
+        vk = m.get("kind") or ("consultant" if (v.get("budget_line") == "contractors" or v.get("default_priority") == 7) else "vendor")
+        if vk != kind:
+            continue
+        ben = bens.get(k) or {}
+        b = ((ben.get("payload") or {}).get("beneficiary") or {})
+        life = app.state.executor.store.payee(k) or {}
+        out.append({"id": k, "name": v["name"], "kind": vk, "engagement": m.get("engagement") or (("regular" if v.get("default_priority") == 7 else "short_term") if vk == "consultant" else None),
+                    "entity_type": m.get("entity_type") or b.get("entity_type") or "COMPANY", "tax_id": m.get("tax_id", ""),
+                    "currency": v.get("currency"), "payout_method": v.get("payout_method", "LOCAL"), "contacts": v.get("contacts", []), "domains": v.get("domains", []),
+                    "invoice_prefix": v.get("invoice_prefix", ""), "budget_line": v.get("budget_line"), "default_priority": v.get("default_priority", 5),
+                    "registered_phone": life.get("registered_phone") or (v.get("lifecycle") or {}).get("registered_phone"),
+                    "transfer_reason": ben.get("transfer_reason", "business_expenses"), "address": b.get("address") or m.get("address") or {},
+                    "bank": _masked(bank_from_payload(ben) or m.get("bank")), "status": life.get("status") or (v.get("lifecycle") or {}).get("status"),
+                    "verified_by": life.get("verified_by"), "cooling_until": life.get("cooling_until"),
+                    "source": m.get("_source") or "data/payees.json",
+                    "purchase_orders": [{"po_id": p["po_id"], "total_minor": p["total_minor"], "currency": p["currency"], "status": p.get("status", "OPEN"),
+                                         "description": p.get("description", "")} for p in pos if p.get("supplier_id") == k]})
+    return out
+
+
+class BeneficiaryIn(BaseModel):
+    record: dict = Field(description="the vendor, consultant or customer, in the fields of GET /v1/beneficiaries")
+    keep_bank: bool = Field(default=False, description="keep the bank details on file (they are never sent back unmasked)")
+
+
+@app.post("/v1/beneficiaries")
+async def beneficiaries_save(body: BeneficiaryIn, kind: str = Query("vendor", pattern="^(vendor|consultant|employee|customer)$"),
+                             role: str = "finance_manager", by: str = "dashboard"):
+    """Add or change a vendor, consultant or customer. It goes through the same pipeline as a sync or an upload: new
+    or changed bank details make the payee NEW or CHANGED, and nothing is paid to it until a call-back on the
+    registered number."""
+    from . import ingestion
+    from .masterdata import bank_from_payload
+
+    who = _writer(role, by)
+    rec = dict(body.record)
+    entity = "customer" if kind == "customer" else "vendor"
+    if entity == "vendor":
+        rec["kind"] = kind
+        rec.setdefault("vendor_id", rec.pop("id", None))
+        if body.keep_bank and rec.get("vendor_id"):
+            from .masterdata import MasterStore
+
+            old = MasterStore().get("vendor", rec["vendor_id"]) or {}
+            rec["bank"] = old.get("bank") or bank_from_payload(app.state.executor.beneficiaries.get(rec["vendor_id"]))
+        if not rec.get("vendor_id"):
+            rec.pop("vendor_id", None)
+    else:
+        rec.setdefault("customer_id", rec.pop("id", None))
+        if not rec.get("customer_id"):
+            rec.pop("customer_id", None)
+    report = await asyncio.to_thread(ingestion.apply, entity, [rec], [None], source=f"dashboard:{who}", **_ingest_ctx())
+    if report["rejected"]:
+        raise HTTPException(422, report["rejected"][0]["error"])
+    await asyncio.to_thread(app.state.audit.append, f"beneficiary_{kind}", {"by": who, "report": {k: v for k, v in report.items() if k != "changes"}})
+    return report
+
+
 @app.get("/v1/sources/master/{entity}")
 async def master_list(entity: str):
     from .ingestion import ORG_ENTITIES
@@ -2976,13 +3062,17 @@ async def budget_policy_put(body: BudgetPolicyIn, role: str = "finance_manager",
 
 
 @app.get("/v1/budget-allocation/status")
-async def budget_allocation_status(period: str | None = None):
-    """Every allocation of a budget period with what was spent against it and what is left."""
+async def budget_allocation_status(period: str | None = None, every: bool = False):
+    """Every allocation of a budget period with what was spent against it and what is left; every=true: all the
+    allocations, each in its own period (monthly, quarterly, annual or a project's duration)."""
     from .budget_allocation import Budget
 
     view = await asyncio.to_thread(_budget_policy_view)
     period = period or view["active_period"]
     b = Budget(app.state.org, app.state.executor.store)
+    if every:
+        return {"active_period": view["active_period"], "enforcement": view["enforcement"], "current_month": view["current_month"],
+                "allocations": await asyncio.to_thread(b.usage_all)}
     periods = sorted({a["period"] for a in b.allocs} | {view["active_period"]})
     return {"period": period, "active_period": view["active_period"], "periods": periods, "enforcement": view["enforcement"],
             "allocations": await asyncio.to_thread(b.usage, period)}

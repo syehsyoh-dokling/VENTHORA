@@ -256,6 +256,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/pos" data-nav="pos"><i>▣</i>Purchase orders</a>
    <a href="#/travel" data-nav="travel"><i>✈</i>Travel requests</a>
    <a href="#/payroll" data-nav="payroll"><i>☰</i>Payroll register</a>
+   <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget allocation</a>
    <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
    <a href="#/books" data-nav="books"><i>▥</i>Books &amp; segregation</a>
    <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
@@ -273,8 +274,13 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/assurance" data-nav="assurance"><i>✓</i>Checks &amp; resilience</a>
   </div></div>
 
-  <div class="mg" data-g="users"><button type="button" class="mh"><i>⌂</i><span>User Management</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+  <div class="mg" data-g="users"><button type="button" class="mh"><i>⌂</i><span>Users &amp; Beneficiaries</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <a href="#/offices" data-nav="offices"><i>⌂</i>Branches, units &amp; country offices</a>
    <a href="#/users" data-nav="users"><i>☺</i>People &amp; roles</a>
+   <a href="#/consultants" data-nav="consultants"><i>✎</i>Consultants</a>
+   <a href="#/vendors" data-nav="vendors"><i>▣</i>Vendors</a>
+   <a href="#/customers" data-nav="customers"><i>⇩</i>Customers</a>
+   <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
    <a href="#/admins" data-nav="admins"><i>♛</i>Admin team</a>
   </div></div>
 
@@ -291,12 +297,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/standards" data-nav="standards"><i>⚑</i>Finance standards</a>
    <a href="#/doc-rules" data-nav="doc-rules"><i>✓</i>Document validation</a>
    <a href="#/mandate" data-nav="mandate"><i>⚖</i>Delegation of Authority</a>
-   <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget · regular based</a>
-   <a href="#/allocation-project" data-nav="allocation-project"><i>◫</i>Budget · project based</a>
    <a href="#/budget-policy" data-nav="budget-policy"><i>◷</i>Period, cut-off &amp; sync</a>
    <a href="#/integrations" data-nav="integrations"><i>↯</i>Airwallex webhooks</a>
-   <a href="#/offices" data-nav="offices"><i>⌂</i>Country offices</a>
-   <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
    <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
   </div></div>
  </nav>
@@ -394,49 +396,37 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 
  <!-- ===== Organisation ===== -->
  <section class="span12" data-view="users">
-  <h2><span>Units</span><span class="row"><span class="small muted">Head Quarter → Country Office → Branch Office; Project Finance under any of them</span><button class="primary" id="addUnit">Add unit</button></span></h2>
-  <div id="unitsTree" class="empty">loading…</div>
- </section>
- <section class="span12" data-view="users">
+  <div class="tile" style="margin-bottom:12px">
+   <b>Everyone VENTHORA pays, routes to, or takes an approval from</b>
+   <div class="small" style="margin-top:6px;line-height:1.65">Every employee of the head office, a country office, a branch or a unit belongs here, with what the payment automations read:</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:8px 18px;margin-top:8px" class="small">
+    <div><b>Salary.</b> The monthly <b>net pay</b>, its currency and the <b>charge code</b> it is booked to fill the payroll register line of each person (Payment → Payroll register); the <b>contract start and end</b> decide whether a salary is due at all.</div>
+    <div><b>Their own bank account.</b> Salary, travel claims and cash advances go only to the person's <b>own registered account</b>, verified by a call-back like any beneficiary; without one, nothing is paid to them on the agent's authority.</div>
+    <div><b>Benefits.</b> The fringe benefits the person is enrolled in (insurance, pension, social security…), from the list in Delegation of Authority → 02.</div>
+    <div><b>Approvals.</b> The <b>role</b> decides what the person may do in VENTHORA; the <b>unit</b> and the <b>approval limit</b> decide which exceptions they approve; nobody approves their own request.</div>
+    <div><b>Senders.</b> The person's <b>email</b> is the mailbox their claims, travel requests and instructions are accepted from.</div>
+    <div><b>Employment.</b> Staff number, job title and employment type (permanent, fixed-term, expatriate, part-time, intern) identify the person on the register and in the reports.</div>
+   </div>
+   <div style="margin-top:12px;padding:12px 14px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#0ea5a4,#2f6fed)">
+    <div style="font-weight:700">Upload the staff list as it is, or add people one by one</div>
+    <div class="small" style="margin-top:6px;line-height:1.6;color:#fff"><b>Upload:</b> one file or several at once (Excel, CSV, Word, PDF or an email with the list in it) in <a href="#/sources-upload" style="color:#fff;text-decoration:underline">Dataset upload</a>. Each person needs at least: <b>full name</b>, <b>work email</b>, <b>the office, branch or unit</b> they belong to (its name or cost centre), <b>monthly net pay</b> and its <b>currency</b>, and the <b>charge code</b> of their salary. Add when you have them: staff number, job title, employment type, contract start and end, enrolled benefits, approval limit and their role in VENTHORA (without one a person is a requester). The AI model maps every column to these fields and shows the result before anything is saved; a line it cannot place is listed with the reason.
+     <br><b>One by one:</b> <b>Add person</b> below, then <b>Bank account</b> on the person's row to register the account their salary is paid into.</div>
+   </div>
+  </div>
   <h2><span>People</span><span class="row"><select id="userUnit"><option value="">All units</option></select><button class="primary" id="addUser">Add person</button></span></h2>
   <div id="usersTable" class="empty">loading…</div>
  </section>
 
  <!-- ===== Settings ===== -->
  <section class="span12" data-view="allocation">
-  <h2><span>Budget allocation · Regular based</span><span class="row"><span class="small muted">period</span><select id="allocPeriod"></select></span></h2>
-  <div class="small" id="allocBanner"></div>
-  <h3 class="small muted" style="margin:14px 0 6px">Allocate to a charge-code scope <span class="muted">(every payment carries OFFICE.PROJECT.ACCOUNT)</span></h3>
-  <div class="form" id="regForm">
-   <label>Country office<select id="rg-office"></select></label>
-   <label>Branch / unit<select id="rg-unit"></select></label>
-   <label>Project<select id="rg-project"></select></label>
-   <label>Budget line<input id="rg-line" list="catList" value="Operations"></label>
-   <label>Amount<input id="rg-amount" type="number" step="0.01" min="0"></label>
-   <label>Currency<input id="rg-ccy" maxlength="3"></label>
-   <label>Period<select id="rg-period"></select></label>
-   <label class="check"><input type="checkbox" id="rg-children" checked> also the units under it</label>
-   <label class="check"><input type="checkbox" id="rg-nolimit"> No limit (pay from the balance)</label>
-  </div>
-  <div class="row" style="margin-top:10px"><button class="primary" id="rgSave">Save allocation</button><button id="rgNew">New</button><span class="small" id="rgMsg"></span></div>
-  <div id="allocChart" class="chart" style="margin-top:16px"></div>
-  <div id="allocTable" style="margin-top:14px"></div>
- </section>
-
- <section class="span12" data-view="allocation-project">
-  <h2><span>Budget allocation · Project based</span><span class="row"><span class="small muted">period</span><select id="pjPeriod"></select></span></h2>
-  <div class="small" id="pjBanner"></div>
-  <h3 class="small muted" style="margin:14px 0 6px">Allocate to a project, wherever it is charged</h3>
-  <div class="form">
-   <label>Project (name / code)<select id="pj-project"></select></label>
-   <label>Budget line<input id="pj-line" list="catList" value="Project"></label>
-   <label>Amount<input id="pj-amount" type="number" step="0.01" min="0"></label>
-   <label>Currency<input id="pj-ccy" maxlength="3"></label>
-   <label>Period<select id="pj-period"></select></label>
-   <label class="check"><input type="checkbox" id="pj-nolimit"> No limit (pay from the balance)</label>
-  </div>
-  <div class="row" style="margin-top:10px"><button class="primary" id="pjSave">Save allocation</button><button id="pjNew">New</button><span class="small" id="pjMsg"></span></div>
-  <div id="pjTable" style="margin-top:16px"></div>
+  <style>#alTabs{gap:6px;background:transparent;border:0;padding:0}#alTabs button{color:#fff;padding:8px 16px;border-radius:9px;opacity:.55}#alTabs button:hover{opacity:.85}
+   #alTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35);transform:translateY(-1px)}#alTabs [data-atab=reg]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}#alTabs [data-atab=prj]{background:linear-gradient(135deg,#0ea5a4,#2f6fed)}
+   .almode{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:10px;margin:10px 0}.almode label{display:block;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}.almode label.on{border-color:var(--accent,#2f6fed);background:rgba(47,111,237,.06)}</style>
+  <h2><span>Budget allocation</span><span class="tabs" id="alTabs"><button data-atab="reg" class="on">1 · Regular budget allocation</button><button data-atab="prj">2 · Project based allocation</button></span></h2>
+  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>Which budget a payment draws on.</b> Every payment carries a charge code OFFICE.PROJECT.ACCOUNT. The hierarchy is the organisation's: head office, country office, branch, unit or department. A budget given only at the top covers every office and unit under it; a budget given to a lower level covers that level only, and the nearest one governs. Every payment is checked against it again at execution, and never beyond the actual balance.</div>
+  <div data-apane="reg"><div id="alMode"></div><div id="alReg"></div></div>
+  <div data-apane="prj" hidden><div id="alPrj"></div></div>
+  <div class="small muted" style="margin-top:16px;padding-top:10px;border-top:1px solid var(--line)"><b>To add a country office, branch, unit or department:</b> upload a file in any format (Excel, CSV, Word, PDF, email) that lists them with their name, type (head office, country office, branch, unit), the office it reports to, country, currency and cost centre, in <a href="#/sources-upload">Dataset upload</a>; or <a href="#" id="alAddUnit">add one here ›</a>.</div>
  </section>
 
  <section class="span12" data-view="budget-policy">
@@ -476,7 +466,41 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="row" style="margin-top:8px"><button id="bcGo">Check</button></div><div id="bcOut" class="small" style="margin-top:8px"></div>
  </section>
 
+ <section class="span12" data-view="vendors">
+  <h2><span>Vendors</span><span class="row"><span class="small muted">who supplies goods and services, and the account they are paid into</span><button class="primary" data-bnew="vendor">Add vendor</button></span></h2>
+  <div class="small" style="margin-bottom:10px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>VENTHORA pays a vendor only from this record.</b> An invoice is trusted only from a <b>registered mailbox</b>; the money goes only to the <b>bank account</b> here; a new vendor, or a changed account, is not paid until a person calls back on the <b>registered phone number</b> (Payment → Payees). The payout method and currency decide the Airwallex corridor, the priority decides what is paid first when cash is short, and the budget line decides which budget it draws on.</div>
+  <div id="vendorsView" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="consultants">
+  <h2><span>Consultants</span><span class="row"><span class="small muted">experts and consultants, regular or short-term, with their contracts</span><button class="primary" data-bnew="consultant">Add consultant</button></span></h2>
+  <div class="small" style="margin-bottom:10px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>A consultant is paid like a vendor, under its own delegation</b> (Delegation of Authority → 03 Experts and consultants): from the registered mailbox or an allowed sender, with the documents required, and inside the <b>contract value</b>, which is the purchase order held against the consultant (Payment → Purchase orders). A <b>regular</b> consultant is on a monthly retainer; a <b>short-term</b> one is paid per deliverable.</div>
+  <div id="consultantsView" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="customers">
+  <h2><span>Customers</span><span class="row"><span class="small muted">who pays the organisation, to match the money that arrives</span><button class="primary" data-bnew="customer">Add customer</button></span></h2>
+  <div class="small" style="margin-bottom:10px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>Money in is matched to these records.</b> A remittance notice is trusted only from a registered mailbox; the payment history (promises kept and missed) calibrates how far VENTHORA relies on an expected receipt when it plans; a receipt counts only once Airwallex reports the deposit settled.</div>
+  <div id="customersView" class="empty">loading…</div>
+ </section>
  <section class="span12" data-view="offices">
+  <div class="tile" style="margin-bottom:12px">
+   <b>Why every office, branch and unit is here</b>
+   <div class="small" style="margin-top:6px;line-height:1.65">This tree is the organisation as VENTHORA sees it, and every payment is placed in it before it is paid:</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:8px 18px;margin-top:8px" class="small">
+    <div><b>Charge codes.</b> Each payment carries OFFICE.PROJECT.ACCOUNT; the office part is the <b>cost centre</b> of a unit here. A code whose cost centre is not here, or not active, is never paid.</div>
+    <div><b>Budgets.</b> Budget allocation follows this tree: a budget given to the head office covers every office under it; one given to a branch or unit covers that branch or unit only (Payment → Budget allocation).</div>
+    <div><b>Who approves.</b> People belong to a unit (People and roles). An exception is routed to the approvers in the unit's chain whose approval limit covers it, nearest first; nobody approves outside their chain.</div>
+    <div><b>How much the agent pays alone.</b> The payment limit of a unit (or of the nearest unit above it that sets one) is what VENTHORA may pay on its own for spending charged to that unit; above it a person approves.</div>
+    <div><b>Local currency and time zone.</b> The currency an office is budgeted and reports in, and its local time; the reporting cut-off itself is one for the organisation (System Setting → Period, cut-off &amp; sync).</div>
+    <div><b>Reports and segregation.</b> Spending, payment reports and allocations are added up per office, branch and unit, and an admin of one office manages only that office and the units under it.</div>
+   </div>
+   <div style="margin-top:12px;padding:12px 14px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#2f6fed,#7b5cff)">
+    <div style="font-weight:700">Already have the list? Upload it as it is.</div>
+    <div class="small" style="margin-top:6px;line-height:1.6;color:#fff">One file or several at once, in any format with text in it (Excel, CSV, Word, PDF, an email), with at least, for each office, branch or unit:
+     <b>its name</b>, <b>its type</b> (head office, country office, branch office or project finance unit), <b>the office it reports to</b>, <b>the country</b>, <b>the local currency</b> and <b>the cost centre</b>.
+     Optional: the time zone, the payment limit the agent may pay alone, an id of your own. VENTHORA reads the files with the AI model, maps every line to these fields, places each unit under the one it reports to (in any order), and shows you the result before anything is saved; a line it cannot place is listed with the reason.</div>
+    <div class="row" style="margin-top:10px;gap:8px"><a href="#/sources-upload" style="background:#fff;color:#3b3bd6;padding:7px 12px;border-radius:8px;font-weight:600;text-decoration:none">Upload offices and units ›</a><span class="small" style="color:#fff">or add one by hand with <b>Add office</b> below.</span></div>
+   </div>
+  </div>
   <h2><span>Country and branch offices</span><span class="row"><span class="small muted">local currency, time zone and cost centre per office</span><button class="primary" id="addOffice">Add office</button></span></h2>
   <div id="officesTable" class="empty">loading…</div>
  </section>
@@ -1009,11 +1033,11 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",books:"Books & segregation",travel:"Travel requests",payroll:"Payroll register",
- executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),payroll:()=>payrollView(),integrations:()=>webhookView()};
+const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel requests",payroll:"Payroll register",
+ executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
+ standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),payroll:()=>payrollView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
  document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
@@ -1191,37 +1215,54 @@ function wireActs(root,col,list,idf,fields,after){
 const UNIT_FIELDS=()=>[{k:"name",l:"Name",req:1},{k:"kind",l:"Type",opts:Object.entries(KIND)},{k:"parent_id",l:"Parent unit",opts:unitOpts("— none (Head Quarter) —")},
  {k:"country",l:"Country (ISO 2)",max:2},{k:"currency",l:"Local currency",max:3},{k:"timezone",l:"Time zone"},{k:"cost_centre",l:"Cost centre"},
  {k:"payment_limit_minor",l:"Agent pays alone up to (USD, blank = parent's)",money:1,nullable:1},{k:"active",l:"Active",check:1}];
-const USER_FIELDS=()=>[{k:"name",l:"Full name",req:1},{k:"email",l:"Email",type:"email",req:1},{k:"role",l:"Role",opts:Object.entries(ROLES)},{k:"unit_id",l:"Unit",opts:unitOpts()},
+let BENEFIT_OPTS=[];
+const USER_FIELDS=()=>[{k:"name",l:"Full name",req:1},{k:"email",l:"Work email",type:"email",req:1},{k:"employee_no",l:"Staff number",nullable:1},{k:"job_title",l:"Job title"},
+ {k:"unit_id",l:"Office, branch or unit",opts:unitOpts()},{k:"role",l:"Role in VENTHORA",opts:Object.entries(ROLES)},
+ {k:"employment_type",l:"Employment type",opts:[["permanent","Permanent"],["fixed_term","Fixed-term"],["expatriate","Expatriate"],["part_time","Part-time"],["intern","Intern"]]},
+ {k:"contract_start",l:"Contract start",type:"date",nullable:1},
+ {k:"salary_minor",l:"Monthly net pay",money:1,nullable:1},{k:"salary_currency",l:"Salary currency",max:3,nullable:1},{k:"charge_code",l:"Salary charge code (OFFICE.PROJECT.ACCOUNT)",nullable:1},
+ {k:"benefits",l:"Enrolled benefits",multi:BENEFIT_OPTS},
  {k:"approval_limit_minor",l:"Approval limit (USD)",money:1},{k:"may_order_by_email",l:"May order vendor payments by email",check:1,off:1},
  {k:"payee_id",l:"Own bank account (registered payee), for salary and travel claims",opts:[["","— none —"],...PAYEE_OPTS],nullable:1},
  {k:"contract_end",l:"Contract end date (no salary after it)",type:"date",nullable:1},{k:"active",l:"Active",check:1}];
-async function orgUsers(){try{await loadOrg();const units=unitTree();
- $("#unitsTree").innerHTML=table([{h:"Unit",f:u=>`${u.depth?`<span class="tree">${"&nbsp;&nbsp;&nbsp;".repeat(u.depth-1)}└─ </span>`:""}<b>${esc(u.name)}</b>${u.active?"":' <span class="small muted">inactive</span>'}`},
+async function orgUsers(){try{await loadOrg();if(!BENEFIT_OPTS.length){try{const dd=await api("/v1/doa");BENEFIT_OPTS.push(...dd.benefit_catalog.benefits.map(b=>[b.key,b.label]))}catch(e){}}
+ const units=unitTree();if($("#unitsTree"))$("#unitsTree").innerHTML=table([{h:"Unit",f:u=>`${u.depth?`<span class="tree">${"&nbsp;&nbsp;&nbsp;".repeat(u.depth-1)}└─ </span>`:""}<b>${esc(u.name)}</b>${u.active?"":' <span class="small muted">inactive</span>'}`},
   {h:"Type",f:u=>`<span class="chip ${u.kind}">${KIND[u.kind]}</span>`},{h:"Country",f:u=>esc(u.country||"-")},{h:"Currency",f:u=>esc(u.currency)},{h:"Time zone",f:u=>`<span class="small">${esc(u.timezone)}</span>`},
   {h:"Cost centre",f:u=>`<span class="mono">${esc(u.cost_centre||"-")}</span>`},{h:"Pays alone up to",num:1,f:u=>u.payment_limit_minor!=null?usd(u.payment_limit_minor):'<span class="muted">parent\'s</span>'},
   {h:"People",num:1,f:u=>ORG.users.filter(p=>p.unit_id===u.unit_id).length},{h:"",f:u=>rowActs("units",u.unit_id)}],units);
- wireActs($("#unitsTree"),"units",()=>ORG.units,"unit_id",UNIT_FIELDS,orgUsers);
+ if($("#unitsTree"))wireActs($("#unitsTree"),"units",()=>ORG.units,"unit_id",UNIT_FIELDS,orgUsers);
  const sel=$("#userUnit"),cur=sel.value;sel.innerHTML=unitOpts("All units").map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("");sel.value=cur;sel.onchange=orgUsers;
  const people=ORG.users.filter(p=>!sel.value||p.unit_id===sel.value);
- $("#usersTable").innerHTML=table([{h:"Name",f:p=>`<b>${esc(p.name)}</b>${p.active?"":' <span class="small muted">inactive</span>'}<div class="small muted">${esc(p.email)}</div>`},
-  {h:"Role",f:p=>`<span class="chip">${esc(ROLES[p.role]||p.role)}</span>`},{h:"Unit",f:p=>esc(unitName(p.unit_id))},
-  {h:"Approval limit",num:1,f:p=>p.approval_limit_minor?usd(p.approval_limit_minor):'<span class="muted">none</span>'},{h:"",f:p=>rowActs("users",p.user_id)}],people,"no people in this unit");
+ const ET={permanent:"permanent",fixed_term:"fixed-term",expatriate:"expatriate",part_time:"part-time",intern:"intern"};
+ $("#usersTable").innerHTML=table([{h:"Person",f:p=>`<b>${esc(p.name)}</b>${p.active?"":' <span class="small muted">inactive</span>'}<div class="small muted">${esc(p.email)}${p.employee_no?` · ${esc(p.employee_no)}`:""}</div>`},
+  {h:"Job · role",f:p=>`${esc(p.job_title||"-")}<div><span class="chip">${esc(ROLES[p.role]||p.role)}</span></div>`},
+  {h:"Office, branch or unit",f:p=>{const u=ORG.units.find(x=>x.unit_id===p.unit_id);return `${esc(unitName(p.unit_id))}<div class="small muted">${esc(u?KIND[u.kind]:"")}</div>`}},
+  {h:"Employment",f:p=>`<span class="small">${esc(ET[p.employment_type]||"permanent")}<br>${esc(p.contract_start||"…")} → ${esc(p.contract_end||"open")}</span>`},
+  {h:"Monthly net pay",num:1,f:p=>p.salary_minor!=null?`${fmt(p.salary_minor,p.salary_currency||"USD")}<div class="small muted mono">${esc(p.charge_code||"no charge code")}</div>`:'<span class="muted small">not set</span>'},
+  {h:"Bank account",f:p=>p.payee_id?`<span class="small">${esc((PAYEE_OPTS.find(x=>x[0]===p.payee_id)||[,p.payee_id])[1])}</span>`:'<span class="pill warn">NONE</span>'},
+  {h:"Benefits",f:p=>p.benefits&&p.benefits.length?`<span class="small">${p.benefits.length} enrolled</span>`:'<span class="muted small">none</span>'},
+  {h:"Approval limit",num:1,f:p=>p.approval_limit_minor?usd(p.approval_limit_minor):'<span class="muted">none</span>'},
+  {h:"",f:p=>`<div class="acts"><button data-pbank="${esc(p.user_id)}">Bank account</button>${rowActs("users",p.user_id)}</div>`}],people,"no people in this unit");
+ document.querySelectorAll("[data-pbank]").forEach(b=>b.onclick=()=>{const p=ORG.users.find(x=>x.user_id===b.dataset.pbank);
+  const cur=p.payee_id?null:null;benForm("employee",cur,{name:p.name,currency:p.salary_currency||"USD",entity_type:"PERSONAL",contacts:[p.email]},async id=>{
+   try{await api(`/v1/org/users?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...p,payee_id:id})});toast(`${p.name}'s bank account registered: NEW until a call-back`,"good");await payees();orgUsers()}catch(e){toast(e.message,"critical")}})});
  wireActs($("#usersTable"),"users",()=>ORG.users,"user_id",USER_FIELDS,orgUsers)}
  catch(e){$("#unitsTree").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-$("#addUnit").onclick=async()=>{await loadOrg();openForm("Add unit",UNIT_FIELDS(),{kind:"COUNTRY_OFFICE",parent_id:"hq",currency:"USD",timezone:"UTC",active:true},"units",orgUsers)};
+if($("#addUnit"))$("#addUnit").onclick=async()=>{await loadOrg();openForm("Add unit",UNIT_FIELDS(),{kind:"COUNTRY_OFFICE",parent_id:"hq",currency:"USD",timezone:"UTC",active:true},"units",orgUsers)};
 $("#addUser").onclick=async()=>{await loadOrg();openForm("Add person",USER_FIELDS(),{role:"treasury_analyst",unit_id:$("#userUnit").value||"hq",active:true},"users",orgUsers)};
 
 // generic record form in a dialog; the server checks every rule and its message is shown as is
 function openForm(title,fields,rec,col,after){rec={...(rec||{})};$("#dlgTitle").textContent=title;$("#dlgErr").textContent="";
  $("#dlgBody").innerHTML=fields.map(f=>{const v=rec[f.k];const id=`fld-${f.k}`;
   if(f.check)return `<label class="check"><input type="checkbox" id="${id}" ${(f.off?v===true:v!==false)?"checked":""}> ${esc(f.l)}</label>`;
+  if(f.multi)return `<label style="grid-column:1/-1">${esc(f.l)}${msel(id,f.multi,Array.isArray(v)?v:[],"","choose")}</label>`;
   if(f.opts)return `<label>${esc(f.l)}<select id="${id}">${f.opts.map(([o,l])=>`<option value="${esc(o)}" ${String(v??"")===String(o)?"selected":""}>${esc(l)}</option>`).join("")}</select></label>`;
   const val=f.money?(v!=null?(v/100).toFixed(2):""):(v??"");
   return `<label>${esc(f.l)}<input id="${id}" type="${f.money?"number":f.type||"text"}" ${f.money?'step="0.01" min="0"':""} ${f.max?`maxlength="${f.max}"`:""} ${f.req?"required":""} ${f.list?`list="${f.list}"`:""} value="${esc(val)}"></label>`}).join("")
   +(fields.some(f=>f.list==="catList")?`<datalist id="catList">${(ORG.standards?.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`:"");
- const dlg=$("#dlg");dlg.showModal();
+ const dlg=$("#dlg");dlg.showModal();mselBind($("#dlgBody"));
  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
-  const body={...rec};fields.forEach(f=>{const el=$(`#fld-${f.k}`);body[f.k]=f.check?el.checked:(el.value===""&&f.nullable)?null:f.money?Math.round(parseFloat(el.value||"0")*100):el.value});
+  const body={...rec};fields.forEach(f=>{if(f.multi){body[f.k]=mselVal(`fld-${f.k}`);return}const el=$(`#fld-${f.k}`);body[f.k]=f.check?el.checked:(el.value===""&&f.nullable)?null:f.money?(el.value===""&&f.nullable?null:Math.round(parseFloat(el.value||"0")*100)):el.value});
   if(body.parent_id==="")body.parent_id=null;if(body.unit_id===""&&col==="prices")body.unit_id=null;
   try{await api(`/v1/org/${col}?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});dlg.close();toast("Saved","good");after()}
   catch(e){$("#dlgErr").textContent=e.message}}}
@@ -1265,63 +1306,105 @@ const OFFICE_KINDS=new Set(["HQ","COUNTRY_OFFICE"]);
 const below=id=>{const out=[];const walk=p=>ORG.units.filter(u=>u.parent_id===p).forEach(u=>{out.push(u);walk(u.unit_id)});walk(id);return out};
 const chainOf=id=>{const out=[];let u=ORG.units.find(x=>x.unit_id===id);while(u){out.push(u);u=ORG.units.find(x=>x.unit_id===u.parent_id)}return out};
 const allocMoney=(v,c)=>v==null?'<span class="pill good">NO LIMIT</span>':fmt(v,c);
-async function allocBase(sel){const [pol,,pj]=await Promise.all([api("/v1/budget-allocation/policy"),loadOrg(),api("/v1/org/projects")]);BP=pol;PROJ=pj;
- const cur=sel.value||BP.active_period;const st=await api(`/v1/budget-allocation/status?period=${encodeURIComponent(cur)}`);
- const opts=[...new Set([...BP.period_options,...st.periods])].sort();sel.innerHTML=opts.map(p=>`<option ${p===cur?"selected":""}>${esc(p)}${p===BP.active_period?" (active)":""}</option>`).join("");
- [...sel.options].forEach(o=>o.value=o.textContent.replace(" (active)",""));sel.value=cur;
- const banner=BP.enforcement==="no_limit"?'<span class="pill warn">NO LIMIT</span> allocations are not enforced: every unit pays from the available balance':
-  `<span class="pill good">LIMITED</span> each payment must fit the allocation that governs its charge code · active period <b>${esc(BP.active_period)}</b> (${esc(BP.period_types[BP.period_type])}) · cut-off day ${BP.cutoff_day} ${esc(BP.cutoff_time)} ${esc(BP.timezone)} · <a href="#/budget-policy">change</a>`;
- return {st,banner,cur}}
-const periodSelect=(el,val)=>{el.innerHTML=BP.period_options.map(p=>`<option ${p===val?"selected":""}>${esc(p)}</option>`).join("");if(val&&!BP.period_options.includes(val))el.innerHTML+=`<option selected>${esc(val)}</option>`};
-const usageCols=scope=>[{h:"Scope",f:scope},{h:"Line",f:a=>esc(a.line)},{h:"Allocated",num:1,f:a=>a.no_limit?allocMoney(null):fmt(a.amount_minor,a.currency)},
- {h:"Spent",num:1,f:a=>fmt(a.spent_minor,a.currency)},{h:"Left",num:1,f:a=>a.no_limit?"—":`<span class="${a.remaining_minor<0?"err":""}">${fmt(a.remaining_minor,a.currency)}</span>`},
- {h:"",f:a=>`<div class="acts"><button data-aedit="${esc(a.alloc_id)}">Edit</button><button data-adel="${esc(a.alloc_id)}">Delete</button></div>`}];
 function wireAlloc(root,rows,edit,after){root.querySelectorAll("[data-aedit]").forEach(b=>b.onclick=()=>edit(rows.find(a=>a.alloc_id===b.dataset.aedit)));
  root.querySelectorAll("[data-adel]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete this allocation?"))return;try{await api(`/v1/org/allocations/${b.dataset.adel}?${who()}`,{method:"DELETE"});toast("Deleted","good");after()}catch(e){toast(e.message,"critical")}})}
 async function saveAlloc(body,msg,after){try{await api(`/v1/org/allocations?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$(msg).innerHTML='<span class="pill good">saved</span>';toast("Allocation saved","good");after()}
  catch(e){$(msg).innerHTML=`<span class="err">${esc(e.message)}</span>`}}
 
-let RG_EDIT=null;
-function rgFill(rec){RG_EDIT=rec?rec.alloc_id:null;const offices=ORG.units.filter(u=>OFFICE_KINDS.has(u.kind)).sort((a,b)=>(a.kind==="HQ"?0:1)-(b.kind==="HQ"?0:1)||a.name.localeCompare(b.name));
- let office=offices[0]?.unit_id,unit="";if(rec){const ch=chainOf(rec.unit_id);const o=ch.find(u=>OFFICE_KINDS.has(u.kind));office=o?o.unit_id:rec.unit_id;unit=o&&o.unit_id===rec.unit_id?"":rec.unit_id}
- $("#rg-office").innerHTML=offices.map(u=>`<option value="${esc(u.unit_id)}" ${u.unit_id===office?"selected":""}>${esc(u.name)}${u.cost_centre?` · ${esc(u.cost_centre)}`:""}</option>`).join("");
- rgUnits(unit);rgProjects(rec?.project_code||"");$("#rg-line").value=rec?.line||"Operations";$("#rg-amount").value=rec&&!rec.no_limit?(rec.amount_minor/100).toFixed(2):"";
- $("#rg-ccy").value=rec?.currency||ORG.standards.base_currency;$("#rg-nolimit").checked=!!rec?.no_limit;$("#rg-children").checked=rec?rec.include_children!==false:true;
- periodSelect($("#rg-period"),rec?.period||$("#allocPeriod").value||BP.active_period);$("#rgMsg").innerHTML=rec?`editing <b>${esc(rec.alloc_id)}</b>`:"";$("#rg-amount").disabled=$("#rg-nolimit").checked}
-function rgUnits(val){const office=$("#rg-office").value;$("#rg-unit").innerHTML=`<option value="">— the whole office —</option>`+below(office).map(u=>`<option value="${esc(u.unit_id)}" ${u.unit_id===val?"selected":""}>${esc(u.name)} · ${esc(KIND[u.kind])}${u.cost_centre?` · ${esc(u.cost_centre)}`:""}</option>`).join("")}
-function rgProjects(val){const uid=$("#rg-unit").value||$("#rg-office").value;
- const ok=PROJ.filter(x=>x.active!==false&&(!x.unit_id||chainOf(x.unit_id).some(u=>u.unit_id===uid)));
- $("#rg-project").innerHTML='<option value="">— every project —</option>'+ok.map(x=>`<option value="${esc(x.code)}" ${x.code===val?"selected":""}>${esc(x.code)} · ${esc(x.name)}</option>`).join("")}
-$("#rg-office").onchange=()=>{rgUnits("");rgProjects("")};$("#rg-unit").onchange=()=>rgProjects("");$("#rg-nolimit").onchange=()=>{$("#rg-amount").disabled=$("#rg-nolimit").checked};
-$("#rgNew").onclick=()=>rgFill(null);
-$("#rgSave").onclick=()=>saveAlloc({alloc_id:RG_EDIT,basis:"regular",unit_id:$("#rg-unit").value||$("#rg-office").value,include_children:$("#rg-children").checked,
- project_code:$("#rg-project").value||null,line:$("#rg-line").value.trim()||"Operations",no_limit:$("#rg-nolimit").checked,
- amount_minor:Math.round(parseFloat($("#rg-amount").value||"0")*100),currency:$("#rg-ccy").value.trim().toUpperCase(),period:$("#rg-period").value},"#rgMsg",()=>{RG_EDIT=null;allocView()});
-async function allocView(){try{const {st,banner,cur}=await allocBase($("#allocPeriod"));$("#allocBanner").innerHTML=banner;$("#allocPeriod").onchange=allocView;
- if(!$("#rg-office").options.length||!RG_EDIT)rgFill(null);
- const tree=treeRows(await api(`/v1/org/allocation-tree?period=${encodeURIComponent(cur)}`));
- $("#allocChart").innerHTML=hbars(tree.map(r=>({label:r.name,indent:r.depth,sub:KIND[r.kind],value:r.allocated.USD||0,display:`${usd(r.allocated.USD||0)}${r.passed_down.USD?` <span class="muted">· ${short(r.passed_down.USD)} down</span>`:""}`,
-  tone:r.over_allocated.USD?"critical":"",mark:r.passed_down.USD||null,markTip:`passed down ${usd(r.passed_down.USD||0)}`,
-  tip:`${r.name}: ${usd(r.allocated.USD||0)} received${r.over_allocated.USD?`, passed down ${usd(r.over_allocated.USD)} too much`:""}`})))
-  +`<div class="legend"><span style="--c:var(--seq)">allocated to the unit (USD)</span><span style="--c:var(--ink2)">marker: passed down to its units</span><span style="--c:var(--critical)">passed down more than received</span></div>`;
- const rows=st.allocations.filter(a=>(a.basis||"regular")==="regular");
- $("#allocTable").innerHTML=table(usageCols(a=>`<b>${esc(unitName(a.unit_id))}</b>${a.include_children!==false?' <span class="small muted">+ units under it</span>':""}${a.project_code?` · <span class="chip">${esc(a.project_code)}</span>`:""}`),rows,"no regular allocation in this period")
-  +`<datalist id="catList">${(ORG.standards.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`;
- wireAlloc($("#allocTable"),rows,r=>{rgFill(r);window.scrollTo(0,0)},allocView)}
- catch(e){$("#allocChart").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-
-let PJ_EDIT=null;
-function pjFill(rec){PJ_EDIT=rec?rec.alloc_id:null;
- $("#pj-project").innerHTML=PROJ.filter(x=>x.active!==false).map(x=>`<option value="${esc(x.code)}" ${rec&&rec.project_code===x.code?"selected":""}>${esc(x.name)} · ${esc(x.code)}${x.unit_id?` (${esc(unitName(x.unit_id))})`:""}</option>`).join("");
- $("#pj-line").value=rec?.line||"Project";$("#pj-amount").value=rec&&!rec.no_limit?(rec.amount_minor/100).toFixed(2):"";$("#pj-ccy").value=rec?.currency||ORG.standards.base_currency;
- $("#pj-nolimit").checked=!!rec?.no_limit;$("#pj-amount").disabled=$("#pj-nolimit").checked;periodSelect($("#pj-period"),rec?.period||$("#pjPeriod").value||BP.active_period);$("#pjMsg").innerHTML=rec?`editing <b>${esc(rec.alloc_id)}</b>`:""}
-$("#pj-nolimit").onchange=()=>{$("#pj-amount").disabled=$("#pj-nolimit").checked};$("#pjNew").onclick=()=>pjFill(null);
-$("#pjSave").onclick=()=>saveAlloc({alloc_id:PJ_EDIT,basis:"project",project_code:$("#pj-project").value,line:$("#pj-line").value.trim()||"Project",no_limit:$("#pj-nolimit").checked,
- amount_minor:Math.round(parseFloat($("#pj-amount").value||"0")*100),currency:$("#pj-ccy").value.trim().toUpperCase(),period:$("#pj-period").value},"#pjMsg",()=>{PJ_EDIT=null;projectAllocView()});
-async function projectAllocView(){try{const {st,banner}=await allocBase($("#pjPeriod"));$("#pjBanner").innerHTML=banner;$("#pjPeriod").onchange=projectAllocView;if(!PJ_EDIT)pjFill(null);
- const rows=st.allocations.filter(a=>a.basis==="project");const pn=c=>(PROJ.find(x=>x.code===c)||{}).name||c;
- $("#pjTable").innerHTML=table(usageCols(a=>`<b>${esc(pn(a.project_code))}</b> <span class="chip">${esc(a.project_code)}</span>`),rows,"no project-based allocation in this period");
- wireAlloc($("#pjTable"),rows,r=>{pjFill(r);window.scrollTo(0,0)},projectAllocView)}catch(e){$("#pjTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+let ALTAB="reg",AL_EDIT=null,AL_PJEDIT=null;
+document.querySelectorAll("#alTabs [data-atab]").forEach(btn=>btn.onclick=()=>{ALTAB=btn.dataset.atab;allocView()});
+const LIMIT_PER={monthly:"Month",quarterly:"Quarter",annual:"Year"};
+function periodsFor(type){const st=+(BP.fiscal_year_start_month||1),[y,m]=BP.current_month.split("-").map(Number),fy=m>=st?y:y-1;const out=[];
+ for(const f of [fy,fy+1]){if(type==="annual")out.push(String(f));else if(type==="quarterly")for(let q=1;q<=4;q++)out.push(`${f}-Q${q}`);else for(let i=0;i<12;i++){const mm=(st-1+i)%12+1,yy=f+Math.floor((st-1+i)/12);out.push(`${yy}-${String(mm).padStart(2,"0")}`)}}
+ return out}
+const ptype=p=>/^\d{4}$/.test(p)?"annual":/-Q\d$/.test(p)?"quarterly":/^\d{4}-\d{2}$/.test(p)?"monthly":"other";
+async function allocView(){try{const [pol,,pj,st]=await Promise.all([api("/v1/budget-allocation/policy"),loadOrg(),api("/v1/org/projects"),api("/v1/budget-allocation/status?every=true")]);BP=pol;PROJ=pj;
+ document.querySelectorAll("#alTabs [data-atab]").forEach(x=>x.classList.toggle("on",x.dataset.atab===ALTAB));document.querySelectorAll("[data-apane]").forEach(x=>x.hidden=x.dataset.apane!==ALTAB);
+ $("#alAddUnit").onclick=async ev=>{ev.preventDefault();await loadOrg();openForm("Add an office, branch or unit",UNIT_FIELDS(),{kind:"BRANCH_OFFICE",parent_id:"hq",currency:ORG.standards.base_currency,timezone:BP.timezone||"UTC",active:true},"units",allocView)};
+ if(ALTAB==="reg")regPane(st);else projectPane(st)}
+ catch(e){$("#alReg").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function regPane(st){const open=BP.enforcement==="no_limit";
+ $("#alMode").innerHTML=`<div class="almode">
+  <label class="${open?"on":""}"><input type="radio" name="al-mode" value="no_limit" ${open?"checked":""}> <b>Open budget</b> · refer to the actual balance<div class="small muted" style="margin-top:4px">No office, branch or unit is limited: every payment can use the actual balance, after every other check.</div></label>
+  <label class="${open?"":"on"}"><input type="radio" name="al-mode" value="per_allocation" ${open?"":"checked"}> <b>Allocated budget</b> · restricted per office, branch or unit<div class="small muted" style="margin-top:4px">Each office, branch or unit pays only within its own allocation, limited per month, quarter or year; above it, the payment waits for a person.</div></label></div>`;
+ document.querySelectorAll("[name=al-mode]").forEach(r=>r.onchange=async()=>{const body={enforcement:r.value,period_type:BP.period_type,fiscal_year_start_month:BP.fiscal_year_start_month,cutoff_day:BP.cutoff_day,cutoff_time:BP.cutoff_time,
+   timezone:BP.timezone,daily_sync_time:BP.daily_sync_time,monthly_sync_day:BP.monthly_sync_day||1,sync_enabled:BP.sync_enabled};
+  try{await api(`/v1/budget-allocation/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast(r.value==="no_limit"?"Open budget: payments refer to the actual balance":"Allocated budget: each scope within its allocation","good");allocView()}
+  catch(e){toast(e.message,"critical");allocView()}});
+ const rows=st.allocations.filter(a=>(a.basis||"regular")==="regular").sort((x,y)=>chainOf(x.unit_id).length-chainOf(y.unit_id).length||String(x.period).localeCompare(String(y.period)));
+ const scope=a=>`<b>${esc(unitName(a.unit_id))}</b>${a.include_children!==false?' <span class="small muted">+ the units under it</span>':""}${a.project_code?` · <span class="chip">${esc(a.project_code)}</span>`:""}`;
+ const list=table([{h:"Office, branch or unit",f:scope},{h:"Line",f:a=>esc(a.line)},{h:"Limit per",f:a=>esc(LIMIT_PER[ptype(a.period)]||a.period)},{h:"Period",f:a=>esc(a.period)},
+  {h:"Allocated",num:1,f:a=>a.no_limit?allocMoney(null):fmt(a.amount_minor,a.currency)},{h:"Spent",num:1,f:a=>fmt(a.spent_minor,a.currency)},
+  {h:"Left",num:1,f:a=>a.no_limit?"—":`<span class="${a.remaining_minor<0?"err":""}">${fmt(a.remaining_minor,a.currency)}</span>`},
+  {h:"",f:a=>`<div class="acts"><button data-aedit="${esc(a.alloc_id)}">Edit</button><button data-adel="${esc(a.alloc_id)}">Delete</button></div>`}],rows,"no allocation yet");
+ if(open){const units=ORG.units.filter(u=>u.active!==false);const roots=units.filter(u=>!u.parent_id||!units.some(x=>x.unit_id===u.parent_id));
+  const walk=(u,d)=>[{u,d},...units.filter(x=>x.parent_id===u.unit_id).sort((a,b)=>a.name.localeCompare(b.name)).flatMap(x=>walk(x,d+1))];
+  const tree=roots.flatMap(r=>walk(r,0));
+  $("#alReg").innerHTML=`<div class="tile" style="margin-top:6px"><b>What an open budget means</b>
+   <div class="small" style="margin-top:6px;line-height:1.6">No office, branch, unit or department has a budget of its own. Every payment any of them makes is paid from the same <b>actual balance</b> of the organisation, as long as the other checks pass: the treasury limits, the reserve floor and the Delegation of Authority. Nobody is stopped for having spent "their" share, because there is no share: whoever pays first uses the money first, and a large payment from one office can leave too little for another one's payroll or suppliers.</div>
+   <div class="small" style="margin-top:10px"><b>Who draws on the same balance today</b> <span class="muted">· ${tree.length} offices and units, in competition for it</span></div>
+   <div style="margin-top:6px;columns:2 320px;column-gap:24px" class="small">${tree.map(({u,d})=>`<div style="padding:3px 0 3px ${d*18}px;break-inside:avoid">${d?'<span class="muted">└ </span>':""}<b>${esc(u.name)}</b> <span class="muted">· ${esc(KIND[u.kind]||u.kind)}${u.cost_centre?` · ${esc(u.cost_centre)}`:""}</span></div>`).join("")}</div></div>
+  <div style="margin-top:12px;padding:14px 16px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#f59e0b,#e5484d)">
+   <div style="font-weight:700;font-size:14px">Recommended: give each office, branch or unit its own budget</div>
+   <div class="small" style="margin-top:6px;line-height:1.6;color:#fff">With an allocated budget, each entity pays only within its share for the month, quarter or year, and one office can never use up another's money. Choose <b>Allocated budget</b> above to set the shares. Already have the budget per entity in a spreadsheet, a PDF or an email? <b>Upload it as it is</b>: the AI model reads it, maps each line to the office, period and amount, and shows it to you before anything is saved.</div>
+   <div class="row" style="margin-top:10px;gap:8px"><a href="#/sources-upload" class="nw" style="background:#fff;color:#c2410c;padding:7px 12px;border-radius:8px;font-weight:600;text-decoration:none">Upload the budget per entity ›</a>
+    <a href="#" id="alGoAllocated" style="color:#fff;font-weight:600">or set it here ›</a></div></div>`;
+  $("#alGoAllocated").onclick=ev=>{ev.preventDefault();$("[name=al-mode][value=per_allocation]").click()};return}
+ const e=AL_EDIT,offices=ORG.units.filter(u=>OFFICE_KINDS.has(u.kind)).sort((x,y)=>(x.kind==="HQ"?0:1)-(y.kind==="HQ"?0:1)||x.name.localeCompare(y.name));
+ let office=offices[0]?.unit_id,unit="";if(e){const ch=chainOf(e.unit_id);const o=ch.find(u=>OFFICE_KINDS.has(u.kind));office=o?o.unit_id:e.unit_id;unit=o&&o.unit_id===e.unit_id?"":e.unit_id}
+ const type=e?ptype(e.period):"annual";
+ $("#alReg").innerHTML=`<h3 class="small muted" style="margin:12px 0 6px">${e?"Change the allocation":"Allocate a budget"}</h3>
+  <div class="form">
+   <label>Country office or head office<select id="al-office">${offices.map(u=>`<option value="${esc(u.unit_id)}" ${u.unit_id===office?"selected":""}>${esc(u.name)}${u.cost_centre?` · ${esc(u.cost_centre)}`:""}</option>`).join("")}</select></label>
+   <label>Branch, unit or department<select id="al-unit"></select></label>
+   <label>Project (optional)<select id="al-project"></select></label>
+   <label>Limit per<select id="al-type">${Object.entries(LIMIT_PER).map(([k,l])=>`<option value="${k}" ${k===type?"selected":""}>${l}</option>`).join("")}</select></label>
+   <label>Period<select id="al-period"></select></label>
+   <label>Amount<input id="al-amount" type="number" step="0.01" min="0" value="${e&&!e.no_limit?(e.amount_minor/100).toFixed(2):""}"></label>
+   <label>Currency<input id="al-ccy" maxlength="3" value="${esc(e?.currency||ORG.standards.base_currency)}"></label>
+   <label>Budget line<input id="al-line" list="catList" value="${esc(e?.line||"Operations")}"></label>
+   <label class="check"><input type="checkbox" id="al-children" ${!e||e.include_children!==false?"checked":""}> also the branches and units under it</label></div>
+  <div class="row" style="margin-top:10px"><button class="primary" id="alSave">${e?"Save allocation":"Add allocation"}</button>${e?'<button id="alCancel">Cancel</button>':""}<span class="small" id="alMsg"></span></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Allocations</h3>${list}<datalist id="catList">${(ORG.standards.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`;
+ const units=()=>{$("#al-unit").innerHTML='<option value="">the whole office</option>'+below($("#al-office").value).map(u=>`<option value="${esc(u.unit_id)}" ${u.unit_id===unit?"selected":""}>${esc(u.name)} · ${esc(KIND[u.kind])}</option>`).join("");projects()};
+ const projects=()=>{const uid=$("#al-unit").value||$("#al-office").value;const ok=PROJ.filter(x=>x.active!==false&&(!x.unit_id||chainOf(x.unit_id).some(u=>u.unit_id===uid)));
+  $("#al-project").innerHTML='<option value="">every project</option>'+ok.map(x=>`<option value="${esc(x.code)}" ${e&&e.project_code===x.code?"selected":""}>${esc(x.code)} · ${esc(x.name)}</option>`).join("")};
+ const periods=()=>{const t=$("#al-type").value,want=e&&ptype(e.period)===t?e.period:BP.current_month&&periodsFor(t).find(p=>p===({monthly:BP.current_month,quarterly:null,annual:null}[t]))||null;
+  const opts=periodsFor(t);const cur=want||opts.find(p=>t==="annual"?p===String(BP.active_period).slice(0,4):t==="quarterly"?p.startsWith(String(BP.active_period).slice(0,4)):p===BP.current_month)||opts[0];
+  $("#al-period").innerHTML=opts.map(p=>`<option ${p===cur?"selected":""}>${p}</option>`).join("")};
+ units();periods();$("#al-office").onchange=()=>{unit="";units()};$("#al-unit").onchange=projects;$("#al-type").onchange=periods;
+ if($("#alCancel"))$("#alCancel").onclick=()=>{AL_EDIT=null;allocView()};
+ $("#alSave").onclick=()=>saveAlloc({alloc_id:e?.alloc_id||null,basis:"regular",unit_id:$("#al-unit").value||$("#al-office").value,include_children:$("#al-children").checked,
+  project_code:$("#al-project").value||null,line:$("#al-line").value.trim()||"Operations",no_limit:false,amount_minor:Math.round(parseFloat($("#al-amount").value||"0")*100),
+  currency:$("#al-ccy").value.trim().toUpperCase(),period:$("#al-period").value},"#alMsg",()=>{AL_EDIT=null;allocView()});
+ wireAlloc($("#alReg"),rows,r=>{AL_EDIT=r;allocView();window.scrollTo(0,0)},allocView)}
+async function projectPane(st){const e=AL_PJEDIT,rows=st.allocations.filter(a=>a.basis==="project"),pn=c=>(PROJ.find(x=>x.code===c)||{}).name||c;
+ const aside={};rows.forEach(a=>{if(!a.no_limit)aside[a.currency]=(aside[a.currency]||0)+Math.max(a.remaining_minor??0,0)});
+ let bal=null,base=null;try{const pos=await api("/v1/treasury/position");bal=Object.fromEntries((pos.available.wallet||[]).map(w=>[w.currency,w.available]));base=[pos.available.base_minor,pos.base_currency]}catch(err){}
+ const balTxt=base?`${fmt(base[0],base[1])} in all currencies`:"not available (Airwallex not connected)";
+ const over=bal&&typeof bal==="object"?Object.entries(aside).filter(([c,v])=>typeof bal[c]==="number"&&v>bal[c]):[];
+ $("#alPrj").innerHTML=`<div class="small" style="margin:10px 0">A project's budget is <b>set aside from the actual balance</b> for the project's duration; payments charged to the project draw on it. It never adds money: when the actual balance runs out, the project's payments stop too.</div>
+  <div class="tiles" style="margin-bottom:10px"><div class="tile"><div class="k">Actual balance</div><div class="v" style="font-size:15px">${esc(balTxt)}</div></div>
+   <div class="tile"><div class="k">Still set aside for projects</div><div class="v" style="font-size:15px">${Object.entries(aside).map(([c,v])=>fmt(v,c)).join(" · ")||"nothing"}</div>${over.length?`<div class="d err">more than the actual balance in ${over.map(([c])=>esc(c)).join(", ")}</div>`:""}</div></div>
+  <h3 class="small muted" style="margin:12px 0 6px">${e?"Change the project's budget":"Set a project budget"}</h3>
+  <div class="form">
+   <label>Project<select id="ap-project">${PROJ.filter(x=>x.active!==false).map(x=>`<option value="${esc(x.code)}" ${e&&e.project_code===x.code?"selected":""}>${esc(x.name)} · ${esc(x.code)}</option>`).join("")}</select></label>
+   <label>Starts<input id="ap-start" type="date" value="${esc(e?.start_date||new Date().toISOString().slice(0,10))}"></label>
+   <label>Ends<input id="ap-end" type="date" value="${esc(e?.end_date||"")}"></label>
+   <label>Total budget<input id="ap-amount" type="number" step="0.01" min="0" value="${e?(e.amount_minor/100).toFixed(2):""}"></label>
+   <label>Currency<input id="ap-ccy" maxlength="3" value="${esc(e?.currency||ORG.standards.base_currency)}"></label>
+   <label>Budget line<input id="ap-line" value="${esc(e?.line||"Project")}"></label></div>
+  <div class="row" style="margin-top:10px"><button class="primary" id="apSave">${e?"Save project budget":"Add project budget"}</button>${e?'<button id="apCancel">Cancel</button>':""}<span class="small" id="apMsg"></span></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Project budgets</h3>
+  ${table([{h:"Project",f:a=>`<b>${esc(pn(a.project_code))}</b> <span class="chip">${esc(a.project_code)}</span>`},{h:"Duration",f:a=>a.start_date?`${esc(a.start_date)} – ${esc(a.end_date||"open")}`:esc(a.period)},
+   {h:"Total",num:1,f:a=>a.no_limit?allocMoney(null):fmt(a.amount_minor,a.currency)},{h:"Spent",num:1,f:a=>fmt(a.spent_minor,a.currency)},
+   {h:"Left",num:1,f:a=>a.no_limit?"—":`<span class="${a.remaining_minor<0?"err":""}">${fmt(a.remaining_minor,a.currency)}</span>`},
+   {h:"",f:a=>`<div class="acts"><button data-aedit="${esc(a.alloc_id)}">Edit</button><button data-adel="${esc(a.alloc_id)}">Delete</button></div>`}],rows,"no project budget yet")}`;
+ if($("#apCancel"))$("#apCancel").onclick=()=>{AL_PJEDIT=null;allocView()};
+ $("#apSave").onclick=()=>{const sd=$("#ap-start").value,ed=$("#ap-end").value;if(!sd||!ed||ed<sd){$("#apMsg").innerHTML='<span class="err">Give the start and the end of the project; the end comes after the start.</span>';return}
+  saveAlloc({alloc_id:e?.alloc_id||null,basis:"project",project_code:$("#ap-project").value,line:$("#ap-line").value.trim()||"Project",no_limit:false,amount_minor:Math.round(parseFloat($("#ap-amount").value||"0")*100),
+   currency:$("#ap-ccy").value.trim().toUpperCase(),period:"ALL",start_date:sd,end_date:ed},"#apMsg",()=>{AL_PJEDIT=null;allocView()})};
+ wireAlloc($("#alPrj"),rows,r=>{AL_PJEDIT=r;allocView();window.scrollTo(0,0)},allocView)}
 
 const MON3=m=>MONTHS[(m-1+120)%12].slice(0,3);
 function fyStartYear(month){const [y,m]=month.split("-").map(Number);const st=+$("#bp-fy").value;return m>=st?y:y-1}
@@ -2310,6 +2393,59 @@ function travelBody(){const one=v=>v.includes(ALL)?[ALL]:v;const has=id=>documen
  return {...(has("dt-origin-countries")?{origin_countries:one(mselVal("dt-origin-countries")),origin_cities:one(mselVal("dt-origin-cities")),dest_countries:one(mselVal("dt-dest-countries")),dest_cities:one(mselVal("dt-dest-cities"))}:{}),
   documents:[...document.querySelectorAll("[data-dtdoc]:checked")].map(x=>x.dataset.dtdoc),channel:$("[name=dt-channel]:checked")?.value||"email",
   senders:mselVal("dt-senders"),travel_desk_people:mselVal("travel_desk_people"),finance_people:mselVal("finance_people")}}
+// ---- Users & Beneficiaries: vendors, consultants, customers ---------------------------------------------------------
+const BENV={vendor:"#vendorsView",consultant:"#consultantsView",customer:"#customersView"};let BEN={};
+const PRIO={10:"10 · operations stop without it (payroll, shipping)",9:"9 · critical supplier",8:"8",7:"7 · contracted services",6:"6",5:"5 · normal",4:"4",3:"3",2:"2 · can wait",1:"1 · cheapest to defer"};
+async function benView(kind){try{const rows=await api(`/v1/beneficiaries?kind=${kind}`);BEN[kind]=rows;const el=$(BENV[kind]);
+ if(kind==="customer"){el.innerHTML=table([{h:"Customer",f:r=>`<b>${esc(r.name)}</b><div class="small muted">${esc(r.id)}</div>`},{h:"Currency",f:r=>esc(r.currency)},
+  {h:"Registered mailboxes",f:r=>`<span class="small">${esc((r.contacts||[]).join(", ")||"-")}</span>`},{h:"Domains / also known as",f:r=>`<span class="small">${esc([...(r.domains||[]),...(r.aliases||[])].join(", ")||"-")}</span>`},
+  {h:"Payment history",f:r=>r.history?`<span class="small">${r.history.kept} kept · ${r.history.missed} missed</span>`:'<span class="small muted">none yet</span>'},{h:"Source",f:r=>`<span class="small muted">${esc(r.source)}</span>`},
+  {h:"",f:r=>`<button data-bedit="${esc(r.id)}">Edit</button>`}],rows,"no customer yet")}
+ else{el.innerHTML=table([{h:kind==="consultant"?"Consultant":"Vendor",f:r=>`<b>${esc(r.name)}</b><div class="small muted">${esc(r.id)} · ${esc(r.entity_type==="PERSONAL"?"person":"company")}${r.tax_id?` · tax ${esc(r.tax_id)}`:""}${kind==="consultant"?` · ${r.engagement==="regular"?"regular retainer":"short-term"}`:""}</div>`},
+  {h:"Paid in",f:r=>`${esc(r.currency)} · ${esc(r.payout_method)}<div class="small muted">priority ${esc(r.default_priority)} · ${esc(r.budget_line||"no budget line")}</div>`},
+  {h:"Bank account",f:r=>r.bank?`<span class="small">${esc(r.bank.bank_name||"")} ${esc(r.bank.bank_country_code||"")}<br>${esc(r.bank.iban||r.bank.account_number||"")}${r.bank.swift_code?` · ${esc(r.bank.swift_code)}`:""}${r.bank.routing_value?` · ${esc(r.bank.routing_type||"routing")} ${esc(r.bank.routing_value)}`:""}</span>`:'<span class="pill critical">NO ACCOUNT</span>'},
+  {h:"Registered mailboxes · call-back",f:r=>`<span class="small">${esc((r.contacts||[]).join(", ")||"-")}<br>☎ ${esc(r.registered_phone||"no registered number")}</span>`},
+  {h:"Status",f:r=>`${pill(r.status||"NEW")}${r.cooling_until?`<div class="small muted">cooling until ${esc(r.cooling_until.slice(0,10))}</div>`:""}`},
+  {h:kind==="consultant"?"Contract (purchase orders)":"Purchase orders",f:r=>r.purchase_orders.length?`<span class="small">${r.purchase_orders.map(p=>`${esc(p.po_id)} · ${dmoney(p.total_minor,p.currency)}`).join("<br>")}</span>`:`<span class="small muted">${kind==="consultant"?"no contract on file":"none"}</span>`},
+  {h:"",f:r=>`<button data-bedit="${esc(r.id)}">Edit</button>`}],rows,`no ${kind} yet`)}
+ el.querySelectorAll("[data-bedit]").forEach(b=>b.onclick=()=>benForm(kind,rows.find(r=>r.id===b.dataset.bedit)))}
+ catch(e){$(BENV[kind]).innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+document.querySelectorAll("[data-bnew]").forEach(b=>b.onclick=()=>benForm(b.dataset.bnew,null));
+function benForm(kind,r,seed,onSaved){const v=r||{currency:ORG?.standards?.base_currency||"USD",payout_method:"LOCAL",default_priority:kind==="employee"?10:kind==="consultant"?7:5,entity_type:kind==="vendor"?"COMPANY":"PERSONAL",contacts:[],address:{},engagement:"short_term",budget_line:kind==="employee"?"payroll":"",...(seed||{})};
+ const f=(id,l,val,attrs="")=>`<label>${l}<input id="${id}" value="${esc(val??"")}" ${attrs}></label>`,sel=(id,l,opts,val)=>`<label>${l}<select id="${id}">${opts.map(([k,t])=>`<option value="${esc(k)}" ${String(k)===String(val)?"selected":""}>${esc(t)}</option>`).join("")}</select></label>`;
+ const H=t=>`<div style="grid-column:1/-1;margin-top:6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em" class="muted">${t}</div>`,a=v.address||{},b=r?.bank||{};
+ $("#dlgTitle").textContent=`${r?"Change":"Add"} ${kind}`;$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=kind==="customer"?`${f("bf-name","Name",v.name,"required maxlength=200")}${f("bf-ccy","Currency",v.currency,"maxlength=3")}
+   <label style="grid-column:1/-1">Registered mailboxes (remittance notices come from these), comma-separated<input id="bf-contacts" value="${esc((v.contacts||[]).join(", "))}"></label>
+   <label style="grid-column:1/-1">Domains, comma-separated<input id="bf-domains" value="${esc((v.domains||[]).join(", "))}"></label>
+   <label style="grid-column:1/-1">Also known as (names in remittances), comma-separated<input id="bf-aliases" value="${esc((v.aliases||[]).join(", "))}"></label>
+   ${f("bf-kept","Payment promises kept",v.history?.kept??"","type=number min=0")}${f("bf-missed","Payment promises missed",v.history?.missed??"","type=number min=0")}`
+  :`${H("Who")}${f("bf-name","Name",v.name,"required maxlength=200")}${sel("bf-etype","Company or person",[["COMPANY","Company"],["PERSONAL","Person"]],v.entity_type)}${f("bf-tax","Tax registration (TIN, EIN, VAT, NPWP)",v.tax_id)}
+   ${kind==="consultant"?sel("bf-eng","Engagement",[["regular","Regular: monthly retainer"],["short_term","Short-term: per deliverable"]],v.engagement):""}
+   ${H("How it is paid")}${f("bf-ccy","Currency",v.currency,"maxlength=3")}${sel("bf-method","Payout method",[["LOCAL","LOCAL: domestic rail"],["SWIFT","SWIFT: international"]],v.payout_method)}
+   ${sel("bf-prio","Priority when cash is short",Object.entries(PRIO).reverse(),v.default_priority)}${f("bf-line","Budget line",v.budget_line,"list=catList")}${f("bf-reason","Transfer reason",v.transfer_reason||"business_expenses")}
+   ${H("Trust: invoices are accepted only from these mailboxes, and a call-back goes only to this number")}
+   <label style="grid-column:1/-1">Registered mailboxes, comma-separated<input id="bf-contacts" value="${esc((v.contacts||[]).join(", "))}"></label>
+   ${f("bf-phone","Registered phone (call-back)",v.registered_phone)}${f("bf-prefix","Invoice prefix",v.invoice_prefix)}<label>Domains, comma-separated<input id="bf-domains" value="${esc((v.domains||[]).join(", "))}"></label>
+   ${H("Address (Airwallex needs it for the beneficiary)")}${f("bf-street","Street",a.street_address)}${f("bf-city","City",a.city)}${f("bf-state","State or region",a.state)}${f("bf-post","Postcode",a.postcode)}${f("bf-ctry","Country (ISO 2)",a.country_code,"maxlength=2")}
+   ${H("Bank account")}${r?.bank?`<label class="check" style="grid-column:1/-1"><input type="checkbox" id="bf-keep" checked> keep the bank account on file (${esc(b.bank_name||"")} ${esc(b.iban||b.account_number||"")}); untick to enter a new one: the vendor is then not paid until a call-back</label>`:""}
+   <div id="bf-bank" style="display:contents">${f("bf-aname","Account holder",b.account_name||v.name)}${f("bf-bname","Bank name",b.bank_name)}${f("bf-bctry","Bank country (ISO 2)",b.bank_country_code,"maxlength=2")}${f("bf-accy","Account currency",b.account_currency||v.currency,"maxlength=3")}
+    ${f("bf-acct","Account number",r?.bank?"":b.account_number)}${f("bf-iban","IBAN",r?.bank?"":b.iban)}${f("bf-swift","SWIFT / BIC",b.swift_code)}
+    ${sel("bf-rtype","Routing type",[["","none"],["aba","ABA (US)"],["sort_code","Sort code (UK)"],["bsb","BSB (AU)"],["ifsc","IFSC (IN)"],["bank_code","Bank code"],["branch_code","Branch code"]],b.routing_type||"")}${f("bf-rval","Routing number",b.routing_value)}
+    ${sel("bf-cat","Account category",[["","not needed"],["Checking","Checking"],["Savings","Savings"]],b.bank_account_category||"")}</div>`;
+ $("#dlg").showModal();
+ const keep=$("#bf-keep");const tog=()=>{if(keep)document.querySelectorAll("#bf-bank input,#bf-bank select").forEach(x=>x.disabled=keep.checked)};if(keep){keep.onchange=tog;tog()}
+ $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();const g=id=>($(id)?.value||"").trim(),list=id=>g(id).split(",").map(x=>x.trim()).filter(Boolean);
+  let rec;if(kind==="customer"){rec={...(r?{customer_id:r.id}:{}),name:g("#bf-name"),currency:g("#bf-ccy").toUpperCase(),contacts:list("#bf-contacts"),domains:list("#bf-domains"),aliases:list("#bf-aliases"),
+   promises_kept:g("#bf-kept")===""?null:+g("#bf-kept"),promises_missed:g("#bf-missed")===""?null:+g("#bf-missed")}}
+  else{rec={...(r?{vendor_id:r.id}:{}),name:g("#bf-name"),entity_type:g("#bf-etype"),tax_id:g("#bf-tax"),currency:g("#bf-ccy").toUpperCase(),payout_method:g("#bf-method"),default_priority:+g("#bf-prio"),
+   budget_line:g("#bf-line"),transfer_reason:g("#bf-reason")||"business_expenses",contacts:list("#bf-contacts"),registered_phone:g("#bf-phone"),invoice_prefix:g("#bf-prefix"),domains:list("#bf-domains"),
+   address:{street_address:g("#bf-street"),city:g("#bf-city"),state:g("#bf-state"),postcode:g("#bf-post"),country_code:g("#bf-ctry").toUpperCase()},...(kind==="consultant"?{engagement:g("#bf-eng")}:{}),
+   bank:keep&&keep.checked?null:{account_name:g("#bf-aname"),bank_name:g("#bf-bname"),bank_country_code:g("#bf-bctry").toUpperCase(),account_currency:g("#bf-accy").toUpperCase(),account_number:g("#bf-acct"),
+    iban:g("#bf-iban"),swift_code:g("#bf-swift").toUpperCase(),routing_type:g("#bf-rtype"),routing_value:g("#bf-rval"),bank_account_category:g("#bf-cat")}}}
+  try{const res=await api(`/v1/beneficiaries?kind=${kind}&${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({record:rec,keep_bank:!!(keep&&keep.checked)})});
+   $("#dlg").close();toast((res.followed||[]).join("; ")||`${kind[0].toUpperCase()+kind.slice(1)} saved`,"good");
+   if(onSaved)onSaved([...(res.created||[]),...(res.updated||[]),...(res.unchanged||[])][0]);else benView(kind)}catch(e){$("#dlgErr").textContent=e.message}}}
 // ---- Payment → Payroll register: the source document of 01 Personnel ----------------------------------------------------
 let PR_PERIOD=new Date().toISOString().slice(0,7),PR_ROWS=null;
 async function payrollView(){try{const [g,d]=await Promise.all([api("/v1/doa/registers"),api("/v1/doa")]);
@@ -2339,10 +2475,12 @@ async function payrollView(){try{const [g,d]=await Promise.all([api("/v1/doa/reg
    <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button id="pr-add">+ Add employee</button><button id="pr-all">Add everyone in People and roles</button>
     <label class="small" style="display:inline-flex;gap:6px;align-items:center">Import CSV <input type="file" id="pr-csv" accept=".csv,text/csv"></label>
     <span style="flex:1"></span><button class="primary" id="pr-save">Save register</button></div>
-   <div class="small muted" style="margin-top:6px">CSV columns: employee, net pay, charge code, currency (optional). The bank account comes from the person's record in People and roles. Saving resets both approvals.</div>
+   <div class="small muted" style="margin-top:6px">Each line fills in from the person's record in People and roles: their bank account, monthly net pay, salary currency and charge code; change a line for this period only (overtime, a deduction). CSV columns: employee, net pay, charge code, currency (optional). Saving resets both approvals.</div>
    <div class="small" id="pr-msg"></div></div>`;
  const read=()=>document.querySelectorAll("[data-pr]").forEach(el=>{const r=PR_ROWS.rows[+el.dataset.pr],f=el.dataset.f;if(f==="amount")r.amount_minor=Math.round(parseFloat(el.value||"0")*100);else r[f]=el.value});
- const person=(r,name)=>{const u=ppl[name];r.employee=name;if(u&&u.payee_id){r.payee_id=u.payee_id;r.currency=(acct[u.payee_id]||{}).currency||r.currency}};
+ const person=(r,name)=>{const u=ppl[name];r.employee=name;if(!u)return;  // from People and roles: account, net pay, currency, charge code
+  if(u.payee_id){r.payee_id=u.payee_id;r.currency=(acct[u.payee_id]||{}).currency||r.currency}
+  if(u.salary_currency)r.currency=u.salary_currency;if(u.salary_minor!=null&&!r.amount_minor)r.amount_minor=u.salary_minor;if(u.charge_code&&!r.charge_code)r.charge_code=u.charge_code};
  document.querySelectorAll("[data-pr]").forEach(el=>el.onchange=()=>{read();const r=PR_ROWS.rows[+el.dataset.pr];
   if(el.dataset.f==="employee")person(r,el.value);if(el.dataset.f==="payee_id"&&acct[el.value])r.currency=acct[el.value].currency||r.currency;payrollView()});
  document.querySelectorAll("[data-prdel]").forEach(b=>b.onclick=()=>{read();PR_ROWS.rows.splice(+b.dataset.prdel,1);payrollView()});

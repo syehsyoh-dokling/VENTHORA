@@ -62,8 +62,13 @@ def test_the_most_specific_allocation_governs(client):
     assert check("US-210.OPS.6700", 20_000)["ok"]
     r = check("US-200.BRAND26.6600", 9_000_000)
     assert r["ok"] and "No limit" in r["reason"]  # the project-based allocation wins over the office
+    r = check("UK-300.OPS.6700", 100)  # no monthly allocation for the UK: its own annual one governs (each has its period)
+    assert r["ok"] and r["alloc_id"] == "a-uk"
+    client.delete("/v1/org/allocations/a-uk")
+    assert check("UK-300.OPS.6700", 100)["alloc_id"] == "a-hq"  # nothing for the UK: the head office's covers the units under it
+    assert client.delete("/v1/org/allocations/a-hq").status_code == 200
     r = check("UK-300.OPS.6700", 100)
-    assert not r["ok"] and "no budget allocation covers" in r["reason"]
+    assert not r["ok"] and "no budget allocation covers" in r["reason"], (r.get("alloc_id"), r.get("reason"))
     assert not check("XX-1.OPS.6700", 100)["ok"]  # an unknown charge code is never paid
 
     client.put("/v1/budget-allocation/policy", json={"enforcement": "no_limit", "period_type": "monthly", "fiscal_year_start_month": 1, "cutoff_day": 31, "cutoff_time": "23:59", "timezone": "UTC"})
@@ -163,3 +168,28 @@ def test_execute_refuses_before_any_money_moves(tmp_path, monkeypatch):
     result = asyncio.run(go())
     assert result.status == "REFUSED" and "budget allocation" in result.message and "1.00 USD left" in result.message
     assert fake.transfers == {} and fake.conversions == {}
+
+
+def test_each_allocation_has_its_own_period_and_a_project_its_duration(client):
+    from venthora.budget_allocation import covers
+
+    assert covers({"period": "2026-Q4"}, "2026-11") and not covers({"period": "2026-Q3"}, "2026-11")
+    assert covers({"period": "ALL", "start_date": "2026-10-01", "end_date": "2027-03-31"}, "2027-03")
+    assert not covers({"period": "ALL", "start_date": "2026-10-01", "end_date": "2027-03-31"}, "2027-04")
+    client.put("/v1/budget-allocation/policy", json={"enforcement": "per_allocation", "period_type": "annual", "fiscal_year_start_month": 1, "cutoff_day": 31, "cutoff_time": "23:59", "timezone": "UTC"})
+    month = dt.datetime.now(dt.UTC).strftime("%Y-%m")
+    _alloc(client, period=month, unit_id="br-us-west", amount_minor=10_000, include_children=False)  # the branch, per month
+    today = dt.date.today()
+    _alloc(client, basis="project", project_code="BRAND26", period="ALL", amount_minor=50_000, line="Brand",
+           start_date=(today - dt.timedelta(days=40)).isoformat(), end_date=(today + dt.timedelta(days=40)).isoformat())
+
+    def check(code, amt):
+        return client.post("/v1/budget-allocation/check", json={"account_code": code, "amount_minor": amt, "currency": "USD"}).json()
+
+    r = check("US-210.OPS.6700", 20_000)  # the branch's monthly limit governs, not the head office's annual one
+    assert not r["ok"] and r["period"] == month and "100.00 USD left" in r["reason"]
+    r = check("US-200.BRAND26.6600", 60_000)  # the project's budget for its duration
+    assert not r["ok"] and "to" in r["period"] and "500.00 USD left" in r["reason"]
+    every = client.get("/v1/budget-allocation/status?every=true").json()["allocations"]
+    kinds = {a["alloc_id"]: a["period_type"] for a in every}
+    assert "duration" in kinds.values() and "monthly" in kinds.values() and "annual" in kinds.values()

@@ -13,8 +13,13 @@ Settings → Budget allocation holds the policy and the allocations (organisatio
 * sync          a daily sync at a set time and a monthly sync on a set day re-read the connected sources
                 (Settings → Sync API) and record the usage of every allocation.
 
+Each allocation carries its own period: a month, a quarter, a half-year, a fiscal year, ALL (until used), or, for
+a project, the project's duration (start and end date). An allocation covers a payment's reporting month when its
+period, or its duration, includes that month; an office can be limited per month while the head office above it is
+limited per year.
+
 Which allocation governs a payment: its charge code ``OFFICE.PROJECT.ACCOUNT`` names a unit and a project.
-The most specific allocation in the active period wins: a project-based allocation of that project, then a
+Of the allocations covering the payment's month, the most specific wins: a project-based allocation of that project, then a
 regular allocation of the unit itself (with the project, then without), then the nearest unit above it whose
 allocation includes the units under it. Spend counts against the allocation that governed it. No allocation, an
 allocation that the payment would exceed, or a currency it cannot be compared in: the payment is refused.
@@ -114,16 +119,43 @@ def quarters(start: int) -> list[dict]:
 
 # -- which allocation governs a charge code -------------------------------------------------------------
 
-def governing(allocs: list[dict], code: dict, period: str, chain: list[str]) -> tuple[dict | None, int]:
-    """The most specific allocation of ``period`` covering a resolved charge code ({unit, project}); chain is
-    the unit and its ancestors, nearest first. Returns (allocation, specificity)."""
+def covers(a: dict, month: str, start: int = 1) -> bool:
+    """Whether an allocation applies to a reporting month (YYYY-MM): its duration, ALL, or its own period."""
+    if a.get("start_date"):
+        return a["start_date"][:7] <= month <= (a.get("end_date") or "9999-12-31")[:7]
+    if a["period"] == "ALL":
+        return True
+    return a["period"] == period_of(month, period_type_of(a["period"]), start)
+
+
+def months_covered(a: dict, start: int = 1) -> list[str] | None:
+    """The reporting months an allocation covers; None = every month."""
+    if a.get("start_date"):
+        y, m = int(a["start_date"][:4]), int(a["start_date"][5:7])
+        end = (a.get("end_date") or "")[:7]
+        if not end:
+            return None
+        out = []
+        while f"{y:04d}-{m:02d}" <= end and len(out) < 600:
+            out.append(f"{y:04d}-{m:02d}")
+            y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+        return out
+    return months_of(a["period"], start)
+
+
+def governing(allocs: list[dict], code: dict, period: str | None, chain: list[str]) -> tuple[dict | None, int]:
+    """The most specific allocation covering a resolved charge code ({unit, project}); chain is the unit and its
+    ancestors, nearest first; period None = the allocations given already cover the month. Returns (allocation,
+    specificity)."""
     unit_id, pcode = code["unit"]["unit_id"], code["project"]["code"]
     best, score = None, -1
     for a in allocs:
-        if a["period"] != period:
+        if period is not None and a["period"] != period:
             continue
         if a.get("basis", "regular") == "project":
-            s = 1000 if a.get("project_code") == pcode else -1
+            if a.get("project_code") != pcode:
+                continue
+            s = 1000
         else:
             if a.get("project_code") and a["project_code"] != pcode:
                 continue
@@ -134,6 +166,8 @@ def governing(allocs: list[dict], code: dict, period: str, chain: list[str]) -> 
             else:
                 continue
             s += 50 if a.get("project_code") else 0
+        # the same scope with several periods covering the month: the shorter period is the more specific
+        s += 5 if a.get("start_date") else {"monthly": 4, "quarterly": 3, "half_year": 2, "annual": 1}.get(period_type_of(a["period"]), 0)
         if s > score:
             best, score = a, s
     return best, score
@@ -165,6 +199,28 @@ class Budget:
         chain = [u["unit_id"] for u in self.org.chain(code["unit"]["unit_id"])]
         return governing(self.allocs, code, period, chain)[0]
 
+    def govern_month(self, account_code: str, month: str) -> dict | None:
+        """The allocation that governs a payment of this charge code in this reporting month, whatever its period."""
+        code = self.resolve(account_code)
+        if code is None:
+            return None
+        chain = [u["unit_id"] for u in self.org.chain(code["unit"]["unit_id"])]
+        return governing([a for a in self.allocs if covers(a, month, self.start)], code, None, chain)[0]
+
+    def spent_for(self, a: dict) -> int:
+        """What has been paid against one allocation: every payment of its months it governed."""
+        if self.store is None:
+            return 0
+        total = 0
+        for r in self.store.spend_rows(months_covered(a, self.start)):
+            if not covers(a, r["reporting_period"], self.start):
+                continue
+            g = self.govern_month(r["account_code"], r["reporting_period"])
+            if g is not None and g["alloc_id"] == a["alloc_id"]:
+                amt = self._amount_for(a, r["currency"], r["amount_minor"], r["base_cost_minor"])
+                total += amt or 0
+        return total
+
     def _amount_for(self, alloc: dict, currency: str, amount_minor: int, base_cost_minor: int) -> int | None:
         if alloc["currency"] == self.base:
             return base_cost_minor
@@ -187,13 +243,18 @@ class Budget:
                 out[a["alloc_id"]] = out.get(a["alloc_id"], 0) + amt
         return out
 
+    def usage_all(self) -> list[dict]:
+        """Every allocation, whatever its period, with what was spent against it and what is left."""
+        return [a | {"spent_minor": (used := self.spent_for(a)), "period_type": "duration" if a.get("start_date") else period_type_of(a["period"]),
+                     "remaining_minor": None if a.get("no_limit") else a["amount_minor"] - used} for a in self.allocs]
+
     def usage(self, period: str) -> list[dict]:
-        spent = self.spent(period)
+        months = months_of(period, self.start) if period != "ALL" else None
         rows = []
         for a in self.allocs:
-            if a["period"] != period:
+            if not (a["period"] == period or (months and (a.get("start_date") or a["period"] == "ALL") and any(covers(a, m, self.start) for m in months))):
                 continue
-            used = spent.get(a["alloc_id"], 0)
+            used = self.spent_for(a)
             rows.append(a | {"spent_minor": used, "remaining_minor": None if a.get("no_limit") else a["amount_minor"] - used})
         return rows
 
@@ -201,20 +262,22 @@ class Budget:
         """items: {obligation_id, account_code, currency, amount_minor, base_cost_minor}. One verdict per item;
         items in the same batch add up against their allocation."""
         if self.policy["enforcement"] == "no_limit":
-            return [{"obligation_id": i["obligation_id"], "ok": True, "reason": "budget allocation set to No limit"} for i in items]
-        period = period_of(month, self.policy["period_type"], self.start)
-        spent = self.spent(period)
+            return [{"obligation_id": i["obligation_id"], "ok": True, "reason": "budget allocation set to Open budget: paid up to the actual balance"} for i in items]
+        spent: dict[str, int] = {}
         out = []
         for i in items:
-            v = {"obligation_id": i["obligation_id"], "account_code": i["account_code"], "period": period, "ok": False}
+            v = {"obligation_id": i["obligation_id"], "account_code": i["account_code"], "period": month, "ok": False}
             if self.resolve(i["account_code"]) is None:
                 out.append(v | {"reason": f"charge code {i['account_code']} does not resolve to an active unit, project and account"})
                 continue
-            a = self.govern(i["account_code"], period)
+            a = self.govern_month(i["account_code"], month)
             if a is None:
-                out.append(v | {"reason": f"no budget allocation covers {i['account_code']} for {period}"})
+                out.append(v | {"reason": f"no budget allocation covers {i['account_code']} for {month}"})
                 continue
-            v |= {"alloc_id": a["alloc_id"], "allocation": _label(a)}
+            period = f"{a['start_date']} to {a.get('end_date') or 'open'}" if a.get("start_date") else a["period"]
+            v |= {"alloc_id": a["alloc_id"], "allocation": _label(a), "period": period}
+            if a["alloc_id"] not in spent:
+                spent[a["alloc_id"]] = self.spent_for(a)
             if a.get("no_limit"):
                 out.append(v | {"ok": True, "reason": f"{_label(a)} has No limit"})
                 continue

@@ -122,8 +122,19 @@ def _org_row(entity: str, row: dict, org) -> tuple[dict, dict | None]:
         old = old or next((u for u in org.list("unit") if row.get("cost_centre") and (u.get("cost_centre") or "").upper() == row["cost_centre"]), None)
         row["unit_id"] = old["unit_id"] if old else row.get("unit_id") or _slug(row.get("name", ""))
     elif entity == "user":
-        if row.get("role"):
-            row["role"] = str(row["role"]).strip().lower().replace(" ", "_")
+        # a staff list rarely says who may do what in VENTHORA: without a role a person is a requester (the least)
+        row["role"] = str(row.get("role") or "requester").strip().lower().replace(" ", "_")
+        if row.get("unit_id") and not org.get("unit", row["unit_id"]):  # a cost centre or an office name instead of its id
+            u = str(row["unit_id"]).lower()
+            hit = next((x for x in org.list("unit") if u in ((x.get("cost_centre") or "").lower(), x["name"].lower())), None)
+            row["unit_id"] = hit["unit_id"] if hit else row["unit_id"]
+        if row.get("employment_type"):
+            row["employment_type"] = str(row["employment_type"]).strip().lower().replace(" ", "_").replace("-", "_")
+        if isinstance(row.get("benefits"), list):  # benefit names or keys -> the catalog's keys
+            from .doa import BENEFITS
+
+            by = {b["key"]: b["key"] for b in BENEFITS} | {b["label"].lower(): b["key"] for b in BENEFITS}
+            row["benefits"] = [by.get(str(x).strip().lower(), next((b["key"] for b in BENEFITS if str(x).strip().lower() in b["label"].lower()), str(x))) for x in row["benefits"]]
         old = next((u for u in org.list("user") if u["email"].lower() == str(row.get("email", "")).lower()), None)
         row["user_id"] = old["user_id"] if old else "u-" + _slug(row.get("name", row.get("email", "")))
     elif entity == "project":

@@ -140,6 +140,20 @@ class User(BaseModel):
     may_order_by_email: bool = Field(default=False, description="may ask VENTHORA to pay a vendor by email (Settings → Email)")
     payee_id: str | None = Field(default=None, max_length=60, description="the person's own registered bank account (a payee), for salary, travel claims and reimbursements")
     contract_end: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="the last day of the person's contract; no salary is paid after it")
+    # employment: what the payroll register and the delegation of authority read for this person
+    employee_no: str | None = Field(default=None, max_length=40, description="the staff or employee number")
+    job_title: str = Field(default="", max_length=120)
+    employment_type: Literal["permanent", "fixed_term", "expatriate", "part_time", "intern"] = "permanent"
+    contract_start: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    salary_minor: int | None = Field(default=None, ge=0, le=10**12, description="monthly net pay, in salary_currency")
+    salary_currency: str | None = Field(default=None, description="the currency the person is paid in")
+    charge_code: str | None = Field(default=None, max_length=60, description="the charge code their salary is booked to")
+    benefits: list[str] = Field(default_factory=list, description="the fringe benefits the person is enrolled in (Delegation of Authority → 02)")
+
+    @field_validator("salary_currency")
+    @classmethod
+    def check_salary_currency(cls, v: str | None) -> str | None:
+        return _ccy(v) if v else None
     active: bool = True
 
 
@@ -162,6 +176,9 @@ class Allocation(BaseModel):
     amount_minor: int = Field(default=0, ge=0, le=10**14)
     no_limit: bool = False
     currency: str = "USD"
+    # a project-based allocation runs for the project's duration (period ALL): it covers the months from start to end
+    start_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
     @field_validator("currency")
     @classmethod
@@ -429,6 +446,14 @@ class OrgStore:
             raise OrgError("there is already an active super admin (the FCO at HQ); deactivate them first")
         if any(u["email"].lower() == d["email"].lower() and u["user_id"] != d["user_id"] for u in self.list("user")):
             raise OrgError("another person already uses that email")
+        if d.get("charge_code"):
+            d["charge_code"] = self.account_code(d["charge_code"])["code"]
+        if d.get("salary_minor") and not d.get("salary_currency"):
+            d["salary_currency"] = unit.get("currency") or "USD"
+        if d.get("contract_start") and d.get("contract_end") and d["contract_end"] < d["contract_start"]:
+            raise OrgError("the contract ends before it starts")
+        if d.get("employee_no") and any((u.get("employee_no") or "") == d["employee_no"] and u["user_id"] != d["user_id"] for u in self.list("user")):
+            raise OrgError(f"employee number {d['employee_no']} is already used")
 
     def _check_allocation(self, d: dict) -> None:
         d["project_code"] = (d.get("project_code") or "").strip().upper() or None

@@ -144,6 +144,8 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("POST", "/v1/sources/connectors/{connector_id}/sync"): ("Run a sync", "Read every enabled entity from the source and write it; dry_run=true only reports what would change."),
     ("GET", "/v1/sources/fields"): ("Import fields", "The fields each entity takes and how a cell is read, for building import files."),
     ("GET", "/v1/sources/entities"): ("Dataset kinds", "Every kind of record a dataset can hold, what VENTHORA uses it for and the page it shows on."),
+    ("GET", "/v1/beneficiaries"): ("List vendors, consultants or customers", "kind=vendor|consultant|customer: every field a payment or a receipt reads, with bank details masked, the lifecycle status and the purchase orders held against each."),
+    ("POST", "/v1/beneficiaries"): ("Add or change a vendor, consultant or customer", "Through the same pipeline as a sync or an upload: new or changed bank details make the payee NEW or CHANGED until a call-back on the registered number."),
     ("GET", "/v1/sources/master/{entity}"): ("List master data", "The synced or imported records of one entity."),
     ("GET", "/v1/sources/readiness"): ("Readiness", "Platform setup: every connection, organisation record, master data set, intake channel and policy VENTHORA needs, whether it is done, required or optional, and where to set it."),
     ("GET", "/v1/sources/runs"): ("List sync runs", "Every sync and import with its counts of created, updated and rejected records."),

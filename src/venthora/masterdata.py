@@ -60,6 +60,7 @@ class BankDetails(Strict):
     swift_code: str = Field(default="", max_length=11)
     routing_type: str = Field(default="", max_length=30, description="aba, sort_code, bsb, ifsc ... (Airwallex account_routing_type1)")
     routing_value: str = Field(default="", max_length=40)
+    bank_account_category: str = Field(default="", max_length=20, description="Checking or Savings (US local transfers need it)")
 
     @field_validator("account_currency")
     @classmethod
@@ -102,6 +103,9 @@ class Vendor(Strict):
     transfer_reason: str = Field(default="business_expenses", max_length=60)
     bank: BankDetails | None = None
     address: Address = Field(default_factory=Address)
+    kind: Literal["vendor", "consultant", "employee"] = Field(default="vendor", description="a vendor of goods and services, an expert or consultant, or an employee's own bank account")
+    engagement: Literal["regular", "short_term"] | None = Field(default=None, description="a consultant's engagement: a regular retainer or short-term (per deliverable)")
+    tax_id: str = Field(default="", max_length=40, description="tax registration: TIN, EIN, VAT, NPWP")
 
     @field_validator("currency")
     @classmethod
@@ -319,7 +323,9 @@ def registry_entries(store: MasterStore) -> tuple[dict, dict]:
         payees[v["vendor_id"]] = {"name": v["name"], "currency": v["currency"], "payout_method": v["payout_method"],
                                   "contacts": v["contacts"], "domains": v["domains"], "aliases": [], "invoice_prefix": v["invoice_prefix"] or v["vendor_id"],
                                   "budget_line": v["budget_line"] or None, "default_priority": v["default_priority"],
-                                  "lifecycle": {"status": "NEW", "registered_phone": v["registered_phone"] or None}, "_source": v["_source"]}
+                                  "lifecycle": {"status": "NEW", "registered_phone": v["registered_phone"] or None}, "_source": v["_source"],
+                                  "kind": v.get("kind", "vendor"), "engagement": v.get("engagement"), "tax_id": v.get("tax_id", ""),
+                                  "entity_type": v.get("entity_type", "COMPANY")}
     for c in store.list("customer"):
         hist = None
         if c.get("promises_kept") is not None or c.get("promises_missed") is not None:
@@ -340,11 +346,24 @@ def beneficiary_payload(v: dict) -> dict | None:
             bank[k_out] = b[k_in]
     if b.get("routing_type") and b.get("routing_value"):
         bank["account_routing_type1"], bank["account_routing_value1"] = b["routing_type"], b["routing_value"]
+    if b.get("bank_account_category"):
+        bank["bank_account_category"] = b["bank_account_category"]
     addr = {k: x for k, x in (v.get("address") or {}).items() if x}
     who = {"company_name": v["name"]} if v["entity_type"] == "COMPANY" else {"first_name": v["name"].split()[0], "last_name": " ".join(v["name"].split()[1:]) or v["name"]}
     return {"transfer_reason": v.get("transfer_reason") or "business_expenses",
             "payload": {"nickname": v["name"][:50], "transfer_methods": [v["payout_method"]], "payment_methods": [v["payout_method"]],
                         "beneficiary": {"type": "BANK_ACCOUNT", "entity_type": v["entity_type"], **who, "address": addr, "bank_details": bank}}}
+
+
+def bank_from_payload(p: dict | None) -> dict | None:
+    """The bank details of an Airwallex beneficiary payload, in the shape of BankDetails (the reverse of above)."""
+    b = (((p or {}).get("payload") or {}).get("beneficiary") or {}).get("bank_details")
+    if not b:
+        return None
+    return {"account_name": b.get("account_name", ""), "account_currency": b.get("account_currency", ""), "bank_country_code": b.get("bank_country_code", ""),
+            "bank_name": b.get("bank_name", ""), "account_number": b.get("account_number", ""), "iban": b.get("iban", ""),
+            "swift_code": b.get("swift_code", ""), "routing_type": b.get("account_routing_type1", ""), "routing_value": b.get("account_routing_value1", ""),
+            "bank_account_category": b.get("bank_account_category", "")}
 
 
 def beneficiaries(store: MasterStore) -> dict:
