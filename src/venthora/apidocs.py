@@ -102,6 +102,8 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("POST", "/v1/agent-plan/policy-run"): ("Run the payment policy now", "High priority first: plan the horizon and pay what the policy lets the agent pay now (the scheduler runs it every five minutes)."),
     ("GET", "/v1/notifications"): ("Notices for the FCO", "What the Standard Payment Priority Policy reports to the FCO: a balance that does not cover every payment, a planned payment not made, a deemed approval it could not give."),
     ("POST", "/v1/notifications/{key}/close"): ("Close a notice", "Marks a notice for the FCO as handled."),
+    ("GET", "/v1/prompt-system"): ("Read the Generic Prompting System", "The FCO's generic prompt and notes, the rules compiled from what is in force, the full system prompt every model call carries, and when it is sent."),
+    ("PUT", "/v1/prompt-system"): ("Save the generic prompt and notes", "The system prompt of every model call from now on; the engines still enforce every rule as it is set."),
     ("GET", "/v1/priority-sop"): ("Read the Standard Payment Priority Policy", "Each spending category with its level (High, Medium, Low), the priority it gives in the plan, and the waiting payments ranked by it."),
     ("PUT", "/v1/priority-sop"): ("Save the Standard Payment Priority Policy", "Only the mandate authority; every plan of the organisation's payments ranks them by it."),
     ("GET", "/v1/agent-plan"): ("Today's plan", "What VENTHORA would do now with the real payments: each decision and why, the part it pays alone and the part for a person."),

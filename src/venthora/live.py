@@ -35,7 +35,7 @@ from .execution.models import Approval, ExecutionRequest
 from .proofcore.budget import attach_budget
 
 STEPS = ("goal", "plan", "news", "revise", "deposit", "execute")
-TITLES = {"goal": "Goal and mandate", "plan": "Initial plan", "news": "New information",
+TITLES = {"goal": "Generic Prompting System", "plan": "Initial plan", "news": "New information",
           "revise": "Revised decision", "deposit": "Incoming payment confirmed by Airwallex",
           "execute": "Execution and resulting state"}
 WATCH = ("USD", "EUR", "GBP")
@@ -47,6 +47,10 @@ CHANNELS = {"ap:invoice": "Accounts payable system", "hris": "Payroll system", "
 # unit: usd (minor units in the payload), pct (basis points), days, hours, level.
 # critical rules without a value that the mandate authority may switch off (mandate.SWITCHABLE_CRITICAL says what then happens)
 SWITCHABLE_LOCKED = {"duplicates", "recon"}
+DEFAULT_APPROVERS = [{"name": "Dana Finch", "role": "finance_manager"}, {"name": "Omar Reyes", "role": "cfo"}]
+DEFAULT_MATRIX = [{"name": "standard", "min_total_minor": 0, "reasons": [], "approvals_required": 1, "roles": ["finance_manager", "cfo"]},
+                  {"name": "four-eyes", "min_total_minor": 2_500_000, "reasons": ["payee_in_cooling_period", "payee_not_yet_active"],
+                   "approvals_required": 2, "roles": ["finance_manager", "cfo"]}]
 MANDATES: list[dict] = [
     {"key": "pay_single", "kind": "grant", "label": "Make a single payout on its own, up to", "unit": "usd", "value": 1_000_000,
      "policy": "max_single_payment_minor", "revoked": 0, "help": "Revoked: every payout waits for an approver."},
@@ -228,10 +232,8 @@ def defaults(scenario: str, executor: Executor, standing: dict | None = None) ->
                         "alert_share_bp": ln.get("alert_share_bp", 8_000), "require_approval_on_alert": ln.get("require_approval_on_alert", False),
                         "bypass": ln.get("bypass", False), "bypass_approved_by": ln.get("bypass_approved_by")} for ln in budget.get("lines", [])],
             "unbudgeted_requires_approval": budget.get("unbudgeted_requires_approval", True),
-            "approvers": [{"name": "Dana Finch", "role": "finance_manager"}, {"name": "Omar Reyes", "role": "cfo"}],
-            "approval_matrix": [{"name": "standard", "min_total_minor": 0, "reasons": [], "approvals_required": 1, "roles": ["finance_manager", "cfo"]},
-                                {"name": "four-eyes", "min_total_minor": 2_500_000, "reasons": ["payee_in_cooling_period", "payee_not_yet_active"],
-                                 "approvals_required": 2, "roles": ["finance_manager", "cfo"]}],
+            "approvers": [dict(a) for a in DEFAULT_APPROVERS],
+            "approval_matrix": [dict(t, reasons=list(t["reasons"]), roles=list(t["roles"])) for t in DEFAULT_MATRIX],
             "payees": payees, "fees": pol.get("payout_fees_minor", {}),
             "reporting": {"timezone": rep.timezone, "cutoff_day": rep.cutoff_day, "cutoff_time": rep.cutoff_time, "reporting_currency": rep.reporting_currency,
                           "editable": config_path() != (ROOT / "data" / "reporting.json")},

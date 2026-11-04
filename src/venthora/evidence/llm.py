@@ -18,6 +18,17 @@ class LLMUnavailable(RuntimeError):
     pass
 
 
+# The Generic Prompting System: set by the app at start (prompt_system.frame with the organisation), it puts the
+# organisation's system prompt in front of every call. None (a script, a test): the messages go as written.
+FRAMER = None
+
+
+def framed(messages: list[dict]) -> list[dict]:
+    if FRAMER is None:
+        return [{k: v for k, v in m.items() if k != "frame"} for m in messages]
+    return FRAMER(messages)
+
+
 class ChatModel:
     def __init__(self, endpoint: str | None = None, model: str | None = None, token: str | None = None,
                  timeout_s: float | None = None, client: httpx.AsyncClient | None = None):
@@ -41,7 +52,7 @@ class ChatModel:
         if not self.configured:
             raise LLMUnavailable("MODEL_ENDPOINT / MODEL_NAME not set")
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
-        body = {"model": self.model, "messages": messages, "temperature": 0, "max_tokens": max_tokens}
+        body = {"model": self.model, "messages": framed(messages), "temperature": 0, "max_tokens": max_tokens}
         try:
             if self._client is not None:
                 res = await self._client.post(self.url, json=body, headers=headers, timeout=self.timeout_s)
@@ -79,6 +90,7 @@ class AnthropicModel:
             import anthropic
         except ImportError as exc:
             raise LLMUnavailable('the Anthropic SDK is not installed: pip install "anthropic>=1,<2"') from exc
+        messages = framed(messages)
         system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         turns = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
         client = self._client()

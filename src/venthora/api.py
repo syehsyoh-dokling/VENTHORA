@@ -91,6 +91,10 @@ async def lifespan(app: FastAPI):
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
     app.state.org = OrgStore()
     app.state.executor.org = app.state.org  # payments with a charge code are held to their budget allocation
+    from . import prompt_system
+    from .evidence import llm as _llm
+
+    _llm.FRAMER = lambda messages, org=app.state.org: prompt_system.frame(org, messages)  # every model call carries the system prompt
     app.state.executor.on_result = _execution_done
     app.state.keys = apiaccess.KeyStore()
     app.state.intake = Intake(org=app.state.org, payments=app.state.executor.store)  # staff claims and POs use the org settings
@@ -102,6 +106,7 @@ async def lifespan(app: FastAPI):
     syncer = asyncio.create_task(_sync_scheduler()) if env("VENTHORA_SYNC_SCHEDULER", "1") != "0" else None
     doa_pilot = asyncio.create_task(_doa_scheduler()) if env("VENTHORA_DOA_SCHEDULER", "1") != "0" else None
     yield
+    _llm.FRAMER = None  # the organisation's prompt leaves with the app
     for task in (pending, scheduler, syncer, doa_pilot):
         if task is not None:
             task.cancel()
@@ -2389,7 +2394,7 @@ async def ai_settings_test(s: ai_settings.AISettings | None = None, role: str = 
         return {"ok": False, "error": "rules only: no model to test"}
     t0 = perf_counter()
     try:
-        reply = await model.complete([{"role": "system", "content": "Reply with the single word OK."},
+        reply = await model.complete([{"role": "system", "content": "Reply with the single word OK.", "frame": False},
                                       {"role": "user", "content": "Connection test from VENTHORA."}], max_tokens=20)
     except LLMUnavailable as exc:
         return {"ok": False, "error": str(exc), "model": ai_settings.describe(model)}
@@ -3762,6 +3767,40 @@ async def agent_plan_policy_run(role: str = "super_admin", by: str = "dashboard"
     """Run the Standard Payment Priority Policy now (the scheduler runs it every five minutes)."""
     _writer(role, by)
     return await _policy_run()
+
+
+class PromptSystemIn(BaseModel):
+    prompt: str = Field(min_length=1, max_length=8000)
+    notes: str = Field("", max_length=4000)
+
+
+@app.get("/v1/prompt-system")
+async def prompt_system_get():
+    """The Generic Prompting System: the FCO's generic prompt and notes, the rules compiled from what is in force, the
+    full text the model receives, and when it is sent."""
+    from . import prompt_system
+
+    org = app.state.org
+    rec = prompt_system.saved(org)
+    model = active_model()
+    return {"prompt": rec.get("prompt") or prompt_system.DEFAULT_PROMPT, "notes": rec.get("notes", ""), "saved": bool(rec),
+            "updated_by": rec.get("updated_by"), "updated_at": rec.get("updated_at"), "default_prompt": prompt_system.DEFAULT_PROMPT,
+            "sections": prompt_system.sections(org), "compiled": prompt_system.compile(org), "when": prompt_system.WHEN,
+            "sent": dict(prompt_system.SENT),
+            "model": {"configured": bool(getattr(model, "configured", False)), "name": getattr(model, "model", None) or "none (rules only)"}}
+
+
+@app.put("/v1/prompt-system")
+async def prompt_system_put(body: PromptSystemIn, role: str = "super_admin", by: str = "dashboard"):
+    from . import prompt_system
+
+    who = _writer(role, by)
+    try:
+        rec = await asyncio.to_thread(prompt_system.save, app.state.org, body.prompt, body.notes, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "prompt_system_saved", {"by": who, "chars": len(rec["prompt"]), "notes_chars": len(rec["notes"])})
+    return await prompt_system_get()
 
 
 @app.get("/v1/receipts")
