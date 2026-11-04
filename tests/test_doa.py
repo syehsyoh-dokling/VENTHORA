@@ -81,17 +81,6 @@ def test_fringe_benefits_are_a_catalog_each_switched_on_with_its_frequency(clien
     assert "benefits" not in next(c for c in d["internal"] if c["key"] == "personnel")["policy"]
 
 
-def test_payroll_is_never_paid_without_both_approvals_and_the_first_one_needs_a_person(client):
-    assert _now(client)["summary"] == "no_document"
-    r = client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": LINES})
-    assert r.status_code == 200 and r.json()["totals"] == {"USD": 420_000, "EUR": 380_000, "GBP": 300_000}
-    assert _now(client)["summary"] == "never"
-    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=finance_manager&by=Dana%20Finch").status_code == 403  # the preparer
-    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}").status_code == 422  # HR first
-    _approve(client)
-    lines = _now(client)["lines"]
-    assert [x["verdict"] for x in lines] == ["approve"] * 3 and "first payroll" in lines[0]["reasons"][0]
-
 
 def test_each_line_is_paid_in_its_own_accounts_currency_when_the_policy_allows_it(client):
     bad = LINES[:1] + [LINES[1] | {"currency": "USD"}]  # Ben's account receives EUR
@@ -255,41 +244,6 @@ def test_travel_places_must_be_on_file_and_the_checklist_and_channel_are_kept(cl
 
 
 # -- due payments: what stops them first, the run only when nothing does ---------------------------------------------
-def test_a_due_payment_that_cannot_go_is_shown_with_what_to_fix_and_the_run_waits(client):
-    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "1"}).status_code == 200  # due today
-    p = client.get("/v1/doa").json()["pending"]
-    assert not p["may_run"] and p["blocked"][0]["reason"].startswith("no payroll register")
-    assert "payroll register" in p["blocked"][0]["fix"]
-    r = client.post("/v1/doa/run", json={})
-    assert r.status_code == 409 and r.json()["detail"]["blocked"]
-    # last month's register was paid; this month's has the same people: the run may go
-    last = (dt.date.today().replace(day=1) - dt.timedelta(days=1)).strftime("%Y-%m")
-    for period in (last, _period()):
-        assert client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": period, "lines": LINES}).status_code == 200
-        assert client.post(f"/v1/doa/registers/{period}/approve?step=hr&role=hq_admin&by=Hana%20HR").status_code == 200
-        assert client.post(f"/v1/doa/registers/{period}/approve?step=fco&{FCO}").status_code == 200
-    p = client.get("/v1/doa").json()["pending"]
-    assert p["may_run"] and len(p["ready"]) == 3 and p["blocked"] == []
-    # a line whose account is not verified blocks the run again, with where to fix it
-    bad = LINES[:2] + [LINES[2] | {"payee_id": "harbor-analytics"}]
-    client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": bad})
-    client.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=hq_admin&by=Hana%20HR")
-    client.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}")
-    p = client.get("/v1/doa").json()["pending"]
-    assert not p["may_run"] and p["blocked"][0]["who"] == "Ines Duarte" and p["blocked"][0]["where"] == "#/payees"
-
-
-def test_the_register_page_lists_registers_people_and_the_accounts_a_line_may_pay_into(client):
-    g = client.get("/v1/doa/registers").json()
-    assert g["registers"] == [] and any(u["user_id"] == "u-amira" for u in g["people"])
-    assert {"id": "payroll-group-us", "name": "Northwind Payroll Services Inc", "currency": "USD"}.items() <= next(a for a in g["accounts"] if a["id"] == "payroll-group-us").items()
-    client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": LINES})
-    assert client.get("/v1/doa/registers").json()["registers"][0]["period"] == _period()
-    assert client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch",
-                       json={"period": _period(), "lines": [LINES[0] | {"payee_id": None}]}).status_code == 422  # no account, no line
-    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "1"}).status_code == 200
-    blocked = client.get("/v1/doa").json()["pending"]["blocked"]
-    assert blocked and all(b["where"] == "#/payroll" for b in blocked)
 
 
 def test_no_salary_after_the_contract_end_date_or_for_someone_not_in_people_and_roles(client):
@@ -303,3 +257,119 @@ def test_no_salary_after_the_contract_end_date_or_for_someone_not_in_people_and_
     assert v["Lee Park"]["verdict"] == "never" and f"the contract ended on {ended}" in v["Lee Park"]["reasons"][0]
     assert v["Nobody Known"]["verdict"] == "never" and "not a person in People and roles" in v["Nobody Known"]["reasons"]
     assert v["Amira Shah"]["verdict"] == "approve"  # still running; the first payroll goes to a person once
+
+
+# -- payroll prepared by VENTHORA from People and roles: only what changed waits, never for the one who changed it ----
+def _paid_last_month(c, name, amount, ccy):
+    last = (dt.date.today().replace(day=1) - dt.timedelta(days=1)).strftime("%Y-%m")
+    c.app.state.org._put("doa_run", {"_id": f"doa:personnel:{last}:{doa._slug(name)}", "category": "personnel", "period": last, "employee": name,
+                                     "amount_minor": amount, "currency": ccy, "status": "PAID", "execution_id": "x", "approved_by": None, "by": "t",
+                                     "message": "paid", "at": "2000-01-01T00:00:00+00:00"}, "t")
+
+
+def _no_account(c, uid):
+    org = c.app.state.org
+    org._put("user", org.get("user", uid) | {"payee_id": None}, "t")
+
+
+def _accounts(c):
+    org = c.app.state.org
+    _no_account(c, "u-lee")  # Lee has no own account in these tests; the others are fixed below
+    org._put("user", org.get("user", "u-dana") | {"payee_id": "payroll-group-us"}, "seed")  # USD, active
+    org._put("user", org.get("user", "u-amira") | {"payee_id": "ben-uk-logistics"}, "seed")  # GBP, active
+
+
+def test_payroll_is_prepared_from_people_and_roles_and_only_what_changed_waits(client):
+    _accounts(client)
+    lines = {x["employee"]: x for x in _now(client)["lines"]}  # no register prepared by anyone
+    assert lines["Dana Finch"]["amount_minor"] == 780_000 and lines["Dana Finch"]["source"] == "people"
+    assert lines["Dana Finch"]["verdict"] == "approve" and "first salary" in lines["Dana Finch"]["reasons"][0]
+    assert lines["Lee Park"]["verdict"] == "never" and "no own bank account" in lines["Lee Park"]["reasons"][0]
+    _paid_last_month(client, "Dana Finch", 780_000, "USD")
+    assert {x["employee"]: x for x in _now(client)["lines"]}["Dana Finch"]["verdict"] == "auto"  # the same as last month: paid alone
+    dana = client.app.state.org.get("user", "u-dana")
+    assert client.post(f"/v1/org/users?{FCO}", json=dana | {"salary_minor": 820_000}).status_code == 200
+    d = {x["employee"]: x for x in _now(client)["lines"]}["Dana Finch"]
+    assert d["verdict"] == "approve" and "USD 7,800.00 to USD 8,200.00" in d["reasons"][0] and d["changed_by"].startswith("Rosa Lindqvist")
+    # the one who changed it cannot approve it
+    r = client.post("/v1/doa/run", json={"refs": [d["ref"]], "approver": "Rosa Lindqvist", "role": "super_admin"})
+    assert r.status_code == 403 and "cannot approve" in r.json()["detail"]
+    # HR adjusts one line for this period only: that line waits, the person's record is not changed
+    r = client.post("/v1/doa/registers?role=finance_manager&by=Hana%20HR", json={"period": _period(), "lines": [
+        {"employee": "Amira Shah", "payee_id": "ben-uk-logistics", "currency": "GBP", "amount_minor": 560_000, "charge_code": "UK-300.OPS.6010"}]})
+    assert r.status_code == 200
+    a = {x["employee"]: x for x in _now(client)["lines"]}["Amira Shah"]
+    assert a["source"] == "adjusted" and a["verdict"] == "approve" and "adjusted for this period by Hana HR" in a["reasons"][0]
+    assert client.app.state.org.get("user", "u-amira")["salary_minor"] == 520_000
+
+
+def test_what_is_ready_is_paid_and_what_waits_is_listed_with_the_fix(client):
+    _accounts(client)
+    _paid_last_month(client, "Dana Finch", 780_000, "USD")
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "1"}).status_code == 200  # due today
+    p = client.get("/v1/doa").json()["pending"]
+    assert p["may_run"] and [x["who"] for x in p["ready"]] == ["Dana Finch"]  # one blocked line stops nothing else
+    assert {b["where"] for b in p["blocked"]} <= {"#/users", "#/executions", "#/payees", "#/mandate", "#/codes"} and p["blocked"]
+    e = client.get("/v1/exceptions").json()
+    pay = {x["employee"]: x for x in e["payroll"]}
+    assert "Dana Finch" not in pay and pay["Amira Shah"]["inside_mandate"] and not pay["Lee Park"]["inside_mandate"]
+    assert e["counts"]["payroll"] == len(e["payroll"]) and e["total"] >= e["counts"]["payroll"]
+    assert pay["Lee Park"]["where"] == "#/users"
+
+
+def test_a_line_outside_the_delegation_goes_to_pending_payment_once(client):
+    _accounts(client)
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"currencies": ["USD"]}).status_code == 200  # GBP is outside it
+    amira = next(x for x in client.get("/v1/exceptions").json()["payroll"] if x["employee"] == "Amira Shah")
+    assert not amira["inside_mandate"] and "GBP is not a payout currency" in " ".join(amira["reasons"])
+    r = client.post("/v1/exceptions/payroll/to-review?role=finance_manager&by=Dana%20Finch", json={"ref": amira["ref"]})
+    assert r.status_code == 200, r.text
+    q = {x["intake_id"]: x for x in client.get("/v1/intake").json()}[r.json()["intake_id"]]
+    assert q["amount_minor"] == 520_000 and q["currency"] == "GBP" and q["invoice_no"].startswith("PAY-")
+    assert all(x["employee"] != "Amira Shah" for x in client.get("/v1/exceptions").json()["payroll"])  # not twice
+    lee = next(x for x in client.get("/v1/exceptions").json()["payroll"] if x["employee"] == "Lee Park")
+    assert client.post("/v1/exceptions/payroll/to-review?role=finance_manager&by=Dana%20Finch", json={"ref": lee["ref"]}).status_code == 409  # no account
+
+
+def test_the_register_page_lists_people_and_the_accounts_a_line_may_pay_into(client):
+    g = client.get("/v1/doa/registers").json()
+    assert g["registers"] == [] and any(u["user_id"] == "u-amira" for u in g["people"])
+    assert {"id": "payroll-group-us", "name": "Northwind Payroll Services Inc", "currency": "USD"}.items() <= next(a for a in g["accounts"] if a["id"] == "payroll-group-us").items()
+    assert client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch",
+                       json={"period": _period(), "lines": [LINES[0] | {"payee_id": None}]}).status_code == 422  # no account, no line
+
+
+def test_a_changed_line_is_approved_once_and_then_ready_for_the_pay_day(client):
+    _accounts(client)
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "1"}).status_code == 200
+    dana = next(x for x in client.get("/v1/exceptions").json()["payroll"] if x["employee"] == "Dana Finch")
+    assert dana["inside_mandate"] and dana["approved"] is None
+    assert client.post("/v1/exceptions/payroll/approve?role=requester&by=Ola%20Reed", json={"ref": dana["ref"]}).status_code == 403
+    r = client.post(f"/v1/exceptions/payroll/approve?{FCO}", json={"ref": dana["ref"]})
+    assert r.status_code == 200 and r.json()["amount_minor"] == 780_000
+    e = client.get("/v1/exceptions").json()
+    assert next(x for x in e["payroll"] if x["employee"] == "Dana Finch")["approved"].startswith("Rosa Lindqvist")
+    assert "Dana Finch" in [x["who"] for x in client.get("/v1/doa").json()["pending"]["ready"]]
+    # the amount changes again: the approval no longer holds
+    d = client.app.state.org.get("user", "u-dana")
+    client.post("/v1/org/users?role=finance_manager&by=Dana%20Finch", json=d | {"salary_minor": 790_000})
+    assert next(x for x in client.get("/v1/exceptions").json()["payroll"] if x["employee"] == "Dana Finch")["approved"] is None
+    # ... and the one who changed it now cannot approve it
+    ref = next(x for x in client.get("/v1/exceptions").json()["payroll"] if x["employee"] == "Dana Finch")["ref"]
+    assert client.post("/v1/exceptions/payroll/approve?role=finance_manager&by=Dana%20Finch", json={"ref": ref}).status_code == 403
+    # an adjustment taken away again: the period is paid from People and roles alone
+    client.post("/v1/doa/registers?role=finance_manager&by=Hana%20HR", json={"period": _period(), "lines": [
+        {"employee": "Amira Shah", "payee_id": "ben-uk-logistics", "currency": "GBP", "amount_minor": 1_000, "charge_code": "UK-300.OPS.6010"}]})
+    assert client.post("/v1/doa/registers?role=finance_manager&by=Hana%20HR", json={"period": _period(), "lines": []}).status_code == 200
+    assert {x["employee"]: x for x in _now(client)["lines"]}["Amira Shah"]["source"] == "people"
+
+
+def test_an_approval_is_bound_to_the_account_it_was_given_for(client):
+    _accounts(client)
+    dana = next(x for x in client.get("/v1/exceptions").json()["payroll"] if x["employee"] == "Dana Finch")
+    assert client.post(f"/v1/exceptions/payroll/approve?{FCO}", json={"ref": dana["ref"]}).status_code == 200
+    org = client.app.state.org
+    org._put("user", org.get("user", "u-dana") | {"payee_id": "ben-saas-vendor"}, "t")  # another account, same amount
+    after = next(x for x in client.get("/v1/exceptions").json()["payroll"] if x["employee"] == "Dana Finch")
+    assert after["approved"] is None  # approved for one account, not for another
+

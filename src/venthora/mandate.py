@@ -7,7 +7,7 @@ person, in seven categories, each with the policy it serves.
              off (not checked)
   rules      live.MANDATES: permissions (grant), safeguards (guard) and critical rules (locked), each with its value
   limits     every number in one place: the rule values plus the book's allocation, reserve floor, planning horizon
-             and confidence band; saved here they become the standing mandate, and the Operations run starts from
+             and confidence band; saved here they become the standing mandate, and the Autopilot Console starts from
              it (each run may still narrow or widen them, and the run records what was granted)
 
 One role holds the mandate authority (by default the super admin, the FCO): only that role changes the standing
@@ -129,6 +129,12 @@ UNBUDGETED_LABEL = "A payment outside every budget line waits for an approver"
 UNBUDGETED_HELP = ("A payment charged to no budget line of the period (Payment → Budget allocation → Budget lines) is held for a person. "
                    "Switched off, the agent pays it on its own within the other limits.")
 
+PAY_ON_ARRIVAL = "pay_on_arrival"
+PAY_ON_ARRIVAL_LABEL = "Pay a verified request the moment it passes every check"
+PAY_ON_ARRIVAL_HELP = ("An invoice, payment order or synced bill that passes every check is planned and paid at once on the live balance, through the "
+                       "treasury proof (reserve floor, limits, budget, Delegation of Authority); a sweep every minute retries what waited on cash, a rate "
+                       "or a due date. Off, a verified request waits for a run or for Pay in Pending payment.")
+
 # book-level numbers that are not rows of MANDATES: key -> (label, unit, category, min, max, help)
 BOOK_LIMITS: dict[str, tuple[str, str, str, int, int, str]] = {
     "allocation_minor": ("Allocation ring-fenced from the wallet", "usd", "liquidity", 0, 10**13, "what this book may use at all"),
@@ -159,6 +165,14 @@ def standing(org) -> dict:
             "unbudgeted_requires_approval": rec.get("enabled", {}).get(UNBUDGETED),
             "checks": rec.get("checks", {}), "authority_role": rec.get("authority_role", DEFAULT_AUTHORITY),
             "updated_by": rec.get("updated_by_name"), "acknowledged": rec.get("acknowledged", [])}
+
+
+def pay_on_arrival(org) -> bool:
+    """Whether a verified request is paid the moment it passes every check (off until the mandate authority says so)."""
+    try:
+        return bool(standing(org)["enabled"].get(PAY_ON_ARRIVAL, False))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def unbudgeted_rule(org=None) -> bool | None:
@@ -247,7 +261,7 @@ def save(org, body: dict, by: str, *, role: str, setup: dict) -> dict:
             raise ValueError(f"{m['label']}: a whole number from {lo} to {hi} is needed")
         values[k] = v
     for k, v in (body.get("enabled") or {}).items():
-        if k == UNBUDGETED:
+        if k in (UNBUDGETED, PAY_ON_ARRIVAL):
             enabled[k] = bool(v)
             continue
         m = specs.get(k)
@@ -316,6 +330,8 @@ def view(setup: dict, org, doc_rules_on: bool, role: str | None = None) -> dict:
     limits += [{"key": m["key"], "label": m["label"], "unit": None, "category": RULE_CATEGORY.get(m["key"], "control"), "kind": m["kind"],
                 "enabled": m.get("enabled", True), "help": m.get("help", ""), "critical": False, "switch_only": True}
                for m in setup["mandates"] if m["unit"] is None and m["kind"] != "locked"]
+    limits.append({"key": PAY_ON_ARRIVAL, "label": PAY_ON_ARRIVAL_LABEL, "unit": None, "category": "authority", "kind": "grant",
+                   "enabled": pay_on_arrival(org), "help": PAY_ON_ARRIVAL_HELP, "critical": False, "switch_only": True})
     limits.append({"key": UNBUDGETED, "label": UNBUDGETED_LABEL, "unit": None, "category": "authority", "kind": "guard",
                    "enabled": bool(setup.get(UNBUDGETED, True)), "help": UNBUDGETED_HELP, "critical": True, "switch_only": True})
     order = [c["key"] for c in CATEGORIES]

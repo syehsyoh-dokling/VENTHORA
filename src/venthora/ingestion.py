@@ -246,6 +246,8 @@ def _organisation(entity: str, keep, rejected, *, source: str, org, dry_run: boo
         for i, (raw, ext) in todo:
             try:
                 row, old = _org_row(entity, raw, org)
+                if old:  # a source updates the fields it sends; what it does not send (net pay, contract dates ...) stays
+                    row = {k: v for k, v in old.items() if not str(k).startswith("_")} | row
                 if entity in ("pr", "fund_request") and not source.startswith("sync:"):
                     if old and old["status"] not in ("DRAFT", "SUBMITTED"):
                         raise OrgError(f"{old[ID_FIELD[entity]]} is already {old['status'].lower()}; it no longer changes")

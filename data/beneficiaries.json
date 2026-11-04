@@ -201,5 +201,175 @@
         "LOCAL"
       ]
     }
+  },
+  "emp-dana-finch": {
+    "transfer_reason": "payroll",
+    "payload": {
+      "nickname": "Dana Finch (salary)",
+      "transfer_methods": [
+        "LOCAL"
+      ],
+      "beneficiary": {
+        "type": "BANK_ACCOUNT",
+        "entity_type": "PERSONAL",
+        "first_name": "Dana",
+        "last_name": "Finch",
+        "address": {
+          "street_address": "12 Mission Street",
+          "city": "San Francisco",
+          "state": "CA",
+          "postcode": "94105",
+          "country_code": "US"
+        },
+        "bank_details": {
+          "account_currency": "USD",
+          "account_name": "Dana Finch",
+          "bank_country_code": "US",
+          "bank_name": "Bank of America",
+          "account_number": "483101090121",
+          "account_routing_type1": "aba",
+          "account_routing_value1": "026009593",
+          "bank_account_category": "Checking"
+        }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
+    }
+  },
+  "emp-lee-park": {
+    "transfer_reason": "payroll",
+    "payload": {
+      "nickname": "Lee Park (salary)",
+      "transfer_methods": [
+        "LOCAL"
+      ],
+      "beneficiary": {
+        "type": "BANK_ACCOUNT",
+        "entity_type": "PERSONAL",
+        "first_name": "Lee",
+        "last_name": "Park",
+        "address": {
+          "street_address": "40 Howard Street",
+          "city": "San Francisco",
+          "state": "CA",
+          "postcode": "94105",
+          "country_code": "US"
+        },
+        "bank_details": {
+          "account_currency": "USD",
+          "account_name": "Lee Park",
+          "bank_country_code": "US",
+          "bank_name": "Bank of America",
+          "account_number": "483101090122",
+          "account_routing_type1": "aba",
+          "account_routing_value1": "026009593",
+          "bank_account_category": "Checking"
+        }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
+    }
+  },
+  "emp-omar-reyes": {
+    "transfer_reason": "payroll",
+    "payload": {
+      "nickname": "Omar Reyes (salary)",
+      "transfer_methods": [
+        "LOCAL"
+      ],
+      "beneficiary": {
+        "type": "BANK_ACCOUNT",
+        "entity_type": "PERSONAL",
+        "first_name": "Omar",
+        "last_name": "Reyes",
+        "address": {
+          "street_address": "8 Spear Street",
+          "city": "San Francisco",
+          "state": "CA",
+          "postcode": "94105",
+          "country_code": "US"
+        },
+        "bank_details": {
+          "account_currency": "USD",
+          "account_name": "Omar Reyes",
+          "bank_country_code": "US",
+          "bank_name": "Bank of America",
+          "account_number": "483101090123",
+          "account_routing_type1": "aba",
+          "account_routing_value1": "026009593",
+          "bank_account_category": "Checking"
+        }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
+    }
+  },
+  "emp-amira-shah": {
+    "transfer_reason": "payroll",
+    "payload": {
+      "nickname": "Amira Shah (salary)",
+      "transfer_methods": [
+        "LOCAL"
+      ],
+      "beneficiary": {
+        "type": "BANK_ACCOUNT",
+        "entity_type": "PERSONAL",
+        "first_name": "Amira",
+        "last_name": "Shah",
+        "address": {
+          "street_address": "1 Fleet Street",
+          "city": "London",
+          "postcode": "EC4Y 1AA",
+          "country_code": "GB"
+        },
+        "bank_details": {
+          "account_currency": "GBP",
+          "account_name": "Amira Shah",
+          "bank_country_code": "GB",
+          "bank_name": "Monzo Bank",
+          "account_number": "12345678",
+          "account_routing_type1": "sort_code",
+          "account_routing_value1": "040004"
+        }
+      },
+      "payment_methods": [
+        "LOCAL"
+      ]
+    }
+  },
+  "emp-jonas-weber": {
+    "transfer_reason": "payroll",
+    "payload": {
+      "nickname": "Jonas Weber (salary)",
+      "transfer_methods": [
+        "SWIFT"
+      ],
+      "beneficiary": {
+        "type": "BANK_ACCOUNT",
+        "entity_type": "PERSONAL",
+        "first_name": "Jonas",
+        "last_name": "Weber",
+        "address": {
+          "street_address": "Friedrichstrasse 10",
+          "city": "Berlin",
+          "postcode": "10117",
+          "country_code": "DE"
+        },
+        "bank_details": {
+          "account_currency": "EUR",
+          "account_name": "Jonas Weber",
+          "bank_country_code": "DE",
+          "bank_name": "Commerzbank",
+          "iban": "DE89370400440532013000",
+          "swift_code": "COBADEFFXXX"
+        }
+      },
+      "payment_methods": [
+        "SWIFT"
+      ]
+    }
   }
 }

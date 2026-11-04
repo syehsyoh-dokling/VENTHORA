@@ -141,6 +141,101 @@
         "verified_by": "onboarding call-back (finance manager)",
         "paid_count": 1
       }
+    },
+    "emp-dana-finch": {
+      "name": "Dana Finch",
+      "aliases": [],
+      "contacts": [],
+      "domains": [],
+      "currency": "USD",
+      "payout_method": "LOCAL",
+      "default_priority": 10,
+      "invoice_prefix": "emp-dana-finch",
+      "budget_line": "payroll",
+      "kind": "employee",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+1 415 555 0121",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (HR)",
+        "paid_count": 0
+      }
+    },
+    "emp-lee-park": {
+      "name": "Lee Park",
+      "aliases": [],
+      "contacts": [],
+      "domains": [],
+      "currency": "USD",
+      "payout_method": "LOCAL",
+      "default_priority": 10,
+      "invoice_prefix": "emp-lee-park",
+      "budget_line": "payroll",
+      "kind": "employee",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+1 415 555 0122",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (HR)",
+        "paid_count": 0
+      }
+    },
+    "emp-omar-reyes": {
+      "name": "Omar Reyes",
+      "aliases": [],
+      "contacts": [],
+      "domains": [],
+      "currency": "USD",
+      "payout_method": "LOCAL",
+      "default_priority": 10,
+      "invoice_prefix": "emp-omar-reyes",
+      "budget_line": "payroll",
+      "kind": "employee",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+1 415 555 0123",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (HR)",
+        "paid_count": 0
+      }
+    },
+    "emp-amira-shah": {
+      "name": "Amira Shah",
+      "aliases": [],
+      "contacts": [],
+      "domains": [],
+      "currency": "GBP",
+      "payout_method": "LOCAL",
+      "default_priority": 10,
+      "invoice_prefix": "emp-amira-shah",
+      "budget_line": "payroll",
+      "kind": "employee",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+44 20 7946 0101",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (HR)",
+        "paid_count": 0
+      }
+    },
+    "emp-jonas-weber": {
+      "name": "Jonas Weber",
+      "aliases": [],
+      "contacts": [],
+      "domains": [],
+      "currency": "EUR",
+      "payout_method": "SWIFT",
+      "default_priority": 10,
+      "invoice_prefix": "emp-jonas-weber",
+      "budget_line": "payroll",
+      "kind": "employee",
+      "lifecycle": {
+        "status": "ACTIVE",
+        "registered_phone": "+49 30 5550 1201",
+        "verified_at": "2026-09-15T09:00:00+00:00",
+        "verified_by": "onboarding call-back (HR)",
+        "paid_count": 0
+      }
     }
   },
   "payers": {

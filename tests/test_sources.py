@@ -100,3 +100,12 @@ def test_a_bad_row_is_rejected_with_its_reason(tmp_path):
     assert [r["row"] for r in rep["rejected"]] == [3, 1, 2] or len(rep["rejected"]) == 3
     assert any("account number or an IBAN" in r["error"] for r in rep["rejected"])
     assert m.list("vendor") == []
+
+
+def test_a_sync_updates_only_the_fields_it_sends(client):
+    before = client.app.state.org.get("user", "u-dana")
+    assert before["salary_minor"] == 780_000
+    client.post("/v1/sources/connectors/legacy-erp-demo/sync?entity=user")
+    after = client.app.state.org.get("user", "u-dana")
+    assert (after["salary_minor"], after["employee_no"], after["charge_code"]) == (780_000, "E-1014", "US-200.OPS.6010")
+

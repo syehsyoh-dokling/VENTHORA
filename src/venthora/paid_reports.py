@@ -16,7 +16,7 @@ from the charge code (or the person's own unit), so every row can be filtered by
 """
 from __future__ import annotations
 
-from . import procurement
+from . import doa, procurement
 from .organisation import ENGAGEMENT_ROLES, FUND_KINDS
 
 CATEGORIES = {"payroll": "Payroll", "fringe": "Fringe benefits", "goods_services": "Goods and services", "operation": "Operation",
@@ -130,7 +130,7 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
         runs = {r["_id"]: r for r in org.list("doa_run")}
         for reg in org.list("payroll_register"):
             for ln in reg.get("lines", []):
-                ref = f"doa:personnel:{reg['period']}:" + "-".join(str(ln["employee"]).lower().split())
+                ref = f"doa:personnel:{reg['period']}:{doa._slug(str(ln['employee']))}"
                 run = runs.get(ref) or next((r for r in runs.values() if r["category"] == "personnel" and r["period"] == reg["period"]
                                              and r["employee"].lower() == str(ln["employee"]).lower()), None)
                 paid = ln["amount_minor"] if run and run["status"] in ("PAID", "IN_FLIGHT") else 0

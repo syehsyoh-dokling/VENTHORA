@@ -285,7 +285,7 @@ async def plan_scenario(scenario_id: str, period: str | None = None):
 
 @app.get("/api/live/latest")
 async def live_latest():
-    """Whether an operations run exists in this process, so the dashboard can offer it without probing for a 404."""
+    """whether an Autopilot Console run exists in this process, so the dashboard can offer it without probing for a 404."""
     sessions = getattr(app.state, "live", {})
     if not sessions:
         return {"sid": None}
@@ -307,11 +307,11 @@ async def favicon():
 async def budget_pipeline(scenario_id: str = "kit01_initial", period: str | None = None):
     """The pipeline for a book: plan / granted / realized / paying now / committed / available / minus per line,
     alerts and budget requests, computed from the current plan of that book. scenario_id=live: the book of the latest
-    operations run, with what the store has realized since (paid obligations are settled, not paid again)."""
+    Autopilot Console run, with what the store has realized since (paid obligations are settled, not paid again)."""
     if scenario_id == "live":
         sessions = getattr(app.state, "live", {})
         if not sessions:
-            raise HTTPException(404, "no operations run yet")
+            raise HTTPException(404, "no Autopilot Console run yet")
         s = list(sessions.values())[-1]
         state, _notes = await asyncio.to_thread(apply_operational_facts, s.state, app.state.executor.store)
         result = await app.state.agent.decide(state)
@@ -516,7 +516,7 @@ class MandateIn(BaseModel):
 
 @app.put("/v1/mandate")
 async def mandate_put(req: MandateIn, role: str = "super_admin", by: str = "dashboard", scenario: str = "demo_live"):
-    """Save the standing mandate; every Operations run starts from it. Only the role holding the mandate authority may
+    """Save the standing mandate; every Autopilot Console run starts from it. Only the role holding the mandate authority may
     save it. A change that weakens a critical control answers 409 with the warnings until each is acknowledged."""
     from . import mandate
 
@@ -638,7 +638,7 @@ async def doa_settings_put(body: Annotated[dict, Body()], role: str = "super_adm
 
 class RegisterIn(BaseModel):
     period: str = Field(pattern=r"^\d{4}-\d{2}$")
-    lines: list[dict] = Field(min_length=1, max_length=2000, description="employee, payee_id, currency, amount_minor, charge_code")
+    lines: list[dict] = Field(max_length=2000, description="the lines adjusted for this period only (employee, payee_id, currency, amount_minor, charge_code); none = paid from People and roles")
 
 
 @app.post("/v1/doa/registers")
@@ -707,19 +707,31 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
     org = app.state.org
     today = datetime.now(UTC).date()
     payees = app.state.intake.registry.payees
-    done = {r["_id"] for r in org.list("doa_run") if r["status"] in ("PAID", "IN_FLIGHT")}
+    done = {r["_id"] for r in org.list("doa_run") if r["status"] in ("PAID", "IN_FLIGHT", "IN_REVIEW")}
     out = {"paid": [], "held": [], "skipped": [], "executions": []}
     base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
-    for row in doa.evaluate(org, _payee_status, payees, today):
+    rows = doa.evaluate(org, _payee_status, payees, today)
+    mine = (approver or "").split(" (")[0].strip().lower()
+    own = [ln for row in rows for ln in row["lines"] if ln["verdict"] == "approve" and approver and ln.get("ref") in refs and mine
+           and mine == str(ln.get("changed_by") or "").split(" (")[0].strip().lower()]
+    if own:  # a change is never approved by the person who made it
+        raise HTTPException(403, f"{own[0]['employee']}: the person who made the change cannot approve it")
+    for row in rows:
         if not row["due"] or not row["lines"]:
             if row["due"]:
                 out["skipped"].append({"key": row["key"], "reasons": row["reasons"]})
             continue
-        go = [ln for ln in row["lines"] if ln.get("ref") not in done and (ln["verdict"] == "auto" or (ln["verdict"] == "approve" and approver and ln["ref"] in refs))]
+        pre = {a["_id"]: a for a in org.list("payroll_approval")}
+        ok_before = {ln["ref"] for ln in row["lines"] if ln.get("ref") in pre and all(pre[ln["ref"]].get(k) == ln.get(k)
+                                                                                 for k in ("amount_minor", "currency", "payee_id", "charge_code"))}
+        go = [ln for ln in row["lines"] if ln.get("ref") not in done and (ln["verdict"] == "auto" or (ln["verdict"] == "approve" and (
+            (approver and ln["ref"] in refs) or ln["ref"] in ok_before)))]
         out["skipped"] += [{"key": row["key"], "employee": ln["employee"], "verdict": ln["verdict"], "reasons": ln["reasons"]} for ln in row["lines"] if ln not in go and ln.get("ref") not in done]
         if not go:
             continue
-        state = doa.book(base, row, go, payees, today)
+        from . import priority_sop
+
+        state = priority_sop.apply(doa.book(base, row, go, payees, today), org, payees)
         try:
             state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
         except AirwallexError as exc:
@@ -752,13 +764,13 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
 
 @app.post("/v1/doa/run")
 async def doa_run(req: DoARunIn, by: str = "dashboard"):
-    """Run the due lines now (the autopilot does the same on its own when it is on). Refused while any due payment
-    is blocked: what stops it is shown first, and the run goes once everything is fixed."""
+    """Run the due lines now (the autopilot does the same on its own when it is on): every line ready is paid; a line
+    that is blocked, or waits for a person, stays in Executions & incidents and stops nothing else."""
     from . import doa
 
     p = doa.pending(app.state.org, _payee_status, app.state.intake.registry.payees, datetime.now(UTC).date())
-    if p["blocked"] and not req.refs:
-        raise HTTPException(409, {"message": "fix what stops the due payments first", "blocked": p["blocked"]})
+    if not p["ready"] and not req.refs:  # what is blocked waits in Executions & incidents; the rest is paid
+        raise HTTPException(409, {"message": "nothing is ready to pay: what stops the due payments is in Executions & incidents", "blocked": p["blocked"]})
     return await _doa_run(req.refs, req.approver, req.role, f"{by} ({req.role})" if req.approver else "VENTHORA (DoA)")
 
 
@@ -831,6 +843,52 @@ async def doa_travel_request(req: TravelRequestIn, role: str = "finance_manager"
     return await _ingest(msg.as_bytes(), None, False, channel="dashboard")
 
 
+PAYABLE_KINDS = ("supplier_invoice", "contractor_claim", "expense_claim")
+
+
+async def _pay_on_arrival(intake_id: str, by: str = "VENTHORA (on arrival)") -> dict:
+    """A verified request paid at once when the standing mandate says so: planned alone on the live balance with the
+    Payment Priority SOP, proved, and executed only for what the plan approves on the agent's own authority. Never
+    raises: what is not paid stays in Pending payment, with the reason on the audit chain."""
+    from . import autonomy, mandate
+
+    try:
+        if not mandate.pay_on_arrival(app.state.org) or not app.state.agent.proof.airwallex.configured:
+            return {"paid": False, "reason": "pay on arrival is off or the bank is not connected"}
+        req = app.state.intake.store.get(intake_id)
+        if req is None or req.status != "VERIFIED" or req.payment or req.kind not in PAYABLE_KINDS:
+            return {"paid": False, "reason": "not a verified payable request"}
+        base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+        base = base.model_copy(update={"obligations": [], "receivables": []})
+        state = app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req])
+        if not state.obligations:
+            return {"paid": False, "reason": "nothing payable in it yet"}
+        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+        state, _ = apply_operational_facts(state, app.state.executor.store)
+        s = await autonomy.split(app.state.agent, state)
+        if s.auto_plan is None or not any(d.action in autonomy.PAYING for d in s.auto_plan.obligations):
+            held = "; ".join(r for h in s.held for r in h["reasons"]) or "the plan does not pay it now"
+            await asyncio.to_thread(app.state.audit.append, "held_on_arrival", {"intake_id": intake_id, "reason": held[:300]})
+            return {"paid": False, "reason": held}
+        res = await app.state.executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash, requested_by=by))
+        app.state.position_cache = None
+        await asyncio.to_thread(app.state.audit.append, "paid_on_arrival", {"intake_id": intake_id, "execution_id": res.execution_id, "status": res.status})
+        return {"paid": res.status in ("COMPLETED", "IN_FLIGHT"), "execution_id": res.execution_id, "status": res.status}
+    except Exception as exc:  # noqa: BLE001 - the request stays in Pending payment; the next sweep tries again
+        with contextlib.suppress(Exception):
+            await asyncio.to_thread(app.state.audit.append, "pay_on_arrival_failed", {"intake_id": intake_id, "error": str(getattr(exc, "detail", exc))[:300]})
+        return {"paid": False, "reason": str(getattr(exc, "detail", exc))[:300]}
+
+
+def _after_intake(req) -> None:
+    """Run pay-on-arrival for a request that just became verified, without making the sender wait."""
+    from . import mandate
+
+    if req is not None and req.status == "VERIFIED" and mandate.pay_on_arrival(app.state.org):
+        with contextlib.suppress(RuntimeError):
+            asyncio.get_running_loop().create_task(_pay_on_arrival(req.intake_id))
+
+
 async def _doa_scheduler(every_s: float = 60.0) -> None:
     """The autopilot: every minute, when the holder of the delegation switched it on and the bank is connected, pay
     the due instructions the DoA lets the agent pay on its own."""
@@ -841,6 +899,11 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
         try:
             if doa.autopilot(app.state.org) and app.state.agent.proof.airwallex.configured:
                 await _doa_run([], None, "finance_manager", "VENTHORA (autopilot)")
+            from . import mandate
+
+            if mandate.pay_on_arrival(app.state.org) and app.state.agent.proof.airwallex.configured:  # the sweep
+                for q in [q for q in app.state.intake.store.list(500) if q.status == "VERIFIED" and not q.payment and q.kind in PAYABLE_KINDS][:20]:
+                    await _pay_on_arrival(q.intake_id, "VENTHORA (sweep)")
         except Exception as exc:  # noqa: BLE001  the next minute tries again; the failure is on the audit chain
             with contextlib.suppress(Exception):
                 await asyncio.to_thread(app.state.audit.append, "doa_autopilot_failed", {"error": str(getattr(exc, "detail", exc))[:300]})
@@ -852,7 +915,10 @@ async def live_start(req: LiveStart):
     if not app.state.executor.bank.configured:
         raise HTTPException(409, "Airwallex sandbox credentials are not configured")
     try:
-        s = await live_session.start(req.scenario, app.state.executor, app.state.audit, req.config)
+        from . import priority_sop
+
+        s = await live_session.start(req.scenario, app.state.executor, app.state.audit, req.config,
+                                     adjust=lambda st: priority_sop.apply(st, app.state.org, app.state.intake.registry.payees))
     except live_session.LiveError as exc:
         raise HTTPException(422, str(exc)) from exc
     except AirwallexError as exc:
@@ -1355,6 +1421,7 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
                 with contextlib.suppress(PayeeError):
                     store.payee_event(req.counterparty_id, {"kind": "bank_change", "bank_fingerprint": fp,
                                                             "source": f"intake:{req.intake_id}", "quote": quoted[:300]})
+        _after_intake(req)  # verified and inside the mandate: paid now, when the standing mandate says so
     return req
 
 
@@ -1504,6 +1571,7 @@ async def _payment_order_core(body: PaymentOrderIn, person: dict, msg, *, channe
         "intake_id", "kind", "status", "trust", "sender", "counterparty_name", "amount_minor", "currency", "invoice_no", "reader", "flags"}))
     await asyncio.to_thread(app.state.audit.append, "payment_order", req.model_dump(exclude={"text"}) | {"by": f"{person['name']} ({role})",
                                                                                                         "channel": channel})
+    _after_intake(req)
     return req
 
 
@@ -2654,7 +2722,7 @@ async def beneficiaries_list(kind: str = Query("vendor", pattern="^(vendor|consu
     out = []
     for k, v in sorted(reg.payees.items(), key=lambda x: x[1]["name"]):
         m = master.get(k) or {}
-        vk = vendor_kind({"kind": m.get("kind"), "budget_line": m.get("budget_line") or v.get("budget_line"), "default_priority": m.get("default_priority", v.get("default_priority"))})
+        vk = vendor_kind({"kind": m.get("kind") or v.get("kind"), "budget_line": m.get("budget_line") or v.get("budget_line"), "default_priority": m.get("default_priority", v.get("default_priority"))})
         if vk != kind:
             continue
         ben = bens.get(k) or {}
@@ -3251,6 +3319,264 @@ async def reports_spend(category: str = Query("goods_services", pattern="^(payro
             t[k] += r.get(k) or 0
     return {"category": category, "title": paid_reports.CATEGORIES[category], "rows": rows, "units": units, "people": people,
             "types": sorted({r["type"] for r in rows}), "totals": totals}
+
+
+@app.get("/v1/exceptions")
+async def exceptions_list():
+    """Executions & incidents: everything that waits for a person, one list per kind. Empty means VENTHORA pays as
+    normal; an item here is either paid once a person confirms it (inside the mandate) or sent to Pending payment
+    (outside it)."""
+    from . import doa
+
+    org, store = app.state.org, app.state.executor.store
+    today = datetime.now(UTC).date()
+    payees = app.state.intake.registry.payees
+    rows = await asyncio.to_thread(doa.evaluate, org, _payee_status, payees, today)
+    runs = {r["_id"]: r for r in org.list("doa_run")}
+    pers = next((r for r in rows if r["key"] == "personnel"), None) or {}
+    payroll = []
+    pre = {a["_id"]: a for a in org.list("payroll_approval")}
+    for ln in pers.get("lines", []):
+        done = runs.get(ln.get("ref") or "")
+        if ln["verdict"] == "auto" or (done and done["status"] in ("PAID", "IN_FLIGHT", "IN_REVIEW")):
+            continue
+        fix, where = doa._fix(ln["reasons"][0]) if ln["reasons"] else ("", "")
+        payroll.append(ln | {"period": pers["period"], "pay_date": pers["pay_date"], "due": pers["due"], "fix": fix, "where": where,
+                             "payee_name": (payees.get(ln.get("payee_id") or "") or {}).get("name"),
+                             "inside_mandate": ln["verdict"] == "approve",
+                             "approved": (pre.get(ln["ref"]) or {}).get("by") if all((pre.get(ln["ref"]) or {}).get(k) == ln.get(k)
+                                                                          for k in ("amount_minor", "currency", "payee_id", "charge_code")) else None})
+    p_ = await asyncio.to_thread(doa.pending, org, _payee_status, payees, today)
+    other = [b for b in p_["blocked"] if b["category"] != doa.BY_KEY["personnel"]["title"]]
+    call_backs = [{"payee_id": x["beneficiary_id"], "name": (payees.get(x["beneficiary_id"]) or {}).get("name", x["beneficiary_id"]), "status": x["status"],
+                   "registered_phone": x.get("registered_phone"), "cooling_until": x.get("cooling_until"), "updated_at": x.get("updated_at")}
+                  for x in await asyncio.to_thread(store.list_payees) if x["status"] in ("NEW", "CHANGED")]
+    queue = await asyncio.to_thread(app.state.intake.store.list, 1000)
+    reviews = [{"intake_id": q.intake_id, "status": q.status, "kind": q.kind, "from": q.display_name, "counterparty": q.counterparty_name,
+                "amount_minor": q.amount_minor, "currency": q.currency, "invoice_no": q.invoice_no, "reason": (q.reasons or [""])[0], "received_at": q.received_at}
+               for q in queue if q.status in ("NEEDS_REVIEW", "QUARANTINED") and not q.payment]
+    recon = await asyncio.to_thread(store.open_recon_cases)
+    incidents = [i for i in await asyncio.to_thread(store.list_incidents, 200) if i.get("status") != "RESOLVED"]
+    counts = {"payroll": sum(1 for x in payroll if not x["approved"]), "due_blocked": len(other), "call_backs": len(call_backs), "reviews": len(reviews),
+              "recon": len(recon), "incidents": len(incidents)}
+    return {"counts": counts, "total": sum(counts.values()), "payroll": payroll, "due_blocked": other, "call_backs": call_backs, "reviews": reviews,
+            "payroll_period": pers.get("period"), "pay_date": pers.get("pay_date"),
+            "payroll_lines": [{k: ln.get(k) for k in ("employee", "payee_id", "currency", "amount_minor", "charge_code")} for ln in pers.get("lines", [])],
+            "adjustments": (doa.register(org, pers["period"]) or {}).get("lines", []) if pers.get("period") else []}
+
+
+class PayrollApproveIn(BaseModel):
+    ref: str = Field(min_length=3, max_length=120)
+
+
+@app.post("/v1/exceptions/payroll/approve")
+async def exceptions_payroll_approve(body: PayrollApproveIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Approve a changed payroll line once (a first salary, a changed net pay, a line adjusted for this period). It is
+    then paid with the others on the pay day, by VENTHORA, as long as the amount is still the one approved. The person
+    who made the change cannot approve it."""
+    from . import doa
+
+    if role not in ("finance_manager", "cfo", "super_admin", "hq_admin"):
+        raise HTTPException(403, f"role {role} may not approve a salary")
+    org = app.state.org
+    rows = await asyncio.to_thread(doa.evaluate, org, _payee_status, app.state.intake.registry.payees, datetime.now(UTC).date())
+    pers = next((r for r in rows if r["key"] == "personnel"), None) or {}
+    ln = next((x for x in pers.get("lines", []) if x.get("ref") == body.ref), None)
+    if ln is None:
+        raise HTTPException(404, "no such payroll line this period")
+    if ln["verdict"] != "approve":
+        raise HTTPException(409, f"{ln['employee']}: " + ("it is paid on its own; nothing to approve" if ln["verdict"] == "auto"
+                                                         else "outside the delegation: fix it, or send it to Pending payment"))
+    me = by.strip().lower()
+    if me and me == str(ln.get("changed_by") or "").split(" (")[0].strip().lower():
+        raise HTTPException(403, f"{ln['employee']}: the person who made the change cannot approve it")
+    rec = {"_id": body.ref, "employee": ln["employee"], "period": pers["period"], "amount_minor": ln["amount_minor"], "currency": ln["currency"],
+           "payee_id": ln.get("payee_id"), "charge_code": ln.get("charge_code"),  # bound to what the approver saw: amount, currency, account, charge
+           "reasons": ln["reasons"], "by": f"{by} ({role})", "at": datetime.now(UTC).isoformat(timespec="seconds")}
+    await asyncio.to_thread(org._put, "payroll_approval", rec, by)
+    await asyncio.to_thread(app.state.audit.append, "payroll_line_approved", rec)
+    return rec
+
+
+class ToReviewIn(BaseModel):
+    ref: str = Field(min_length=3, max_length=120, description="the payroll line, doa:personnel:<period>:<employee>")
+
+
+@app.post("/v1/exceptions/payroll/to-review")
+async def exceptions_payroll_to_review(body: ToReviewIn, role: str = "finance_manager", by: str = "dashboard"):
+    """A payroll line outside what the delegation lets VENTHORA pay (a currency it does not pay in, a change it may
+    not accept on its own): sent to Pending payment as a payment order, where a person decides it like any other."""
+    from . import doa
+
+    org = app.state.org
+    payees = app.state.intake.registry.payees
+    rows = await asyncio.to_thread(doa.evaluate, org, _payee_status, payees, datetime.now(UTC).date())
+    pers = next((r for r in rows if r["key"] == "personnel"), None) or {}
+    ln = next((x for x in pers.get("lines", []) if x.get("ref") == body.ref), None)
+    if ln is None:
+        raise HTTPException(404, "no such payroll line this period")
+    if not ln.get("payee_id") or ln["payee_id"] not in payees:
+        raise HTTPException(409, f"{ln['employee']} has no registered bank account: register it in People and roles first")
+    order = PaymentOrderIn(vendor_id=ln["payee_id"], invoice_no=f"PAY-{pers['period']}-{doa._slug(ln['employee'])}"[:40], amount_minor=ln["amount_minor"],
+                           currency=ln["currency"], due_date=pers.get("pay_date") or datetime.now(UTC).strftime("%Y-%m-%d"),
+                           description=f"Salary {pers['period']}: {ln['employee']} ({'; '.join(ln['reasons'])})"[:300])
+    req = await payment_order(order, role=role, by=by)
+    rec = await asyncio.to_thread(doa.record_run, org, pers, ln, "IN_REVIEW", f"{by} ({role})", None, None, f"sent to Pending payment as {req.intake_id}")
+    return {"line": rec, "intake_id": req.intake_id, "status": req.status}
+
+
+class PrioritySopIn(BaseModel):
+    items: list[dict] = Field(description="every category in the order wanted, each {key, level: high | medium | low}")
+    late_cost: bool = Field(True, description="inside a level, a payment that costs more when late moves up one step")
+
+
+@app.get("/v1/priority-sop")
+async def priority_sop_get(role: str | None = None):
+    """System Setting -> Payment Priority SOP: every spending category with its level (High, Medium, Low), its place and
+    the priority it gives in the plan for the horizon; and how the payments waiting now would be ranked by it."""
+    from . import mandate, priority_sop
+
+    org = app.state.org
+    rows = priority_sop.current(org)
+    pr = {r["key"]: r["priority"] for r in rows}
+    payees = app.state.intake.registry.payees
+    base = TreasuryState.model_validate(json.loads(_scenario_file("intake_only").read_text(encoding="utf-8"))["state"])
+    queue = [q for q in await asyncio.to_thread(app.state.intake.store.list, 1000) if q.status in ("VERIFIED", "NEEDS_REVIEW") and not q.payment]
+    try:
+        state = await asyncio.to_thread(app.state.intake.to_state, base, as_of=datetime.now(UTC).date(), requests=queue)
+    except ValueError:
+        state = base
+    ids = {o.obligation_id for o in base.obligations}
+    preview = []
+    for o in state.obligations:
+        if o.obligation_id in ids:
+            continue
+        d = o.model_dump()
+        k = priority_sop.classify(d, payees)
+        why = priority_sop.costly_when_late(d, datetime.now(UTC).date().isoformat())
+        preview.append({"obligation_id": o.obligation_id, "payee": d.get("payee_name") or o.beneficiary_id, "amount_minor": o.amount_minor,
+                        "currency": o.currency, "due_in_hours": o.due_in_hours, "category": k, "category_label": priority_sop.ITEMS[k][0],
+                        "priority": pr[k], "late": why, "payee_priority": (payees.get(o.beneficiary_id or "") or {}).get("default_priority")})
+    preview.sort(key=lambda x: (-x["priority"], x["due_in_hours"], x["obligation_id"]))
+    st = mandate.standing(org)
+    rec = priority_sop.saved(org) or {}
+    horizon = (st.get("book") or {}).get("horizon_hours", 72)
+    return {"items": rows, "levels": priority_sop.LEVELS, "bands": {k: list(v) for k, v in priority_sop.BANDS.items()}, "saved": bool(rec),
+            "late_cost": priority_sop.late_cost_on(org), "top_shared": priority_sop.TOP_SHARED, "pay_on_arrival": mandate.pay_on_arrival(org),
+            "updated_by": rec.get("updated_by"), "horizon_hours": horizon, "preview": preview,
+            "authority": {"role": st["authority_role"], "you_may_change": role == st["authority_role"] if role else None}}
+
+
+@app.put("/v1/priority-sop")
+async def priority_sop_put(body: PrioritySopIn, role: str = "super_admin", by: str = "dashboard"):
+    """Save the Payment Priority SOP. Only the role holding the mandate authority may change it; from then on every plan
+    built from the organisation's payments ranks them by it."""
+    from . import mandate, priority_sop
+
+    st = mandate.standing(app.state.org)
+    if role != st["authority_role"]:
+        raise HTTPException(403, f"only the {mandate.AUTHORITY_ROLES[st['authority_role']]} changes the Payment Priority SOP")
+    try:
+        rec = await asyncio.to_thread(priority_sop.save, app.state.org, body.items, f"{by} ({role})", body.late_cost)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "priority_sop_saved", rec)
+    return await priority_sop_get(role)
+
+
+async def _todays_state() -> tuple[TreasuryState | None, dict]:
+    """The organisation's book as it stands now: the payment requests waiting (verified or held for a person), the
+    payroll lines ready for the pay day, the customer receipts expected, the budget; on the live Airwallex balance and
+    rates when the bank is connected (the scenario's balances otherwise), with the Payment Priority SOP applied."""
+    from . import doa
+
+    org = app.state.org
+    today = datetime.now(UTC).date()
+    payees = app.state.intake.registry.payees
+    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    base = base.model_copy(update={"obligations": [], "receivables": [], "evidence": []})
+    queue = [q for q in await asyncio.to_thread(app.state.intake.store.list, 1000)
+             if not q.payment and q.status in ("VERIFIED", "NEEDS_REVIEW", "QUARANTINED")]
+    try:
+        state = await asyncio.to_thread(app.state.intake.to_state, base, as_of=today, requests=queue) if queue else None
+    except ValueError:  # nothing in the queue that is a payable obligation
+        state = None
+    rows = await asyncio.to_thread(doa.evaluate, org, _payee_status, payees, today)
+    pers = next((r for r in rows if r["key"] == "personnel"), None) or {}
+    runs = {r["_id"] for r in org.list("doa_run") if r["status"] in ("PAID", "IN_FLIGHT", "IN_REVIEW")}
+    pre = {a["_id"]: a for a in org.list("payroll_approval")}
+    approved = {ln["ref"] for ln in pers.get("lines", []) if ln.get("ref") in pre
+                and all(pre[ln["ref"]].get(k) == ln.get(k) for k in ("amount_minor", "currency", "payee_id", "charge_code"))}
+    # only what the delegation pays alone, or a change one person approved; a first or changed salary not approved yet waits
+    pay_lines = [ln for ln in pers.get("lines", []) if ln.get("ref") not in runs and (ln["verdict"] == "auto" or ln.get("ref") in approved)]         if pers.get("pay_date") else []
+    waiting_lines = [{"employee": ln["employee"], "amount_minor": ln["amount_minor"], "currency": ln["currency"], "reasons": ln["reasons"]}
+                     for ln in pers.get("lines", []) if ln.get("ref") not in runs and ln not in pay_lines]
+    extra: tuple[list, list] = ([], [])
+    if pay_lines:
+        from . import priority_sop
+
+        pb = priority_sop.apply(doa.book(base, pers, pay_lines, payees, today), org, payees)
+        if state is None:
+            state = pb
+        else:
+            extra = ([o.model_dump() for o in pb.obligations], [e.model_dump() for e in pb.evidence])
+    source = {"requests": len(queue), "payroll_lines": len(pay_lines), "pay_date": pers.get("pay_date"), "balances": "scenario", "next_round": 0,
+              "payroll_waiting": waiting_lines}
+    if state is None:
+        return None, source
+    data = state.model_dump()
+    data["obligations"] += extra[0]
+    data["evidence"] += extra[1]
+    if len(data["obligations"]) > 12:  # one plan proves at most 12 obligations: the most urgent by the SOP now, the rest next round
+        source["next_round"] = len(data["obligations"]) - 12
+        data["obligations"] = sorted(data["obligations"], key=lambda o: (-o["priority"], o["due_in_hours"], o["obligation_id"]))[:12]
+    state = TreasuryState.model_validate(data)
+    try:
+        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+        source["balances"] = "live Airwallex"
+    except (HTTPException, AirwallexError) as exc:
+        source["balances_error"] = str(getattr(exc, "detail", exc))[:200]
+    state, _ = apply_operational_facts(state, app.state.executor.store)
+    return _with_budget(state), source
+
+
+@app.get("/v1/agent-plan")
+async def agent_plan_today():
+    """Agent plan -> Today's plan: what VENTHORA would do now with the organisation's real payments, and why; the
+    part it pays on its own authority and the part that waits for a person. Nothing is paid by reading it."""
+    from . import autonomy, mandate
+
+    state, source = await _todays_state()
+    st = mandate.standing(app.state.org)
+    meta = {"as_of": datetime.now(UTC).isoformat(timespec="seconds"), "source": source, "pay_on_arrival": mandate.pay_on_arrival(app.state.org),
+            "horizon_hours": (st.get("book") or {}).get("horizon_hours", 72)}
+    if state is None:
+        return meta | {"plan": None, "split": None}
+    s = await autonomy.split(app.state.agent, state)
+    return meta | {"plan": s.full.model_dump(), "split": s.summary(),
+                   "balances": {c: v for c, v in state.balances.items()}, "obligations": [o.model_dump() for o in state.obligations]}
+
+
+@app.post("/v1/agent-plan/execute")
+async def agent_plan_execute(role: str = "finance_manager", by: str = "dashboard"):
+    """Pay now the part of today's plan that is inside the mandate (the agent's own authority, no approval); what
+    needs a person stays where it is. The book passes the treasury proof again at execution."""
+    from . import autonomy
+
+    _writer(role, by)
+    state, source = await _todays_state()
+    if state is None:
+        raise HTTPException(409, "nothing waits for payment")
+    if source["balances"] != "live Airwallex":
+        raise HTTPException(503, f"the bank is not connected: {source.get('balances_error', 'no live balance')}")
+    s = await autonomy.split(app.state.agent, state)
+    if s.auto_plan is None or not any(d.action in autonomy.PAYING for d in s.auto_plan.obligations):
+        return {"paid": [], "split": s.summary(), "message": "nothing is inside the mandate to pay now"}
+    res = await app.state.executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash, requested_by=f"{by} (Agent plan)"))
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "agent_plan_executed", {"by": by, "execution_id": res.execution_id, "status": res.status})
+    return {"paid": [d.obligation_id for d in s.auto_plan.obligations if d.action in autonomy.PAYING], "split": s.summary(),
+            "execution": {"execution_id": res.execution_id, "status": res.status, "message": res.message}}
 
 
 @app.get("/v1/receipts")

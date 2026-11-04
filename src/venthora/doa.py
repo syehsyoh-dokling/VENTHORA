@@ -38,11 +38,11 @@ PAY_DAYS = ("last_working_day",) + tuple(str(d) for d in range(1, 29))
 
 INTERNAL: list[dict[str, Any]] = [
     {"key": "personnel", "code": "01", "title": "Personnel", "basis": "Salaries and wages (2 CFR 200.430)", "priority": 10, "account": "6010",
-     "source": "Payroll register: one line per employee, with the employee's registered bank account, currency and net pay; prepared by HR, approved by HR and the FCO",
+     "source": "People and roles: each employee's net pay, salary currency, charge code and own registered bank account; VENTHORA prepares the period's payroll register from it",
      "connected": True,
-     "auto": "No payment instruction is needed each month. On the pay day chosen below VENTHORA reads that period's approved payroll register, checks every line (the employee's own verified account, an allowed currency, a contract still running on the pay day), buys any foreign currency and pays each employee in real time. The first payroll under the delegation, and anyone new on the register, go to a person once.",
-     "approve": "Payment → Payroll register. Before the pay day, make sure every employee to be paid this month is on it with the right net pay and charge code, and that HR and then the FCO have approved it. People and roles must hold each employee's own registered bank account and contract end date: a line for an employee without an account, or whose contract has ended, is not paid.",
-     "never": 'VENTHORA pays no salary. The register is still checked and shown on Payment → Payroll register, but every salary is paid by a person.'},
+     "auto": "No payment instruction and no monthly approval. On the pay day chosen below VENTHORA prepares the period's payroll from People and roles, checks every line (the employee's own verified account, an allowed currency, a contract still running on the pay day) and pays each employee in real time, buying any foreign currency. A salary that is the same as the last one paid goes on its own; only what changed waits.",
+     "approve": "Nothing to prepare each month. People and roles must hold each employee's net pay, salary currency, charge code, own registered bank account and contract end date. A line that changed (the first salary paid to a person, a net pay or an account changed since the last salary, or a line HR adjusted for this period only) waits in Executions & incidents for one person, who is not the one who made the change.",
+     "never": 'VENTHORA pays no salary. The payroll is still prepared and checked (Reporting → Payroll, Executions & incidents → Payroll changes), but every salary is paid by a person.'},
     {"key": "fringe", "code": "02", "title": "Fringe benefits", "basis": "Insurance, pension, social security, leave (2 CFR 200.431)", "priority": 9, "account": "6020",
      "source": "The premium schedule of each policy or plan", "connected": False,
      "auto": "On each benefit's due date, at the frequency set in the list below, VENTHORA pays the insurer, fund or authority with no instruction needed. Not active yet: the benefit schedule is not connected, so nothing is paid from this category today.",
@@ -544,8 +544,10 @@ def register(org, period: str) -> dict | None:
 def save_register(org, period: str, lines: list[dict], by: str) -> dict:
     """A payroll register for one period. Each line: employee, the employee's payee (registered bank account),
     currency, net pay, charge code. Saving it again resets its approvals."""
-    if not lines:
-        raise DoAError("a register needs at least one line")
+    if not lines:  # no adjustment left: the period is paid from People and roles alone
+        with org._lock, org._connect() as c:
+            c.execute("DELETE FROM records WHERE kind = 'payroll_register' AND record_id = ?", (period,))
+        return {"period": period, "lines": [], "status": "prepared", "prepared_by": "VENTHORA", "totals": {}}
     ensure_accounts(org)
     seen = set()
     for ln in lines:
@@ -643,25 +645,68 @@ def evaluate(org, payee_status, payees: dict, today: dt.date) -> list[dict]:
     return out
 
 
+def payroll_lines(org, period: str) -> list[dict]:
+    """The period's payroll as VENTHORA prepares it: one line per active employee with a net pay in People and roles
+    (own account, salary currency, charge code). A line HR adjusted for this period only (overtime, a deduction, a
+    leaver) replaces the employee's line and is marked adjusted, with who adjusted it."""
+    start = dt.date.fromisoformat(period + "-01")
+    lines: dict[str, dict] = {}
+    for u in org.list("user"):
+        if not u.get("active", True) or u.get("salary_minor") is None:
+            continue
+        if u.get("contract_start") and dt.date.fromisoformat(u["contract_start"]) > start.replace(day=28):
+            continue  # starts after this period
+        lines[_slug(u["name"])] = {"employee": u["name"], "user_id": u["user_id"], "payee_id": u.get("payee_id"), "currency": u.get("salary_currency") or "USD",
+                                   "amount_minor": u["salary_minor"], "charge_code": u.get("charge_code") or "", "source": "people"}
+    reg = register(org, period)
+    for ln in (reg or {}).get("lines", []):
+        base = lines.get(_slug(ln["employee"]))
+        same = base and all(base.get(k) == ln.get(k) for k in ("payee_id", "currency", "amount_minor", "charge_code"))
+        lines[_slug(ln["employee"])] = (base or {}) | ln | ({} if same else {"source": "adjusted", "adjusted_by": (reg or {}).get("prepared_by"),
+                                                                              "people_amount_minor": (base or {}).get("amount_minor")})
+    return list(lines.values())
+
+
+def _last_paid(org, employee: str, period: str) -> dict | None:
+    """The salary last paid to the employee before this period (a DoA run that paid it)."""
+    runs = [r for r in org.list("doa_run") if r["category"] == "personnel" and r["status"] in ("PAID", "IN_FLIGHT")
+            and r["period"] < period and _slug(r["employee"]) == _slug(employee)]
+    return max(runs, key=lambda r: r["period"]) if runs else None
+
+
+def _changed_by(org, user_id: str | None, since: str | None) -> str | None:
+    """Who last changed the employee's net pay or account (after the last salary paid, when one was)."""
+    logs = [c for c in org.list("salary_change") if c["user_id"] == user_id and (since is None or c["at"] > since)]
+    return max(logs, key=lambda c: c["at"])["by"] if logs else None
+
+
 def _personnel(org, pol, payee_status, payees, row) -> None:
-    reg = register(org, row["period"]) if row["period"] else None
-    if reg is None:
-        row["summary"], row["reasons"] = "no_document", [f"no payroll register for {row['period']}"]
+    lines = payroll_lines(org, row["period"]) if row["period"] else []
+    if not lines:
+        row["summary"], row["reasons"] = "no_document", ["no one in People and roles has a net pay yet: give each employee a net pay, a salary currency and a charge code"]
         return
-    if reg["status"] != "approved":
-        row["summary"], row["reasons"] = "never", [f"the payroll register for {row['period']} is {reg['status'].replace('_', ' ')}, not approved by HR and the FCO"]
-        row["lines"] = [{"employee": ln["employee"], "verdict": "never", "reasons": ["register not approved"]} for ln in reg["lines"]]
-        return
-    prev = _previous_register(org, row["period"])
-    whole = ["the first payroll paid under this delegation"] if prev is None else []
-    known = {_slug(ln["employee"]) for ln in (prev or {}).get("lines", [])}
     staff = {_slug(u["name"]): u for u in org.list("user")}
     start = dt.date.fromisoformat(row["period"] + "-01")
-    for i, ln in enumerate(reg["lines"]):
+    for i, ln in enumerate(lines):
         never, approve = [], []
-        p = payees.get(ln["payee_id"]) or {}
-        status = payee_status(ln["payee_id"])
-        if not p:
+        last = _last_paid(org, ln["employee"], row["period"])
+        changed_by = None
+        if ln.get("source") == "adjusted":
+            approve.append(f"adjusted for this period by {ln.get('adjusted_by') or 'a person'}"
+                           + (f" (People and roles: {ln['currency']} {ln['people_amount_minor'] / 100:,.2f})" if ln.get("people_amount_minor") else ""))
+            changed_by = ln.get("adjusted_by")
+        elif last is None:
+            approve.append("the first salary paid to this person: a person approves it once")
+            changed_by = _changed_by(org, ln.get("user_id"), None)
+        elif last["amount_minor"] != ln["amount_minor"] or last["currency"] != ln["currency"]:
+            changed_by = _changed_by(org, ln.get("user_id"), last.get("at"))
+            approve.append(f"net pay changed since the last salary paid ({last['currency']} {last['amount_minor'] / 100:,.2f} to "
+                           f"{ln['currency']} {ln['amount_minor'] / 100:,.2f})" + (f" by {changed_by}" if changed_by else ""))
+        p = payees.get(ln.get("payee_id") or "") or {}
+        status = payee_status(ln["payee_id"]) if ln.get("payee_id") else None
+        if not ln.get("payee_id"):
+            never.append("no own bank account in People and roles: register the employee's account")
+        elif not p:
             never.append("the bank account named is not a registered payee")
         elif status not in PAYEE_OK:
             never.append(f"the bank account is {str(status or 'not onboarded').lower()}, not verified")
@@ -680,11 +725,9 @@ def _personnel(org, pol, payee_status, payees, row) -> None:
             org.account_code(ln["charge_code"])
         except Exception as exc:  # noqa: BLE001 (OrgError, with the reason)
             never.append(f"charge code: {exc}")
-        if prev is not None and _slug(ln["employee"]) not in known:
-            approve.append("new on the register")
-        approve += whole
-        row["lines"].append({"line": i, "employee": ln["employee"], "payee_id": ln["payee_id"], "currency": ln["currency"], "amount_minor": ln["amount_minor"],
-                             "charge_code": ln["charge_code"], "verdict": "never" if never else ("approve" if approve else "auto"), "reasons": never or approve,
+        row["lines"].append({"line": i, "employee": ln["employee"], "payee_id": ln.get("payee_id"), "currency": ln["currency"], "amount_minor": ln["amount_minor"],
+                             "charge_code": ln.get("charge_code") or "", "verdict": "never" if never else ("approve" if approve else "auto"), "reasons": never or approve,
+                             "source": ln.get("source", "people"), "changed_by": changed_by, "last_paid_minor": (last or {}).get("amount_minor"),
                              "ref": f"doa:personnel:{row['period']}:{_slug(ln['employee'])}"})
     n = {v: sum(1 for x in row["lines"] if x["verdict"] == v) for v in ("auto", "approve", "never")}
     row["summary"] = "auto" if n["auto"] == len(row["lines"]) else ("never" if n["never"] == len(row["lines"]) else "mixed")
@@ -694,8 +737,10 @@ def _personnel(org, pol, payee_status, payees, row) -> None:
 def _fix(reason: str) -> tuple[str, str]:
     """What to do about a reason a due payment cannot go, and where."""
     r = reason.lower()
-    if "register" in r and ("no payroll" in r or "not approved" in r):
-        return "Prepare the period's payroll register and have HR and the FCO approve it", "#/payroll"
+    if "register" in r and ("no payroll" in r or "not approved" in r) or "no one in people and roles" in r:
+        return "Give each employee a net pay, a salary currency and a charge code in People and roles", "#/users"
+    if "no own bank account" in r:
+        return "Register the employee's own bank account in People and roles (Bank account)", "#/users"
     if "not verified" in r or "not onboarded" in r or "not a registered payee" in r:
         return "Verify the bank account in Payees (call-back on the registered number)", "#/payees"
     if "receives" in r or "currency" in r:
@@ -704,8 +749,8 @@ def _fix(reason: str) -> tuple[str, str]:
         return "Correct the person in People and roles (contract end date), or take the line off the register", "#/users"
     if "charge code" in r:
         return "Correct the charge code in Projects and accounts", "#/codes"
-    if "first payroll" in r or "new on the register" in r:
-        return "A person approves this line once", "#/payroll"
+    if "first salary" in r or "changed" in r or "adjusted" in r:
+        return "A person other than the one who made the change pays it once, in Executions & incidents → Payroll changes", "#/executions"
     return "Look at the reason and correct the source document", "#/mandate"
 
 
@@ -714,6 +759,7 @@ def pending(org, payee_status, payees: dict, today: dt.date) -> dict:
     each with why (including an earlier run that held or failed) and what to fix. A run is allowed only when
     nothing is blocked."""
     runs = {r["_id"]: r for r in org.list("doa_run")}
+    pre = {a["_id"]: a for a in org.list("payroll_approval")}
     ready, blocked = [], []
     for row in evaluate(org, payee_status, payees, today):
         c = BY_KEY[row["key"]]
@@ -727,18 +773,19 @@ def pending(org, payee_status, payees: dict, today: dt.date) -> dict:
             continue
         for ln in row["lines"]:
             done = runs.get(ln.get("ref") or "")
-            if done and done["status"] in ("PAID", "IN_FLIGHT"):
+            if done and done["status"] in ("PAID", "IN_FLIGHT", "IN_REVIEW"):
                 continue
             item = {"category": c["title"], "period": row["period"], "who": ln["employee"], "amount_minor": ln.get("amount_minor"), "currency": ln.get("currency")}
             if done and done["status"] == "HELD" and ln["verdict"] == "auto":
                 blocked.append(item | {"reason": f"the last run did not pay it: {done['message']}", "fix": "Correct what the last run reports, then run again", "where": "#/mandate"})
-            elif ln["verdict"] == "auto":
+            elif ln["verdict"] == "auto" or (ln["verdict"] == "approve" and ln.get("ref") in pre
+                                               and all(pre[ln["ref"]].get(k) == ln.get(k) for k in ("amount_minor", "currency", "payee_id", "charge_code"))):
                 ready.append(item)
             else:
                 for reason in ln["reasons"]:
                     fix, where = _fix(reason)
                     blocked.append(item | {"reason": reason, "fix": fix, "where": where})
-    return {"ready": ready, "blocked": blocked, "may_run": bool(ready) and not blocked}
+    return {"ready": ready, "blocked": blocked, "may_run": bool(ready)}  # the blocked ones wait for a person; they stop nothing else
 
 
 def book(base: TreasuryState, row: dict, lines: list[dict], payees: dict, today: dt.date) -> TreasuryState:

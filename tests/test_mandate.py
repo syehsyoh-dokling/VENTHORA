@@ -1,7 +1,7 @@
 # ruff: noqa: E501
 """The standing mandate: seven categories, each with its policy; document checks on every request, each on hold, warn
 or off; every limit in one list; one role holds the authority to change it; a change that weakens a critical control
-needs an acknowledged warning; every Operations run starts from it; an API key can never change it."""
+needs an acknowledged warning; every Autopilot Console run starts from it; an API key can never change it."""
 import datetime as dt
 
 import pytest

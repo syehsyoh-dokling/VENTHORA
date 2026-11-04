@@ -250,6 +250,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <a class="brand" href="#/overview"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>VENTHORA</b><small>Treasury on Airwallex</small></span></a>
  <nav id="mainNav">
   <a href="#/overview" data-nav="overview" class="mtop"><i>◧</i>Dashboard</a>
+  <a href="#/agent-plan" data-nav="agent-plan" data-also="plan" class="mtop"><i>✦</i>Agent plan</a>
   <a href="/flow" class="mtop"><i>⇢</i>Workflow<span class="ext">↗</span></a>
 
   <div class="mg" data-g="payment"><button type="button" class="mh"><i>⇄</i><span>Payment</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
@@ -257,6 +258,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/commitments" data-nav="commitments"><i>◫</i>Commitment</a>
    <a href="#/pending" data-nav="pending"><i>⏳</i>Pending payment<span class="cnt" id="cnt-intake"></span></a>
    <a href="#/receiving" data-nav="receiving"><i>⇩</i>Balance received</a>
+   <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget allocation</a>
+   <a href="#/executions" data-nav="executions" data-also="payroll"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
   </div></div>
 
   <div class="mg" data-g="mandate"><button type="button" class="mh"><i>⚖</i><span>Reporting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
@@ -267,14 +270,9 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/rep-cash" data-nav="rep-cash"><i>¤</i>5 · Cash advance</a>
    <a href="#/rep-travel" data-nav="rep-travel"><i>✈</i>6 · Travel &amp; transport</a>
    <a href="#/rep-odc" data-nav="rep-odc"><i>◇</i>7 · Other direct cost</a>
-   <a href="/live"><i>▶</i>Operations run<span class="ext">↗</span></a>
-   <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
    <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Payment reports</a>
-   <a href="#/payroll" data-nav="payroll"><i>☰</i>Payroll register</a>
-   <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget allocation</a>
    <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
    <a href="#/books" data-nav="books"><i>▥</i>Books &amp; segregation</a>
-   <a href="#/plan" data-nav="plan"><i>◇</i>Plan &amp; proof</a>
    <a href="#/budget" data-nav="budget"><i>▤</i>Budget &amp; mandate</a>
    <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
    <a href="#/reporting" data-nav="reporting"><i>◷</i>Reporting periods</a>
@@ -306,16 +304,18 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/standards" data-nav="standards"><i>⚑</i>Finance standards</a>
    <a href="#/doc-rules" data-nav="doc-rules"><i>✓</i>Document validation</a>
    <a href="#/mandate" data-nav="mandate"><i>⚖</i>Delegation of Authority</a>
+   <a href="#/priority-sop" data-nav="priority-sop"><i>⇅</i>Payment Priority SOP</a>
    <a href="#/budget-policy" data-nav="budget-policy"><i>◷</i>Period, cut-off &amp; sync</a>
    <a href="#/integrations" data-nav="integrations"><i>↯</i>Airwallex webhooks</a>
    <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
+   <a href="/live" title="The agent's own run: plan, prove, pay and reconcile a book end to end"><i>▶</i>Autopilot Console<span class="ext">↗</span></a>
   </div></div>
  </nav>
  <div class="actor"><label class="small muted" for="actor">Acting as</label><select id="actor"></select></div>
 </aside>
 <div class="content">
 <header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><h1 id="pageTitle">Dashboard</h1>
- <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><a class="go" href="/live">Operations run ▸</a></span></header>
+ <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><a class="go" href="/live">Autopilot Console ▸</a></span></header>
 <main>
  <!-- ===== Overview: charts and notifications only ===== -->
  <section class="span12 plain" data-view="overview">
@@ -333,12 +333,18 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span6" data-view="overview"><h2><span>Payees by status</span><span class="small muted">lifecycle</span></h2><div id="chPayees" class="chart"><div class="empty">loading…</div></div></section>
 
  <!-- ===== Treasury ===== -->
- <section class="span12" data-view="plan">
-  <h2><span>Plan &amp; proof</span>
-   <span class="row"><select id="scenario"></select>
-    <button id="plan" class="primary">Plan</button>
-    <button id="planIntake" title="add the intake queue to this book, then plan">Plan with intake queue</button></span></h2>
-  <div id="planOut" class="empty">Choose a book and press Plan.</div>
+ <section class="span12" data-view="agent-plan">
+  <style>#apTabs{gap:6px;background:transparent;border:0;padding:0;flex-wrap:wrap}#apTabs button{color:#fff;padding:8px 14px;border-radius:9px;opacity:.55}#apTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35)}
+   #apTabs [data-aptab=today]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}#apTabs [data-aptab=proof]{background:linear-gradient(135deg,#0ea5a4,#2f6fed)}#apTabs [data-aptab=console]{background:linear-gradient(135deg,#f59e0b,#db2777)}</style>
+  <h2><span>Agent plan</span><span class="tabs" id="apTabs"><button data-aptab="today" class="on">1 · Today's plan</button><button data-aptab="proof">2 · Proof &amp; what if</button><button data-aptab="console">3 · Autopilot Console</button></span></h2>
+  <div class="small" id="apNote" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"></div>
+  <div data-appane="today"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><span class="small muted" id="apSource"></span><span style="flex:1"></span>
+    <button id="apRefresh">Plan again now</button><button class="primary" id="apExec">Pay the agent's part now</button></div>
+   <div id="apSplit"></div><div id="apToday" class="empty">planning…</div></div>
+  <div data-appane="proof" hidden><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><select id="scenario"></select>
+    <button id="plan" class="primary">Plan</button><button id="planIntake" title="add the intake queue to this book, then plan">Plan with intake queue</button></div>
+   <div id="planOut" class="empty">Choose a book and press Plan.</div></div>
+  <div data-appane="console" hidden><div id="apConsole"></div></div>
  </section>
 
  <section class="span12" data-view="budget">
@@ -438,6 +444,17 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <label class="small">Type<select id="spTy"><option value="">All</option></select></label><button id="spReset">Reset</button></div>
   <div id="spTiles" class="cm-tiles"></div><div id="spBody" class="empty">loading…</div>
  </section>
+ <section class="span12" data-view="priority-sop">
+  <h2><span>Payment Priority SOP</span><span class="row"><span class="small muted" id="sopMeta"></span></span></h2>
+  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"><b>What VENTHORA pays first when the money cannot cover everything.</b>
+   Set each spending category <b>High</b>, <b>Medium</b> or <b>Low</b>, and its place in the list. This is the priority every payment carries into the plan VENTHORA builds for the next <b id="sopH">72</b> hours (the planning horizon, set in Delegation of Authority → Treasury limits): the higher one is paid first, and inside the same priority the earliest due date. High gives 10 down to 8 (the first two High categories share 10: wages and the taxes and social security withheld, by default), Medium 7 down to 5, Low 4 down to 1, in list order.
+   <div style="margin-top:6px"><b>A priority never makes a payment allowed.</b> Before any ranking, every payment must pass the checks that are always enforced: a genuine request, a registered payee whose account was confirmed by a call-back (and the cooling period after a change), an open purchase order with room, no duplicate, the documents required, the Delegation of Authority, the budget line, the reserve floor and the treasury limits. A payment that fails one is held, whatever its level.</div>
+   <div class="muted" style="margin-top:6px">The default follows international practice: wages first (ILO C95 and C173), then taxes and social security withheld, then suppliers whose non-payment stops operations; contracted services and normal suppliers next (EU Directive 2011/7/EU on late payment); what is cheapest to defer last. The full SOP is docs/PAYMENT_PRIORITY_SOP.md.</div></div>
+  <div id="sopBody" class="empty">loading…</div>
+  <h3 class="small muted" style="margin:16px 0 6px">The payments waiting now, in the order the plan takes them</h3>
+  <div class="small muted" style="margin-bottom:6px">Payments in Pending payment that passed their checks or wait for a person, ranked with the levels above as you set them (before saving too). The plan then pays from the top while the money lasts above the reserve floor; the rest is deferred to a reliable receipt or escalated.</div>
+  <div id="sopPreview"></div>
+ </section>
  <section class="span12" data-view="pending">
   <h2><span>Pending payment</span><span class="row"><span class="small muted" id="intakeMeta"></span><button class="primary" id="newOrder">New payment order</button></span></h2>
   <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"><b>Every payment waiting to go out:</b> invoices and claims that arrived by email, payment orders raised here or from a commitment, and requests synced or uploaded. Each one went through the same checks: a registered sender and payee, an open PO with room, no duplicate, the documents the rules require. What a person must decide is marked; the rest is paid by VENTHORA on its own, within the Delegation of Authority.</div>
@@ -449,8 +466,18 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="payees" class="empty">loading…</div>
  </section>
 
- <section class="span6" data-view="executions"><h2>Executions</h2><div id="executions" class="empty">loading…</div></section>
- <section class="span6" data-view="executions"><h2>Payment incidents</h2><div id="incidents" class="empty">loading…</div></section>
+ <section class="span12" data-view="executions">
+  <style>#exTabs{gap:6px;background:transparent;border:0;padding:0;flex-wrap:wrap}#exTabs button{color:#fff;padding:8px 14px;border-radius:9px;opacity:.55}#exTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35)}
+   #exTabs button{background:linear-gradient(135deg,#475569,#2f6fed)}#exTabs button.hot{background:linear-gradient(135deg,#f59e0b,#ef4444)}#exTabs .n{display:inline-block;min-width:18px;margin-left:6px;padding:0 6px;border-radius:9px;background:rgba(255,255,255,.25)}</style>
+  <h2><span>Executions &amp; incidents</span><span class="tabs" id="exTabs"><button data-xtab="pay" class="on">1 · Payroll changes<span class="n" id="xn-pay"></span></button><button data-xtab="due">2 · Blocked due payments<span class="n" id="xn-due"></span></button>
+   <button data-xtab="cb">3 · Payee call-backs<span class="n" id="xn-cb"></span></button><button data-xtab="rv">4 · Requests to review<span class="n" id="xn-rv"></span></button>
+   <button data-xtab="rc">5 · Reconciliation &amp; executions<span class="n" id="xn-rc"></span></button><button data-xtab="in">6 · Payment incidents<span class="n" id="xn-in"></span></button></span></h2>
+  <div id="exBanner"></div>
+  <div class="small" id="exNote" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin:10px 0"></div>
+  <div data-xpane="pay"><div id="exPay" class="empty">loading…</div></div><div data-xpane="due" hidden><div id="exDue"></div></div>
+  <div data-xpane="cb" hidden><div id="exCb"></div></div><div data-xpane="rv" hidden><div id="exRv"></div></div>
+  <div data-xpane="rc" hidden><div id="executions" class="empty">loading…</div></div><div data-xpane="in" hidden><div id="incidents" class="empty">loading…</div></div>
+ </section>
 
  <section class="span12" data-view="runs"><h2><span>Run reports</span><span class="small muted">cycles recorded on Airwallex</span></h2><div id="runs" class="empty">loading…</div></section>
 
@@ -460,7 +487,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <b>Everyone VENTHORA pays, routes to, or takes an approval from</b>
    <div class="small" style="margin-top:6px;line-height:1.65">Every employee of the head office, a country office, a branch or a unit belongs here, with what the payment automations read:</div>
    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:8px 18px;margin-top:8px" class="small">
-    <div><b>Salary.</b> The monthly <b>net pay</b>, its currency and the <b>charge code</b> it is booked to fill the payroll register line of each person (Payment → Payroll register); the <b>contract start and end</b> decide whether a salary is due at all.</div>
+    <div><b>Salary.</b> The monthly <b>net pay</b>, its currency and the <b>charge code</b> it is booked to fill the payroll register line of each person (VENTHORA prepares the payroll from it every period; Reporting → Payroll shows each line); the <b>contract start and end</b> decide whether a salary is due at all.</div>
     <div><b>Their own bank account.</b> Salary, travel claims and cash advances go only to the person's <b>own registered account</b>, verified by a call-back like any beneficiary; without one, nothing is paid to them on the agent's authority.</div>
     <div><b>Benefits.</b> The fringe benefits the person is enrolled in (insurance, pension, social security…), from the list in Delegation of Authority → 02.</div>
     <div><b>Approvals.</b> The <b>role</b> decides what the person may do in VENTHORA; the <b>unit</b> and the <b>approval limit</b> decide which exceptions they approve; nobody approves their own request.</div>
@@ -843,10 +870,6 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="mandateView" class="empty">loading…</div>
   </div>
  </section>
- <section class="span12" data-view="payroll">
-  <h2><span>Payroll register</span><span class="small muted">one line per employee; HR approves it, then the FCO, before anything is paid</span></h2>
-  <div id="payrollView" class="empty">loading…</div>
- </section>
  <section class="span12" data-view="books">
   <div class="small" style="margin-bottom:12px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>Each book is a separate pool of money.</b> A book only pays the payees it allows, only the approvers named for it may approve its plans, and its own policy, where it has one, replaces the company's limits. A book never spends another book's money. Read from the tenant registry (data/tenants.json).</div>
   <h2><span>Tenants · books</span><span class="small muted" id="tenantMeta">whose book, which payees, whose signature, which policy; a book never spends another book's money</span></h2>
@@ -919,12 +942,12 @@ async function platform(){try{const s=await api("/api/status");const a=s.authori
   .map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:16px">${esc(v)}</div><div class="d">${esc(d)}</div></div>`).join("");
  $("#status").textContent=`api ok · ${new Date().toLocaleTimeString()}`}catch(e){$("#status").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
 
-function renderPlan(p){const sim=p.simulation||{};const pol=(p.stages.find(s=>s.engine==="Policy")||{}).details||{};const req=(pol.local||{}).requires_approval||[];
+function renderPlan(p,target){const sim=p.simulation||{};const pol=(p.stages.find(s=>s.engine==="Policy")||{}).details||{};const req=(pol.local||{}).requires_approval||[];
  const ar=p.approval_requirement;const tiles=[["Decision",pill(p.decision),req.join(", ")+(ar?` · ${ar.approvals_required} approval(s)${ar.approvals_required>1?" from different people":""} (${ar.roles.join(", ")}); tier ${ar.tier}; never the requester`:"")],["Base cost",fmt(p.total_base_cost_minor,"USD"),`after: ${fmt(p.projected_base_balance_minor,"USD")}`],
   ["Reserve floor",fmt(p.required_base_floor_minor,"USD"),"floor + FX stress"],["P(breach 72h)",sim.breach_probability_bp!=null?(sim.breach_probability_bp/100).toFixed(1)+"%":"-",sim.paths?`${sim.paths.toLocaleString()} Horizon paths`:""],
   ["FX limit",fmt(p.conversion_limit_minor,"USD"),p.forecast_confidence_bp!=null?`confidence ${(p.forecast_confidence_bp/100).toFixed(0)}%`:"no open receipt"],["Latency",`${p.duration_ms.toFixed(0)} ms`,p.solver]];
  const maxB=Math.max(1,...p.counterfactuals.map(c=>c.breach_probability_bp||0));
- $("#planOut").innerHTML=`<div class="tiles">${tiles.map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:17px">${v}</div><div class="d">${esc(d)}</div></div>`).join("")}</div>
+ $(target||"#planOut").innerHTML=`<div class="tiles">${tiles.map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v" style="font-size:17px">${v}</div><div class="d">${esc(d)}</div></div>`).join("")}</div>
  <h3 class="small muted" style="margin:14px 0 6px">Decisions</h3>${table([{h:"Action",f:r=>pill(r.action)},{h:"Obligation",f:r=>esc(r.obligation_id)},{h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Why",f:r=>`<span class="small">${esc(r.reason)}</span>`}],p.obligations)}
  <div class="two">
   <div><h3 class="small muted" style="margin:0 0 6px">Engines</h3>${table([{h:"Stage",f:r=>pill(r.status)},{h:"Engine",f:r=>esc(r.engine)},{h:"",f:r=>`<span class="small">${esc(r.summary)}</span>`}],p.stages)}</div>
@@ -991,9 +1014,9 @@ async function matrix(){try{const m=await api("/api/matrix");const s=m.summary;$
 // ---- Budget · mandate: plan / realized / paying now / committed / available / minus per line ----
 const btone={auto:"good",alert:"warn",needs_approval:"warn",exceeded:"critical",bypass:"serious"};
 async function budget(){try{if(!$("#budgetBook").options.length){const s=await api("/api/scenarios");
-  // The book of the latest operations run comes first when there is one; the stored books follow.
+  // The book of the latest Autopilot Console run comes first when there is one; the stored books follow.
   let live=false;try{live=!!(await api("/api/live/latest")).sid}catch(e){}
-  $("#budgetBook").innerHTML=(live?`<option value="live" selected>Latest operations run</option>`:"")+s.map(x=>`<option value="${x.id}" ${!live&&x.id==="kit01_initial"?"selected":""}>${esc((x.title||x.id).replace(/^Kit 0\d\s*-\s*/,"").split(":")[0])}</option>`).join("");$("#budgetBook").onchange=budget}
+  $("#budgetBook").innerHTML=(live?`<option value="live" selected>Latest Autopilot Console run</option>`:"")+s.map(x=>`<option value="${x.id}" ${!live&&x.id==="kit01_initial"?"selected":""}>${esc((x.title||x.id).replace(/^Kit 0\d\s*-\s*/,"").split(":")[0])}</option>`).join("");$("#budgetBook").onchange=budget}
  const b=await api("/api/budget?scenario_id="+$("#budgetBook").value);
  $("#budgetMeta").textContent=`${b.period} · plan ${b.decision}${b.requires_approval.length?" ("+b.requires_approval.join(", ")+")":""}`;
  const mx=Math.max(1,...b.lines.map(r=>r.mandate_minor));
@@ -1109,12 +1132,12 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",pending:"Pending payment","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
+const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Payment Priority SOP","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
  standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),payroll:()=>payrollView(),integrations:()=>webhookView()};
-function route(){const MOVED={pos:"#/intake?po",travel:"#/intake?travel"};const v0=(location.hash.match(/^#\/([\w-]+)/)||[])[1];if(MOVED[v0]){location.hash=MOVED[v0];return}
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),integrations:()=>webhookView()};
+function route(){const MOVED={plan:"#/agent-plan?proof",pos:"#/intake?po",travel:"#/intake?travel",payroll:"#/executions"};const v0=(location.hash.match(/^#\/([\w-]+)/)||[])[1];if(MOVED[v0]){location.hash=MOVED[v0];return}
  const v=v0;const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
  document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
@@ -1780,7 +1803,7 @@ function cmRender(){const d=CM;if(!d)return;const q=$("#cmQ").value.trim().toLow
    {h:"Employment",f:u=>esc((u.employment_type||"-").replace("_"," "))},{h:"Contract",f:u=>`${esc(u.contract_start||"-")} → ${esc(u.contract_end||"open-ended")}`+(u.contract_end?cmDays(u.days_left):"")},
    {h:"Monthly net pay",num:1,f:u=>u.salary_minor!=null?fmt(u.salary_minor,u.salary_currency):"-"},{h:"Charge code",f:u=>`<span class="mono">${esc(u.charge_code||"-")}</span>`},
    {h:"Latest register",f:u=>u.last_register?`${esc(u.last_register)} ${pill(String(u.last_register_status).toUpperCase())}`:'<span class="small muted">none yet</span>'},{h:"Status",f:u=>cmPill(u.status)}],
-   list,null,u=>u.user_id,"no one on payroll yet: add net pay in People & roles");acts=`<a class="small" href="#/users">People &amp; roles ›</a><a class="small" href="#/payroll">Payroll register ›</a>`}
+   list,null,u=>u.user_id,"no one on payroll yet: add net pay in People & roles");acts=`<a class="small" href="#/users">People &amp; roles ›</a><a class="small" href="#/rep-payroll">Payroll report ›</a><a class="small" href="#/executions">Payroll changes ›</a>`}
  $("#cmTiles").innerHTML=tiles;$("#cmBody").innerHTML=html;$("#cmActs").innerHTML=acts;$("#cmBody").classList.remove("empty");$("#cmSrc").innerHTML=cmSrc();
  $("#cmRefresh").onclick=cmRefresh;
  $("#cmBody").querySelectorAll("[data-cprof]").forEach(b=>b.onclick=()=>cmProfile(b.dataset.cprof));
@@ -1852,6 +1875,121 @@ async function orderForm(pre={}){const sup=await suppliers();let pos=[];try{pos=
   try{const r=await api(`/v1/intake/payment-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();
    toast(`Payment order ${esc(r.invoice_no)}: ${esc(r.status.toLowerCase().replace("_"," "))}`,r.status==="VERIFIED"?"good":r.status==="NEEDS_REVIEW"?"warn":"serious");(pre.after||intake)()}catch(e){$("#dlgErr").textContent=e.message}}}
 $("#newOrder").onclick=()=>orderForm();
+// ---- Agent plan: today's plan on the real payments; proof and what if on a book; the Autopilot Console
+let APTAB="today";const AP_OF=()=>{const m=location.hash.match(/^#\/agent-plan\?(\w+)/);return m&&["today","proof","console"].includes(m[1])?m[1]:APTAB};
+const AP_NOTE={today:`<b>What VENTHORA would do now with the organisation's real payments, and why.</b> Every request waiting in Pending payment and every salary ready for the pay day, on the live Airwallex balance and rates, ranked by the Payment Priority SOP, inside the planning horizon. Each payment gets a decision (pay, convert and pay, defer to a reliable receipt, escalate) with its reason, and the plan is proved before money moves: the reserve floor with an FX stress buffer, the chance of breaching it, the treasury limits, the budget and the Delegation of Authority. <b>Paid by VENTHORA on its own</b> is what the mandate allows; <b>waits for a person</b> goes to Executions &amp; incidents or Pending payment. Reading this page pays nothing.`,
+ proof:`<b>Proof and what if, on a book.</b> Plan any stored book (the hackathon's Kit 01 scenarios, the live demo book) and see how the plan is proved: the engines that checked it, the simulation of the balance over the horizon, and each alternative the agent rejected with its chance of breaching the reserve ("what if we paid everything now?"). "Plan with intake queue" adds the payments waiting in Pending payment to that book.`,
+ console:`<b>The agent's whole cycle on the live wallet, step by step</b>, as the hackathon's demo asks: 1 · the goal and the mandate you give it; 2 · its initial plan for the next hours, proved; 3 · new information arrives (an email, quoted word for word); 4 · the revised decision, changing only what the news affects; 5 · the payments go out on Airwallex and the book is reconciled to the cent. Every step is on the audit chain.`};
+function apTab(t){APTAB=t;document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.classList.toggle("on",b.dataset.aptab===t));document.querySelectorAll("[data-appane]").forEach(x=>x.hidden=x.dataset.appane!==t);$("#apNote").innerHTML=AP_NOTE[t];
+ if(t==="today")apToday();else if(t==="console")apConsole()}
+document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.onclick=()=>{history.replaceState(null,"",`#/agent-plan?${b.dataset.aptab}`);apTab(b.dataset.aptab)});
+async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on the live balance…</div>';$("#apSplit").innerHTML="";
+ try{const d=await api("/v1/agent-plan");const src=d.source;
+  $("#apSource").innerHTML=`${src.requests} request(s) waiting · ${src.payroll_lines} salary line(s)${src.pay_date?` for ${dmy(src.pay_date)}`:""} · balances: <b>${esc(src.balances)}</b>${src.balances_error?` <span class="muted">(${esc(src.balances_error)})</span>`:""} ${src.next_round?` · <b>${src.next_round} more in the next round</b> (one plan proves 12 at a time, the most urgent by the SOP first)`:""} · horizon ${d.horizon_hours} h · real time ${d.pay_on_arrival?'<span class="pill good">ON</span>':'<span class="pill warn">OFF</span>'}`;
+  if(!d.plan){$("#apToday").innerHTML='<div class="empty">Nothing waits for payment now: every request is paid or decided. New invoices, payment orders and the next payroll appear here as they arrive.</div>';$("#apExec").disabled=true;return}
+  const sp=d.split,mine=sp.autonomous||[];$("#apExec").disabled=!mine.length;
+  const seen=new Set((sp.held||[]).map(h=>h.obligation_id));
+  const held=[...(sp.held||[]),...d.plan.obligations.filter(o=>["ESCALATE","REJECT","DEFER"].includes(o.action)&&!seen.has(o.obligation_id)).map(o=>({obligation_id:o.obligation_id,reasons:[`${o.action.toLowerCase()}: ${o.reason}`]})),
+   ...(src.payroll_waiting||[]).map(w=>({obligation_id:`salary · ${w.employee}`,reasons:w.reasons}))];
+  $("#apSplit").innerHTML=`<div class="two" style="margin-bottom:10px"><div class="tile"><b>Paid by VENTHORA on its own now (${mine.length})</b>${mine.length?table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Action",f:x=>pill(x.action)},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)}],mine):'<div class="small muted">nothing is inside the mandate to pay alone right now</div>'}</div>
+   <div class="tile"><b>Waits for a person, deferred or not paid (${held.length})</b>${held.length?table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Why",f:x=>`<span class="small">${(x.reasons||[]).map(r=>esc(String(r).replaceAll("_"," "))).join("; ")}</span>`}],held)+'<div class="small" style="margin-top:6px"><a href="#/executions">Executions &amp; incidents ›</a> · <a href="#/pending">Pending payment ›</a></div>':'<div class="small muted">nothing: the whole plan is inside the mandate</div>'}${sp.stopped_for_cash?`<div class="small" style="margin-top:6px;color:var(--warn)">stopped for cash: ${esc(String(sp.stopped_for_cash))}</div>`:""}</div></div>`;
+  renderPlan(d.plan,"#apToday")}catch(e){$("#apToday").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#apRefresh").onclick=apToday;
+$("#apExec").onclick=async()=>{if(!confirm("Pay now the part of today's plan that is inside the mandate? It goes out on Airwallex (sandbox)."))return;$("#apExec").disabled=true;
+ try{const r=await api(`/v1/agent-plan/execute?${who()}`,{method:"POST"});toast(r.paid.length?`Paid ${r.paid.length}: ${r.execution?r.execution.status:""}`:r.message,r.paid.length?"good":"warn");apToday();intake();executions()}
+ catch(e){toast(esc(e.message),"serious");$("#apExec").disabled=false}};
+async function apConsole(){let last=null;try{last=(await api("/api/live/latest")).sid}catch(e){}
+ $("#apConsole").innerHTML=`<div class="tile"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b>Autopilot Console</b><div class="small muted">opens in its own page, on the live Airwallex sandbox wallet</div></div>
+   <div class="row" style="gap:8px"><a class="go" href="/live">Open the Autopilot Console ▸</a>${last?`<a class="small" href="/live#${esc(last)}">the latest run ›</a>`:""}</div></div>
+  <ol class="small" style="margin:10px 0 0;padding-left:18px;line-height:1.8"><li><b>Goal and mandate</b>: the book, the allocation ring-fenced from the wallet, the reserve floor, the horizon, every permission and safeguard, the budget, the approvers.</li>
+   <li><b>Initial plan</b>: every obligation decided and proved, with the alternatives it rejected.</li><li><b>New information</b>: a new email, used only because it can be quoted word for word.</li>
+   <li><b>Revised decision</b>: only the decisions the news affects change; the others stay locked.</li><li><b>Resulting state</b>: payments out on Airwallex, a deposit confirmed, the book reconciled to the cent.</li></ol></div>`}
+
+// ---- System Setting → Payment Priority SOP: High / Medium / Low and the place of each spending category
+let SOP=null,SOPROWS=[],SOPLATE=true;const SOP_BANDS={high:[10,8],medium:[7,5],low:[4,1]},SOP_TONE={high:"critical",medium:"warn",low:""};
+function sopRank(){const shared=(SOP&&SOP.top_shared)||2;for(const [lvl,[top,floor]] of Object.entries(SOP_BANDS))SOPROWS.filter(r=>r.level===lvl).forEach((r,n)=>r.priority=Math.max(lvl==="high"?top-Math.max(n-(shared-1),0):top-n,floor))}
+async function sopView(){try{SOP=await api(`/v1/priority-sop?role=${encodeURIComponent(actor().role)}`);SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;$("#sopH").textContent=SOP.horizon_hours;sopRender()}
+ catch(e){$("#sopBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function sopRender(){sopRank();const can=SOP.authority.you_may_change,dis=can?"":"disabled";
+ $("#sopMeta").textContent=SOP.saved?`saved by ${SOP.updated_by}`:"not saved yet: each payee's own priority applies";
+ $("#sopBody").classList.remove("empty");
+ $("#sopBody").innerHTML=`${can?"":`<div class="small" style="margin-bottom:8px;color:var(--warn)">Only the mandate authority (${esc(SOP.authority.role.replace("_"," "))}) changes this SOP; you may read it.</div>`}
+  <table><thead><tr><th class="num">#</th><th>Spending category</th><th>What falls in it</th><th>Level</th><th class="num">Priority</th><th>Why (standard)</th><th></th></tr></thead><tbody>
+  ${SOPROWS.map((r,i)=>`<tr><td class="num">${i+1}</td><td><b>${esc(r.label)}</b></td><td class="small">${esc(r.detail)}</td>
+   <td><select data-sopl="${i}" ${dis}>${Object.entries(SOP.levels).map(([k,l])=>`<option value="${k}" ${k===r.level?"selected":""}>${esc(l)}</option>`).join("")}</select>${r.level!==r.default_level?'<div class="small muted">changed</div>':""}</td>
+   <td class="num"><span class="pill ${SOP_TONE[r.level]}">${r.priority}</span></td><td class="small muted">${esc(r.standard)}</td>
+   <td><div class="acts"><button data-sopu="${i}" ${dis||(i===0?"disabled":"")} aria-label="Move up">↑</button><button data-sopd="${i}" ${dis||(i===SOPROWS.length-1?"disabled":"")} aria-label="Move down">↓</button></div></td></tr>`).join("")}</tbody></table>
+  <div class="tile small" style="margin-top:10px"><label class="check"><input type="checkbox" id="sopLate" ${SOPLATE?"checked":""} ${dis}> <b>The cost of being late moves a payment up one step inside its level</b></label>
+   <div class="muted" style="margin-top:4px">A payment that is overdue, that the payee sent a second reminder or a final notice for, or whose contract charges late interest of 8% a year or more (EU Directive 2011/7/EU: the reference rate plus 8 points) goes one step up, never above the top of its level.</div></div>
+  <div class="tile small" style="margin-top:8px">${SOP.pay_on_arrival?'<span class="pill good">ON</span> <b>Real time:</b> a verified request that passes every check is paid the moment it arrives, in the order above when the money is short; a sweep every minute retries what waited.'
+   :'<span class="pill warn">OFF</span> <b>Real time is off:</b> a verified request waits for a run, or for Pay in Pending payment.'} Switched in <a href="#/mandate" id="sopToDoa">Delegation of Authority → Treasury limits and controls → Limits and thresholds</a> ("Pay a verified request the moment it passes every check").</div>
+  <div class="row" style="margin-top:10px;gap:8px"><button class="primary" id="sopSave" ${dis}>Save Payment Priority SOP</button><button id="sopReset" ${dis}>Back to the standard levels</button><span class="small" id="sopMsg"></span></div>`;
+ const pr=Object.fromEntries(SOPROWS.map(r=>[r.key,r.priority]));
+ const top=Object.fromEntries(SOPROWS.map(r=>[r.key,SOP_BANDS[r.level][0]]));
+ const rows=SOP.preview.map(x=>({...x,priority:pr[x.category]+(SOPLATE&&x.late&&x.late.length&&pr[x.category]<top[x.category]?1:0)})).sort((a,b)=>b.priority-a.priority||a.due_in_hours-b.due_in_hours);
+ $("#sopPreview").innerHTML=table([{h:"Order",num:1,f:x=>rows.indexOf(x)+1},{h:"Payee",f:x=>`<b>${esc(x.payee)}</b><div class="small muted mono">${esc(x.obligation_id)}</div>`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)},
+  {h:"Due in",num:1,f:x=>`${x.due_in_hours} h${x.late&&x.late.length?`<div class="small" style="color:var(--critical)">${x.late.map(esc).join(", ")}</div>`:""}`},{h:"Category",f:x=>esc(x.category_label)},{h:"Priority",num:1,f:x=>`<b>${x.priority}</b>${x.payee_priority!=null&&x.payee_priority!==x.priority?`<div class="small muted">payee's own ${x.payee_priority}</div>`:""}`}],rows,"nothing waits for payment now");
+ document.querySelectorAll("[data-sopl]").forEach(el=>el.onchange=()=>{SOPROWS[+el.dataset.sopl].level=el.value;sopRender()});
+ $("#sopLate").onchange=()=>{SOPLATE=$("#sopLate").checked;sopRender()};
+ $("#sopToDoa").onclick=()=>{setTimeout(()=>{const t=document.querySelector('[data-dtab="ctl"]');if(t)t.click();setTimeout(()=>{const l=document.querySelector('[data-mtab="lim"]');if(l)l.click()},600)},600)};
+ const mv=(i,d)=>{const j=i+d;[SOPROWS[i],SOPROWS[j]]=[SOPROWS[j],SOPROWS[i]];sopRender()};
+ document.querySelectorAll("[data-sopu]").forEach(b=>b.onclick=()=>mv(+b.dataset.sopu,-1));document.querySelectorAll("[data-sopd]").forEach(b=>b.onclick=()=>mv(+b.dataset.sopd,1));
+ $("#sopReset").onclick=()=>{const order=SOP.items.map(r=>r.key);SOPROWS.sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));SOPROWS.forEach(r=>r.level=r.default_level);sopRender()};
+ $("#sopSave").onclick=async()=>{$("#sopMsg").textContent="saving…";
+  try{SOP=await api(`/v1/priority-sop?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({items:SOPROWS.map(r=>({key:r.key,level:r.level})),late_cost:SOPLATE})});
+   SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;toast("Payment Priority SOP saved: every plan ranks payments by it","good");sopRender()}catch(e){$("#sopMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+
+// ---- Executions & incidents: everything that waits for a person. Empty: VENTHORA pays as normal.
+let EX=null,EXTAB="pay";
+const EX_NOTE={pay:`<b>Payroll, prepared by VENTHORA.</b> Every period VENTHORA builds the payroll from People &amp; roles (net pay, salary currency, charge code, own bank account) and pays it on the pay day of the Delegation of Authority; nobody prepares or approves it each month. Reporting → Payroll lists every line. <b>Payroll lines that changed.</b> VENTHORA pays every salary that is the same as the last one paid. A line waits here when it changed: the first salary of a person, a net pay or an account changed since the last salary, or a line adjusted for this period. <b>Approve</b> it once (inside the delegation) and VENTHORA pays it with the others on the pay day, as long as the amount stays the one approved; the person who made the change cannot approve it. A line <b>outside the delegation</b> (no own account, a currency the delegation does not pay in, a contract that ended) is fixed where the link says, or <b>sent to Pending payment</b> for a person to decide like any other payment.`,
+ due:`<b>Due payments of the Delegation of Authority that cannot go</b> (fringe benefits, office, cash advance and the other standing categories), each with what stops it and where to fix it. Everything else in the category is paid on its own; one blocked line stops nothing else.`,
+ cb:`<b>Bank accounts waiting for a call-back.</b> A new payee, or one whose bank details changed, is not paid until a person calls the registered phone number and confirms the account (Payees). After a change, a cooling period follows. Nothing else is held.`,
+ rv:`<b>Payment requests a check stopped</b> (no purchase order, a sender that is not registered, a bank change announced by email, an amount above the PO). Open one to correct it: Save runs the checks again, Pay approves and pays it when they pass. The rest of the queue is paid as normal.`,
+ rc:`<b>Reconciliation and the executions.</b> Every execution with its result. When a book does not reconcile to the bank to the cent, a case opens and that book stops paying until a person finds the difference and closes the case; the other books go on.`,
+ in:`<b>Payment incidents</b>: a transfer Airwallex refused, returned or left without a final status. Each says what happened and what VENTHORA did; resolve it once the cause is handled.`};
+function exTab(t){EXTAB=t;document.querySelectorAll("#exTabs [data-xtab]").forEach(b=>b.classList.toggle("on",b.dataset.xtab===t));document.querySelectorAll("[data-xpane]").forEach(x=>x.hidden=x.dataset.xpane!==t);$("#exNote").innerHTML=EX_NOTE[t];
+ if(t==="rc")executions();if(t==="in")incidents()}
+document.querySelectorAll("#exTabs [data-xtab]").forEach(b=>b.onclick=()=>exTab(b.dataset.xtab));
+async function exView(){try{EX=await api("/v1/exceptions");const c=EX.counts;
+ const map={pay:c.payroll,due:c.due_blocked,cb:c.call_backs,rv:c.reviews,rc:c.recon,in:c.incidents};
+ Object.entries(map).forEach(([k,n])=>{$(`#xn-${k}`).textContent=n;document.querySelector(`#exTabs [data-xtab=${k}]`).classList.toggle("hot",n>0)});
+ $("#exBanner").innerHTML=EX.total?`<div class="small" style="padding:9px 12px;border-radius:10px;background:var(--warnlt);border:1px solid var(--line)"><b>${EX.total} item(s) wait for a person.</b> Each tab says what to do. Everything that is not here is paid by VENTHORA as normal.</div>`
+  :`<div class="small" style="padding:9px 12px;border-radius:10px;background:var(--goodlt);border:1px solid var(--line)"><b>Nothing waits for a person.</b> VENTHORA pays as normal, inside the Delegation of Authority and the treasury mandate.</div>`;
+ const empty=w=>`<div class="empty">Nothing here: ${w}</div>`;
+ $("#exPay").classList.remove("empty");
+ const adjBar=`<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap"><span class="small muted">${(EX.adjustments||[]).length?`Adjusted for ${esc(EX.payroll_period||"")}: ${EX.adjustments.map(a=>`${esc(a.employee)} ${fmt(a.amount_minor,a.currency)} <a href="#" data-xundo="${esc(a.employee)}">use People &amp; roles</a>`).join(" · ")}`:"No salary adjusted for this period"}</span>
+  <button id="xAdj">Adjust a salary for this period</button></div>`;
+ $("#exPay").innerHTML=adjBar+(EX.payroll.length?`<div class="small muted" style="margin-bottom:6px">Period ${esc(EX.payroll_period||"-")} · pay day ${dmy(EX.pay_date)}</div>`+table([{h:"Employee",f:x=>`<b>${esc(x.employee)}</b>`},
+  {h:"Net pay",num:1,f:x=>`<b>${fmt(x.amount_minor,x.currency)}</b>${x.last_paid_minor!=null?`<div class="small muted">last paid ${fmt(x.last_paid_minor,x.currency)}</div>`:""}`},
+  {h:"Account",f:x=>esc(x.payee_name||"none")},{h:"What changed or stops it",f:x=>`<span class="small">${x.reasons.map(esc).join("<br>")}</span>${x.changed_by?`<div class="small muted">changed by ${esc(x.changed_by)}</div>`:""}`},
+  {h:"",f:x=>x.approved?`<span class="pill good">approved</span><div class="small muted">${esc(x.approved)} · paid on the pay day</div>`:x.inside_mandate?`<button class="primary" data-xap="${esc(x.ref)}">Approve</button>`
+   :`<div class="acts"><a class="small" href="${esc(x.where)}">${esc(x.fix)} ›</a>${x.payee_id?`<button data-xrv="${esc(x.ref)}">Send to Pending payment</button>`:""}</div>`}],EX.payroll):empty("every salary this period is paid on its own."));
+ $("#exDue").innerHTML=EX.due_blocked.length?table([{h:"Category",f:x=>esc(x.category)},{h:"Period",f:x=>esc(x.period||"-")},{h:"Who",f:x=>esc(x.who||"-")},{h:"Amount",num:1,f:x=>x.amount_minor?fmt(x.amount_minor,x.currency):"-"},
+  {h:"What stops it",f:x=>`<span class="small">${esc(x.reason)}</span>`},{h:"",f:x=>`<a class="small" href="${esc(x.where)}">${esc(x.fix)} ›</a>`}],EX.due_blocked):empty("every due payment of the delegation can go.");
+ $("#exCb").innerHTML=EX.call_backs.length?table([{h:"Payee",f:x=>`<b>${esc(x.name)}</b><div class="small muted mono">${esc(x.payee_id)}</div>`},{h:"Status",f:x=>pill(x.status)},{h:"Call",f:x=>esc(x.registered_phone||"no registered number")},
+  {h:"Cooling until",f:x=>esc((x.cooling_until||"-").slice(0,16).replace("T"," "))},{h:"",f:()=>'<a class="small" href="#/payees">Call back and verify in Payees ›</a>'}],EX.call_backs):empty("every bank account is verified.");
+ $("#exRv").innerHTML=EX.reviews.length?table([{h:"Status",f:x=>pill(x.status)},{h:"From",f:x=>`${esc(x.from)}${x.counterparty?`<div class="small muted">${esc(x.counterparty)}</div>`:""}`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)},
+  {h:"Invoice",f:x=>esc(x.invoice_no||"-")},{h:"Why it waits",f:x=>`<span class="small">${esc(x.reason)}</span>`},{h:"",f:x=>`<button class="primary" data-xopen="${esc(x.intake_id)}">Open</button>`}],EX.reviews):empty("no request is stopped by a check.");
+ const saveAdj=async list=>{try{await api(`/v1/doa/registers?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({period:EX.payroll_period,lines:list})});
+  toast(list.length?"Saved: the adjusted salary waits for one person here":"The period is paid from People & roles again","good");exView()}catch(e){toast(esc(e.message),"serious")}};
+ const adjOf=a=>({employee:a.employee,payee_id:a.payee_id,currency:a.currency,amount_minor:a.amount_minor,charge_code:a.charge_code});
+ $("#xAdj").onclick=()=>{const ls=EX.payroll_lines||[];if(!ls.length){toast("no one in People & roles has a net pay yet","serious");return}
+  $("#dlgTitle").textContent=`Adjust a salary for ${EX.payroll_period} only`;$("#dlgErr").textContent="";
+  $("#dlgBody").innerHTML=`<label style="grid-column:1/-1">Employee<select id="xa-emp">${ls.map(l=>`<option value="${esc(l.employee)}">${esc(l.employee)} · ${fmt(l.amount_minor,l.currency)}</option>`).join("")}</select></label>
+   <label>Net pay for this period<input id="xa-amt" type="number" step="0.01" min="0.01" required></label><label>Why<input id="xa-why" placeholder="overtime, a deduction, a leaver" maxlength="120"></label>
+   <div class="small muted" style="grid-column:1/-1">Only this period changes; the person's record in People &amp; roles stays as it is. The adjusted salary then waits here for one person, who is not you, before VENTHORA pays it.</div>`;
+  const pick=()=>{const l=ls.find(x=>x.employee===$("#xa-emp").value);$("#xa-amt").value=(l.amount_minor/100).toFixed(2)};$("#xa-emp").onchange=pick;pick();$("#dlg").showModal();
+  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();const l=ls.find(x=>x.employee===$("#xa-emp").value);
+   if(!l.payee_id){$("#dlgErr").textContent="register the employee's own bank account in People & roles first";return}
+   const m=Math.round(parseFloat($("#xa-amt").value||"0")*100);if(!(m>0)){$("#dlgErr").textContent="enter the net pay for this period";return}
+   $("#dlg").close();saveAdj([...(EX.adjustments||[]).filter(a=>a.employee!==l.employee).map(adjOf),{...adjOf(l),amount_minor:m}])}};
+ document.querySelectorAll("[data-xundo]").forEach(a=>a.onclick=ev=>{ev.preventDefault();saveAdj((EX.adjustments||[]).filter(x=>x.employee!==a.dataset.xundo).map(adjOf))});
+ document.querySelectorAll("[data-xap]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/exceptions/payroll/approve?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ref:b.dataset.xap})});toast("Approved: VENTHORA pays it on the pay day","good");exView()}catch(e){toast(esc(e.message),"serious")}});
+ document.querySelectorAll("[data-xrv]").forEach(b=>b.onclick=async()=>{if(!confirm("Send this salary to Pending payment for a person to decide?"))return;
+  try{const r=await api(`/v1/exceptions/payroll/to-review?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ref:b.dataset.xrv})});toast("Sent to Pending payment","good");exView()}catch(e){toast(esc(e.message),"serious")}});
+ document.querySelectorAll("[data-xopen]").forEach(b=>b.onclick=()=>{location.hash="#/pending";setTimeout(()=>pdOpen(b.dataset.xopen),400)});
+ exTab(EXTAB)}catch(e){$("#exPay").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+
 // ---- Reporting → spending per category: name, request date, number, amount, paid on, left, status; filters
 let SP=null,SPCAT=null;
 const SP_NOTE={payroll:"Every line of each payroll register: the person's net pay, when the DoA run paid it, and what is still unpaid.",
@@ -3027,60 +3165,6 @@ function benForm(kind,r,seed,onSaved){const v=r||{currency:ORG?.standards?.base_
   try{const res=await api(`/v1/beneficiaries?kind=${kind}&${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({record:rec,keep_bank:!!(keep&&keep.checked)})});
    $("#dlg").close();toast((res.followed||[]).join("; ")||`${kind[0].toUpperCase()+kind.slice(1)} saved`,"good");
    if(onSaved)onSaved([...(res.created||[]),...(res.updated||[]),...(res.unchanged||[])][0]);else benView(kind)}catch(e){$("#dlgErr").textContent=e.message}}}
-// ---- Payment → Payroll register: the source document of 01 Personnel ----------------------------------------------------
-let PR_PERIOD=new Date().toISOString().slice(0,7),PR_ROWS=null;
-async function payrollView(){try{const [g,d]=await Promise.all([api("/v1/doa/registers"),api("/v1/doa")]);
- const reg=g.registers.find(r=>r.period===PR_PERIOD)||null,pers=d.internal.find(c=>c.key==="personnel"),now=pers.now,pol=pers.policy;
- const acct=Object.fromEntries(g.accounts.map(a=>[a.id,a])),ppl=Object.fromEntries(g.people.map(u=>[u.name,u]));
- if(PR_ROWS===null||PR_ROWS.period!==PR_PERIOD)PR_ROWS={period:PR_PERIOD,rows:reg?reg.lines.map(l=>({...l})):[]};
- const verdict=now.period===PR_PERIOD?Object.fromEntries((now.lines||[]).map(l=>[l.employee,l])):{};
- const status=reg?`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-   <div><b>Register ${esc(PR_PERIOD)}</b> ${pill(reg.status.toUpperCase())} <span class="small muted">· ${reg.lines.length} employee(s) · ${Object.entries(reg.totals).map(([c,t])=>dmoney(t,c)).join(" · ")}</span>
-    <div class="small muted" style="margin-top:4px">prepared by ${esc(reg.prepared_by)}${reg.hr_approved_by?` · HR: ${esc(reg.hr_approved_by)}`:" · waits for HR"}${reg.fco_approved_by?` · FCO: ${esc(reg.fco_approved_by)}`:reg.hr_approved_by?" · waits for the FCO":""}</div></div>
-   <div class="row" style="gap:8px"><button data-prap="hr" ${reg.status==="draft"?"":"disabled"}>Approve for HR</button><button data-prap="fco" class="primary" ${reg.status==="hr_approved"?"":"disabled"}>Approve as FCO</button></div></div>
-   ${now.period===PR_PERIOD&&pers.policy.enabled?`<div class="small" style="margin-top:8px">${(now.reasons||[]).map(r=>esc(r)).join(" · ")} · pay date ${esc(now.pay_date||"-")}</div>`:""}</div>`
-  :`<div class="tile small" style="margin-bottom:12px">No register for ${esc(PR_PERIOD)} yet: the agent pays no salary without one. Add the employees below and save.</div>`;
- const cur=(r)=>[...new Set([...(pol.currencies||[]),r.currency].filter(Boolean))];
- const rows=PR_ROWS.rows.map((r,i)=>{const v=verdict[r.employee];const a=acct[r.payee_id];
-  return `<tr><td><select data-pr="${i}" data-f="employee"><option value="">choose</option>${g.people.map(u=>`<option ${u.name===r.employee?"selected":""}>${esc(u.name)}</option>`).join("")}</select></td>
-   <td><select data-pr="${i}" data-f="payee_id"><option value="">no registered account</option>${g.accounts.map(x=>`<option value="${esc(x.id)}" ${x.id===r.payee_id?"selected":""}>${esc(x.name)} · ${esc(x.currency||"?")} · ${esc(String(x.status||"not onboarded").toLowerCase())}</option>`).join("")}</select></td>
-   <td style="width:96px"><select data-pr="${i}" data-f="currency">${cur(r).map(c=>`<option ${c===r.currency?"selected":""}>${c}</option>`).join("")}</select></td>
-   <td style="width:130px"><input type="number" step="0.01" min="0" data-pr="${i}" data-f="amount" value="${r.amount_minor?(r.amount_minor/100).toFixed(2):""}" style="width:120px"></td>
-   <td style="width:170px"><input data-pr="${i}" data-f="charge_code" value="${esc(r.charge_code||"")}" placeholder="US-200.OPS.6010" style="width:160px"></td>
-   <td class="small">${v?`${pill(v.verdict==="auto"?"PAYS ON ITS OWN":v.verdict==="approve"?"PREPARED":"NOT PAID")}<div class="muted">${esc((v.reasons||[]).join("; "))}</div>`:a&&a.currency&&a.currency!==r.currency?`<span class="err">account receives ${esc(a.currency)}</span>`:""}</td>
-   <td style="width:30px"><button data-prdel="${i}" aria-label="Remove">×</button></td></tr>`}).join("");
- $("#payrollView").innerHTML=`<div class="row" style="gap:10px;margin-bottom:12px;align-items:end"><label class="small" style="display:flex;flex-direction:column;gap:4px">Period<input type="month" id="pr-period" value="${esc(PR_PERIOD)}"></label>
-   <span class="small muted">${g.registers.length?`registers on file: ${g.registers.map(r=>`<a href="#" data-prgo="${esc(r.period)}">${esc(r.period)}</a> ${esc(r.status.replace("_"," "))}`).join(" · ")}`:"no register on file yet"}</span></div>
-  ${status}
-  <div class="tile"><table class="tbl" style="width:100%"><thead><tr><th>Employee</th><th>Bank account (registered payee)</th><th>Currency</th><th>Net pay</th><th>Charge code</th><th>Against the delegation</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="muted small">no line yet</td></tr>'}</tbody></table>
-   <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap"><button id="pr-add">+ Add employee</button><button id="pr-all">Add everyone in People and roles</button>
-    <label class="small" style="display:inline-flex;gap:6px;align-items:center">Import CSV <input type="file" id="pr-csv" accept=".csv,text/csv"></label>
-    <span style="flex:1"></span><button class="primary" id="pr-save">Save register</button></div>
-   <div class="small muted" style="margin-top:6px">Each line fills in from the person's record in People and roles: their bank account, monthly net pay, salary currency and charge code; change a line for this period only (overtime, a deduction). CSV columns: employee, net pay, charge code, currency (optional). Saving resets both approvals.</div>
-   <div class="small" id="pr-msg"></div></div>`;
- const read=()=>document.querySelectorAll("[data-pr]").forEach(el=>{const r=PR_ROWS.rows[+el.dataset.pr],f=el.dataset.f;if(f==="amount")r.amount_minor=Math.round(parseFloat(el.value||"0")*100);else r[f]=el.value});
- const person=(r,name)=>{const u=ppl[name];r.employee=name;if(!u)return;  // from People and roles: account, net pay, currency, charge code
-  if(u.payee_id){r.payee_id=u.payee_id;r.currency=(acct[u.payee_id]||{}).currency||r.currency}
-  if(u.salary_currency)r.currency=u.salary_currency;if(u.salary_minor!=null&&!r.amount_minor)r.amount_minor=u.salary_minor;if(u.charge_code&&!r.charge_code)r.charge_code=u.charge_code};
- document.querySelectorAll("[data-pr]").forEach(el=>el.onchange=()=>{read();const r=PR_ROWS.rows[+el.dataset.pr];
-  if(el.dataset.f==="employee")person(r,el.value);if(el.dataset.f==="payee_id"&&acct[el.value])r.currency=acct[el.value].currency||r.currency;payrollView()});
- document.querySelectorAll("[data-prdel]").forEach(b=>b.onclick=()=>{read();PR_ROWS.rows.splice(+b.dataset.prdel,1);payrollView()});
- document.querySelectorAll("[data-prgo]").forEach(a=>a.onclick=ev=>{ev.preventDefault();PR_PERIOD=a.dataset.prgo;payrollView()});
- $("#pr-period").onchange=()=>{PR_PERIOD=$("#pr-period").value;payrollView()};
- $("#pr-add").onclick=()=>{read();PR_ROWS.rows.push({employee:"",payee_id:"",currency:(pol.currencies||["USD"])[0],amount_minor:0,charge_code:(PR_ROWS.rows.at(-1)||{}).charge_code||""});payrollView()};
- $("#pr-all").onclick=()=>{read();const have=new Set(PR_ROWS.rows.map(r=>r.employee));const cc=(PR_ROWS.rows.at(-1)||{}).charge_code||"";
-  g.people.filter(u=>!have.has(u.name)).forEach(u=>{const r={employee:"",payee_id:"",currency:(pol.currencies||["USD"])[0],amount_minor:0,charge_code:cc};person(r,u.name);PR_ROWS.rows.push(r)});payrollView()};
- $("#pr-csv").onchange=async()=>{read();const f=$("#pr-csv").files[0];if(!f)return;const lines=(await f.text()).split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  const head=lines[0].toLowerCase();const body=/employee|name/.test(head)?lines.slice(1):lines;let n=0,miss=[];
-  for(const ln of body){const [e,a,cc,c]=ln.split(",").map(x=>x.trim().replace(/^"|"$/g,""));if(!e)continue;const r={employee:"",payee_id:"",currency:c||(pol.currencies||["USD"])[0],amount_minor:Math.round(parseFloat((a||"0").replace(/[^0-9.]/g,""))*100),charge_code:cc||""};
-   person(r,e);if(!ppl[e])miss.push(e);PR_ROWS.rows=PR_ROWS.rows.filter(x=>x.employee!==e);PR_ROWS.rows.push(r);n++}
-  payrollView();setTimeout(()=>{$("#pr-msg").innerHTML=`${n} line(s) imported${miss.length?` · <span class="err">not in People and roles: ${esc(miss.join(", "))}</span>`:""}`},50)};
- $("#pr-save").onclick=async()=>{read();const lines=PR_ROWS.rows.filter(r=>r.employee).map(r=>({employee:r.employee,payee_id:r.payee_id||null,currency:r.currency,amount_minor:r.amount_minor,charge_code:r.charge_code}));
-  try{await api(`/v1/doa/registers?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({period:PR_PERIOD,lines})});PR_ROWS=null;toast("Register saved: it needs HR's and then the FCO's approval","good");payrollView()}
-  catch(e){$("#pr-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
- document.querySelectorAll("[data-prap]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/doa/registers/${PR_PERIOD}/approve?step=${b.dataset.prap}&${who()}`,{method:"POST"});PR_ROWS=null;toast(b.dataset.prap==="hr"?"Approved for HR":"Approved as FCO","good");payrollView()}
-  catch(e){toast(e.message,"critical")}})}
- catch(e){$("#payrollView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 // ---- Payment → Travel requests: the dashboard channel of the travel delegation -------------------------------------
 async function travelView(){try{const [d,q]=await Promise.all([api("/v1/doa"),api("/v1/intake")]);const t=d.internal.find(c=>c.key==="travel"),pol=t.policy,P=d.travel_catalog.places;
  const ok=(side,c,city)=>(pol[`${side}_countries`].includes("*")||pol[`${side}_countries`].includes(c))&&(pol[`${side}_cities`].includes("*")||pol[`${side}_cities`].includes(`${c}/${city}`));

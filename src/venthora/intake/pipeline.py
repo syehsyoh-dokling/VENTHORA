@@ -133,6 +133,8 @@ class Registry:
         best = None
         for role, book in (("payee", self.payees), ("payer", self.payers)):
             for cid, rec in book.items():
+                if rec.get("kind") == "employee":  # a staff member's own account is paid through payroll or their claims, never named as a vendor
+                    continue
                 for name in [rec["name"], *rec.get("aliases", [])]:
                     if name.lower() in blob and (best is None or len(name) > len(best[3])):
                         best = (cid, rec, role, name)
@@ -1009,4 +1011,7 @@ class Intake:
             data["evidence"].append({"ref": ref, "subject_id": rid, "source": ar["_source"], "status": "verified",
                                      "summary": f"open customer invoice {ar['invoice_no']} in the company's system, due {ar['due_date']}"})
         data["obligations"] = data["obligations"][:12]
-        return TreasuryState.model_validate(data)
+        from .. import priority_sop
+
+        # the FCO's Payment Priority SOP gives each obligation its priority (once saved)
+        return priority_sop.apply(TreasuryState.model_validate(data), self.org, self.registry.payees)

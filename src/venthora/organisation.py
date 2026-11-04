@@ -425,7 +425,10 @@ ID_FIELD = {"unit": "unit_id", "user": "user_id", "allocation": "alloc_id", "pri
             "account": "account_id", "po": "po_id", "mailbox": "mailbox_id", "travel_rate": "rate_id", "engagement": "engagement_id",
             "pr": "pr_number", "receipt": "receipt_id", "ta": "ta_number",
             "fund_request": "request_number"}
-SEED_VERSION = 4
+SEED_VERSION = 7
+STAFF_ACCOUNTS = {"u-dana": "emp-dana-finch", "u-lee": "emp-lee-park", "u-omar": "emp-omar-reyes", "u-amira": "emp-amira-shah", "u-jonas": "emp-jonas-weber"}
+ACCOUNTS_V6 = [{"account_id": "ac-2200", "code": "2200", "name": "Taxes and social security payable", "category": "Statutory"},
+               {"account_id": "ac-2300", "code": "2300", "name": "Loan and debt service", "category": "Debt service"}]
 # what v3 adds to the seeded POs: active and expiry dates, a consultant's LoE and rate, and a Multi Payment subscription
 PO_V3 = {"PO-2026-0101": {"start_date": "2026-10-01", "expiry_date": "2027-03-31"},
          "PO-2026-0102": {"start_date": "2026-10-01", "expiry_date": "2027-01-31"},
@@ -577,10 +580,18 @@ class OrgStore:
         from .doa import ensure_accounts
 
         ensure_accounts(self)  # the salary account the staff charge codes name
+        have = {a["code"] for a in self.list("account")}
+        for a in ACCOUNTS_V6:  # taxes and social security, debt service: their own categories of the Payment Priority SOP
+            if a["code"] not in have:
+                self._put("account", Account.model_validate(a).model_dump(), "seed")
         for uid, extra in STAFF_V3.items():
             u = self.get("user", uid)
             if u and u.get("salary_minor") is None and not u.get("employee_no"):
                 self._put("user", User.model_validate(u | extra).model_dump(), "seed")
+        for uid, pid in STAFF_ACCOUNTS.items():  # the demo staff's own sandbox accounts (data/payees.json)
+            u = self.get("user", uid)
+            if u and not u.get("payee_id"):
+                self._put("user", u | {"payee_id": pid}, "seed")
         if not self.list("engagement"):
             for e in ENGAGEMENTS:
                 rec = Engagement.model_validate(e).model_dump()
@@ -624,6 +635,13 @@ class OrgStore:
             year = (data.get("event_date") or "2026")[:4]
             taken = {e["engagement_id"] for e in self.list("engagement")} | {p["po_id"] for p in self.list("po")}
             data[idf] = next(f"ENG-{year}-{n:03d}" for n in range(1, 10_000) if f"ENG-{year}-{n:03d}" not in taken)
+        if kind == "user":  # who changed a salary or an employee's account: a payroll line that changed waits for someone else
+            old = self.get("user", data[idf]) or {}
+            if old and any(old.get(k) != data.get(k) for k in ("salary_minor", "salary_currency", "payee_id")):
+                at = datetime.now(UTC).isoformat(timespec="seconds")
+                self._put("salary_change", {"_id": f"{data[idf]}:{at}", "user_id": data[idf], "at": at, "by": by,
+                                            "before": {k: old.get(k) for k in ("salary_minor", "salary_currency", "payee_id")},
+                                            "after": {k: data.get(k) for k in ("salary_minor", "salary_currency", "payee_id")}}, by)
         if kind == "pr" and not data.get("requested_date"):
             data["requested_date"] = datetime.now(UTC).strftime("%Y-%m-%d")
         if kind == "fund_request":

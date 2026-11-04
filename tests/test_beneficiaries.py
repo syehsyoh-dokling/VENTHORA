@@ -102,11 +102,13 @@ def test_a_person_with_a_wrong_charge_code_or_contract_dates_is_refused(client):
 
 
 def test_an_employees_own_account_is_a_beneficiary_new_until_the_call_back(client):
-    rec = {"name": "Amira Shah", "currency": "GBP", "payout_method": "LOCAL", "entity_type": "PERSONAL", "contacts": ["amira.shah@acme.example"], "registered_phone": "+44 20 7946 0101",
+    rec = {"name": "Rina Putri", "currency": "GBP", "payout_method": "LOCAL", "entity_type": "PERSONAL", "contacts": ["rina.putri@acme.example"], "registered_phone": "+44 20 7946 0109",
            "address": {"street_address": "1 Fleet Street", "city": "London", "postcode": "EC4Y 1AA", "country_code": "GB"},
-           "bank": {"account_name": "Amira Shah", "account_currency": "GBP", "bank_country_code": "GB", "bank_name": "Monzo Bank", "account_number": "12345678",
+           "bank": {"account_name": "Rina Putri", "account_currency": "GBP", "bank_country_code": "GB", "bank_name": "Monzo Bank", "account_number": "87655678",
                     "routing_type": "sort_code", "routing_value": "040004"}}
     r = client.post(f"/v1/beneficiaries?kind=employee&{FM}", json={"record": rec})
     assert r.status_code == 200 and any("registered NEW" in f for f in r.json()["followed"]), r.text
-    e = next(x for x in client.get("/v1/beneficiaries?kind=employee").json() if x["name"] == "Amira Shah")
+    emps = {x["name"]: x for x in client.get("/v1/beneficiaries?kind=employee").json()}
+    assert emps["Amira Shah"]["status"] == "ACTIVE"  # the demo staff's own accounts, verified at onboarding
+    e = emps["Rina Putri"]
     assert e["status"] == "NEW" and e["bank"]["account_number"] == "•••• 5678"

@@ -446,11 +446,27 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 ## The menu
 
-The side menu shows only its main items: **Dashboard**, **Workflow**, **Payment** (operations run, intake, purchase
-orders, payees, executions, payment reports, receiving accounts), **Mandate & Reporting** (plan and proof, budget and
-mandate, books, reporting periods, spending, run reports, checks), **User Management** (people and roles, the admin
-team), **Platform Setup** (setup checklist, Airwallex account, AI agent and model, app integration, email sync) and
-**System Setting** (datasets, finance SOP, budget allocation, webhooks, organisation structure). A group opens below
+The side menu shows only its main items:
+
+- **Dashboard** and **Workflow**.
+- **Payment**:
+  - Intake: purchase requests, purchase orders, consultants and resource persons, travel authorisations, cash
+    advances, petty cash, other direct costs and the payroll register.
+  - Commitment.
+  - Pending payment.
+  - Balance received.
+  - Budget allocation.
+  - Executions & incidents: everything that waits for a person.
+- **Reporting**:
+  - Seven spending reports: payroll, fringe benefits, goods and services, operation, cash advance, travel, other
+    direct cost.
+  - Payment reports, payees, books, plan and proof, ledger, reporting periods, spending, run reports and checks.
+- **Users & Beneficiaries**.
+- **Platform Setup**.
+- **System Setting**: datasets, finance standards, document validation, Delegation of Authority, period and cut-off,
+  webhooks, unit prices, and the **Autopilot Console**, the agent's own end-to-end run on the live wallet.
+
+A group opens below
 its item on hover, or on a click or tap; one at a time, and the group of the page in view stays marked. A group
 shows how many items inside it wait for a person.
 

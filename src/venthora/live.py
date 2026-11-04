@@ -349,7 +349,7 @@ async def wallet(bank) -> dict:
     return {c: live.get(c, 0) for c in WATCH}
 
 
-async def start(scenario: str, executor: Executor, audit, config: dict | None = None) -> LiveSession:
+async def start(scenario: str, executor: Executor, audit, config: dict | None = None, adjust=None) -> LiveSession:
     t0 = perf_counter()
     raw, box = _scenario(scenario)
     cfg = config or defaults(scenario, executor)
@@ -361,6 +361,8 @@ async def start(scenario: str, executor: Executor, audit, config: dict | None = 
     base = TreasuryState.model_validate(raw["state"])
     state, granted = apply_config(base, cfg, today)
     state = fresh_book(attach_budget(state), tag)
+    if adjust is not None:  # the organisation's Payment Priority SOP
+        state = adjust(state)
     state = state.model_copy(update={"tenancy": state.tenancy.model_copy(update={"config": state.tenancy.config.model_copy(update={"book_id": state.book_id})})})
     if cfg.get("reporting", {}).get("editable"):
         from .reporting import ReportingConfig, load_config, save_config
