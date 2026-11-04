@@ -2070,85 +2070,60 @@ async function mandateSave(body){$("#mdtMsg").textContent="saving…";
 let DOA=null,DOASEL="personnel";
 document.querySelectorAll("#doaTabs [data-dtab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#doaTabs [data-dtab]").forEach(x=>x.classList.toggle("on",x===b));
  document.querySelectorAll("[data-dpane]").forEach(p=>p.hidden=p.dataset.dpane!==b.dataset.dtab);if(b.dataset.dtab==="ctl")mandateView()});
-const DVERD={auto:["Agent pays on its own","good"],approve:["Prepared for a person","warn"],never:["Not executed","critical"],per_document:["Per approved document","info"]};
 const DSCHED={monthly:"Monthly",quarterly:"Quarterly",annual:"Annual",per_document:"Per approved document"};
-const DSRC={register:"Approved payroll register",fixed:"Fixed amount",document:"Amount on the approved document"};
 const dmoney=(m,c)=>m==null?"-":fmt(m,c||"USD");
+const DSUM={auto:["Agent pays on its own","good"],mixed:["Partly prepared for a person","warn"],never:["Not executed","critical"],no_document:["No source document this period","info"],not_connected:["Source not connected yet","info"],off:["Delegation off","warn"]};
 async function doaView(){const seq=window.__doaSeq=(window.__doaSeq||0)+1;try{const d=await api(`/v1/doa?role=${encodeURIComponent(actor().role)}`);if(seq!==window.__doaSeq)return;DOA=d;
  const on=$("#doaTabs .on")?.dataset.dtab||"int",can=d.authority.you_may_change,dis=can?"":"disabled";
  const head=`<div class="tile" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Granted by the ${esc(d.authority.label)}</b>
-   <div class="small muted">${can?`You (${esc(actor().name)}) hold the delegation and may change it.`:`You (${esc(actor().name)}) may read the delegation; only the ${esc(d.authority.label)} changes it.`} Today ${esc(d.today)}.</div></div>
-   <label class="check"><input type="checkbox" id="doaPilot" ${d.autopilot?"checked":""} ${dis}> <b>Autopilot</b> <span class="small muted">pays every due instruction marked "Agent pays on its own", every minute, without a click</span></label>
-   <button id="doaRun" class="primary">Run due instructions now</button></div>`;
- const list=d.internal.map(c=>{const [w,t]=DVERD[c.now.verdict]||["-",""];return `<button data-dsel="${c.key}" class="tile" style="text-align:left;width:100%;margin-bottom:6px;cursor:pointer;${c.key===DOASEL?"outline:2px solid var(--accent,#2f6fed)":""}">
-   <div><b>${esc(c.code)} · ${esc(c.title)}</b></div><div class="small muted">${esc(DSCHED[c.instruction.schedule])}${c.instruction.enabled?"":" · off"} · ${esc(c.instruction.currency)}</div>
+   <div class="small muted">${can?`You (${esc(actor().name)}) hold the delegation and may change it.`:`You (${esc(actor().name)}) may read the delegation; only the ${esc(d.authority.label)} changes it.`} The delegation is general policy: it names no person, vendor, account or amount. Today ${esc(d.today)}.</div></div>
+   <label class="check"><input type="checkbox" id="doaPilot" ${d.autopilot?"checked":""} ${dis}> <b>Autopilot</b> <span class="small muted">pays every due payment the delegation allows, every minute, without a click</span></label>
+   <button id="doaRun" class="primary">Run due payments now</button></div>`;
+ const list=d.internal.map(c=>{const [w,t]=DSUM[c.now.summary]||["-",""];return `<button data-dsel="${c.key}" class="tile" style="text-align:left;width:100%;margin-bottom:6px;cursor:pointer;${c.key===DOASEL?"outline:2px solid var(--accent,#2f6fed)":""}">
+   <div><b>${esc(c.code)} · ${esc(c.title)}</b></div><div class="small muted">${esc(DSCHED[c.policy.schedule])} · ${esc(c.policy.currencies.join(", "))}</div>
    <div style="margin-top:4px"><span class="pill ${t}">${esc(w)}</span></div></button>`}).join("");
- const c=d.internal.find(x=>x.key===DOASEL)||d.internal[0],ins=c.instruction,n=c.now,[vw,vt]=DVERD[n.verdict]||["-",""];
- const payeeOpts=`<option value="">no payee</option>`+d.payees.map(p=>`<option value="${esc(p.id)}" ${p.id===ins.payee_id?"selected":""}>${esc(p.name)} · receives ${esc(p.currency||"?")} · ${esc((p.status||"not onboarded").toLowerCase())}</option>`).join("");
+ const c=d.internal.find(x=>x.key===DOASEL)||d.internal[0],pol=c.policy,n=c.now,[sw,st]=DSUM[n.summary]||["-",""];
  const opt=(arr,v,lab)=>arr.map(x=>`<option value="${esc(x)}" ${String(x)===String(v)?"selected":""}>${esc(lab?lab(x):x)}</option>`).join("");
- const reg=c.key==="personnel"?(d.registers.find(r=>r.period===n.period)||null):null;
- const regBox=c.key!=="personnel"?"":`<div class="tile" style="margin-top:12px"><b>Payroll register for ${esc(n.period||"-")}</b>
-   ${reg?`<div class="small" style="margin:4px 0">${pill(reg.status.toUpperCase())} ${dmoney(reg.total_minor,reg.currency)} · ${reg.lines.length} employee(s) · prepared by ${esc(reg.prepared_by)}${reg.hr_approved_by?` · HR: ${esc(reg.hr_approved_by)}`:""}${reg.fco_approved_by?` · FCO: ${esc(reg.fco_approved_by)}`:""}</div>
-    ${table([{h:"Employee",f:l=>esc(l.employee)},{h:"Net pay",num:1,f:l=>dmoney(l.amount_minor,reg.currency)},{h:"Charge code",f:l=>`<span class="mono small">${esc(l.charge_code||ins.charge_code)}</span>`}],reg.lines)}
-    <div class="row" style="margin-top:8px"><button data-dreg="hr" ${reg.status==="draft"?"":"disabled"}>Approve for HR</button><button data-dreg="fco" ${reg.status==="hr_approved"?"":"disabled"}>Approve as FCO</button><span class="small muted">two different people, neither of them the preparer</span></div>`
-   :`<div class="small muted" style="margin:4px 0">No register yet: the agent pays no salary without one.</div>`}
-   <details style="margin-top:8px"><summary class="small">${reg?"Prepare the register again":"Prepare the register"}</summary>
-    <div class="small muted" style="margin:6px 0">One line per employee: name, net pay, charge code (optional). Saving resets both approvals.</div>
-    <textarea id="dregLines" rows="4" style="width:100%;font-family:var(--mono,monospace)" placeholder="Ana Silva, 4200.00, US-200.OPS.6010">${reg?esc(reg.lines.map(l=>`${l.employee}, ${(l.amount_minor/100).toFixed(2)}${l.charge_code?", "+l.charge_code:""}`).join("\n")):""}</textarea>
-    <div class="row" style="margin-top:6px"><label class="small">Currency <select id="dregCur">${opt(d.currencies,ins.currency)}</select></label><button id="dregSave">Save register</button><span class="small" id="dregMsg"></span></div></details></div>`;
- const detail=`<div class="tile"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:15px">${esc(c.code)} · ${esc(c.title)}</b><span class="pill ${vt}">${esc(vw)}</span></div>
-   <div class="small muted">${esc(c.basis)} · evidence: ${esc(c.evidence)}</div>
+ const fld=(label,inner)=>`<label style="display:flex;flex-direction:column;gap:4px">${esc(label)}${inner}</label>`;
+ const detail=`<div class="tile"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:15px">${esc(c.code)} · ${esc(c.title)}</b><span class="pill ${st}">${esc(sw)}</span></div>
+   <div class="small muted">${esc(c.basis)}</div>
    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:8px;margin:10px 0">
     <div class="tile small"><span class="pill good">Agent pays on its own</span><div style="margin-top:6px">${esc(c.auto)}</div></div>
     <div class="tile small"><span class="pill warn">Prepared for a person</span><div style="margin-top:6px">${esc(c.approve)}</div></div>
     <div class="tile small"><span class="pill critical">Never executed</span><div style="margin-top:6px">${esc(c.never)}</div></div></div>
-   <h3 class="small muted" style="margin:10px 0 6px">Standing payment instruction</h3>
-   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:8px" class="small">
-    <label class="check"><input type="checkbox" id="di-enabled" ${ins.enabled?"checked":""} ${dis}> instruction on</label>
-    <label>Payee<select id="di-payee_id" ${dis}>${payeeOpts}</select></label>
-    <label>Payout currency<select id="di-currency" ${dis}>${opt(d.currencies,ins.currency)}</select></label>
-    <label>Charge code<input id="di-charge_code" value="${esc(ins.charge_code)}" ${dis}></label>
-    <label>Schedule<select id="di-schedule" ${dis}>${opt(d.schedules,ins.schedule,x=>DSCHED[x])}</select></label>
-    <label>Pay day<select id="di-pay_day" ${dis}>${opt(d.pay_days,ins.pay_day,x=>x==="last_working_day"?"Last working day":`Day ${x}`)}</select></label>
-    <label>Amount from<select id="di-source" ${dis}>${opt(c.key==="personnel"?["register"]:["fixed","document"],ins.source,x=>DSRC[x])}</select></label>
-    <label>Fixed amount<input id="di-amount" type="number" step="0.01" value="${ins.amount_minor==null?"":(ins.amount_minor/100).toFixed(2)}" ${dis}></label>
-    <label>Variance allowed, %<input id="di-variance" type="number" step="0.1" value="${(ins.variance_bp/100).toFixed(1)}" ${dis}></label>
-    <label>Limit per payment<input id="di-limit" type="number" step="0.01" value="${(ins.limit_minor/100).toFixed(2)}" ${dis}></label></div>
-   <div class="small muted" style="margin-top:6px">A payout currency other than USD is bought by the agent in the same run, inside the FX limits; the payee's bank account must receive that currency.</div>
-   <div class="row" style="margin-top:8px"><button class="primary" id="diSave" ${dis}>Save instruction</button><span class="small" id="diMsg">${ins.updated_by?`last saved by ${esc(ins.updated_by)}`:"not saved yet: the default applies"}</span></div>
+   <div class="small" style="margin-bottom:10px"><b>Who is paid and how much:</b> ${esc(c.source)}.</div>
+   <h3 class="small muted" style="margin:10px 0 6px">Policy</h3>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px 12px;align-items:end" class="small">
+    <label class="check" style="align-self:center"><input type="checkbox" id="dp-enabled" ${pol.enabled?"checked":""} ${dis}> delegated to the agent</label>
+    ${fld("Schedule",`<select id="dp-schedule" ${dis}>${opt(d.schedules,pol.schedule,x=>DSCHED[x])}</select>`)}
+    ${fld("Pay day",`<select id="dp-pay_day" ${dis}>${opt(d.pay_days,pol.pay_day,x=>x==="last_working_day"?"Last working day":`Day ${x}`)}</select>`)}
+    ${fld("Payout currencies allowed",`<span style="display:flex;gap:10px;height:34px;align-items:center">${d.currencies.map(x=>`<label class="check"><input type="checkbox" data-dpcur="${x}" ${pol.currencies.includes(x)?"checked":""} ${dis}> ${x}</label>`).join("")}</span>`)}
+   <div class="small muted" style="margin-top:8px">Each payment goes in the currency of the payee's own registered account, when the delegation allows that currency; the agent buys it from base in the same run, inside the FX limits.</div>
+   <div class="row" style="margin-top:10px"><button class="primary" id="dpSave" ${dis}>Save policy</button><span class="small" id="dpMsg">${pol.updated_by?`last saved by ${esc(pol.updated_by)}`:"not saved yet: the default policy applies"}</span></div>
    <h3 class="small muted" style="margin:14px 0 6px">This period</h3>
-   <div class="small">${n.period?`${esc(n.period)} · pay date ${esc(n.pay_date)} · ${n.due?"<b>due</b>":"not due yet"} · ${dmoney(n.amount_minor,n.currency)} to ${esc(n.payee||"no payee")}`:"paid per approved document"}
-    ${n.reasons.length?`<div style="margin-top:4px">${n.reasons.map(r=>`<div>· ${esc(r)}</div>`).join("")}</div>`:""}
-    ${n.run?`<div style="margin-top:4px">${pill(n.run.status)} ${esc(n.run.message||"")}${n.run.approved_by?` · approved by ${esc(n.run.approved_by)}`:""}</div>`:""}
-    ${n.verdict==="approve"&&n.due&&!(n.run&&["PAID","IN_FLIGHT"].includes(n.run.status))?`<div style="margin-top:6px"><button data-dapprove="${c.key}" class="primary">Approve and pay as ${esc(actor().name)}</button></div>`:""}</div>
-   ${regBox}</div>`;
- const runs=`<h3 class="small muted" style="margin:14px 0 6px">Runs</h3>${table([{h:"When",f:r=>esc(r.at.replace("T"," ").slice(0,16))},{h:"Category",f:r=>esc((d.internal.find(x=>x.key===r.category)||{}).title||r.category)},{h:"Period",f:r=>esc(r.period)},{h:"Amount",num:1,f:r=>dmoney(r.amount_minor,r.currency)},{h:"Status",f:r=>pill(r.status)},{h:"By",f:r=>esc(r.approved_by||r.by)},{h:"",f:r=>`<span class="small muted">${esc(r.message||"")}</span>`}],d.runs,"no run yet")}`;
+   <div class="small">${n.period?`${esc(n.period)} · pay date ${esc(n.pay_date)} · ${n.due?"<b>due</b>":"not due yet"}`:"paid per approved document"}${n.reasons.map(r=>`<div>· ${esc(r)}</div>`).join("")}</div></div>`;
+ const runs=`<h3 class="small muted" style="margin:14px 0 6px">Runs</h3>${table([{h:"When",f:r=>esc(r.at.replace("T"," ").slice(0,16))},{h:"Category",f:r=>esc((d.internal.find(x=>x.key===r.category)||{}).title||r.category)},{h:"Period",f:r=>esc(r.period)},{h:"Amount",num:1,f:r=>dmoney(r.amount_minor,r.currency)},{h:"Status",f:r=>pill(r.status)},{h:"By",f:r=>esc(r.approved_by||r.by)}],d.runs,"no run yet")}`;
  const intPane=`<div style="display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:12px"><div>${list}</div><div>${detail}</div></div>${runs}`;
- const ext=d.external.map(e=>`<div class="tile" style="margin-bottom:12px"><b style="font-size:15px">${esc(e.title)}</b><div class="small muted">${esc(e.basis)} · evidence: ${esc(e.evidence)}</div>
+ const ext=d.external.map(e=>`<div class="tile" style="margin-bottom:12px"><b style="font-size:15px">${esc(e.title)}</b><div class="small muted">${esc(e.basis)}</div>
    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:8px;margin:10px 0">
     <div class="tile small"><span class="pill good">Agent pays on its own</span><div style="margin-top:6px">${esc(e.auto)}</div></div>
     <div class="tile small"><span class="pill warn">Prepared for a person</span><div style="margin-top:6px">${esc(e.approve)}</div></div>
     <div class="tile small"><span class="pill critical">Never executed</span><div style="margin-top:6px">${esc(e.never)}</div></div></div>
+   <div class="small" style="margin-bottom:6px"><b>Who is paid and how much:</b> ${esc(e.source)}.</div>
    <div class="small"><span class="muted">Limits in force:</span> ${e.limits.map(l=>`<span class="chip">${esc(l.label)}: <b>${l.enabled===false?"revoked":esc(mval(l))}</b></span>`).join(" ")}
-    <a href="#" data-dctl class="nw">Change in Treasury limits and controls ›</a> · <a href="#/doc-rules">Document checks ›</a> · <a href="#/pos">Purchase orders ›</a></div></div>`).join("");
+    <a href="#" data-dctl class="nw">Change in Treasury limits and controls ›</a></div></div>`).join("");
  $("#doaView").innerHTML=`${head}<div data-dpane="int" ${on==="int"?"":"hidden"}>${intPane}</div><div data-dpane="ext" ${on==="ext"?"":"hidden"}>${ext}</div>`;
  document.querySelectorAll("[data-dsel]").forEach(b=>b.onclick=()=>{DOASEL=b.dataset.dsel;doaView()});
  document.querySelectorAll("[data-dctl]").forEach(a=>a.onclick=ev=>{ev.preventDefault();document.querySelector('[data-dtab="ctl"]').click()});
- $("#doaPilot").onchange=async ev=>{try{await api(`/v1/doa/settings?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({autopilot:ev.target.checked})});toast(ev.target.checked?"Autopilot on: due instructions are paid on their own":"Autopilot off","good")}catch(e){toast(e.message,"critical");ev.target.checked=!ev.target.checked}};
- $("#doaRun").onclick=()=>doaRun([],null);
- document.querySelectorAll("[data-dapprove]").forEach(b=>b.onclick=()=>doaRun([b.dataset.dapprove],actor()));
- $("#diSave").onclick=async()=>{const num=id=>$(id).value===""?null:Math.round(parseFloat($(id).value)*100);
-  const body={enabled:$("#di-enabled").checked,payee_id:$("#di-payee_id").value||null,currency:$("#di-currency").value,charge_code:$("#di-charge_code").value.trim(),schedule:$("#di-schedule").value,
-   pay_day:$("#di-pay_day").value,source:$("#di-source").value,amount_minor:num("#di-amount"),variance_bp:num("#di-variance")??0,limit_minor:num("#di-limit")??0};
-  try{await api(`/v1/doa/instructions/${c.key}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast("Instruction saved","good");doaView()}
-  catch(e){$("#diMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
- document.querySelectorAll("[data-dreg]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/doa/registers/${n.period}/approve?step=${b.dataset.dreg}&${who()}`,{method:"POST"});toast("Register approved","good");doaView()}catch(e){toast(e.message,"critical")}});
- if($("#dregSave"))$("#dregSave").onclick=async()=>{const lines=$("#dregLines").value.split("\n").map(x=>x.trim()).filter(Boolean).map(x=>{const [e,a,cc]=x.split(",").map(y=>y.trim());return {employee:e,amount_minor:Math.round(parseFloat(a||"0")*100),...(cc?{charge_code:cc}:{})}});
-  try{await api(`/v1/doa/registers?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({period:n.period,currency:$("#dregCur").value,lines})});toast("Register saved: it needs HR's and the FCO's approval","good");doaView()}
-  catch(e){$("#dregMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+ $("#doaPilot").onchange=async ev=>{try{await api(`/v1/doa/settings?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({autopilot:ev.target.checked})});toast(ev.target.checked?"Autopilot on: due payments are made on their own":"Autopilot off","good")}catch(e){toast(e.message,"critical");ev.target.checked=!ev.target.checked}};
+ $("#doaRun").onclick=()=>doaRun();
+ $("#dpSave").onclick=async()=>{
+  const body={enabled:$("#dp-enabled").checked,schedule:$("#dp-schedule").value,pay_day:$("#dp-pay_day").value,currencies:[...document.querySelectorAll("[data-dpcur]:checked")].map(x=>x.dataset.dpcur)};
+  try{await api(`/v1/doa/policies/${c.key}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast("Policy saved","good");doaView()}
+  catch(e){$("#dpMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
  catch(e){$("#doaView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-async function doaRun(keys,who_){$("#doaRun").disabled=true;try{const r=await api("/v1/doa/run",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(who_?{keys,approver:who_.name,role:who_.role}:{keys})});
-  const paid=r.paid.length,held=r.held.length;toast(paid||held?`${paid} paid · ${held} held${r.execution?` · ${r.execution.status}`:""}`:`Nothing to pay now${r.skipped.length?`: ${r.skipped.map(x=>x.key+" "+x.verdict).join(", ")}`:""}`,paid?"good":"info");doaView()}
+async function doaRun(){$("#doaRun").disabled=true;try{const r=await api("/v1/doa/run",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
+  const paid=r.paid.length,held=r.held.length;toast(paid||held?`${paid} paid · ${held} held`:`Nothing to pay now${r.skipped.length?`: ${r.skipped.map(x=>x.reasons[0]).join("; ")}`:""}`,paid?"good":"info");doaView()}
  catch(e){toast(e.message,"critical")}finally{const b=$("#doaRun");if(b)b.disabled=false}}
 
 const WH_EVENTS=["deposit.pending","deposit.settled","deposit.rejected","deposit.reversed","payout.transfer.processing","payout.transfer.sent","payout.transfer.paid","payout.transfer.failed","conversion.settled","conversion.cancelled"];

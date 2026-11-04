@@ -527,7 +527,7 @@ async def mandate_put(req: MandateIn, role: str = "super_admin", by: str = "dash
     return out
 
 
-# ---- Delegation of Authority: internal payments on standing instructions, external payments by invoice ----
+# ---- Delegation of Authority: the general policy per category; individuals live on the source documents ----
 def _payee_status(bid: str) -> str | None:
     rec = app.state.executor.store.payee(bid)
     if rec is not None:
@@ -545,9 +545,8 @@ def _doa_authority(role: str) -> None:
 
 @app.get("/v1/doa")
 async def doa_get(role: str | None = None):
-    """The delegation of authority: every internal category with its standing payment instruction and this period's
-    verdict (auto, approve, never), the external categories with the limits that govern them, the payroll registers,
-    recent runs, and whether the autopilot pays due instructions on its own."""
+    """The delegation of authority: every internal category with its policy (schedule, pay day, payout currencies) and this period's source document judged against it; the external categories with the limits
+    that govern them; and whether the autopilot pays due lines on its own."""
     from . import doa, mandate
 
     org = app.state.org
@@ -558,35 +557,33 @@ async def doa_get(role: str | None = None):
     setup = live_session.defaults("demo_live", app.state.executor, mandate.standing(org))
     vals = {m["key"]: m for m in setup["mandates"]}
     st = mandate.standing(org)
-    return {"internal": [c | {"instruction": doa.instruction(org, c["key"]), "now": rows[c["key"]]} for c in doa.INTERNAL],
+    return {"internal": [c | {"policy": doa.policy(org, c["key"]), "now": rows[c["key"]]} for c in doa.INTERNAL],
             "external": [c | {"limits": [{"label": vals[k]["label"], "value": vals[k].get("value"), "unit": vals[k]["unit"], "enabled": vals[k].get("enabled", True)}
                                          for k in (("pay_single", "pay_first", "three_way", "tolerance_floor") if c["key"] == "vendors" else ("pay_single", "pay_first", "pay_per_payee"))]}
                          for c in doa.EXTERNAL],
-            "registers": sorted(org.list("payroll_register"), key=lambda r: r["period"], reverse=True)[:12],
             "runs": sorted(org.list("doa_run"), key=lambda r: r["at"], reverse=True)[:30],
             "autopilot": doa.autopilot(org), "currencies": list(doa.CURRENCIES), "schedules": list(doa.SCHEDULES), "pay_days": list(doa.PAY_DAYS),
-            "payees": [{"id": k, "name": v["name"], "currency": v.get("currency"), "status": _payee_status(k)} for k, v in payees.items()],
             "authority": {"role": st["authority_role"], "label": mandate.AUTHORITY_ROLES[st["authority_role"]], "you_may_change": role == st["authority_role"] if role else None},
             "today": today.isoformat()}
 
 
-@app.put("/v1/doa/instructions/{key}")
-async def doa_instruction_put(key: str, body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
-    """Set one internal category's standing payment instruction. Only the holder of the delegation may."""
+@app.put("/v1/doa/policies/{key}")
+async def doa_policy_put(key: str, body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
+    """Set one internal category's policy. Only the holder of the delegation may."""
     from . import doa
 
     _doa_authority(role)
     try:
-        rec = await asyncio.to_thread(doa.save_instruction, app.state.org, key, body, f"{by} ({role})")
-    except (doa.DoAError, OrgError) as exc:
+        rec = await asyncio.to_thread(doa.save_policy, app.state.org, key, body, f"{by} ({role})")
+    except doa.DoAError as exc:
         raise HTTPException(422, str(exc)) from exc
-    await asyncio.to_thread(app.state.audit.append, "doa_instruction", rec | {"by": f"{by} ({role})"})
+    await asyncio.to_thread(app.state.audit.append, "doa_policy", rec | {"by": f"{by} ({role})"})
     return rec
 
 
 @app.put("/v1/doa/settings")
 async def doa_settings_put(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
-    """Switch the autopilot: on, the agent pays every due instruction the DoA lets it pay on its own, without a click."""
+    """Switch the autopilot: on, the agent pays every due line the DoA lets it pay on its own, without a click."""
     from . import doa
 
     _doa_authority(role)
@@ -598,8 +595,7 @@ async def doa_settings_put(body: Annotated[dict, Body()], role: str = "super_adm
 
 class RegisterIn(BaseModel):
     period: str = Field(pattern=r"^\d{4}-\d{2}$")
-    currency: str = "USD"
-    lines: list[dict] = Field(min_length=1, max_length=2000)
+    lines: list[dict] = Field(min_length=1, max_length=2000, description="employee, payee_id, currency, amount_minor, charge_code")
 
 
 @app.post("/v1/doa/registers")
@@ -609,9 +605,19 @@ async def doa_register_post(req: RegisterIn, role: str = "finance_manager", by: 
 
     who = _writer(role, by)
     try:
-        return await asyncio.to_thread(doa.save_register, app.state.org, req.period, req.lines, req.currency, who)
+        return await asyncio.to_thread(doa.save_register, app.state.org, req.period, req.lines, who)
     except (doa.DoAError, OrgError) as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+@app.get("/v1/doa/registers/{period}")
+async def doa_register_get(period: str):
+    from . import doa
+
+    rec = doa.register(app.state.org, period)
+    if rec is None:
+        raise HTTPException(404, "no payroll register for that period")
+    return rec
 
 
 @app.post("/v1/doa/registers/{period}/approve")
@@ -629,66 +635,69 @@ async def doa_register_approve(period: str, step: str = Query(pattern="^(hr|fco)
 
 
 class DoARunIn(BaseModel):
-    keys: list[str] = Field(default_factory=list, description="the 'approve' instructions a person approves now; auto ones always run")
+    refs: list[str] = Field(default_factory=list, description="lines prepared for a person that the approver approves now")
     approver: str | None = Field(default=None, max_length=120)
     role: str = "finance_manager"
 
 
-async def _doa_run(keys: list[str], approver: str | None, role: str, by: str) -> dict:
-    """Pay every due instruction the DoA lets the agent pay, plus the 'approve' ones a person approves now. The book
-    still passes the treasury proof (reserve floor, FX, outflow limits) and the split pays only what is inside it."""
+async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) -> dict:
+    """Pay every due line the DoA lets the agent pay, plus the prepared lines a person approves now. The book still
+    passes the treasury proof (reserve floor, FX, outflow limits) and the split pays only what is inside it."""
     from . import autonomy, doa
     from .execution.models import Approval
 
+    if approver and role not in ("finance_manager", "cfo", "super_admin"):
+        raise HTTPException(403, f"role {role} may not approve a payment")
     org = app.state.org
     today = datetime.now(UTC).date()
     payees = app.state.intake.registry.payees
-    rows = [r for r in doa.evaluate(org, _payee_status, payees, today) if r["due"] and not (r["run"] and r["run"]["status"] in ("PAID", "IN_FLIGHT"))]
-    go = [r for r in rows if r["verdict"] == "auto" or (r["verdict"] == "approve" and approver and r["key"] in keys)]
-    skipped = [{"key": r["key"], "verdict": r["verdict"], "reasons": r["reasons"]} for r in rows if r not in go]
-    if not go:
-        return {"paid": [], "held": [], "skipped": skipped, "execution": None}
-    if approver and role not in ("finance_manager", "cfo", "super_admin"):
-        raise HTTPException(403, f"role {role} may not approve a payment")
-    data = json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))
-    state = doa.book(TreasuryState.model_validate(data["state"]), go, payees, today)
-    try:
-        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
-    except AirwallexError as exc:
-        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
-    state, _ = apply_operational_facts(state, app.state.executor.store)
-    s = await autonomy.split(app.state.agent, state)
-    execution, paid_ids = None, set()
-    if s.auto_plan is not None:
-        result = await app.state.executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash, requested_by="VENTHORA (DoA)"))
-        execution = result.model_dump()
-        if result.status in ("COMPLETED", "IN_FLIGHT"):
-            paid_ids = {d.obligation_id for d in s.auto_plan.obligations if d.action in autonomy.PAYING}
-    elif approver and s.full.decision == "REQUIRES_APPROVAL":
-        from .execution.executor import terms_digest
+    done = {r["_id"] for r in org.list("doa_run") if r["status"] in ("PAID", "IN_FLIGHT")}
+    out = {"paid": [], "held": [], "skipped": [], "executions": []}
+    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    for row in doa.evaluate(org, _payee_status, payees, today):
+        if not row["due"] or not row["lines"]:
+            if row["due"]:
+                out["skipped"].append({"key": row["key"], "reasons": row["reasons"]})
+            continue
+        go = [ln for ln in row["lines"] if ln.get("ref") not in done and (ln["verdict"] == "auto" or (ln["verdict"] == "approve" and approver and ln["ref"] in refs))]
+        out["skipped"] += [{"key": row["key"], "employee": ln["employee"], "verdict": ln["verdict"], "reasons": ln["reasons"]} for ln in row["lines"] if ln not in go and ln.get("ref") not in done]
+        if not go:
+            continue
+        state = doa.book(base, row, go, payees, today)
+        try:
+            state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+        except AirwallexError as exc:
+            raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+        state, _ = apply_operational_facts(state, app.state.executor.store)
+        s = await autonomy.split(app.state.agent, state)
+        execution, paid = None, set()
+        if s.auto_plan is not None:
+            res = await app.state.executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash, requested_by="VENTHORA (DoA)"))
+            execution, paid = res.model_dump(), ({d.obligation_id for d in s.auto_plan.obligations if d.action in autonomy.PAYING} if res.status in ("COMPLETED", "IN_FLIGHT") else set())
+        elif approver and s.full.decision == "REQUIRES_APPROVAL":
+            from .execution.executor import terms_digest
 
-        result = await app.state.executor.execute(ExecutionRequest(state=state, plan_hash=s.full.plan_hash, requested_by="VENTHORA (DoA)",
-                                                                   approval=Approval(approver=approver, role=role, terms_digest=terms_digest(s.full))))
-        execution = result.model_dump()
-        if result.status in ("COMPLETED", "IN_FLIGHT"):
-            paid_ids = {d.obligation_id for d in s.full.obligations if d.action in autonomy.PAYING}
-    held = {h["obligation_id"]: h["reasons"] for h in s.held}
-    out_paid, out_held = [], []
-    for r in go:
-        oid = f"DOA-{r['key'].upper()}-{r['period']}"
-        status = ("PAID" if execution and execution["status"] == "COMPLETED" else "IN_FLIGHT") if oid in paid_ids else "HELD"
-        msg = (execution or {}).get("message", "") if oid in paid_ids else "; ".join(held.get(oid, ["not paid by the plan"]))
-        rec = await asyncio.to_thread(doa.record_run, org, r, status, by, (execution or {}).get("execution_id"),
-                                      approver if r["verdict"] == "approve" else None, msg)
-        (out_paid if status != "HELD" else out_held).append(rec)
-    await asyncio.to_thread(app.state.audit.append, "doa_run", {"by": by, "paid": [r["_id"] for r in out_paid], "held": [r["_id"] for r in out_held]})
-    return {"paid": out_paid, "held": out_held, "skipped": skipped, "execution": execution}
+            res = await app.state.executor.execute(ExecutionRequest(state=state, plan_hash=s.full.plan_hash, requested_by="VENTHORA (DoA)",
+                                                                    approval=Approval(approver=approver, role=role, terms_digest=terms_digest(s.full))))
+            execution, paid = res.model_dump(), ({d.obligation_id for d in s.full.obligations if d.action in autonomy.PAYING} if res.status in ("COMPLETED", "IN_FLIGHT") else set())
+        held = {h["obligation_id"]: h["reasons"] for h in s.held}
+        if execution:
+            out["executions"].append({"status": execution["status"], "message": execution["message"], "execution_id": execution["execution_id"]})
+        for ln in go:
+            oid = f"DOA-{row['key'].upper()}-{row['period']}-{ln['line'] + 1:03d}"
+            status = ("PAID" if execution["status"] == "COMPLETED" else "IN_FLIGHT") if oid in paid else "HELD"
+            msg = execution["message"] if oid in paid else "; ".join(held.get(oid, ["not paid by the plan"]))
+            rec = await asyncio.to_thread(doa.record_run, org, row, ln, status, by, (execution or {}).get("execution_id"),
+                                          approver if ln["verdict"] == "approve" else None, msg)
+            (out["paid"] if status != "HELD" else out["held"]).append(rec)
+    await asyncio.to_thread(app.state.audit.append, "doa_run", {"by": by, "paid": [r["_id"] for r in out["paid"]], "held": [r["_id"] for r in out["held"]]})
+    return out
 
 
 @app.post("/v1/doa/run")
 async def doa_run(req: DoARunIn, by: str = "dashboard"):
-    """Run the due standing instructions now (the autopilot does the same on its own when it is on)."""
-    return await _doa_run(req.keys, req.approver, req.role, f"{by} ({req.role})" if req.approver else "VENTHORA (DoA)")
+    """Run the due lines now (the autopilot does the same on its own when it is on)."""
+    return await _doa_run(req.refs, req.approver, req.role, f"{by} ({req.role})" if req.approver else "VENTHORA (DoA)")
 
 
 async def _doa_scheduler(every_s: float = 60.0) -> None:

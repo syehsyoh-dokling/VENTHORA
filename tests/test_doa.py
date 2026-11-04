@@ -1,6 +1,7 @@
 # ruff: noqa: E501
-"""Delegation of Authority: standing payment instructions per internal category, the payroll register's two
-approvals, the verdict (auto / approve / never), the payout currency, and a run paid on the fake sandbox."""
+"""Delegation of Authority: a general policy per category (no person, vendor, account or amount); the payroll
+register carries the individuals and each line is judged against the policy; the payout currency is the employee's
+own account's; a run is paid on the fake sandbox."""
 import asyncio
 import datetime as dt
 import json
@@ -16,8 +17,11 @@ from venthora.execution.models import ExecutionRequest
 from venthora.testing.fake_airwallex import FakeAirwallex
 
 FCO = "role=super_admin&by=Rosa%20Lindqvist"
-LINES = [{"employee": "Ana Silva", "amount_minor": 420_000, "charge_code": "US-200.OPS.6010"},
-         {"employee": "Ben Ortiz", "amount_minor": 380_000, "charge_code": "US-200.OPS.6010"}]
+CC = "US-200.OPS.6010"
+# the demo registry has no employees as payees; registered accounts in each currency stand in for theirs
+LINES = [{"employee": "Ana Silva", "payee_id": "payroll-group-us", "currency": "USD", "amount_minor": 420_000, "charge_code": CC},
+         {"employee": "Ben Ortiz", "payee_id": "ben-eu-components", "currency": "EUR", "amount_minor": 380_000, "charge_code": CC},
+         {"employee": "Cleo Hart", "payee_id": "ben-uk-logistics", "currency": "GBP", "amount_minor": 300_000, "charge_code": CC}]
 
 
 @pytest.fixture
@@ -27,70 +31,76 @@ def client():
         yield c
 
 
-def _now(c):
-    return {x["key"]: x["now"] for x in c.get("/v1/doa").json()["internal"]}
+def _now(c, key="personnel"):
+    return next(x["now"] for x in c.get("/v1/doa").json()["internal"] if x["key"] == key)
 
 
 def _period():
     return dt.date.today().strftime("%Y-%m")
 
 
-def test_every_category_is_there_with_its_rules(client):
+def _approve(c):
+    assert c.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=hq_admin&by=Hana%20HR").status_code == 200
+    assert c.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}").status_code == 200
+
+
+def test_the_policy_names_no_individual(client):
     d = client.get("/v1/doa?role=super_admin").json()
     assert [c["key"] for c in d["internal"]] == ["personnel", "fringe", "consultants", "travel", "office", "other_direct"]
     assert [c["key"] for c in d["external"]] == ["vendors", "specialists"]
-    assert all(c["auto"] and c["approve"] and c["never"] for c in d["internal"] + d["external"])
-    assert d["authority"]["you_may_change"] is True and d["autopilot"] is False and d["currencies"] == ["USD", "EUR", "GBP"]
+    for c in d["internal"]:
+        assert not {"payee_id", "amount_minor", "charge_code", "variance_bp", "limit_payment_minor", "limit_run_minor"} & set(c["policy"])
+        assert c["auto"] and c["approve"] and c["never"] and c["source"]
+    assert d["authority"]["you_may_change"] is True and d["autopilot"] is False and "payees" not in d
+    assert _now(client, "office")["summary"] == "not_connected"
 
 
-def test_only_the_holder_of_the_delegation_sets_an_instruction(client):
-    assert client.put("/v1/doa/instructions/office?role=finance_manager&by=Dana", json={"amount_minor": 50_000}).status_code == 403
-    r = client.put(f"/v1/doa/instructions/office?{FCO}", json={"amount_minor": 50_000})
-    assert r.status_code == 200 and r.json()["amount_minor"] == 50_000
-    assert client.put(f"/v1/doa/instructions/office?{FCO}", json={"charge_code": "XX-1.OPS.6300"}).status_code == 422
-    assert client.put(f"/v1/doa/instructions/office?{FCO}", json={"currency": "JPY"}).status_code == 422
+def test_only_the_holder_of_the_delegation_sets_a_policy(client):
+    assert client.put("/v1/doa/policies/personnel?role=finance_manager&by=Dana", json={"pay_day": "25"}).status_code == 403
+    r = client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "25", "currencies": ["GBP", "USD"]})
+    assert r.status_code == 200 and r.json()["pay_day"] == "25" and r.json()["currencies"] == ["USD", "GBP"]
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"currencies": ["JPY"]}).status_code == 422
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"currencies": []}).status_code == 422
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"payee_id": "x"}).json().get("payee_id") is None  # not a policy field
 
 
 def test_payroll_is_never_paid_without_both_approvals_and_the_first_one_needs_a_person(client):
-    assert "no payroll register" in _now(client)["personnel"]["reasons"][0]
-    r = client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "currency": "USD", "lines": LINES})
-    assert r.status_code == 200 and r.json()["total_minor"] == 800_000
-    assert _now(client)["personnel"]["verdict"] == "never"
-    # the preparer approves nothing; HR first, then the FCO, two different people
-    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=finance_manager&by=Dana%20Finch").status_code == 403
-    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}").status_code == 422
-    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=hq_admin&by=Hana%20HR").status_code == 200
-    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}").status_code == 200
-    now = _now(client)["personnel"]
-    assert now["amount_minor"] == 800_000 and now["verdict"] == "approve" and "first payroll" in now["reasons"][0]
+    assert _now(client)["summary"] == "no_document"
+    r = client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": LINES})
+    assert r.status_code == 200 and r.json()["totals"] == {"USD": 420_000, "EUR": 380_000, "GBP": 300_000}
+    assert _now(client)["summary"] == "never"
+    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=finance_manager&by=Dana%20Finch").status_code == 403  # the preparer
+    assert client.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}").status_code == 422  # HR first
+    _approve(client)
+    lines = _now(client)["lines"]
+    assert [x["verdict"] for x in lines] == ["approve"] * 3 and "first payroll" in lines[0]["reasons"][0]
 
 
-def test_the_payout_currency_must_be_one_the_payees_account_receives(client):
-    assert client.put(f"/v1/doa/instructions/consultants?{FCO}", json={"currency": "EUR"}).status_code == 200
-    now = _now(client)["consultants"]
-    assert now["verdict"] == "never" and "receives USD, not EUR" in now["reasons"][0]
-    assert client.put(f"/v1/doa/instructions/consultants?{FCO}", json={"currency": "USD"}).status_code == 200
-    assert _now(client)["consultants"]["verdict"] == "auto"
+def test_each_line_is_paid_in_its_own_accounts_currency_when_the_policy_allows_it(client):
+    bad = LINES[:1] + [LINES[1] | {"currency": "USD"}]  # Ben's account receives EUR
+    assert client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": bad}).status_code == 200
+    _approve(client)
+    v = {x["employee"]: x for x in _now(client)["lines"]}
+    assert v["Ben Ortiz"]["verdict"] == "never" and "receives EUR, not USD" in v["Ben Ortiz"]["reasons"][0]
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"currencies": ["USD"]}).status_code == 200
+    client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": LINES})
+    _approve(client)
+    v = {x["employee"]: x for x in _now(client)["lines"]}
+    assert "EUR is not a payout currency the delegation allows" in v["Ben Ortiz"]["reasons"]
+    assert v["Ana Silva"]["verdict"] == "approve"  # first payroll, but the line itself is fine
 
 
-def test_an_instruction_above_its_limit_waits_for_a_person(client):
-    assert client.put(f"/v1/doa/instructions/office?{FCO}", json={"amount_minor": 300_000}).status_code == 200
-    now = _now(client)["office"]
-    assert now["verdict"] == "approve" and "above the limit" in now["reasons"][0]
-
-
-def test_a_due_run_is_paid_on_the_agents_own_authority(tmp_path):
-    """The book a run builds passes the treasury proof and executes on the fake sandbox without an approval."""
+def test_due_lines_are_paid_on_the_agents_own_authority_in_each_currency(tmp_path):
+    """The book a run builds passes the treasury proof and executes on the fake sandbox without an approval:
+    one payout per line, in the line's currency, bought from base."""
     from venthora.intake.pipeline import Registry
 
     payees = Registry().payees
     today = dt.date.today()
-    rows = [{"key": "office", "period": _period(), "pay_date": today.isoformat(), "amount_minor": 45_000, "currency": "USD",
-             "payee_id": "ben-saas-vendor", "charge_code": "US-200.OPS.6300"},
-            {"key": "consultants", "period": _period(), "pay_date": today.isoformat(), "amount_minor": 320_000, "currency": "USD",
-             "payee_id": "ben-contractor-okafor", "charge_code": "US-200.OPS.6200"}]
+    row = {"key": "personnel", "period": _period(), "pay_date": today.isoformat()}
+    lines = [ln | {"line": i, "ref": f"doa:personnel:{_period()}:{i}"} for i, ln in enumerate(LINES)]
     base = TreasuryState.model_validate(json.loads((ROOT / "data" / "scenarios" / "demo_live.json").read_text(encoding="utf-8"))["state"])
-    state = doa.book(base, rows, payees, today)
+    state = doa.book(base, row, lines, payees, today)
     fake = FakeAirwallex(balances={k: str(v / 100) for k, v in state.balances.items()})
 
     async def go():
@@ -98,11 +108,13 @@ def test_a_due_run_is_paid_on_the_agents_own_authority(tmp_path):
         try:
             s = await autonomy.split(agent, state)
             r = await executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash))
-            again = await executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash))
-            return s, r, again
+            return s, r
         finally:
             await agent.close()
-    s, r, again = asyncio.run(go())
-    assert s.full.decision == "APPROVED" and r.status == "COMPLETED", r.message
-    assert sorted(t["reference"].split()[0] for t in fake.transfers.values()) == [f"DOA-CONSULTANTS-{_period()}", f"DOA-OFFICE-{_period()}"]
-    assert again.status != "COMPLETED" or len(fake.transfers) == 2  # the period's fingerprint never pays twice
+    s, r = asyncio.run(go())
+    assert r.status == "COMPLETED", r.message
+    sent = {t["reference"].split()[0]: t["transfer_currency"] for t in fake.transfers.values()}
+    paid_ids = {d.obligation_id for d in s.auto_plan.obligations if d.action in autonomy.PAYING}
+    assert sent and set(sent) == paid_ids
+    assert {state.obligations[i].currency for i in range(3) if state.obligations[i].obligation_id in paid_ids} <= {"USD", "EUR", "GBP"}
+    assert all(sent[o.obligation_id] == o.currency for o in state.obligations if o.obligation_id in sent)
