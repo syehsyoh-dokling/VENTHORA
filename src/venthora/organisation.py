@@ -138,6 +138,7 @@ class User(BaseModel):
     unit_id: str
     approval_limit_minor: int = Field(default=0, ge=0, le=10**13)
     may_order_by_email: bool = Field(default=False, description="may ask VENTHORA to pay a vendor by email (Settings → Email)")
+    payee_id: str | None = Field(default=None, max_length=60, description="the person's own registered bank account (a payee), for travel claims and reimbursements")
     active: bool = True
 
 
@@ -165,6 +166,27 @@ class Allocation(BaseModel):
     @classmethod
     def check_currency(cls, v: str) -> str:
         return _ccy(v)
+
+
+class TravelRate(BaseModel):
+    """The organisation's lodging and per diem (meals and incidentals) for one destination city, per night and day."""
+    rate_id: str | None = Field(default=None, max_length=60)
+    country: str = Field(min_length=2, max_length=60)
+    city: str = Field(min_length=1, max_length=80)
+    currency: str = "USD"
+    lodging_minor: int = Field(default=0, ge=0, le=10**10)
+    per_diem_minor: int = Field(default=0, ge=0, le=10**10)
+    valid_from: str = Field(default="2026-01-01", pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, v: str) -> str:
+        return _ccy(v)
+
+    @field_validator("country", "city")
+    @classmethod
+    def tidy(cls, v: str) -> str:
+        return " ".join(v.split())
 
 
 class Price(BaseModel):
@@ -218,9 +240,9 @@ CREATE TABLE IF NOT EXISTS records (
     updated_by TEXT NOT NULL, PRIMARY KEY (kind, record_id));
 """
 MODELS = {"unit": Unit, "user": User, "allocation": Allocation, "price": Price, "project": Project, "account": Account, "mailbox": Mailbox,
-          "po": PurchaseOrder}
+          "po": PurchaseOrder, "travel_rate": TravelRate}
 ID_FIELD = {"unit": "unit_id", "user": "user_id", "allocation": "alloc_id", "price": "price_id", "project": "project_id",
-            "account": "account_id", "po": "po_id", "mailbox": "mailbox_id"}
+            "account": "account_id", "po": "po_id", "mailbox": "mailbox_id", "travel_rate": "rate_id"}
 SEED_VERSION = 2
 UNIT_LIMITS = {"hq": 2_500_000, "co-us": 1_000_000, "co-uk": 800_000, "co-de": 800_000, "br-us-west": 300_000,
                "br-uk-manchester": 300_000, "pf-eu-rollout": 500_000}
@@ -441,6 +463,10 @@ class OrgStore:
     def _check_price(self, d: dict) -> None:
         if d.get("unit_id"):
             self._unit(d["unit_id"])
+
+    def _check_travel_rate(self, d: dict) -> None:
+        if not d["lodging_minor"] and not d["per_diem_minor"]:
+            raise OrgError(f"{d['city']}: give the lodging rate, the per diem, or both")
 
     def _check_project(self, d: dict) -> None:
         if d.get("unit_id"):

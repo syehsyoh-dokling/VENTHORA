@@ -92,6 +92,14 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
         "unit_id": ("lower", ("office", "branch", "unit id", "applies to")),
         "valid_from": ("date", ("valid from", "effective", "effective date", "start date")),
     },
+    "travel_rate": {
+        "country": ("text", ("destination country", "country", "negara")),
+        "city": ("text", ("destination city", "city", "location", "kota", "destination")),
+        "currency": ("ccy", ("currency", "ccy")),
+        "lodging_minor": ("amount", ("lodging", "lodging rate", "hotel", "accommodation", "max lodging", "penginapan")),
+        "per_diem_minor": ("amount", ("per diem", "m&ie", "mie", "meals and incidentals", "daily allowance", "uang harian")),
+        "valid_from": ("date", ("valid from", "effective", "effective date", "start date")),
+    },
     "po": {
         "po_id": ("upper", ("po number", "po no", "po", "purchase order", "order number")),
         "supplier_id": ("lower", ("vendor id", "vendor code", "supplier id", "supplier", "vendor")),
@@ -150,6 +158,7 @@ ENTITIES: dict[str, tuple[str, str, str]] = {
     "project": ("Projects", "the project part of every charge code", "#/codes"),
     "account": ("Chart of accounts", "the GL account every payment is booked to", "#/codes"),
     "price": ("Unit prices", "agreed prices invoice lines are checked against", "#/prices"),
+    "travel_rate": ("Travel rates", "lodging and per diem per destination city, for travel and transport", "#/mandate"),
     "vendor": ("Vendors and bank details", "who can be paid, to which account", "#/payees"),
     "customer": ("Customers", "who pays the company, to match money that arrives", "#/sources-sync"),
     "po": ("Purchase orders", "supplier invoices are paid only against an open PO", "#/pos"),

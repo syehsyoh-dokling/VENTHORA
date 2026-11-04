@@ -53,6 +53,7 @@ from .organisation import (  # noqa: E402
     Project,
     PurchaseOrder,
     Standards,
+    TravelRate,
     Unit,
     User,
 )
@@ -438,8 +439,11 @@ async def ledger_adjust(book_id: str, req: AdjustRequest):
 
 @app.get("/v1/payees")
 async def list_payees():
-    """Every payee's live record: status, bank-details fingerprint, cooling period, who verified it."""
-    return app.state.executor.store.list_payees()
+    """Every payee's live record: status, bank-details fingerprint, cooling period, who verified it, with its name and
+    currency from the registry."""
+    reg = app.state.intake.registry.payees
+    return [r | {"name": (reg.get(r["beneficiary_id"]) or {}).get("name"), "currency": (reg.get(r["beneficiary_id"]) or {}).get("currency")}
+            for r in app.state.executor.store.list_payees()]
 
 
 @app.get("/v1/payees/{beneficiary_id}")
@@ -563,6 +567,13 @@ async def doa_get(role: str | None = None):
                          for c in doa.EXTERNAL],
             "runs": sorted(org.list("doa_run"), key=lambda r: r["at"], reverse=True)[:30],
             "autopilot": doa.autopilot(org), "currencies": list(doa.CURRENCIES), "schedules": list(doa.SCHEDULES), "pay_days": list(doa.PAY_DAYS),
+            "benefit_catalog": {"benefits": doa.BENEFITS, "groups": doa.BENEFIT_GROUPS, "frequencies": list(doa.FREQUENCIES), "paid_to": doa.PAID_TO},
+            "consultant_catalog": {"senders": doa.CONSULTANT_SENDERS, "documents": doa.CONSULTANT_DOCUMENTS},
+            "office_catalog": {"senders": doa.OFFICE_SENDERS, "requirements": doa.OFFICE_REQUIREMENTS},
+            "custom": doa.custom_categories(org), "custom_requirements": doa.CUSTOM_REQUIREMENTS,
+            "travel_catalog": {"senders": doa.TRAVEL_SENDERS, "documents": doa.TRAVEL_DOCUMENTS, "channels": doa.TRAVEL_CHANNELS, "places": doa.travel_places(org)},
+            "engine_currencies": list(doa.ENGINE_CURRENCIES),
+            "people": [{"user_id": u["user_id"], "name": u["name"], "role": u["role"]} for u in org.list("user") if u.get("active", True)],
             "authority": {"role": st["authority_role"], "label": mandate.AUTHORITY_ROLES[st["authority_role"]], "you_may_change": role == st["authority_role"] if role else None},
             "today": today.isoformat()}
 
@@ -579,6 +590,32 @@ async def doa_policy_put(key: str, body: Annotated[dict, Body()], role: str = "s
         raise HTTPException(422, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "doa_policy", rec | {"by": f"{by} ({role})"})
     return rec
+
+
+@app.post("/v1/doa/custom")
+async def doa_custom_post(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
+    """Add (or, with its key, change) a category of the FCO's own: item, charge code, who may ask for it by email or
+    on the dashboard, and what the request must carry. Only the holder of the delegation may."""
+    from . import doa
+
+    _doa_authority(role)
+    try:
+        rec = await asyncio.to_thread(doa.save_custom, app.state.org, body, f"{by} ({role})")
+    except (doa.DoAError, OrgError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "doa_custom", rec | {"by": f"{by} ({role})"})
+    return rec
+
+
+@app.delete("/v1/doa/custom/{key}")
+async def doa_custom_delete(key: str, role: str = "super_admin", by: str = "dashboard"):
+    _doa_authority(role)
+    try:
+        await asyncio.to_thread(app.state.org.delete, "doa_custom", key, f"{by} ({role})")
+    except KeyError as exc:
+        raise HTTPException(404, "no such category") from exc
+    await asyncio.to_thread(app.state.audit.append, "doa_custom_deleted", {"key": key, "by": f"{by} ({role})"})
+    return {"deleted": key}
 
 
 @app.put("/v1/doa/settings")
@@ -698,6 +735,75 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
 async def doa_run(req: DoARunIn, by: str = "dashboard"):
     """Run the due lines now (the autopilot does the same on its own when it is on)."""
     return await _doa_run(req.refs, req.approver, req.role, f"{by} ({req.role})" if req.approver else "VENTHORA (DoA)")
+
+
+class TravelFile(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    content_type: str = Field(default="application/pdf", max_length=100)
+    content_b64: str = Field(min_length=1, max_length=14_000_000)
+
+
+class TravelRequestIn(BaseModel):
+    traveller: str = Field(description="user_id of the person travelling")
+    origin: str = Field(description="Country/City, from the travel rates")
+    destination: str = Field(description="Country/City, from the travel rates")
+    start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    purpose: str = Field(default="", max_length=500)
+    amount_minor: int | None = Field(default=None, gt=0, le=10**10, description="the amount claimed; default: what the rates allow")
+    documents: dict[str, list[TravelFile]] = Field(default_factory=dict, description="travel_request, receipts, travel_report")
+
+
+@app.post("/v1/doa/travel-requests")
+async def doa_travel_request(req: TravelRequestIn, role: str = "finance_manager", by: str = "dashboard"):
+    """A travel claim made on the dashboard (the channel 'Dashboard request only' accepts). It is written as the
+    traveller's own request and goes through the same intake and the same checks as an emailed one: the places, the
+    rates, the checklist; complete and inside the delegation, the agent pays it to the traveller's registered account."""
+    import base64
+    import secrets
+    from email.message import EmailMessage
+    from email.utils import format_datetime
+
+    from . import doa
+
+    org = app.state.org
+    user = org.get("user", req.traveller)
+    if user is None or not user.get("active", True):
+        raise HTTPException(422, "the traveller is not an active person in People and roles")
+    places = {f"{c}/{r['city']}": (c, r) for c, rows in doa.travel_places(org).items() for r in rows}
+    if req.destination not in places or req.origin not in places:
+        raise HTTPException(422, "choose the origin and the destination from the travel rates on file")
+    start, end = datetime.fromisoformat(req.start).date(), datetime.fromisoformat(req.end).date()
+    if end < start:
+        raise HTTPException(422, "the trip ends before it starts")
+    dc, rate = places[req.destination]
+    oc, orate = places[req.origin]
+    nights, days = (end - start).days, (end - start).days + 1
+    allowed = rate["lodging_minor"] * nights + rate["per_diem_minor"] * days
+    amount = req.amount_minor or allowed
+    msg = EmailMessage()
+    msg["From"] = f"{user['name']} <{user['email']}>"
+    msg["To"] = "travel@venthora.local"
+    msg["Subject"] = f"Travel claim: {orate['city']} to {rate['city']}, {req.start} to {req.end}"
+    msg["Date"] = format_datetime(datetime.now(UTC))
+    msg["Message-ID"] = f"<travel-{secrets.token_hex(8)}@venthora.local>"
+    msg["Authentication-Results"] = "venthora.local; dashboard=pass"
+    msg.set_content(f"Travel claim of {user['name']}, made on the VENTHORA dashboard by {by} ({role}).\n"
+                    f"Trip from {orate['city']} to {rate['city']}, {start:%d %b %Y} to {end:%d %b %Y}: {nights} nights, {days} days.\n"
+                    f"Purpose: {req.purpose or '-'}\nAmount claimed: {rate['currency']} {amount / 100:,.2f}\n")
+    words = {"travel_request": "Travel request, approved by the supervisor", "receipts": "Receipt", "travel_report": "Travel report"}
+    for kind, files in req.documents.items():
+        if kind not in words:
+            raise HTTPException(422, f"{kind}: not a travel document")
+        for f in files:
+            try:
+                data = base64.b64decode(f.content_b64, validate=True)
+            except ValueError as exc:
+                raise HTTPException(422, f"{f.name}: the file could not be read") from exc
+            main, _, sub = f.content_type.partition("/")
+            name = f.name if words[kind].split(",")[0].lower() in f.name.lower() else f"{words[kind].split(',')[0]} - {f.name}"
+            msg.add_attachment(data, maintype=main or "application", subtype=sub or "octet-stream", filename=name)
+    return await _ingest(msg.as_bytes(), None, False, channel="dashboard")
 
 
 async def _doa_scheduler(every_s: float = 60.0) -> None:
@@ -1197,8 +1303,11 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
     model = active_model()  # Settings → AI model, else .env; rules only when neither names a model
     proposals = await reader.read(parsed["text"], parsed["subject"], datetime.fromisoformat(parsed["received_at"]).date(),
                                   model) if model.configured else {}
-    req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals)
-    if req.trust == "staff" and not dry_run:
+    req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals,
+                                  channel="dashboard" if channel == "dashboard" else "email")
+    # a request forwarded by someone the delegation of authority names is governed by the delegation, not by the
+    # payment-order-by-email rule (the FCO's naming is the authorisation)
+    if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags:
         order, req = await _email_order(req, raw)
         if order is not None:
             return order
@@ -1291,6 +1400,8 @@ class PaymentOrderIn(BaseModel):
     po_number: str | None = Field(None, max_length=40)
     description: str = Field("", max_length=300)
     attachments: list[OrderAttachment] = Field(default_factory=list, max_length=10)
+    category: str | None = Field(None, max_length=60, description="a category of the FCO's own (Delegation of Authority)")
+    pr_number: str | None = Field(None, max_length=40, description="the purchase request number")
 
 
 @app.post("/v1/intake/payment-orders", response_model=IntakeRequest)
@@ -1321,6 +1432,7 @@ async def _payment_order_core(body: PaymentOrderIn, person: dict, msg, *, channe
     duplicate, validated documents, and always a different person to approve it."""
     import uuid
 
+    from . import doa
     from .intake.documents import attachments_of
     from .intake.models import Attachment
 
@@ -1339,8 +1451,26 @@ async def _payment_order_core(body: PaymentOrderIn, person: dict, msg, *, channe
         reasons.append(_po_missing_reason(po_id, pulled[1]))
     reasons += [r for r in req.reasons if not r.startswith("from the company's own system")]
     files = await asyncio.to_thread(attachments_of, msg)
+    status = "NEEDS_REVIEW" if req.status == "VERIFIED" else req.status
+    cat = next((c for c in doa.custom_categories(app.state.org) if c["key"] == body.category), None) if body.category else None
+    if cat is not None and channel == "internal":
+        # the delegation lets the people it names ask for this item on the dashboard and be paid at once: the vendor's
+        # name, account, bank and country are its registered record; the PR number and the amount are on the order
+        missing = [doa.CUSTOM_REQUIREMENTS["pr_number"]] if "pr_number" in cat["requirements"] and not body.pr_number else []
+        if body.currency.upper() not in cat["currencies"]:
+            missing.append(f"a payout currency the category allows ({', '.join(cat['currencies'])})")
+        if not cat["enabled"] or person["user_id"] not in cat["login_people"]:
+            reasons.append(f"{cat['title']}: {person['name']} is not named to ask for it on the dashboard; a different person approves it")
+        elif missing:
+            reasons.append(f"{cat['title']}: not paid on the agent's own authority: missing " + "; ".join(m.lower() for m in missing))
+        elif req.status in ("VERIFIED", "NEEDS_REVIEW") and not (set(req.flags) - {"po_missing"}):
+            status = "VERIFIED"
+            reasons[0] = (f"{cat['title']} ({cat['charge_code']}) asked for on the dashboard by {person['name']}, whom the delegation of authority names; "
+                          f"PR {body.pr_number or '-'}; paid at once to the vendor's registered account")
+            reasons = [r for r in reasons if "quotes no purchase order" not in r]
+            req = req.model_copy(update={"flags": [f for f in req.flags if f != "po_missing"], "account_code": cat["charge_code"]})
     req = req.model_copy(update={"display_name": person["name"], "sender": person["email"], "flags": [*req.flags, "internal_order"],
-                                 "reasons": reasons, "status": "NEEDS_REVIEW" if req.status == "VERIFIED" else req.status,
+                                 "reasons": reasons, "status": status,
                                  "attachments": [Attachment(**{k: v for k, v in f.items() if k != "text"}) for f in files]})
     await asyncio.to_thread(app.state.intake.store.save, req)
     req = await _validate_documents(req, msg.as_bytes(), active_model(), save=True)
@@ -1910,7 +2040,7 @@ async def event_stream(request: Request):
 
 
 # ---- organisation: units, people, budget allocations, unit prices and finance standards ---------------------
-ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price), "mailboxes": ("mailbox", Mailbox),
+ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price), "travel-rates": ("travel_rate", TravelRate), "mailboxes": ("mailbox", Mailbox),
              "projects": ("project", Project), "accounts": ("account", Account), "purchase-orders": ("po", PurchaseOrder)}
 
 
@@ -2915,10 +3045,27 @@ async def _validate_documents(req: IntakeRequest, raw: bytes, model, *, save: bo
 
     if req.checks or req.kind not in validation.KINDS:
         return req
-    from . import mandate
+    from . import doa, mandate
 
     rules = validation.DocRules.model_validate(app.state.org.doc_rules())
     mode = mandate.check_modes(app.state.org)["documents"]
+    consultant = doa.consultant_mandate(app.state.org) if req.kind == "contractor_claim" else None
+    if consultant is not None:  # the delegation is the consultant's mandate, whatever the general document settings say
+        rules = rules.model_copy(update={"enabled": True, "required_documents": rules.required_documents | {"contractor_claim": consultant["documents"]},
+                                         "checks": rules.checks | {"required_documents": "required"}})
+        mode = "hold"
+    if req.kind == "expense_claim" and "doa_cash_advance" in req.flags and doa.cash_mandate(app.state.org) is not None:
+        # an advance is paid before anything is spent: no receipt or claim reference yet; it is settled later
+        rules = rules.model_copy(update={"required_documents": rules.required_documents | {"expense_claim": []},
+                                         "checks": rules.checks | {"invoice_number_present": "off"}})
+    travel = doa.travel_mandate(app.state.org) if req.kind == "expense_claim" and "doa_travel" in req.flags else None
+    if travel is not None:  # the travel checklist: every document ticked is required
+        need = [doa.TRAVEL_DOC_TYPES[d] for d in travel["documents"]]
+        # the travel request is the claim's reference: no invoice number to look for
+        rules = rules.model_copy(update={"enabled": True, "required_documents": rules.required_documents | {"expense_claim": need},
+                                         "checks": rules.checks | {"required_documents": "required", "invoice_number_present": "off"}})
+        mode = "hold"
+        consultant = travel  # an incomplete travel claim is rejected the same way
     if not rules.enabled or mode == "off":
         return req
     docs = await asyncio.to_thread(validation.read_documents, raw)
@@ -2933,6 +3080,10 @@ async def _validate_documents(req: IntakeRequest, raw: bytes, model, *, save: bo
     checks = validation.validate(req, docs, rules, company=app.state.org.standards().get("company_name", ""), vendor=vendor,
                                  registered_bank=bank, po=po, model=assist)
     out = validation.apply(req, checks)
+    missing = next((c for c in checks if c.check == "required_documents" and c.status == "fail"), None)
+    if consultant is not None and missing is not None and out.status not in ("QUARANTINED", "DUPLICATE"):
+        who = "travel claim" if req.kind == "expense_claim" else "consultant's request"
+        out = out.model_copy(update={"status": "REJECTED", "reasons": out.reasons + [f"rejected under the delegation of authority: the {who} is incomplete ({missing.detail})"]})
     if mode == "warn" and out.status != req.status:  # flagged for the approver, not held
         out = out.model_copy(update={"status": req.status, "reasons": out.reasons + ["document checks are set to Flag only in the mandate: flagged, not held"]})
     if save:

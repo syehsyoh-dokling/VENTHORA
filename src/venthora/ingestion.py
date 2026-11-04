@@ -101,7 +101,7 @@ def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict
     return report
 
 
-ORG_ENTITIES = ("unit", "user", "project", "account", "price", "allocation")
+ORG_ENTITIES = ("unit", "user", "project", "account", "price", "allocation", "travel_rate")
 KIND_WORDS = {"hq": "HQ", "head": "HQ", "headquarter": "HQ", "headquarters": "HQ", "country": "COUNTRY_OFFICE",
               "branch": "BRANCH_OFFICE", "cabang": "BRANCH_OFFICE", "project": "PROJECT_FINANCE"}
 
@@ -133,6 +133,10 @@ def _org_row(entity: str, row: dict, org) -> tuple[dict, dict | None]:
         row["code"] = str(row.get("code", "")).strip()
         old = next((x for x in org.list("account") if x["code"] == row["code"]), None)
         row["account_id"] = old["account_id"] if old else "ac-" + _slug(row["code"])
+    elif entity == "travel_rate":
+        key = (" ".join(str(row.get("country", "")).split()).lower(), " ".join(str(row.get("city", "")).split()).lower())
+        old = next((x for x in org.list("travel_rate") if (x["country"].lower(), x["city"].lower()) == key), None)
+        row["rate_id"] = old["rate_id"] if old else "tr-" + _slug(f"{key[0]}-{key[1]}")
     elif entity == "allocation":
         if row.get("unit_id") and not org.get("unit", row["unit_id"]):  # a cost centre or an office name instead of its id
             u = str(row["unit_id"]).lower()

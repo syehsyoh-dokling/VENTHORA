@@ -27,7 +27,7 @@ from email.utils import getaddresses, parsedate_to_datetime
 from pathlib import Path
 from uuid import uuid4
 
-from .. import mandate
+from .. import doa, mandate
 from ..config import ROOT, data_path
 from ..domain.models import TreasuryState
 from . import claims, documents
@@ -340,7 +340,7 @@ class Intake:
             flags.append(flag)
 
     def ingest(self, raw: bytes, *, book_fingerprints: dict[str, str] | None = None, save: bool = True,
-               proposals: dict[str, Quote] | None = None, retriage_of: str | None = None) -> IntakeRequest:
+               proposals: dict[str, Quote] | None = None, retriage_of: str | None = None, channel: str = "email") -> IntakeRequest:
         """Triage one raw email. save=False (dry run) triages without touching the queue. `proposals` are fields
         the model read and the reader already matched verbatim to the text (see intake/reader.py)."""
         parsed = parse_eml(raw)
@@ -433,8 +433,49 @@ class Intake:
                 break
 
         is_payer = role == "payer" or (claimed and claimed[2] == "payer" and not hit)
+        # Experts and consultants under the delegation of authority: who may send the request, what it must carry
+        consult = doa.consultant_mandate(self.org)
+        forwarded_by = (consult or {}).get("forwarders", {}).get(parsed["sender"].lower()) if staff else None
+        office = doa.office_mandate(self.org)
+        cash = doa.cash_mandate(self.org)
+        cash_by = cash["requester_name"] if cash and staff and parsed["sender"].lower() == cash["requester_email"] and amount else None
+        if cash_by:  # a cash advance instructed by the one person the delegation names: the payee is the person named
+            named = next((u for u in self.org.list("user") if u.get("active", True) and u["email"].lower() != parsed["sender"].lower()
+                          and u["name"].lower() in text.lower()), None)
+            if named is not None:
+                staff = named
+                flags += ["doa_cash_advance", "doa_forwarded"]
+                reasons.append(f"cash advance to {named['name']}, instructed by {cash_by}, whom the delegation of authority names for cash advances")
+            else:
+                cash_by = None
+        custom = doa.custom_for(self.org, parsed["sender"], text + " " + subject) if staff and not cash_by else None
+        custom_taken = False
+        travel = doa.travel_mandate(self.org)
+        travel_by = (travel or {}).get("forwarders", {}).get(parsed["sender"].lower()) if staff and channel != "dashboard" else None
+        if travel_by and doa.TRAVEL_WORDS.search(text + " " + subject):
+            named = next((u for u in self.org.list("user") if u.get("active", True) and u["email"].lower() != parsed["sender"].lower()
+                          and u["name"].lower() in text.lower()), None)
+            if named is not None:
+                staff = named
+                reasons.append(f"travel claim of {named['name']}, forwarded by {travel_by}, whom the delegation of authority names as a sender for travel")
+        office_by = (office or {}).get("forwarders", {}).get(parsed["sender"].lower()) if staff and not forwarded_by else None
         if bank and mode["bank_change"] == "hold":
             kind = "bank_change"
+        elif forwarded_by and amount and claimed and claimed[2] == "payee":
+            # a consultant's request forwarded by someone the delegation names: paid to the consultant's own account
+            kind, (cid, rec) = "contractor_claim", claimed[:2]
+            reasons.append(f"forwarded by {forwarded_by}, whom the delegation of authority names as a sender for consultants")
+            flags.append("doa_forwarded")
+        elif custom and amount and claimed and claimed[2] == "payee":
+            kind, (cid, rec) = "supplier_invoice", claimed[:2]
+            flags.append("doa_forwarded")
+            custom_taken = True
+            reasons.append(f"{custom['title']} ({custom['charge_code']}), asked for by {staff['name']}, whom the delegation of authority names for it")
+        elif office_by and amount and claimed and claimed[2] == "payee":
+            # a vendor's bill forwarded by someone the delegation names for office and operations
+            kind, (cid, rec) = "supplier_invoice", claimed[:2]
+            reasons.append(f"forwarded by {office_by}, whom the delegation of authority names as a sender for office and operations")
+            flags.append("doa_forwarded")
         elif staff and amount:
             kind = "expense_claim"
         elif is_payer and remit:
@@ -448,10 +489,42 @@ class Intake:
         extra: dict = {}
         po_hold = False
         if kind in ("supplier_invoice", "contractor_claim") and self.org is not None:
-            po_hold = self._purchase_order(text, subject, cid, amount, quotes, flags, reasons, extra)
+            ignore_exceed = kind == "contractor_claim" and bool(consult and consult["ignore_exceed_claim"])
+            po_hold = self._purchase_order(text, subject, cid, amount, quotes, flags, reasons, extra, ignore_exceed=ignore_exceed)
+            if custom_taken and rec:
+                missing = doa.custom_missing(text + " " + subject, rec.get("name"), amount, custom["requirements"])
+                cur = amount[2] if amount else None
+                if cur not in custom["currencies"]:
+                    missing.append(f"a payout currency the category allows ({', '.join(custom['currencies'])})")
+                if not missing:
+                    if "po_missing" in flags:
+                        flags.remove("po_missing")
+                        reasons[:] = [r for r in reasons if "quotes no purchase order" not in r]
+                    reasons.append(f"{custom['title']}: everything the delegation requires is on the request; paid to the vendor's registered account")
+                    po_hold = False
+                else:
+                    po_hold = True
+                    reasons.append(f"{custom['title']}: not paid on the agent's own authority: missing " + "; ".join(m.lower() for m in missing))
+            elif kind == "supplier_invoice" and "po_missing" in flags and office is not None and rec:
+                # a bill without a purchase order is office and operations spend: the delegation decides it
+                sender_ok = bool(office_by) or ("vendor" in office["senders"] and trust == "registered")
+                missing = doa.office_missing(text + " " + subject, rec.get("name"), amount, office["requirements"])
+                if sender_ok and not missing:
+                    flags.remove("po_missing")
+                    reasons[:] = [r for r in reasons if "quotes no purchase order" not in r]
+                    reasons.append("office and operations bill without a purchase order: everything the delegation requires is on it")
+                    po_hold = False
+                else:
+                    reasons.append("office and operations: not paid on the agent's own authority: "
+                                   + ("the sender is not one the delegation accepts" if not sender_ok else "missing " + "; ".join(m.lower() for m in missing)))
+        travel_verdict = None
+        if custom_taken:  # booked to the category's charge code
+            extra["account_code"] = custom["charge_code"]
         if kind == "expense_claim":
             extra = self._expense(staff, text, subject, received, amount, quotes, flags, reasons, inv)
             cid, fingerprint = f"staff:{staff['user_id']}", extra.pop("fingerprint")
+            if travel is not None and "doa_cash_advance" not in flags and (str(extra.get("category") or "").lower() in ("travel", "transport") or doa.TRAVEL_WORDS.search(text + " " + subject)):
+                travel_verdict = self._travel(travel, staff, text, received, amount, channel, travel_by, flags, reasons)
         else:
             fingerprint = _fingerprint(rec, inv.value if inv else None, cid) if kind != "remittance_notice" else None
         known = dict(book_fingerprints or {}) | self.store.fingerprints()
@@ -494,6 +567,18 @@ class Intake:
         elif kind == "bank_change":
             status = "NEEDS_REVIEW"
             reasons.append("registered sender, but bank details may only change after an out-of-band call-back")
+        elif kind == "expense_claim" and "doa_cash_advance" in flags:
+            account = self.registry.payees.get(staff.get("payee_id") or "")
+            cur = amount[2] if amount else None
+            if account and cur in cash["currencies"] and (not account.get("currency") or account["currency"] == cur):
+                status = "VERIFIED"
+                reasons.append(f"cash advance inside the delegation: paid to {staff['name']}'s registered account, booked as an advance until settled")
+            else:
+                status = "NEEDS_REVIEW"
+                reasons.append(f"cash advance waits for a person: {staff['name']} has no registered bank account in {cur}, or {cur} is not allowed")
+        elif kind == "expense_claim" and travel_verdict in ("auto", "never"):
+            # travel under the delegation of authority: complete and inside the rates is paid; outside it is rejected
+            status = "VERIFIED" if travel_verdict == "auto" else "REJECTED"
         elif kind == "expense_claim":
             status = "NEEDS_REVIEW"  # always: a person approves spending; the agent never approves its own
         elif kind == "remittance_notice":
@@ -514,6 +599,15 @@ class Intake:
         else:
             status = "NEEDS_REVIEW"
             reasons.append("could not read an amount and an invoice reference from the text")
+        if kind == "contractor_claim" and self.org is not None and status not in ("QUARANTINED", "DUPLICATE"):
+            if consult is None:
+                if status == "VERIFIED":
+                    status = "NEEDS_REVIEW"
+                    reasons.append("experts and consultants are not delegated to the agent: a person decides")
+            elif not (forwarded_by or ("consultant" in consult["senders"] and trust == "registered")):
+                status = "REJECTED"
+                allowed = ", ".join(doa.CONSULTANT_SENDERS[x].lower() for x in consult["senders"])
+                reasons.append(f"rejected under the delegation of authority: a consultant's request is paid only on an email from {allowed}")
         warned = sorted({mandate.FLAG_CHECK[f] for f in flags if mandate.FLAG_CHECK.get(f) and mode[mandate.FLAG_CHECK[f]] == "warn"})
         if warned:
             reasons.append("set to Flag only in the mandate, flagged but not held: " + ", ".join(warned))
@@ -533,7 +627,7 @@ class Intake:
             self.store.save(req)
         return req
 
-    def _purchase_order(self, text, subject, cid, amount, quotes, flags, reasons, extra) -> bool:
+    def _purchase_order(self, text, subject, cid, amount, quotes, flags, reasons, extra, ignore_exceed: bool = False) -> bool:
         """Match the invoice to the PO it quotes; True when a person must look first."""
         from .. import procurement
 
@@ -556,6 +650,10 @@ class Intake:
                 pending[r.installment or r.intake_id] = pending.get(r.installment or r.intake_id, 0) + r.amount_minor
         m = procurement.match(self.org, self.payments, po_id, supplier_id=cid, currency=amount[2] if amount else None,
                               amount_minor=amount[1] if amount else None, pending=pending)
+        if ignore_exceed and "po_exceeded" in m["flags"]:  # the delegation ignores claims above the contract value
+            m = m | {"flags": [f for f in m["flags"] if f != "po_exceeded"]}
+            m["ok"] = m["ok"] or not m["flags"]
+            reasons.append("the claim is not checked against the contract value: the delegation ignores exceeding claims")
         check = {f: mandate.FLAG_CHECK.get(f, "po_open") for f in m["flags"]}
         flags += [f for f in m["flags"] if mode[check[f]] != "off"]
         reasons += m["reasons"]
@@ -631,6 +729,41 @@ class Intake:
             out |= {"unit_payment_limit_minor": limit,
                     "unit_approvers": [p["name"] for p in self.org.approvers_for(unit["unit_id"], need)][:20]}
         return out
+
+    def _travel(self, travel, staff, text, received, amount, channel, travel_by, flags, reasons) -> str:
+        """A travel claim against the delegation: channel, sender, places, rates. Returns auto, approve or never."""
+        flags.append("doa_travel")
+        if travel["channel"] == "dashboard" and channel != "dashboard":
+            reasons.append("rejected under the delegation of authority: travel requests are accepted from the dashboard only")
+            return "never"
+        if channel != "dashboard" and not (travel_by or "traveller" in travel["senders"]):
+            allowed = ", ".join(doa.TRAVEL_SENDERS[x].lower() for x in travel["senders"])
+            reasons.append(f"rejected under the delegation of authority: a travel claim is accepted only by email from {allowed}")
+            return "never"
+        dates = [d for d in (_parse_date(m.group("date"), received) for m in ANY_DATE_RE.finditer(text)) if d]
+        j = doa.judge_travel(text, travel, amount[1] if amount else None, amount[2] if amount else None, dates)
+        trip = f"{j['origin'] or 'origin not named'} to {j['destination'] or 'destination not named'}"
+        if j["nights"] is not None:
+            trip += f", {j['nights']} night(s), {j['days']} day(s)"
+        if j["allowed_minor"] is not None:
+            trip += f"; the rates allow {j['currency']} {j['allowed_minor'] / 100:,.2f}"
+        reasons.append(f"travel: {trip}")
+        if j["verdict"] == "never":
+            reasons.append("rejected under the delegation of authority: " + "; ".join(j["reasons"]))
+        elif j["verdict"] == "approve":
+            reasons.append("travel waits for a person: " + "; ".join(j["reasons"]))
+        else:
+            account = self.registry.payees.get(staff.get("payee_id") or "")
+            if not account:
+                reasons.append(f"travel is inside the delegation, but {staff['name']} has no registered bank account (People and roles); a person pays it")
+                return "approve"
+            cur = amount[2] if amount else None
+            if cur not in travel["currencies"] or (account.get("currency") and account["currency"] != cur):
+                reasons.append(f"travel is inside the delegation, but {cur} is not an allowed payout currency or {staff['name']}'s account receives "
+                               f"{account.get('currency')}; a person pays it")
+                return "approve"
+            reasons.append("travel is inside the delegation: the agent pays it to the traveller's registered account")
+        return j["verdict"]
 
     def _expense(self, staff, text, subject, received, amount, quotes, flags, reasons, inv) -> dict:
         """Check a staff claim against Finance standards and Unit prices, and name its approvers."""
@@ -731,6 +864,22 @@ class Intake:
                                                 "payer_history": payer.get("history")})
                     data["evidence"].append({"ref": ref, "subject_id": rid, "source": f"intake:email:{r.sender}",
                                              "status": "verified", "summary": summary})
+                continue
+            traveller = None
+            if r.kind == "expense_claim" and r.status == "VERIFIED" and ({"doa_travel", "doa_cash_advance"} & set(r.flags)) and self.org is not None:
+                u = self.org.get("user", (r.counterparty_id or "").removeprefix("staff:"))
+                traveller = self.registry.payees.get((u or {}).get("payee_id") or "")
+            if r.kind == "expense_claim" and traveller:
+                # a travel claim the delegation of authority lets the agent pay: to the traveller's own registered account
+                oid = f"{'ADVANCE' if 'doa_cash_advance' in r.flags else 'TRAVEL'}-{r.intake_id[:8].upper()}"
+                if oid not in existing_ids:
+                    existing_ids.add(oid)
+                    data["obligations"].append({
+                        "obligation_id": oid, "amount_minor": r.amount_minor, "currency": r.currency, "priority": 6, "due_in_hours": 24,
+                        "beneficiary_id": next(cid for cid, p in self.registry.payees.items() if p is traveller), "payee_name": traveller["name"],
+                        "payout_method": traveller.get("payout_method", "LOCAL"), "evidence_ref": ref, "invoice_fingerprint": r.invoice_fingerprint,
+                        "budget_line": traveller.get("budget_line")})
+                    data["evidence"].append({"ref": ref, "subject_id": oid, "source": f"intake:email:{r.sender}", "status": "verified", "summary": summary})
                 continue
             if r.kind == "expense_claim":
                 # recorded, never paid by the agent yet: a reimbursement needs the employee's bank details registered

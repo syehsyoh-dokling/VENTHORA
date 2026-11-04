@@ -54,6 +54,10 @@ DOC_TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
     "business_licence": ("Business licence (NIB / company registration)", ("nib", "business licence", "business license", "certificate of incorporation", "company registration", "siup")),
     "travel_document": ("Ticket, boarding pass or hotel folio", ("boarding pass", "e-ticket", "itinerary", "hotel folio", "booking confirmation")),
     "expense_report": ("Expense report", ("expense report", "expense claim form", "laporan biaya", "reimbursement form")),
+    "travel_request": ("Travel request, approved", ("travel request", "travel authorization", "travel authorisation", "approved travel", "surat tugas", "spd")),
+    "travel_report": ("Travel report", ("travel report", "trip report", "mission report", "laporan perjalanan")),
+    "progress_report": ("Progress or deliverable report", ("progress report", "deliverable report", "monthly report", "activity report", "laporan kemajuan", "laporan kegiatan")),
+    "deliverable_acceptance": ("Deliverable acceptance", ("deliverable accepted", "acceptance letter", "deliverable acceptance", "accepted by", "sign-off", "signed off")),
 }
 
 # key -> (label, default mode, what it checks)
