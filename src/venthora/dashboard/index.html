@@ -253,6 +253,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="mg" data-g="payment"><button type="button" class="mh"><i>⇄</i><span>Payment</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="/live"><i>▶</i>Operations run<span class="ext">↗</span></a>
    <a href="#/intake" data-nav="intake"><i>✉</i>Intake<span class="cnt" id="cnt-intake"></span></a>
+   <a href="#/commitments" data-nav="commitments"><i>◫</i>Commitments</a>
    <a href="#/pos" data-nav="pos"><i>▣</i>Purchase orders</a>
    <a href="#/travel" data-nav="travel"><i>✈</i>Travel requests</a>
    <a href="#/payroll" data-nav="payroll"><i>☰</i>Payroll register</a>
@@ -375,6 +376,21 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="prRecon" class="empty" style="overflow-x:auto">loading…</div>
  </section>
 
+ <section class="span12" data-view="commitments">
+  <style>#cmTabs{gap:6px;background:transparent;border:0;padding:0;flex-wrap:wrap}#cmTabs button{color:#fff;padding:8px 14px;border-radius:9px;opacity:.55}#cmTabs button:hover{opacity:.85}
+   #cmTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35);transform:translateY(-1px)}
+   #cmTabs [data-ctab=ven]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}#cmTabs [data-ctab=con]{background:linear-gradient(135deg,#0ea5a4,#2f6fed)}
+   #cmTabs [data-ctab=eng]{background:linear-gradient(135deg,#f59e0b,#ef4444)}#cmTabs [data-ctab=cus]{background:linear-gradient(135deg,#10b981,#0ea5a4)}#cmTabs [data-ctab=stf]{background:linear-gradient(135deg,#7b5cff,#db2777)}
+   .cm-name{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}.cm-name:hover{color:var(--accent,#2f6fed)}.cm-name .chev{display:inline-block;width:14px;color:var(--ink3,#888);transition:transform .15s}
+   tr.cm-open .cm-name .chev{transform:rotate(90deg)}tr.cm-det>td{background:var(--surface2);padding:10px 12px}tr.cm-det table{background:var(--surface,#fff)}
+   .cm-tiles{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}.cm-tiles .tile{min-width:150px}.pill.multi{color:#7b5cff;background:rgba(123,92,255,.12);border-color:transparent}
+   .cm-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:4px 16px;margin-bottom:10px}</style>
+  <h2><span>Commitments</span><span class="tabs" id="cmTabs"><button data-ctab="ven" class="on">1 · Vendors</button><button data-ctab="con">2 · Consultants</button><button data-ctab="eng">3 · One-off engagements</button><button data-ctab="cus">4 · Customers &amp; receivables</button><button data-ctab="stf">5 · Staff &amp; payroll</button></span></h2>
+  <div class="small" id="cmNote" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"></div>
+  <div class="row" style="margin:10px 0;gap:8px;flex-wrap:wrap"><input id="cmQ" placeholder="Search by name" style="min-width:220px"><select id="cmSt"><option value="">Every status</option></select><span style="flex:1"></span><span id="cmActs" class="row" style="gap:8px"></span></div>
+  <div id="cmTiles" class="cm-tiles"></div>
+  <div id="cmBody" class="empty">loading…</div>
+ </section>
  <section class="span12" data-view="pos">
   <h2><span>Purchase orders</span><span class="row"><span class="small muted">a supplier invoice is paid only against an open PO it quotes</span><button class="primary" id="addPO">New PO</button></span></h2>
   <div id="poTable" class="empty">loading…</div>
@@ -1035,9 +1051,9 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel requests",payroll:"Payroll register",
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
+ standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),payroll:()=>payrollView(),integrations:()=>webhookView()};
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),commitments:()=>cmView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),payroll:()=>payrollView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
  document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
@@ -1517,7 +1533,7 @@ async function poView(){try{await loadOrg();const [rows,sup]=await Promise.all([
  $("#poTable").querySelectorAll('[data-del="purchase-orders"]').forEach(b=>b.onclick=async()=>{if(!confirm("Delete this PO?"))return;
   try{await api(`/v1/org/purchase-orders/${encodeURIComponent(b.dataset.id)}?${who()}`,{method:"DELETE"});toast("Deleted","good");poView()}catch(e){toast(esc(e.message),"serious")}})}
  catch(e){$("#poTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-async function poForm(po){const sup=await suppliers();po=po||{currency:"USD",terms:[],allow_partial:true,status:"OPEN",issued_date:new Date().toISOString().slice(0,10)};
+async function poForm(po){const sup=await suppliers();po={currency:"USD",terms:[],allow_partial:true,status:"OPEN",issued_date:new Date().toISOString().slice(0,10),...(po||{})};
  $("#dlgTitle").textContent=po.po_id?`Edit ${po.po_id}`:"New purchase order";$("#dlgErr").textContent="";
  const termRow=t=>`<div class="row term"><input class="t-id" placeholder="T1" value="${esc(t.term_id||"")}" style="width:70px"><input class="t-label" placeholder="30% deposit" value="${esc(t.label||"")}" style="flex:1"><input class="t-amt" type="number" step="0.01" min="0" placeholder="amount" value="${t.amount_minor!=null?(t.amount_minor/100).toFixed(2):""}" style="width:120px"><button type="button" class="t-del" formnovalidate>✕</button></div>`;
  $("#dlgBody").innerHTML=`<label>PO number<input id="po-id" required ${po.po_id?"readonly":""} value="${esc(po.po_id||"")}" placeholder="PO-2026-0105"></label>
@@ -1527,7 +1543,15 @@ async function poForm(po){const sup=await suppliers();po=po||{currency:"USD",ter
   <label style="grid-column:1/-1">Description<input id="po-desc" value="${esc(po.description||"")}"></label>
   <div style="grid-column:1/-1"><div class="small" style="font-weight:600;color:var(--ink2);margin-bottom:6px">Payment schedule (optional)</div><div id="po-terms">${po.terms.map(termRow).join("")}</div><button type="button" id="po-add-term" formnovalidate>Add term</button></div>
   <div class="small muted" style="grid-column:1/-1">Every payment on this PO is its next termin (termin-1, termin-2 ...), of any amount, as long as all of them together stay within the total; the schedule above is the payment plan shown beside them.</div>
+  <label>Active date<input id="po-start" type="date" value="${esc(po.start_date||po.issued_date||"")}"></label><label>Expiry date<input id="po-exp" type="date" value="${esc(po.expiry_date||"")}"></label>
+  <label>Billing<select id="po-rec">${[["none","One payment or termins"],["monthly","Multi Payment · monthly"],["quarterly","Multi Payment · quarterly"],["annual","Multi Payment · annual"]].map(([v,l])=>`<option value="${v}" ${v===(po.recurring||"none")?"selected":""}>${l}</option>`).join("")}</select></label>
+  <div style="grid-column:1/-1"><div class="small" style="font-weight:600;color:var(--ink2);margin-bottom:6px">Consultant contract (optional): level of effort and rate</div>
+   <div class="row" style="gap:8px;flex-wrap:wrap"><input id="po-loe" type="number" step="0.5" min="0" placeholder="LoE, e.g. 20" value="${po.loe??""}" style="width:130px"><select id="po-loeu">${["day","hour","month"].map(u=>`<option ${u===(po.loe_unit||"day")?"selected":""}>${u}</option>`).join("")}</select>
+   <input id="po-rate" type="number" step="0.01" min="0" placeholder="rate per unit" value="${po.rate_minor!=null?(po.rate_minor/100).toFixed(2):""}" style="width:150px"><span class="small muted" id="po-loe-out"></span></div>
+   <div class="small muted" style="margin-top:4px">The contract value is LoE × rate and becomes the total; every payment uses up paid ÷ rate of the LoE.</div></div>
   <label>Status<select id="po-status">${["OPEN","CLOSED","CANCELLED"].map(x=>`<option ${x===po.status?"selected":""}>${x}</option>`).join("")}</select></label>`;
+ const loeCalc=()=>{const l=parseFloat($("#po-loe").value),r=parseFloat($("#po-rate").value);if(l>0&&r>0){$("#po-total").value=(Math.round(l*r*100)/100).toFixed(2);$("#po-loe-out").textContent=`= ${$("#po-ccy").value} ${(l*r).toLocaleString(undefined,{minimumFractionDigits:2})} contract value`}else $("#po-loe-out").textContent=""};
+ setTimeout(()=>{$("#po-loe").oninput=loeCalc;$("#po-rate").oninput=loeCalc;loeCalc()});
  const wire=()=>$("#po-terms").querySelectorAll(".t-del").forEach(b=>b.onclick=()=>b.closest(".term").remove());wire();
  $("#po-add-term").onclick=()=>{$("#po-terms").insertAdjacentHTML("beforeend",termRow({}));wire()};
  $("#po-sup").onchange=()=>{const c=$("#po-sup").selectedOptions[0].dataset.ccy;if(c)$("#po-ccy").value=c};if(!po.po_id)$("#po-sup").onchange();
@@ -1537,10 +1561,117 @@ async function poForm(po){const sup=await suppliers();po=po||{currency:"USD",ter
  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
   const terms=[...$("#po-terms").querySelectorAll(".term")].map(t=>({term_id:t.querySelector(".t-id").value.trim().toUpperCase(),label:t.querySelector(".t-label").value.trim(),amount_minor:Math.round(parseFloat(t.querySelector(".t-amt").value||"0")*100)})).filter(t=>t.term_id||t.label||t.amount_minor);
   const body={po_id:$("#po-id").value.trim().toUpperCase(),supplier_id:$("#po-sup").value,currency:$("#po-ccy").value.trim().toUpperCase(),total_minor:Math.round(parseFloat($("#po-total").value||"0")*100),
-   account_code:$("#po-code").value.trim().toUpperCase(),description:$("#po-desc").value,terms,allow_partial:true,status:$("#po-status").value,issued_date:po.issued_date};
-  try{await api(`/v1/org/purchase-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Purchase order saved","good");poView()}
+   account_code:$("#po-code").value.trim().toUpperCase(),description:$("#po-desc").value,terms,allow_partial:true,status:$("#po-status").value,issued_date:po.issued_date,
+   start_date:$("#po-start").value||null,expiry_date:$("#po-exp").value||null,recurring:$("#po-rec").value,
+   loe:parseFloat($("#po-loe").value)>0?parseFloat($("#po-loe").value):null,loe_unit:$("#po-loeu").value,rate_minor:parseFloat($("#po-rate").value)>0?Math.round(parseFloat($("#po-rate").value)*100):null};
+  try{await api(`/v1/org/purchase-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Purchase order saved","good");(po._after||poView)()}
   catch(e){$("#dlgErr").textContent=e.message}}}
 $("#addPO").onclick=()=>poForm(null);
+
+// ---- Payment → Commitments: per vendor, consultant, one-off engagement, customer and employee -------------------------
+let CM=null,CMTAB="ven";const CMOPEN=new Set();
+const CM_NOTE={
+ ven:`<b>Every vendor and what it is owed.</b> Click a vendor to see its purchase orders: PO number, active date, PO amount, paid, remaining and expiry. <b>New</b> = nothing paid yet; <b>Partial</b> = paid in part; <b>Multi Payment</b> = one PO billed every period (internet, a subscription, rent); <b>Done</b> = fully paid. An invoice is paid only inside an open PO that has not expired; an expired PO holds the invoice for a person.`,
+ con:`<b>Every consultant contract and the effort left on it.</b> Click a consultant to see each contract: contract number, active date, LoE bought, rate, paid, LoE left, budget left and expiry. LoE used = paid ÷ rate, so <b>Partial x of y LoE</b> says how much of the effort is already paid. Set the LoE and rate on the contract (New contract, or upload a list in <a href="#/sources-upload">Dataset upload</a> with the columns LoE, effort unit and rate).`,
+ eng:`<b>One-off and incidental engagements: a consultant for a single task, a legal specialist, a resource person or a keynote speaker.</b> Each record holds the profile (name, organisation, contacts, tax ID, the registered payee holding the bank account) and the transaction (event, date, fee, charge code, documents). Once it has a payee it is paid against its own engagement number, like a PO. It needs the engagement letter and the invoice or fee note on file. Add them one by one, or upload a list in any format in <a href="#/sources-upload">Dataset upload</a> (type: One-off engagements).`,
+ cus:`<b>Every customer and what it still owes.</b> Click a customer to see its open invoices. Overdue = past the due date; the cash forecast and the matching of money that arrives both read these receivables (upload them as Receivables (AR), or sync them from the accounting system).`,
+ stf:`<b>Everyone on payroll and their standing pay.</b> Monthly net pay, salary currency and charge code come from People &amp; roles; the latest register is the payroll register they were last on. <b>Ends soon</b> = the contract ends within 60 days; <b>No bank account</b> = register the employee's own account before the next payroll.`};
+const cmPill=(s,label)=>{const c={Done:"good",Partial:"warn","Multi Payment":"multi",New:"info",Cancelled:"",Expired:"critical",Overdue:"critical",Open:"warn",Clear:"good",
+ Active:"good","Ends soon":"warn",Ended:"critical","No bank account":"serious","No net pay on file":"serious","Ready to pay":"good","Needs payee":"serious","Documents missing":"warn"}[s];
+ return `<span class="pill ${c??""}">${esc(label||s)}</span>`};
+const cmDays=d=>d==null?"":d<0?`<div class="small" style="color:var(--critical)">${-d} days ago</div>`:`<div class="small muted">${d} days left</div>`;
+function cmStatuses(){const t=CMTAB,d=CM;if(!d)return[];
+ if(t==="ven"||t==="con")return["New","Partial","Multi Payment","Done","Cancelled","Expired","No contract"];
+ if(t==="eng")return["Ready to pay","Documents missing","Needs payee","Partial","Done","Cancelled"];
+ if(t==="cus")return["Overdue","Open","Clear"];return["Active","Ends soon","Ended","No bank account","No net pay on file"]}
+async function cmView(){try{CM=await api("/v1/commitments");cmRender()}catch(e){$("#cmBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function cmTable(cols,rows,detail,key,empty){if(!rows.length)return`<div class="empty">${empty}</div>`;
+ return `<table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>{const k=key(r),open=CMOPEN.has(CMTAB+":"+k);
+  return `<tr class="${open?"cm-open":""}" data-ck="${esc(k)}">${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`+(detail?`<tr class="cm-det" ${open?"":"hidden"}><td colspan="${cols.length}">${open?detail(r):""}</td></tr>`:"")}).join("")}</tbody></table>`}
+const cmName=(name,sub)=>`<button type="button" class="cm-name" data-cmx><span class="chev">▸</span>${esc(name)}</button>${sub?`<div class="small muted" style="margin-left:14px">${sub}</div>`:""}`;
+function cmPartyKV(p){const b=p.bank||{};return `<div class="cm-kv small"><div><span class="muted">Status</span> ${pill(p.status||"-")}</div><div><span class="muted">Currency · payout</span> ${esc(p.currency||"-")} · ${esc(p.payout_method||"-")}</div>
+ <div><span class="muted">Mailboxes</span> ${esc((p.contacts||[]).join(", ")||"-")}</div><div><span class="muted">Call-back number</span> ${esc(p.registered_phone||"-")}</div>
+ <div><span class="muted">Bank</span> ${esc([b.bank_name,b.account_number||b.iban].filter(Boolean).join(" · ")||"-")}</div><div><span class="muted">Tax ID</span> ${esc(p.tax_id||"-")}</div></div>`}
+function cmContracts(p,consult){const rows=p.contracts;const ccy=c=>c.currency;
+ const cols=consult?[{h:"Contract number",f:c=>`<b class="mono">${esc(c.po_id)}</b><div class="small muted">${esc(c.description)}</div>`},{h:"Active date",f:c=>esc(c.active_date||"-")},
+   {h:"LoE",num:1,f:c=>c.loe!=null?`${c.loe} ${esc(c.loe_unit)}s`:"-"},{h:"Rate",num:1,f:c=>c.rate_minor!=null?`${fmt(c.rate_minor,ccy(c))}<div class="small muted">per ${esc(c.loe_unit)}</div>`:"-"},
+   {h:"Paid",num:1,f:c=>fmt(c.paid_minor,ccy(c))+(c.pending_minor?`<div class="small muted">+ ${fmt(c.pending_minor,ccy(c))} pending</div>`:"")},
+   {h:"LoE left",num:1,f:c=>c.loe_left!=null?`${c.loe_left} ${esc(c.loe_unit)}s`:"-"},{h:"Budget left",num:1,f:c=>`<b>${fmt(c.remaining_minor,ccy(c))}</b><div class="small muted">of ${fmt(c.total_minor,ccy(c))}</div>`},
+   {h:"Expiry date",f:c=>esc(c.expiry_date||"-")+(c.status!=="Done"?cmDays(c.days_left):"")},{h:"Status",f:c=>cmPill(c.status,c.status_label)+(c.expired?" "+cmPill("Expired"):"")}]
+  :[{h:"PO number",f:c=>`<b class="mono">${esc(c.po_id)}</b><div class="small muted">${esc(c.description)}</div>`},{h:"Active date",f:c=>esc(c.active_date||"-")},{h:"PO amount",num:1,f:c=>fmt(c.total_minor,ccy(c))},
+   {h:"Paid",num:1,f:c=>fmt(c.paid_minor,ccy(c))+(c.pending_minor?`<div class="small muted">+ ${fmt(c.pending_minor,ccy(c))} pending</div>`:"")},{h:"Remaining",num:1,f:c=>`<b>${fmt(c.remaining_minor,ccy(c))}</b>`},
+   {h:"Expiry date",f:c=>esc(c.expiry_date||"-")+(c.status!=="Done"?cmDays(c.days_left):"")},
+   {h:"Status",f:c=>cmPill(c.status)+(c.expired?" "+cmPill("Expired"):"")+(c.periods?`<div class="small muted">${c.periods_paid} of ${c.periods} ${esc({monthly:"months",quarterly:"quarters",annual:"years"}[c.recurring])} paid · ${fmt(c.per_period_minor,ccy(c))} each</div>`:"")+(c.terms.length?`<div class="small muted">${c.terms.map(t=>`${esc(t.label)} ${t.state==="PAID"?"✓":""}`).join(" · ")}</div>`:"")}];
+ cols.push({h:"",f:c=>`<div class="acts"><button data-cpo="${esc(c.po_id)}">Edit</button>${c.status!=="Done"&&c.status!=="Cancelled"&&!c.expired&&c.remaining_minor>0?`<button class="primary" data-cpay="${esc(c.po_id)}" data-sup="${esc(p.id)}">Pay</button>`:""}</div>`});
+ return cmPartyKV(p)+table(cols,rows,`no ${consult?"contract":"purchase order"} yet`)+`<div class="row" style="margin-top:8px"><button data-cnewpo="${esc(p.id)}" data-ccy="${esc(p.currency||"USD")}">${consult?"New contract":"New PO"} for ${esc(p.name)}</button></div>`}
+const cmTile=(l,v,sub)=>`<div class="tile"><div class="small muted">${l}</div><div style="font-size:18px;font-weight:600">${v}</div>${sub?`<div class="small muted">${sub}</div>`:""}</div>`;
+function cmRender(){const d=CM;if(!d)return;const q=$("#cmQ").value.trim().toLowerCase(),st=$("#cmSt").value;
+ $("#cmNote").innerHTML=CM_NOTE[CMTAB];
+ const sts=cmStatuses();if($("#cmSt").dataset.tab!==CMTAB){$("#cmSt").innerHTML=`<option value="">Every status</option>`+sts.map(s=>`<option>${esc(s)}</option>`).join("");$("#cmSt").dataset.tab=CMTAB}
+ const has=(names)=>!q||names.some(n=>String(n||"").toLowerCase().includes(q));let html="",tiles="",acts="";
+ if(CMTAB==="ven"||CMTAB==="con"){const consult=CMTAB==="con",list=consult?d.consultants:d.vendors;
+  const ok=p=>has([p.name,...p.contracts.map(c=>c.po_id)])&&(!st||(st==="No contract"?!p.contracts.length:st==="Expired"?p.expired:p.statuses.includes(st)));
+  const all=list.flatMap(p=>p.contracts),open=all.filter(c=>!["Done","Cancelled"].includes(c.status));
+  tiles=cmTile(consult?"Consultants":"Vendors",list.length)+cmTile(consult?"Open contracts":"Open POs",open.length)+cmTile("Expiring in 30 days",open.filter(c=>c.days_left!=null&&c.days_left>=0&&c.days_left<=30).length)+cmTile("Expired, still open",open.filter(c=>c.expired).length)
+   +(consult?cmTile("LoE left",[...new Set(open.filter(c=>c.loe_left!=null).map(c=>c.loe_unit))].map(u=>`${open.filter(c=>c.loe_unit===u&&c.loe_left!=null).reduce((a,c)=>a+c.loe_left,0)} ${u}s`).join(" · ")||"-"):cmTile("Multi Payment",all.filter(c=>c.status==="Multi Payment").length));
+  html=cmTable([{h:consult?"Consultant":"Vendor",f:p=>cmName(p.name,consult?esc(p.engagement==="regular"?"regular · monthly retainer":"short-term · per deliverable"):esc(p.budget_line||""))},
+   {h:consult?"Contracts":"POs",num:1,f:p=>p.contracts.length},{h:"Committed",num:1,f:p=>p.totals_currency?fmt(p.total_minor,p.totals_currency):p.contracts.length?"several currencies":"-"},
+   {h:"Paid",num:1,f:p=>p.totals_currency?fmt(p.paid_minor,p.totals_currency):"-"},{h:"Remaining",num:1,f:p=>p.totals_currency?`<b>${fmt(p.remaining_minor,p.totals_currency)}</b>`:"-"},
+   {h:"Next expiry",f:p=>esc(p.next_expiry||"-")},{h:"Status",f:p=>p.contracts.length?p.statuses.map(s=>cmPill(s)).join(" ")+(p.expired?" "+cmPill("Expired"):""):`<span class="small muted">no ${consult?"contract":"PO"}</span>`}],
+   list.filter(ok),p=>cmContracts(p,consult),p=>p.id,`no ${consult?"consultant":"vendor"} matches`);
+  acts=`<a class="small" href="#/${consult?"consultants":"vendors"}">${consult?"Consultant":"Vendor"} profiles ›</a><button class="primary" data-cnewpo="">${consult?"New contract":"New PO"}</button>`}
+ else if(CMTAB==="eng"){const list=d.engagements.filter(e=>has([e.name,e.organisation,e.event,e.engagement_id])&&(!st||e.status_label===st));
+  const open=d.engagements.filter(e=>!["Done","Cancelled"].includes(e.status_label));
+  tiles=cmTile("Engagements",d.engagements.length)+cmTile("Ready to pay",d.engagements.filter(e=>e.status_label==="Ready to pay").length)+cmTile("Need a payee",d.engagements.filter(e=>e.status_label==="Needs payee").length)
+   +cmTile("Documents missing",d.engagements.filter(e=>e.status_label==="Documents missing").length)+cmTile("Fees still open",[...new Set(open.map(e=>e.currency))].map(c=>fmt(open.filter(e=>e.currency===c).reduce((a,e)=>a+e.remaining_minor,0),c)).join("<br>")||"-");
+  html=cmTable([{h:"Name",f:e=>cmName(e.name,`${esc(e.role_label)}${e.organisation?" · "+esc(e.organisation):""}`)},{h:"Engagement",f:e=>`<b class="mono">${esc(e.engagement_id)}</b><div class="small">${esc(e.event)}</div><div class="small muted">${esc(e.event_date)}</div>`},
+   {h:"Fee",num:1,f:e=>fmt(e.fee_minor,e.currency)},{h:"Paid",num:1,f:e=>fmt(e.paid_minor,e.currency)+(e.pending_minor?`<div class="small muted">+ ${fmt(e.pending_minor,e.currency)} pending</div>`:"")},
+   {h:"Payee",f:e=>e.payee_id?esc(e.payee_name||e.payee_id):`<span class="small muted">none yet · <a href="#/consultants">register the bank account</a></span>`},
+   {h:"Documents",f:e=>e.documents_missing.length?`<span class="small" style="color:var(--warn)">missing: ${e.documents_missing.map(esc).join(", ")}</span>`:'<span class="small" style="color:var(--good)">complete</span>'},
+   {h:"Status",f:e=>cmPill(e.status_label)},
+   {h:"",f:e=>`<div class="acts"><button data-ceng="${esc(e.engagement_id)}">Edit</button><button data-cengdel="${esc(e.engagement_id)}">Delete</button>${e.payee_id&&e.remaining_minor>0&&e.status!=="CANCELLED"?`<button class="primary" data-cpay="${esc(e.engagement_id)}" data-sup="${esc(e.payee_id)}">Pay</button>`:""}</div>`}],
+   list,e=>`<div class="cm-kv small"><div><span class="muted">Email</span> ${esc(e.email||"-")}</div><div><span class="muted">Phone</span> ${esc(e.phone||"-")}</div><div><span class="muted">Tax ID</span> ${esc(e.tax_id||"-")}</div>
+    <div><span class="muted">Charge code</span> <span class="mono">${esc(e.charge_code)}</span></div><div><span class="muted">Documents on file</span> ${esc(e.documents.map(k=>d.documents[k]).join(", ")||"none")}</div><div><span class="muted">Note</span> ${esc(e.note||"-")}</div></div>`,
+   e=>e.engagement_id,"no engagement matches");
+  acts=`<a class="small" href="#/sources-upload">Upload a list ›</a><button class="primary" id="cmAddEng">Add engagement</button>`}
+ else if(CMTAB==="cus"){const list=d.customers.filter(c=>has([c.name,...c.invoices.map(i=>i.invoice_no)])&&(!st||c.status===st));
+  const tot=k=>[...new Set(d.customers.map(c=>c.totals_currency).filter(Boolean))].map(ccy=>fmt(d.customers.filter(c=>c.totals_currency===ccy).reduce((a,c)=>a+(c[k]||0),0),ccy)).join("<br>")||"-";
+  tiles=cmTile("Customers",d.customers.length)+cmTile("Open invoices",d.customers.reduce((a,c)=>a+c.open_count,0))+cmTile("Open",tot("open_minor"))+cmTile("Overdue",tot("overdue_minor"));
+  html=cmTable([{h:"Customer",f:c=>cmName(c.name,esc((c.contacts||[]).join(", ")))},{h:"Open invoices",num:1,f:c=>c.open_count},{h:"Open",num:1,f:c=>c.open_minor!=null?fmt(c.open_minor,c.totals_currency):"several currencies"},
+   {h:"Overdue",num:1,f:c=>c.overdue_minor?`<b style="color:var(--critical)">${fmt(c.overdue_minor,c.totals_currency)}</b>`:"-"},{h:"Next due",f:c=>esc(c.next_due||"-")},
+   {h:"Payment history",f:c=>c.history?`<span class="small">${c.history.kept} kept · ${c.history.missed} missed</span>`:"-"},{h:"Status",f:c=>cmPill(c.status)}],
+   list,c=>table([{h:"Invoice",f:i=>`<b class="mono">${esc(i.invoice_no)}</b>`},{h:"Amount",num:1,f:i=>fmt(i.amount_minor,i.currency)},{h:"Due date",f:i=>esc(i.due_date)+(i.due_date<d.today?` <span class="pill critical">overdue</span>`:"")}],c.invoices,"no open invoice"),
+   c=>c.id,"no customer matches");acts=`<a class="small" href="#/customers">Customer profiles ›</a><a class="small" href="#/sources-upload">Upload receivables ›</a>`}
+ else{const list=d.staff.filter(u=>has([u.name,u.employee_no,u.office,u.job_title])&&(!st||u.status===st));
+  tiles=cmTile("On payroll",d.staff.length)+cmTile("Ends within 60 days",d.staff.filter(u=>u.status==="Ends soon").length)+cmTile("No bank account",d.staff.filter(u=>u.status==="No bank account").length)
+   +cmTile("Monthly net pay",[...new Set(d.staff.map(u=>u.salary_currency).filter(Boolean))].map(c=>fmt(d.staff.filter(u=>u.salary_currency===c).reduce((a,u)=>a+(u.salary_minor||0),0),c)).join("<br>")||"-");
+  html=cmTable([{h:"Employee",f:u=>`<b>${esc(u.name)}</b><div class="small muted">${esc([u.employee_no,u.job_title].filter(Boolean).join(" · "))}</div>`},{h:"Office",f:u=>esc(u.office)},
+   {h:"Employment",f:u=>esc((u.employment_type||"-").replace("_"," "))},{h:"Contract",f:u=>`${esc(u.contract_start||"-")} → ${esc(u.contract_end||"open-ended")}`+(u.contract_end?cmDays(u.days_left):"")},
+   {h:"Monthly net pay",num:1,f:u=>u.salary_minor!=null?fmt(u.salary_minor,u.salary_currency):"-"},{h:"Charge code",f:u=>`<span class="mono">${esc(u.charge_code||"-")}</span>`},
+   {h:"Latest register",f:u=>u.last_register?`${esc(u.last_register)} ${pill(String(u.last_register_status).toUpperCase())}`:'<span class="small muted">none yet</span>'},{h:"Status",f:u=>cmPill(u.status)}],
+   list,null,u=>u.user_id,"no one on payroll yet: add net pay in People & roles");acts=`<a class="small" href="#/users">People &amp; roles ›</a><a class="small" href="#/payroll">Payroll register ›</a>`}
+ $("#cmTiles").innerHTML=tiles;$("#cmBody").innerHTML=html;$("#cmActs").innerHTML=acts;$("#cmBody").classList.remove("empty");
+ $("#cmBody").querySelectorAll("[data-cmx]").forEach(b=>b.onclick=()=>{const tr=b.closest("tr"),k=CMTAB+":"+tr.dataset.ck;CMOPEN.has(k)?CMOPEN.delete(k):CMOPEN.add(k);cmRender()});
+ const findPO=id=>(LAST.cmPos||[]).find(r=>r.po.po_id===id);
+ document.querySelectorAll("[data-view=commitments] [data-cpo]").forEach(b=>b.onclick=async()=>{const rows=await api("/v1/procurement/purchase-orders");LAST.cmPos=rows;const r=findPO(b.dataset.cpo);if(r)poForm({...r.po,_after:cmView})});
+ document.querySelectorAll("[data-view=commitments] [data-cnewpo]").forEach(b=>b.onclick=()=>poForm(b.dataset.cnewpo?{supplier_id:b.dataset.cnewpo,currency:b.dataset.ccy,_after:cmView}:{_after:cmView}));
+ document.querySelectorAll("[data-view=commitments] [data-cpay]").forEach(b=>b.onclick=()=>{const id=b.dataset.cpay;const c=[...d.vendors,...d.consultants].flatMap(p=>p.contracts).find(x=>x.po_id===id),e=d.engagements.find(x=>x.engagement_id===id);
+  const per=c&&c.per_period_minor?Math.min(c.per_period_minor,c.remaining_minor):null;
+  orderForm({vendor_id:b.dataset.sup,po_number:id,currency:(c||e).currency,amount_minor:per||(c?c.remaining_minor:e.remaining_minor),description:c?c.description:`${e.role_label}: ${e.event}`,after:cmView})});
+ document.querySelectorAll("[data-view=commitments] [data-ceng]").forEach(b=>b.onclick=()=>cmEngForm(d.engagements.find(e=>e.engagement_id===b.dataset.ceng)));
+ document.querySelectorAll("[data-view=commitments] [data-cengdel]").forEach(b=>b.onclick=async()=>{if(!confirm(`Delete ${b.dataset.cengdel}?`))return;
+  try{await api(`/v1/org/engagements/${encodeURIComponent(b.dataset.cengdel)}?${who()}`,{method:"DELETE"});toast("Deleted","good");cmView()}catch(e){toast(esc(e.message),"serious")}});
+ if($("#cmAddEng"))$("#cmAddEng").onclick=()=>cmEngForm(null)}
+async function cmEngForm(e){const sup=await suppliers();const d=CM;
+ const rec=e?Object.fromEntries(Object.entries(e).filter(([k])=>!["role_label","paid_minor","pending_minor","remaining_minor","status_label","payee_name","documents_missing"].includes(k))):{role:"keynote_speaker",currency:"USD",status:"ACTIVE",documents:[],event_date:new Date().toISOString().slice(0,10)};
+ openForm(e?`Edit ${e.engagement_id}`:"Add a one-off engagement",[
+  {k:"name",l:"Full name",req:1},{k:"role",l:"Engagement type",opts:Object.entries(d.roles)},{k:"organisation",l:"Organisation or affiliation"},{k:"email",l:"Email",type:"email"},{k:"phone",l:"Phone"},{k:"tax_id",l:"Tax ID"},
+  {k:"payee_id",l:"Registered payee (bank account)",nullable:1,opts:[["","none yet: register the bank account first"],...Object.values(sup).map(p=>[p.id,`${p.name} · ${p.currency||""}`])]},
+  {k:"event",l:"Event, task or matter",req:1},{k:"event_date",l:"Event date",type:"date",req:1},{k:"fee_minor",l:"Fee",money:1,req:1},{k:"currency",l:"Currency",max:3,req:1},
+  {k:"charge_code",l:"Charge code (office . project . account)",req:1},{k:"documents",l:"Documents on file (the engagement letter and the invoice are required before payment)",multi:Object.entries(d.documents)},
+  {k:"note",l:"Note"},{k:"status",l:"Status",opts:[["ACTIVE","Active"],["CANCELLED","Cancelled"]]}],rec,"engagements",cmView)}
+$("#cmTabs").querySelectorAll("[data-ctab]").forEach(b=>b.onclick=()=>{CMTAB=b.dataset.ctab;$("#cmTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));$("#cmSt").value="";cmRender()});
+$("#cmQ").oninput=()=>cmRender();$("#cmSt").onchange=()=>cmRender();
 
 async function spendingView(){try{const per=$("#spPeriod").value;const [s]=await Promise.all([api("/v1/procurement/spending"+(per?`?period=${encodeURIComponent(per)}`:"")),loadOrg(),loadCodes()]);
  const tree=treeRows(s.by_unit);const max=Math.max(1,...tree.map(r=>r.with_units_below_minor));
@@ -1577,7 +1708,7 @@ $("#codeCheckBtn").onclick=async()=>{try{const r=await api(`/v1/org/account-code
  catch(e){$("#codeCheckOut").innerHTML=`<span class="pill critical">INVALID</span> ${esc(e.message.replace(/^422 /,""))}`}};
 
 // ---- Intake → internal payment order ------------------------------------------------------------------------------------
-$("#newOrder").onclick=async()=>{const sup=await suppliers();let pos=[];try{pos=(await api("/v1/procurement/purchase-orders")).filter(x=>(x.po||x).status==="OPEN")}catch(e){}
+async function orderForm(pre={}){const sup=await suppliers();let pos=[];try{pos=(await api("/v1/procurement/purchase-orders")).filter(x=>(x.po||x).status==="OPEN")}catch(e){}
  let cats=[];try{const dd=await api("/v1/doa");const me=dd.people.find(u=>u.name===actor().name);cats=dd.custom.filter(c=>c.enabled&&me&&c.login_people.includes(me.user_id))}catch(e){}
  $("#dlgTitle").textContent=`Payment order · asked by ${actor().name}`;$("#dlgErr").textContent="";
  $("#dlgBody").innerHTML=`<label>Pay to (registered payee)<select id="o-ven">${Object.values(sup).map(p=>`<option value="${esc(p.id)}">${esc(p.name||p.id)}</option>`).join("")}</select></label>
@@ -1589,6 +1720,8 @@ $("#newOrder").onclick=async()=>{const sup=await suppliers();let pos=[];try{pos=
   <label style="grid-column:1/-1">What it is for<input id="o-desc" maxlength="300"></label>
   <label style="grid-column:1/-1">Documents (invoice, receipt, report ... as the document rules require)<input id="o-files" type="file" multiple accept=".pdf,.jpg,.jpeg,.png"></label>
   <div class="small muted" style="grid-column:1/-1">It goes through the same checks as an emailed invoice and always waits for a person other than you to approve it.</div>`;
+ if(pre.vendor_id)$("#o-ven").value=pre.vendor_id;if(pre.currency)$("#o-ccy").value=pre.currency;if(pre.po_number)$("#o-po").value=pre.po_number;
+ if(pre.amount_minor)$("#o-amt").value=(pre.amount_minor/100).toFixed(2);if(pre.description)$("#o-desc").value=pre.description;if(pre.invoice_no)$("#o-inv").value=pre.invoice_no;
  $("#dlg").showModal();
  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
   const b64=f=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(String(fr.result).split(",")[1]);fr.readAsDataURL(f)});
@@ -1597,7 +1730,8 @@ $("#newOrder").onclick=async()=>{const sup=await suppliers();let pos=[];try{pos=
    due_date:$("#o-due").value,po_number:$("#o-po").value.trim()||null,description:$("#o-desc").value,attachments:files,
    category:$("#o-cat")?.value||null,pr_number:$("#o-pr")?.value.trim()||null};
   try{const r=await api(`/v1/intake/payment-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();
-   toast(`Payment order ${esc(r.invoice_no)}: ${esc(r.status.toLowerCase().replace("_"," "))}`,r.status==="VERIFIED"?"good":r.status==="NEEDS_REVIEW"?"warn":"serious");intake()}catch(e){$("#dlgErr").textContent=e.message}}};
+   toast(`Payment order ${esc(r.invoice_no)}: ${esc(r.status.toLowerCase().replace("_"," "))}`,r.status==="VERIFIED"?"good":r.status==="NEEDS_REVIEW"?"warn":"serious");(pre.after||intake)()}catch(e){$("#dlgErr").textContent=e.message}}}
+$("#newOrder").onclick=()=>orderForm();
 
 // ---- Settings → data sources ---------------------------------------------------------------------------------------
 // green: done; red: the platform cannot run without it; yellow: optional, still open. Each open item says what to do.

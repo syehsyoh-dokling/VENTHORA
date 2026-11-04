@@ -18,6 +18,7 @@ An invoice matches when every check passes; each failure is a flag a person sees
 from __future__ import annotations
 
 import re
+from datetime import date
 
 # "PO" must stand alone: an invoice number like POS-025437 is not "PO S-025437" (seen live)
 PO_RE = re.compile(r"\b(?:P\.?\s?O\.?(?![A-Za-z])|purchase\s+order)\s*(?:no\.?|number|#|ref\.?)?\s*[:#]?\s*(?P<po>[A-Z0-9]+(?:[/-][A-Z0-9]+)+|\d{3,})",
@@ -35,7 +36,7 @@ def find_po(text: str, subject: str) -> tuple[str, str, int, int] | None:
     return None
 
 
-PO_FAILS = {"po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_exceeded", "po_term_mismatch"}
+PO_FAILS = {"po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_exceeded", "po_term_mismatch", "po_expired"}
 
 
 def holds(r, paid_fingerprints: set[str]) -> bool:
@@ -77,6 +78,9 @@ def match(org, payments, po_id: str, *, supplier_id: str | None, currency: str |
     if po["status"] != "OPEN":
         flags.append("po_not_open")
         reasons.append(f"PO {po_id} is {po['status'].lower()}")
+    elif po.get("expiry_date") and po["expiry_date"] < date.today().isoformat():
+        flags.append("po_expired")
+        reasons.append(f"PO {po_id} expired on {po['expiry_date']}; extend it or raise a new PO")
     if supplier_id and po["supplier_id"] != supplier_id:
         flags.append("po_supplier_mismatch")
         reasons.append(f"PO {po_id} was placed with another supplier ({po['supplier_id']})")

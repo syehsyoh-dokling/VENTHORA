@@ -42,7 +42,7 @@ AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
                   "/v1/accounts", "/v1/balances", "/v1/collection-accounts", "/v1/acting-as", "/v1/reference",
                   "/api/airwallex", "/v1/airwallex", "/api/audit", "/v1/audit")),
     "payables": ("Payables", "intake of invoices and claims, payees, vendors, consultants and customers with their bank details, purchase orders, approvals",
-                 ("/v1/intake", "/v1/payees", "/v1/beneficiaries", "/v1/procurement", "/v1/approvals")),
+                 ("/v1/intake", "/v1/payees", "/v1/beneficiaries", "/v1/procurement", "/v1/commitments", "/v1/approvals")),
     "receivables": ("Receivables", "customer invoices and ageing", ("/v1/aging",)),
     "budget": ("Budget and reporting", "budgets, period close, reporting periods and rates, tenants",
                ("/v1/budgets", "/v1/budget-allocation", "/v1/reporting", "/v1/reports", "/v1/tenants", "/api/budget")),

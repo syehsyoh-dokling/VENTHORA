@@ -46,6 +46,7 @@ from .organisation import (  # noqa: E402
     WRITE_ROLES,
     Account,
     Allocation,
+    Engagement,
     Mailbox,
     OrgError,
     OrgStore,
@@ -2061,7 +2062,8 @@ async def event_stream(request: Request):
 
 # ---- organisation: units, people, budget allocations, unit prices and finance standards ---------------------
 ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price), "travel-rates": ("travel_rate", TravelRate), "mailboxes": ("mailbox", Mailbox),
-             "projects": ("project", Project), "accounts": ("account", Account), "purchase-orders": ("po", PurchaseOrder)}
+             "projects": ("project", Project), "accounts": ("account", Account), "purchase-orders": ("po", PurchaseOrder),
+             "engagements": ("engagement", Engagement)}
 
 
 def _org_kind(collection: str):
@@ -2878,6 +2880,22 @@ async def purchase_orders():
     return out
 
 
+@app.get("/v1/commitments")
+async def commitments_list():
+    """Per vendor, consultant, one-off engagement, customer and employee: what is committed, paid and still open.
+    Vendors: PO number, active date, PO amount, paid, remaining, expiry, status New / Partial / Multi Payment / Done.
+    Consultants: contract number, active date, LoE, rate, paid, LoE left, budget left, expiry, status New /
+    Partial x of y LoE / Done. One-off engagements: profile, event, fee and the documents still missing."""
+    from . import commitments
+    from .masterdata import MasterStore
+
+    pos = await purchase_orders()
+    vendors, consultants = await beneficiaries_list("vendor"), await beneficiaries_list("consultant")
+    customers = await beneficiaries_list("customer")
+    return await asyncio.to_thread(commitments.build, org=app.state.org, po_statuses=pos, vendors=vendors, consultants=consultants,
+                                   customers=customers, receivables=MasterStore().list("receivable"), payees=app.state.intake.registry.payees)
+
+
 @app.get("/v1/procurement/spending")
 async def procurement_spending(period: str | None = None):
     """Paid spend by office (own and with the offices below), project, account and account code; open PO commitments."""
@@ -2941,10 +2959,12 @@ async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "
 async def org_delete(collection: str, record_id: str, role: str = "finance_manager", by: str = "dashboard"):
     kind, _ = _org_kind(collection)
     who = _org_writer(role, by, kind, app.state.org.get(kind, record_id))
-    if kind == "po" and app.state.executor.store.po_payments(record_id):
+    if kind in ("po", "engagement") and app.state.executor.store.po_payments(record_id):
         raise HTTPException(409, "money has been paid against this PO; close or cancel it instead, so its payments keep their PO")
     try:
         await asyncio.to_thread(app.state.org.delete, kind, record_id, who)
+        if kind == "engagement" and app.state.org.get("po", record_id):  # the PO it was paid against goes with it
+            await asyncio.to_thread(app.state.org.delete, "po", record_id, who)
     except KeyError as exc:
         raise HTTPException(404, "no such record") from exc
     except OrgError as exc:

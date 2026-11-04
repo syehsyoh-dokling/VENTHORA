@@ -88,6 +88,7 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("POST", "/v1/payees/{beneficiary_id}/suspend"): ("Suspend a payee", "No payment goes to this payee until it is reinstated."),
     ("POST", "/v1/payees/{beneficiary_id}/verify"): ("Verify a payee", "Record the call-back in which a finance manager confirmed the bank details with the payee."),
     ("GET", "/v1/procurement/purchase-orders"): ("List purchase orders", "Every PO with what is paid (term by term), in flight and still open; a PO is never paid beyond its total."),
+    ("GET", "/v1/commitments"): ("List commitments", "Per vendor, consultant, one-off engagement, customer and employee: PO or contract, active and expiry dates, amount, paid, remaining, LoE left, and the status New / Partial / Multi Payment / Done."),
     ("GET", "/v1/procurement/spending"): ("Spending by office and project", "Paid spend by office, project, account code and payee for a period."),
     # receivables
     ("GET", "/v1/aging"): ("Aging report", "Every obligation of a book as of a date, in aging buckets."),

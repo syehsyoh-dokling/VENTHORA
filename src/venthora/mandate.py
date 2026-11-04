@@ -75,7 +75,7 @@ CHECKS: list[dict[str, Any]] = [
      "fails": "an unknown or unauthenticated sender, or a Reply-To that points elsewhere, is quarantined", "flags": ["unknown_sender", "reply_to_mismatch"],
      "critical": True, "risk": "Payment-diversion fraud: an invoice from a look-alike or forged mailbox, or one whose replies go to a fraudster, is no longer quarantined. An unregistered sender is still never paid without a person."},
     {"key": "po_open", "label": "A supplier invoice quotes an open purchase order placed with the same supplier, in the same currency",
-     "fails": "held for review", "flags": ["po_missing", "po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_term_mismatch"],
+     "fails": "held for review", "flags": ["po_missing", "po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_term_mismatch", "po_expired"],
      "switch": "require_po", "where": "#/standards", "critical": True,
      "risk": "Invoices without an approved commitment can be paid: fictitious suppliers, invoices for goods nobody ordered, and invoices billed against another supplier's order."},
     {"key": "po_room", "label": "Paid, pending and this invoice together never exceed the purchase order total",

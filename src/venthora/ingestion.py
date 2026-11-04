@@ -84,6 +84,13 @@ def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict
               "changes": [], "followed": []}
     for i, (row, ext) in enumerate(keep):
         try:
+            if row.get("recurring"):
+                r = str(row["recurring"]).strip().lower()
+                row = row | {"recurring": r if r in ("none", "monthly", "quarterly", "annual") else
+                             next((v for w, v in RECURRING_WORDS.items() if w in r), "none")}
+            if row.get("loe_unit"):
+                u = str(row["loe_unit"]).strip().lower().rstrip("s")
+                row = row | {"loe_unit": {"hari": "day", "jam": "hour", "bulan": "month"}.get(u, u)}
             po = PurchaseOrder.model_validate(row)
             old = org.get("po", po.po_id) if po.po_id else None
             data = po.model_dump()
@@ -101,7 +108,10 @@ def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict
     return report
 
 
-ORG_ENTITIES = ("unit", "user", "project", "account", "price", "allocation", "travel_rate")
+ORG_ENTITIES = ("unit", "user", "project", "account", "price", "allocation", "travel_rate", "engagement")
+ROLE_WORDS = {"keynote": "keynote_speaker", "speaker": "keynote_speaker", "legal": "legal_specialist", "lawyer": "legal_specialist",
+              "counsel": "legal_specialist", "resource": "resource_person", "narasumber": "resource_person", "consult": "consultant"}
+RECURRING_WORDS = {"month": "monthly", "bulan": "monthly", "quarter": "quarterly", "year": "annual", "annual": "annual", "tahun": "annual"}
 KIND_WORDS = {"hq": "HQ", "head": "HQ", "headquarter": "HQ", "headquarters": "HQ", "country": "COUNTRY_OFFICE",
               "branch": "BRANCH_OFFICE", "cabang": "BRANCH_OFFICE", "project": "PROJECT_FINANCE"}
 
@@ -148,6 +158,25 @@ def _org_row(entity: str, row: dict, org) -> tuple[dict, dict | None]:
         key = (" ".join(str(row.get("country", "")).split()).lower(), " ".join(str(row.get("city", "")).split()).lower())
         old = next((x for x in org.list("travel_rate") if (x["country"].lower(), x["city"].lower()) == key), None)
         row["rate_id"] = old["rate_id"] if old else "tr-" + _slug(f"{key[0]}-{key[1]}")
+    elif entity == "engagement":
+        if row.get("role"):
+            r = str(row["role"]).strip().lower().replace(" ", "_")
+            row["role"] = r if r in ("consultant", "legal_specialist", "resource_person", "keynote_speaker") else \
+                next((v for w, v in ROLE_WORDS.items() if w in r), r)
+        if isinstance(row.get("documents"), list):  # document names or keys -> the keys
+            from .organisation import ENGAGEMENT_DOCUMENTS
+
+            def doc(x):
+                x = str(x).strip().lower()
+                return next((k for k, label in ENGAGEMENT_DOCUMENTS.items() if x in (k, label.lower()) or x.replace(" ", "_") == k
+                             or x in label.lower()), x)
+            row["documents"] = [doc(x) for x in row["documents"] if str(x).strip()]
+        eid = str(row.get("engagement_id") or "").upper() or None
+        old = (org.get("engagement", eid) if eid else None) or next(
+            (e for e in org.list("engagement") if e["name"].lower() == str(row.get("name", "")).lower()
+             and e["event_date"] == str(row.get("event_date", "")) and e["event"].lower() == str(row.get("event", "")).lower()), None)
+        if old:
+            row["engagement_id"] = old["engagement_id"]
     elif entity == "allocation":
         if row.get("unit_id") and not org.get("unit", row["unit_id"]):  # a cost centre or an office name instead of its id
             u = str(row["unit_id"]).lower()

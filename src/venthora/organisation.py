@@ -109,11 +109,70 @@ class PurchaseOrder(BaseModel):
     allow_partial: bool = True
     status: Literal["OPEN", "CLOSED", "CANCELLED"] = "OPEN"
     issued_date: str = Field(default="2026-10-01", pattern=r"^\d{4}-\d{2}-\d{2}$")
+    start_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="active from (the issue date when blank)")
+    expiry_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="the last day it may be paid against")
+    recurring: Literal["none", "monthly", "quarterly", "annual"] = Field(
+        "none", description="Multi Payment: a service billed every period against one PO, e.g. internet or a subscription")
+    loe: float | None = Field(default=None, gt=0, le=100_000, description="a consultant contract: the level of effort bought")
+    loe_unit: Literal["day", "hour", "month"] = "day"
+    rate_minor: int | None = Field(default=None, gt=0, le=10**12, description="a consultant contract: the fee per LoE unit")
 
     @field_validator("currency")
     @classmethod
     def check_currency(cls, v: str) -> str:
         return _ccy(v)
+
+
+ENGAGEMENT_ROLES = {"consultant": "Consultant", "legal_specialist": "Legal specialist", "resource_person": "Resource person",
+                    "keynote_speaker": "Keynote speaker"}
+ENGAGEMENT_DOCUMENTS = {"engagement_letter": "Engagement letter or signed terms of reference", "invoice": "Invoice or fee note",
+                        "tax_form": "Tax form (e.g. W-8BEN / W-9, NPWP)", "attendance": "Proof of delivery (agenda, attendance list, report)",
+                        "id_document": "Identity document", "bank_letter": "Bank letter for the payout account"}
+
+
+class Engagement(BaseModel):
+    """A one-off or incidental engagement: a consultant for a single task, a legal specialist, a resource person or a
+    keynote speaker. The profile and the payment in one record; once it has a registered payee it is paid against its
+    own number, like a PO (the engagement number is the PO number of its payment order)."""
+    engagement_id: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$", description="the engagement number")
+    name: str = Field(min_length=1, max_length=120)
+    role: Literal["consultant", "legal_specialist", "resource_person", "keynote_speaker"]
+    organisation: str = Field(default="", max_length=120)
+    email: str = Field(default="", max_length=200, pattern=r"^$|^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    phone: str = Field(default="", max_length=40)
+    tax_id: str = Field(default="", max_length=40)
+    payee_id: str | None = Field(default=None, max_length=80, description="the registered payee holding the bank account")
+    event: str = Field(min_length=1, max_length=200, description="the event, task or matter")
+    event_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    fee_minor: int = Field(gt=0, le=10**12)
+    currency: str = "USD"
+    charge_code: str = Field(min_length=5, max_length=60)
+    documents: list[str] = Field(default_factory=list, description="the documents on file, keys of ENGAGEMENT_DOCUMENTS")
+    note: str = Field(default="", max_length=300)
+    status: Literal["ACTIVE", "CANCELLED"] = "ACTIVE"
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, v: str) -> str:
+        return _ccy(v)
+
+    @field_validator("documents")
+    @classmethod
+    def check_documents(cls, v: list[str]) -> list[str]:
+        bad = [x for x in v if x not in ENGAGEMENT_DOCUMENTS]
+        if bad:
+            raise ValueError(f"unknown documents {bad}; choose from {sorted(ENGAGEMENT_DOCUMENTS)}")
+        return sorted(set(v))
+
+
+def engagement_po(e: dict, old: dict | None = None) -> dict:
+    """The PO an engagement is paid against: its number, payee, fee and charge code."""
+    return PurchaseOrder.model_validate({
+        "po_id": e["engagement_id"], "supplier_id": e["payee_id"], "currency": e["currency"], "total_minor": e["fee_minor"],
+        "account_code": e["charge_code"], "description": f"{ENGAGEMENT_ROLES[e['role']]}: {e['event']}"[:300], "terms": [],
+        "allow_partial": True, "status": "CANCELLED" if e.get("status") == "CANCELLED" else ((old or {}).get("status") or "OPEN"),
+        "issued_date": (old or {}).get("issued_date") or e["event_date"], "start_date": e["event_date"],
+        "expiry_date": (old or {}).get("expiry_date")}).model_dump()
 
 
 class Mailbox(BaseModel):
@@ -258,10 +317,40 @@ CREATE TABLE IF NOT EXISTS records (
     updated_by TEXT NOT NULL, PRIMARY KEY (kind, record_id));
 """
 MODELS = {"unit": Unit, "user": User, "allocation": Allocation, "price": Price, "project": Project, "account": Account, "mailbox": Mailbox,
-          "po": PurchaseOrder, "travel_rate": TravelRate}
+          "po": PurchaseOrder, "travel_rate": TravelRate, "engagement": Engagement}
 ID_FIELD = {"unit": "unit_id", "user": "user_id", "allocation": "alloc_id", "price": "price_id", "project": "project_id",
-            "account": "account_id", "po": "po_id", "mailbox": "mailbox_id", "travel_rate": "rate_id"}
-SEED_VERSION = 2
+            "account": "account_id", "po": "po_id", "mailbox": "mailbox_id", "travel_rate": "rate_id", "engagement": "engagement_id"}
+SEED_VERSION = 4
+# what v3 adds to the seeded POs: active and expiry dates, a consultant's LoE and rate, and a Multi Payment subscription
+PO_V3 = {"PO-2026-0101": {"start_date": "2026-10-01", "expiry_date": "2027-03-31"},
+         "PO-2026-0102": {"start_date": "2026-10-01", "expiry_date": "2027-01-31"},
+         "PO-2026-0103": {"start_date": "2026-10-01", "expiry_date": "2026-12-31"},
+         "PO-2026-0104": {"start_date": "2026-10-01", "expiry_date": "2026-12-31", "loe": 192.0, "loe_unit": "hour", "rate_minor": 5_000}}
+PO_SUBSCRIPTION = {"po_id": "PO-2026-0105", "supplier_id": "ben-saas-vendor", "currency": "USD", "total_minor": 1_440_000,
+                   "account_code": "US-200.OPS.6300", "description": "Cloud workspace subscription, billed monthly (Jan-Dec 2026)",
+                   "terms": [], "allow_partial": True, "issued_date": "2026-01-01", "start_date": "2026-01-01",
+                   "expiry_date": "2026-12-31", "recurring": "monthly"}
+# the seeded people's employee records (People and roles), so payroll and Commitments -> Staff have something real to read
+STAFF_V3 = {
+    "u-omar": {"employee_no": "E-1001", "job_title": "Chief Financial Officer", "employment_type": "permanent", "contract_start": "2022-03-01",
+               "salary_minor": 1_250_000, "salary_currency": "USD", "charge_code": "HQ-100.OPS.6010", "benefits": ["health", "pension_dc"]},
+    "u-dana": {"employee_no": "E-1014", "job_title": "Finance manager", "employment_type": "permanent", "contract_start": "2023-01-09",
+               "salary_minor": 780_000, "salary_currency": "USD", "charge_code": "US-200.OPS.6010", "benefits": ["health", "pension_dc"]},
+    "u-lee": {"employee_no": "E-1022", "job_title": "Treasury analyst", "employment_type": "permanent", "contract_start": "2024-06-03",
+              "salary_minor": 540_000, "salary_currency": "USD", "charge_code": "HQ-100.OPS.6010", "benefits": ["health"]},
+    "u-amira": {"employee_no": "E-2003", "job_title": "Country finance lead", "employment_type": "fixed_term", "contract_start": "2025-01-06",
+                "contract_end": "2026-12-31", "salary_minor": 520_000, "salary_currency": "GBP", "charge_code": "UK-300.OPS.6010", "benefits": ["health"]},
+    "u-jonas": {"employee_no": "E-3008", "job_title": "Project accountant", "employment_type": "fixed_term", "contract_start": "2026-02-02",
+                "contract_end": "2027-06-30", "salary_minor": 460_000, "salary_currency": "EUR", "charge_code": "PRJ-900.PRJ900.6010", "benefits": []},
+}
+ENGAGEMENTS = [
+    {"engagement_id": "ENG-2026-001", "name": "Dr. Lena Hartmann", "role": "keynote_speaker", "organisation": "Hamburg School of Logistics",
+     "email": "l.hartmann@hsl.example", "event": "EU partner summit, opening keynote", "event_date": "2026-11-20", "fee_minor": 250_000,
+     "currency": "EUR", "charge_code": "DE-400.PRJ900.6600", "documents": ["engagement_letter"]},
+    {"engagement_id": "ENG-2026-002", "name": "Mia Okafor", "role": "consultant", "payee_id": "ben-contractor-okafor",
+     "email": "mia@okafor-design.example", "event": "One-day brand workshop facilitation", "event_date": "2026-11-12", "fee_minor": 120_000,
+     "currency": "USD", "charge_code": "US-200.OPS.6200", "documents": ["engagement_letter", "invoice"]},
+]
 UNIT_LIMITS = {"hq": 2_500_000, "co-us": 1_000_000, "co-uk": 800_000, "co-de": 800_000, "br-us-west": 300_000,
                "br-uk-manchester": 300_000, "pf-eu-rollout": 500_000}
 
@@ -356,6 +445,7 @@ class OrgStore:
             for kind, rows in _seed().items():
                 for row in rows:
                     self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
+            self._seed_v3()
             self._put("standards", Standards().model_dump() | {"_id": "standards"}, "seed")
             self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
         elif seed and (self.get("meta", "seed") or {}).get("version", 1) < SEED_VERSION:
@@ -367,7 +457,31 @@ class OrgStore:
             for u in self.list("unit"):
                 if u.get("payment_limit_minor") is None and u["unit_id"] in UNIT_LIMITS:
                     self._put("unit", u | {"payment_limit_minor": UNIT_LIMITS[u["unit_id"]]}, "seed")
+            self._seed_v3()
             self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
+
+    def _seed_v3(self) -> None:
+        """Contract dates, LoE and rate on the seeded POs, a Multi Payment subscription, two one-off engagements; a field
+        a person already set is kept."""
+        for po_id, extra in PO_V3.items():
+            po = self.get("po", po_id)
+            if po and not po.get("start_date") and not po.get("expiry_date") and po.get("loe") is None:
+                self._put("po", PurchaseOrder.model_validate(po | extra).model_dump(), "seed")
+        if self.get("po", PO_SUBSCRIPTION["po_id"]) is None:
+            self._put("po", PurchaseOrder.model_validate(PO_SUBSCRIPTION).model_dump(), "seed")
+        from .doa import ensure_accounts
+
+        ensure_accounts(self)  # the salary account the staff charge codes name
+        for uid, extra in STAFF_V3.items():
+            u = self.get("user", uid)
+            if u and u.get("salary_minor") is None and not u.get("employee_no"):
+                self._put("user", User.model_validate(u | extra).model_dump(), "seed")
+        if not self.list("engagement"):
+            for e in ENGAGEMENTS:
+                rec = Engagement.model_validate(e).model_dump()
+                self._put("engagement", rec, "seed")
+                if rec["payee_id"]:
+                    self._put("po", PurchaseOrder.model_validate(engagement_po(rec)).model_dump(), "seed")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)
@@ -395,9 +509,32 @@ class OrgStore:
     def save(self, kind: str, record: BaseModel, by: str) -> dict:
         data = record.model_dump()
         idf = ID_FIELD[kind]
+        if kind == "engagement" and not data.get(idf):
+            year = (data.get("event_date") or "2026")[:4]
+            taken = {e["engagement_id"] for e in self.list("engagement")} | {p["po_id"] for p in self.list("po")}
+            data[idf] = next(f"ENG-{year}-{n:03d}" for n in range(1, 10_000) if f"ENG-{year}-{n:03d}" not in taken)
         data[idf] = data.get(idf) or f"{kind[:2]}-{uuid4().hex[:8]}"
         getattr(self, f"_check_{kind}")(data)
+        if kind == "engagement" and data["payee_id"]:  # paid against its own number, like a PO
+            po = engagement_po(data, self.get("po", data[idf]))
+            self._check_po(po)
+            self._put("po", po, by)
         return self._put(kind, data, by)
+
+    def _check_engagement(self, d: dict) -> None:
+        from .intake.pipeline import Registry
+
+        self.account_code(d["charge_code"])
+        other = self.get("po", d["engagement_id"])
+        if other and other.get("supplier_id") != d.get("payee_id") and not (self.get("engagement", d["engagement_id"])):
+            raise OrgError(f"{d['engagement_id']} is already the number of a purchase order")
+        if d.get("payee_id"):
+            payees = Registry().payees
+            if d["payee_id"] not in payees:
+                raise OrgError(f"unknown payee {d['payee_id']!r}: register the bank account in Users & Beneficiaries first")
+            ccy = payees[d["payee_id"]].get("currency")
+            if ccy and ccy != d["currency"]:
+                raise OrgError(f"{payees[d['payee_id']]['name']} is paid in {ccy}, not {d['currency']}")
 
     def delete(self, kind: str, rid: str, by: str) -> None:
         if self.get(kind, rid) is None:
@@ -521,6 +658,16 @@ class OrgStore:
         ids = [t["term_id"] for t in d["terms"]]
         if len(ids) != len(set(ids)):
             raise OrgError("each payment term needs its own id")
+        start = d.get("start_date") or d.get("issued_date")
+        if d.get("expiry_date") and start and d["expiry_date"] < start:
+            raise OrgError(f"the expiry date {d['expiry_date']} is before the active date {start}")
+        if (d.get("loe") is None) != (d.get("rate_minor") is None):
+            raise OrgError("a consultant contract needs both the LoE and the rate (or neither)")
+        if d.get("loe") is not None and abs(round(d["loe"] * d["rate_minor"]) - d["total_minor"]) > 1:
+            raise OrgError(f"the contract value is LoE x rate: {d['loe']:g} {d['loe_unit']}s x {d['currency']} {d['rate_minor'] / 100:,.2f} = "
+                           f"{d['currency']} {d['loe'] * d['rate_minor'] / 100:,.2f}, not {d['total_minor'] / 100:,.2f}")
+        if d.get("recurring", "none") != "none" and not d.get("expiry_date"):
+            raise OrgError("a Multi Payment PO needs an expiry date (the last period it covers)")
         if sum(t["amount_minor"] for t in d["terms"]) > d["total_minor"]:
             raise OrgError("the payment terms add up to more than the PO total")
 
