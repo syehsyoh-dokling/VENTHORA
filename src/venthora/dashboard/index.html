@@ -439,25 +439,38 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div id="pjTable" style="margin-top:16px"></div>
  </section>
 
+ <section class="span12" data-view="budget-policy">
+  <div class="small" style="padding:10px 12px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>This page sets the organisation's financial calendar.</b> The fiscal year and its quarters decide how every budget, allocation and spending report is grouped; the active budget period is the allocation each payment is checked against before VENTHORA pays it; the cut-off decides which month a transaction is reported in. Set it once at the start of the fiscal year: every payment, report and Delegation of Authority run uses it. <b>How to use it:</b> choose the month the fiscal year starts and the budget period, check the quarters, set the cut-off, save.</div>
+ </section>
  <section class="span8" data-view="budget-policy">
-  <h2><span>Period, cut-off &amp; sync</span><span class="small muted">the rules every payment is checked against at execution</span></h2>
+  <h2><span>1 · Fiscal year and quarters</span><span class="small muted">how budgets, allocations and spending are grouped</span></h2>
   <div class="form">
-   <label>Allocations<select id="bp-enforcement"><option value="per_allocation">Limited: each scope only its own allocation</option><option value="no_limit">No limit: every unit pays from the balance</option></select></label>
-   <label>Active budget period<select id="bp-period_type"></select></label>
    <label>Fiscal year (Q1) starts in<select id="bp-fy"></select></label>
+   <label>Active budget period<select id="bp-period_type"></select></label>
+  </div>
+  <div class="small muted" style="margin:6px 0">The active budget period is the slice of the budget each payment draws on: an annual budget, or the quarter, half or month it falls in.</div>
+  <div id="bpQuarters" style="margin-top:8px"></div>
+
+  <h2 style="margin-top:18px"><span>2 · Reporting cut-off</span><span class="small muted">which month a transaction is reported in</span></h2>
+  <div class="form">
    <label>Cut-off day of the month<select id="bp-cutoff_day"></select></label>
    <label>Cut-off time<input id="bp-cutoff_time" type="time"></label>
    <label>Time zone<input id="bp-timezone" placeholder="e.g. Asia/Jakarta"></label>
-   <label>Daily sync at<input id="bp-daily" type="time"></label>
-   <label>Monthly sync on day<select id="bp-monthly"></select></label>
-   <label class="check"><input type="checkbox" id="bp-sync"> run the syncs on schedule</label>
   </div>
-  <div id="bpQuarters" style="margin-top:12px"></div>
-  <div class="row" style="margin-top:12px"><button class="primary" id="bpSave">Save</button><span class="small" id="bpMsg"></span></div>
+  <div class="small" id="bpCutoffExample" style="margin-top:6px"></div>
+
+  <h2 style="margin-top:18px"><span>3 · Budget control</span><span class="small muted">what happens when an allocation is used up</span></h2>
+  <div class="form"><label>Allocations<select id="bp-enforcement"><option value="per_allocation">Limited: each scope pays only from its own allocation</option><option value="no_limit">No limit: every unit pays from the balance</option></select></label></div>
+  <div class="small muted" style="margin-top:6px">Limited: a payment charged to an office, project or account whose allocation for the active period is used up waits for a person.</div>
+
+  <h2 style="margin-top:18px"><span>4 · Daily refresh</span><span class="small muted">keeps each allocation's spending up to date</span></h2>
+  <div class="form"><label>Refresh every day at<input id="bp-daily" type="time"></label><label class="check" style="align-self:end"><input type="checkbox" id="bp-sync"> refresh on schedule</label></div>
+  <div class="small muted" style="margin-top:6px">Every day at this time VENTHORA re-reads the connected sources and recalculates what each allocation has spent in the active period.</div>
+  <div class="row" style="margin-top:14px"><button class="primary" id="bpSave">Save</button><span class="small" id="bpMsg"></span></div>
  </section>
  <section class="span4" data-view="budget-policy">
-  <h2>Now</h2><div id="bpNow" class="small"></div>
-  <div class="row" style="margin-top:10px"><button data-bsync="daily">Run daily sync</button><button data-bsync="monthly">Run monthly sync</button></div>
+  <h2>Active selected period</h2><div id="bpNow" class="small"></div>
+  <div class="row" style="margin-top:10px"><button data-bsync="daily">Refresh now</button></div>
   <h3 class="small muted" style="margin:16px 0 6px">Check a payment against its budget</h3>
   <div class="form"><label>Charge code<input id="bc-code" placeholder="US-200.OPS.6700"></label><label>Amount<input id="bc-amount" type="number" step="0.01" min="0.01"></label><label>Currency<input id="bc-ccy" value="USD" maxlength="3"></label></div>
   <div class="row" style="margin-top:8px"><button id="bcGo">Check</button></div><div id="bcOut" class="small" style="margin-top:8px"></div>
@@ -1310,28 +1323,42 @@ async function projectAllocView(){try{const {st,banner}=await allocBase($("#pjPe
  $("#pjTable").innerHTML=table(usageCols(a=>`<b>${esc(pn(a.project_code))}</b> <span class="chip">${esc(a.project_code)}</span>`),rows,"no project-based allocation in this period");
  wireAlloc($("#pjTable"),rows,r=>{pjFill(r);window.scrollTo(0,0)},projectAllocView)}catch(e){$("#pjTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 
-function bpQuarters(){const start=+$("#bp-fy").value;const q=[0,1,2,3].map(i=>[0,1,2].map(j=>MONTHS[(start-1+i*3+j)%12].slice(0,3)));
- $("#bpQuarters").innerHTML=`<div class="small muted" style="margin-bottom:6px">Fiscal quarters (Q2 follows the months after Q1)</div>`+table([{h:"Quarter",f:r=>`<b>${r[0]}</b>`},{h:"Months",f:r=>esc(r[1].join(" – "))}],q.map((m,i)=>[`Q${i+1}`,[m[0],m[2]]]))}
+const MON3=m=>MONTHS[(m-1+120)%12].slice(0,3);
+function fyStartYear(month){const [y,m]=month.split("-").map(Number);const st=+$("#bp-fy").value;return m>=st?y:y-1}
+function bpQuarters(){const st=+$("#bp-fy").value,fy=fyStartYear(BP.current_month);const qs=[0,1,2,3].map(i=>{const m0=st+i*3,y0=fy+Math.floor((m0-1)/12),m2=m0+2,y2=fy+Math.floor((m2-1)/12);
+  const last=new Date(y2,((m2-1)%12)+1,0).getDate();return {q:`Q${i+1}`,months:`${MON3(m0)} – ${MON3(m2)}`,dates:`1 ${MON3(m0)} ${y0} – ${last} ${MON3(m2)} ${y2}`}});
+ const [cy,cm]=BP.current_month.split("-").map(Number),cur=Math.floor((((cm-st)%12)+12)%12/3);
+ $("#bpQuarters").innerHTML=`<div class="small muted" style="margin-bottom:6px">Fiscal year ${fy}${st===1?"":`/${String(fy+1).slice(2)}`}: Q2 follows the three months after Q1. Spending, allocations and reports are grouped by these quarters.</div>`
+  +table([{h:"Quarter",f:r=>`<b>${r.q}</b>${r.now?' <span class="pill good">now</span>':""}`},{h:"Months",f:r=>esc(r.months)},{h:"Dates",f:r=>esc(r.dates)}],qs.map((r,i)=>({...r,now:i===cur})))}
+function bpCutoff(){const d=+$("#bp-cutoff_day").value,t=$("#bp-cutoff_time").value||"23:59",tz=$("#bp-timezone").value||"UTC";const [y,m]=BP.current_month.split("-").map(Number);
+ const last=new Date(y,m,0).getDate(),day=Math.min(d,last),next=MONTHS[m%12];
+ $("#bpCutoffExample").innerHTML=`With the cut-off on day ${d} at ${esc(t)} (${esc(tz)}): a payment on ${day} ${MON3(m)} at ${esc(t)} or earlier is reported in <b>${MONTHS[m-1]}</b>; one after it is reported in <b>${next}</b>.${d>=29?" In a shorter month the cut-off is the month's last day.":""}`}
+function periodRange(p){const st=+(BP.fiscal_year_start_month||1);const end=(y,m)=>`${new Date(y,m,0).getDate()} ${MON3(m)} ${y+Math.floor((m-1)/12)}`;let m0,y0,len;
+ if(/^\d{4}$/.test(p)){y0=+p;m0=st;len=12}else if(/-Q[1-4]$/.test(p)){y0=+p.slice(0,4);m0=st+(+p.slice(-1)-1)*3;len=3}else if(/-H[12]$/.test(p)){y0=+p.slice(0,4);m0=st+(+p.slice(-1)-1)*6;len=6}else if(/^\d{4}-\d{2}$/.test(p)){y0=+p.slice(0,4);m0=+p.slice(5);len=1}else return "";
+ const ys=y0+Math.floor((m0-1)/12),ms=((m0-1)%12)+1,me=m0+len-1,ye=y0+Math.floor((me-1)/12),mm=((me-1)%12)+1;return `1 ${MON3(ms)} ${ys} – ${new Date(ye,mm,0).getDate()} ${MON3(mm)} ${ye}`}
 async function policyView(){try{BP=await api("/v1/budget-allocation/policy");
  $("#bp-enforcement").value=BP.enforcement;$("#bp-period_type").innerHTML=Object.entries(BP.period_types).map(([k,l])=>`<option value="${k}" ${k===BP.period_type?"selected":""}>${esc(l)}</option>`).join("");
  $("#bp-fy").innerHTML=MONTHS.map((m,i)=>`<option value="${i+1}" ${i+1===BP.fiscal_year_start_month?"selected":""}>${m}</option>`).join("");$("#bp-fy").onchange=bpQuarters;bpQuarters();
  const days=n=>Array.from({length:31},(_,i)=>`<option value="${i+1}" ${i+1===n?"selected":""}>${i+1}${i+1>=29?" (or the month's last day)":""}</option>`).join("");
- $("#bp-cutoff_day").innerHTML=days(BP.cutoff_day);$("#bp-monthly").innerHTML=days(BP.monthly_sync_day);
+ $("#bp-cutoff_day").innerHTML=days(BP.cutoff_day);
  $("#bp-cutoff_time").value=BP.cutoff_time;$("#bp-timezone").value=BP.timezone;$("#bp-daily").value=BP.daily_sync_time;$("#bp-sync").checked=BP.sync_enabled;
- const t=x=>x?esc(new Date(x).toLocaleString()):"never";const sm=BP.last_sync_summary;
- $("#bpNow").innerHTML=`<dl class="kv"><dt>Reporting month</dt><dd>${esc(BP.current_month)}</dd><dt>Active period</dt><dd><b>${esc(BP.active_period)}</b></dd>
+ ["#bp-cutoff_day","#bp-cutoff_time","#bp-timezone"].forEach(id=>$(id).oninput=$(id).onchange=bpCutoff);bpCutoff();
+ const t=x=>x?esc(new Date(x).toLocaleString()):"never";const sm=BP.last_sync_summary;const last=[BP.last_daily_sync_at,BP.last_monthly_sync_at].filter(Boolean).sort().pop();
+ const [y,m]=BP.current_month.split("-").map(Number),cday=Math.min(BP.cutoff_day,new Date(y,m,0).getDate());
+ $("#bpNow").innerHTML=`<div class="tile" style="margin-bottom:8px"><div class="small muted">Active budget period</div><div style="font-size:20px;font-weight:700">${esc(BP.active_period)}</div><div class="small">${esc(periodRange(BP.active_period))} · ${esc(BP.period_types[BP.period_type]||BP.period_type)}</div></div>
+  <dl class="kv"><dt>Reporting month</dt><dd><b>${esc(MONTHS[m-1])} ${y}</b></dd><dt>This month's cut-off</dt><dd>${cday} ${MON3(m)} ${y}, ${esc(BP.cutoff_time)} (${esc(BP.timezone)})</dd>
+  <dt>Fiscal year starts</dt><dd>${esc(MONTHS[(BP.fiscal_year_start_month||1)-1])}</dd>
   <dt>Allocations</dt><dd>${BP.enforcement==="no_limit"?'<span class="pill warn">NO LIMIT</span>':'<span class="pill good">LIMITED</span>'}</dd>
-  <dt>Next daily sync</dt><dd>${BP.next_sync?t(BP.next_sync.daily):"off"}</dd><dt>Next monthly sync</dt><dd>${BP.next_sync?t(BP.next_sync.monthly):"off"}</dd>
-  <dt>Last daily</dt><dd>${t(BP.last_daily_sync_at)}</dd><dt>Last monthly</dt><dd>${t(BP.last_monthly_sync_at)}</dd></dl>`
-  +(sm?`<div class="small muted" style="margin-top:6px">last sync (${esc(sm.kind)}): ${sm.allocations} allocation(s) in ${esc(sm.period)}, ${sm.over_allocation.length} over; ${Object.keys(sm.sources).length} source(s) re-read</div>`:"")}
+  <dt>Last refresh</dt><dd>${t(last)}</dd><dt>Next refresh</dt><dd>${BP.next_sync?t(BP.next_sync.daily):"off"}</dd></dl>`
+  +(sm?`<div class="small muted" style="margin-top:6px">last refresh: ${sm.allocations} allocation(s) in ${esc(sm.period)}, ${sm.over_allocation.length} over their allocation; ${Object.keys(sm.sources).length} source(s) re-read</div>`:"")}
  catch(e){$("#bpNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#bpSave").onclick=async()=>{const body={enforcement:$("#bp-enforcement").value,period_type:$("#bp-period_type").value,fiscal_year_start_month:+$("#bp-fy").value,
  cutoff_day:+$("#bp-cutoff_day").value,cutoff_time:$("#bp-cutoff_time").value,timezone:$("#bp-timezone").value.trim(),daily_sync_time:$("#bp-daily").value,
- monthly_sync_day:+$("#bp-monthly").value,sync_enabled:$("#bp-sync").checked};
- try{await api(`/v1/budget-allocation/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#bpMsg").innerHTML='<span class="pill good">saved</span>';toast("Budget policy saved","good");policyView()}
+ monthly_sync_day:BP.monthly_sync_day||1,sync_enabled:$("#bp-sync").checked};
+ try{await api(`/v1/budget-allocation/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#bpMsg").innerHTML='<span class="pill good">saved</span>';toast("Financial calendar saved","good");policyView()}
  catch(e){$("#bpMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 document.querySelectorAll("[data-bsync]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/v1/budget-allocation/sync?kind=${b.dataset.bsync}&${who()}`,{method:"POST"});
- toast(`${r.kind} sync done: ${r.allocations} allocation(s), ${r.over_allocation.length} over`,"good");policyView()}catch(e){toast(e.message,"critical")}finally{b.disabled=false}});
+ toast(`Refreshed: ${r.allocations} allocation(s), ${r.over_allocation.length} over`,"good");policyView()}catch(e){toast(e.message,"critical")}finally{b.disabled=false}});
 $("#bcGo").onclick=async()=>{try{const r=await api("/v1/budget-allocation/check",{method:"POST",headers:{"content-type":"application/json"},
  body:JSON.stringify({account_code:$("#bc-code").value.trim(),amount_minor:Math.round(parseFloat($("#bc-amount").value||"0")*100),currency:$("#bc-ccy").value.trim().toUpperCase()})});
  $("#bcOut").innerHTML=`<span class="pill ${r.ok?"good":"critical"}">${r.ok?"WOULD PAY":"WOULD REFUSE"}</span> ${esc(r.reason)}${r.remaining_after_minor!=null?`<div class="muted">left after it: ${fmt(r.remaining_after_minor,r.currency)}</div>`:""}`}
