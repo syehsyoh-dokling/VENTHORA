@@ -246,7 +246,7 @@ function renderSteps(){const names=["goal","plan","news","revise","deposit","exe
 function renderNext(){if(!S||editing){$("#nextbar").innerHTML="";return}const n=S.next;
  if(!n){$("#nextbar").innerHTML=`<span class="pill good">run complete</span><span class="small muted">every step is in the event log and the audit chain</span>`;return}
  const opts=(S.approvers||[]).map(a=>`<option value="${esc(a.name)}|${esc(a.role)}">${esc(a.name)} (${esc(a.role)})</option>`).join("");
- $("#nextbar").innerHTML=`<button class="primary" id="nextBtn">Next: ${esc(NEXT[n])} ▸</button>${S.next_needs_approval?`<label class="small">Approved by <select id="approver">${opts}</select></label>`:""}<span id="busy" class="small muted"></span>`;
+ $("#nextbar").innerHTML=`<button class="primary" id="nextBtn">Next: ${esc(NEXT[n])} ▸</button>${S.next_needs_approval?`<label class="small">Exceptions approved by <select id="approver"><option value="">nobody yet: pay what is inside the mandate now</option>${opts}</select></label>`:""}<span id="busy" class="small muted"></span>`;
  $("#nextBtn").onclick=next}
 function planBlock(p){const changed=new Set((p.changes||[]).map(c=>c.id));
  return `<div class="tiles"><div class="tile"><div class="k">Decision</div><div class="v">${pill(p.decision)}</div><div class="d">${esc((p.requires||[]).join(", ").replaceAll("_"," ")||"no approval needed")}${p.approval?` · ${p.approval.approvals_required} approver(s)`:""}</div></div>
@@ -295,7 +295,8 @@ function renderCards(){if(editing||!S){if(D)renderForm();return}const V=S.views;
      {h:"Detail",f:r=>`<span class="small muted">${esc([r.detail.amount,r.detail.method,r.detail.fee_minor!=null?`fee ${(r.detail.fee_minor/100).toFixed(2)}`:null,r.detail.sell_minor!=null?`sell USD ${(r.detail.sell_minor/100).toLocaleString("en-US",{minimumFractionDigits:2})}`:null,r.detail.client_rate?`rate ${r.detail.client_rate}`:null].filter(Boolean).join(" · "))}</span>`}],e.steps)}</div>
    <div>${table([{h:"Wallet",f:r=>r},{h:"Before",num:1,f:r=>fmt(e.wallet_before[r],r)},{h:"After",num:1,f:r=>fmt(e.wallet_after[r],r)},{h:"Change",num:1,f:r=>{const d=e.wallet_after[r]-e.wallet_before[r];return `<span class="delta ${d<0?"neg":d>0?"pos":""}">${d?(d>0?"+":"")+fmt(d,""):"0.00"}</span>`}}],cur)}
     ${table([{h:"Book ledger",f:r=>r},{h:"Cash",num:1,f:r=>fmt((e.book[r]||{}).cash||0,r)},{h:"Expense",num:1,f:r=>fmt((e.book[r]||{}).expense||0,r)},{h:"Fees",num:1,f:r=>fmt((e.book[r]||{}).fees||0,r)}],Object.keys(e.book))}
-    <p class="small"><b>Paid:</b> ${e.paid.map(esc).join(", ")||"none"}<br><b>Not paid, by rule:</b> ${e.not_paid.map(x=>`${esc(x.id)} ${pill(x.action)}`).join(" ")}</p></div></div>`))}
+    <p class="small"><b>Paid${e.autonomous?" on the agent's own authority":e.approved_by?`, approved by ${esc(e.approved_by)}`:""}:</b> ${e.paid.map(esc).join(", ")||"none"}<br>
+    ${(e.held||[]).length?`<b>Held for a person:</b> ${e.held.map(h=>`${esc(h.id)} <span class="muted">(${esc(h.reasons.join("; ").replaceAll("_"," "))})</span>`).join(" · ")}<br>`:""}<b>Not paid, by rule:</b> ${e.not_paid.map(x=>`${esc(x.id)} ${pill(x.action)}`).join(" ")}</p></div></div>`))}
  $("#cards").innerHTML=out.reverse().join("");
  // Only the step that just completed slides in; the earlier cards stay still.
  const first=$("#cards").firstElementChild;if(first&&first.id!==lastFresh){first.classList.add("fresh");lastFresh=first.id;

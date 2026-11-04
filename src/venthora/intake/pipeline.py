@@ -471,7 +471,7 @@ class Intake:
         # registered, and an unknown or unauthenticated sender is held for review instead of quarantined (never paid)
         trusted = trust in ("registered", "staff") or (not sender_holds and trust == "reply_to_mismatch")
         if not sender_holds and trust != "registered":
-            reasons.append(f"sender check is {mode['sender']} under the mandate: {trust.replace('_', ' ')} is not quarantined")
+            reasons.append(f"sender check is set to {mandate.MODE_LABEL[mode['sender']]} in the mandate: {trust.replace('_', ' ')} is not quarantined")
 
         if trust == "failed_authentication" and sender_holds:
             # a forged sender is the alarm even when it copies an invoice already in the book (seen live: a spoofed
@@ -505,7 +505,7 @@ class Intake:
                 status = "NEEDS_REVIEW"
                 reasons.append("pressure language from a registered sender; a person confirms before it is payable")
             if bank:  # bank check on warn: the request is not held, and the payout still goes to the registered account
-                reasons.append("mentions new bank details; the bank-change check is warn only under the mandate: "
+                reasons.append("mentions new bank details; the bank-change check is set to Flag only in the mandate: "
                                "paid, if at all, to the bank details already registered")
             if po_hold or any(f in flags and mode[k] == "hold" for f, k in (("totals_do_not_add_up", "totals"), ("reader_disagreement", "readers"))):
                 status = "NEEDS_REVIEW"
@@ -516,7 +516,7 @@ class Intake:
             reasons.append("could not read an amount and an invoice reference from the text")
         warned = sorted({mandate.FLAG_CHECK[f] for f in flags if mandate.FLAG_CHECK.get(f) and mode[mandate.FLAG_CHECK[f]] == "warn"})
         if warned:
-            reasons.append("warn only under the mandate, not held: " + ", ".join(warned))
+            reasons.append("set to Flag only in the mandate, flagged but not held: " + ", ".join(warned))
 
         req = IntakeRequest(
             intake_id=str(uuid4()), message_id=parsed["message_id"], received_at=parsed["received_at"],

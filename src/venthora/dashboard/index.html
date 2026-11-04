@@ -282,7 +282,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/sources-upload" data-nav="sources-upload"><i>⇪</i>Dataset upload</a>
    <a href="#/standards" data-nav="standards"><i>⚑</i>Finance standards</a>
    <a href="#/doc-rules" data-nav="doc-rules"><i>✓</i>Document validation</a>
-   <a href="#/mandate" data-nav="mandate"><i>⚖</i>Mandate &amp; policy</a>
+   <a href="#/mandate" data-nav="mandate"><i>⚖</i>Delegation of Authority</a>
    <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget · regular based</a>
    <a href="#/allocation-project" data-nav="allocation-project"><i>◫</i>Budget · project based</a>
    <a href="#/budget-policy" data-nav="budget-policy"><i>◷</i>Period, cut-off &amp; sync</a>
@@ -717,11 +717,16 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  </section>
 
  <section class="span12" data-view="mandate">
-  <h2><span>Mandate &amp; policy</span><span class="tabs" id="mdtTabs"><button data-mtab="cat" class="on">1 · Mandate by category</button><button data-mtab="lim">2 · Limits and thresholds</button><button data-mtab="apr">3 · Approval policy</button></span></h2>
+  <h2><span>Delegation of Authority (DoA)</span><span class="tabs" id="doaTabs"><button data-dtab="int" class="on">Internal payments</button><button data-dtab="ext">External payments</button><button data-dtab="ctl">Treasury limits and controls</button></span></h2>
+  <div class="small" style="margin-bottom:12px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>What the FCO delegates to VENTHORA's agent, by kind of payment.</b> Internal payments are the organisation's own recurring obligations: the FCO sets one standing payment instruction per cost category, and on the pay date the agent pays on its own what the instruction allows. External payments are invoices from vendors and short-term specialists. Anything outside the delegation is prepared for a person; some things are never executed. Every payment still passes the treasury limits and controls.</div>
+  <div id="doaView" class="empty">loading…</div>
+  <div data-dpane="ctl" hidden>
+  <div class="row" style="justify-content:flex-end;margin-bottom:8px"><span class="tabs" id="mdtTabs"><button data-mtab="cat" class="on">1 · Mandate by category</button><button data-mtab="lim">2 · Limits and thresholds</button><button data-mtab="apr">3 · Approval policy</button></span></div>
   <div class="small" style="margin-bottom:12px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>The mandate is the authority the finance team gives VENTHORA's agent.</b> Inside it the agent checks, plans and pays on its own; outside it, it stops and asks a person. It has three parts: the <b>checks</b> every request must pass before anything is payable, the <b>permissions and safeguards</b> with their limits, and the <b>approval policy</b> for everything else. Every run on the Operations page starts from this standing mandate and records exactly what was granted. One role holds the authority to change it.</div>
   <div id="mandateView" class="empty">loading…</div>
+  </div>
  </section>
- <section class="span12" data-view="mandate">
+ <section class="span12" data-view="mandate" data-dpane="ctl" hidden>
   <h2><span>Tenants · books</span><span class="small muted" id="tenantMeta">whose book, which payees, whose signature, which policy; a book never spends another book's money</span></h2>
   <div id="tenants" class="empty">loading…</div>
  </section>
@@ -972,9 +977,9 @@ window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // use
 // =============================== app shell: menu, routing, acting person ===============================
 const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",
  executions:"Executions & incidents",runs:"Run reports",users:"User management",allocation:"Budget allocation",offices:"Country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Mandate & policy",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
+ standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","allocation-project":"Budget allocation · Project based","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"allocation-project":()=>projectAllocView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>mandateView(),integrations:()=>webhookView()};
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),integrations:()=>webhookView()};
 function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
  document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
@@ -998,9 +1003,9 @@ function actorsFill(){const keep=(()=>{try{return localStorage.getItem("venthora
 async function loadActors(){try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
  const rank=["super_admin","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
  ACTORS=us.sort((a,b)=>rank.indexOf(a.role)-rank.indexOf(b.role)||a.name.localeCompare(b.name)).map(u=>({role:u.role,name:u.name,label:`${u.name} · ${R[u.role]||u.role}`}));
- if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();if(location.hash==="#/mandate")mandateView()}catch(e){actorsFill()}}
+ if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();if(location.hash==="#/mandate")doaView()}catch(e){actorsFill()}}
 actorsFill();loadActors();
-$("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")mandateView()};
+$("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")doaView()};
 const actor=()=>ACTORS[+$("#actor").value]||ACTORS[0];
 const who=()=>`role=${encodeURIComponent(actor().role)}&by=${encodeURIComponent(actor().name)}`;
 
@@ -2006,14 +2011,18 @@ async function mandateView(){const seq=window.__mdtSeq=(window.__mdtSeq||0)+1;tr
     <div class="small" style="flex:1;min-width:260px"><span class="muted">In force now:</span> ${rs.map(r=>{const [w,t]=MST(r);return `<span class="chip" title="${esc(r.label)}" style="margin:2px 2px 2px 0">${esc(r.short)}: <b class="${t==="good"?"":"err"}">${r.unit?esc(mval(r)):w.toLowerCase()}</b>${r.unit&&r.enabled===false?' <b class="err">revoked</b>':""}</span>`}).join("")}</div>
     <button data-mgo="${esc(c.key)}" class="nw">${can?"Change in Limits and thresholds ›":"See in Limits and thresholds ›"}</button></div>`:""}
     ${bi.map(r=>`<div class="small muted" style="margin-top:6px"><span class="pill good">BUILT IN</span> ${esc(r.label)}: ${esc(r.built_in)}</div>`).join("")}`};
- const modeSel=c=>c.off_elsewhere?`<span class="pill warn">OFF</span>`:`<select data-mchk="${esc(c.key)}" ${dis} style="width:118px">${Object.entries(d.modes).map(([k,l])=>`<option value="${k}" ${c.mode===k?"selected":""}>${l}</option>`).join("")}</select>`;
- const check=c=>`<tr><td style="width:130px">${modeSel(c)}</td><td>${esc(c.label)} ${c.critical?crit:""}<div class="small muted">If it fails: ${esc(c.fails)}${c.off_elsewhere?" · switched off in "+(c.switch==="require_po"?"Finance standards":"Document validation"):""}</div></td>
+ const modeSel=c=>c.off_elsewhere?`<span class="pill warn">OFF</span>`:`<select data-mchk="${esc(c.key)}" ${dis} style="width:138px">${Object.entries(d.modes).map(([k,l])=>`<option value="${k}" ${c.mode===k?"selected":""}>${l}</option>`).join("")}</select>`;
+ const check=c=>`<tr><td style="width:130px">${modeSel(c)}</td><td>${esc(c.label)} ${c.critical?crit:""}<div class="small muted" data-mout="${esc(c.key)}" data-fails="${esc(c.fails)}">If it fails: ${esc(c.mode==="hold"||c.off_elsewhere?c.fails:d.outcomes[c.mode])}${c.off_elsewhere?" · switched off in "+(c.switch==="require_po"?"Finance standards":"Document validation"):""}</div></td>
    <td class="small">${c.flags.map(f=>`<span class="chip mono">${esc(f)}</span>`).join(" ")}${c.where?` <a href="${esc(c.where)}" class="nw">Set ›</a>`:""}</td></tr>`;
  const auth=`<div class="tile" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Mandate authority: ${esc(d.authority.label)}</b>
    <div class="small muted">Only this role changes the standing mandate, including every check, limit and switch below. Every change is audited; a change that weakens a critical control must be confirmed first.</div>
    <div class="small" style="margin-top:4px">${can?`You (${esc(actor().name)}) hold the mandate authority.`:`You (${esc(actor().name)}, ${esc(ROLES[actor().role]||actor().role)}) may read the mandate but not change it.${(h=>h?` <button class="primary" data-mswitch="${ACTORS.indexOf(h)}" style="margin-left:6px">Act as ${esc(h.name)} (${esc(d.authority.label)})</button>`:` Nobody active holds the ${esc(d.authority.label)} role; add one in <a href="#/users">People &amp; roles</a>.`)(ACTORS.find(a=>a.role===d.authority.role))}`}</div></div>
    <label class="small">Hand the authority to <select id="mdtAuth" ${dis}>${Object.entries(d.authority.roles).map(([k,l])=>`<option value="${k}" ${k===d.authority.role?"selected":""}>${esc(l)}</option>`).join("")}</select></label></div>`;
- const hint=`<div class="small muted" style="margin:0 0 8px"><b>Hold</b>: a failure holds the request for a person. <b>Warn only</b>: a failure is flagged for the approver, nothing is held. <b>Off</b>: not checked.</div>`;
+ const hint=`<div class="small" style="margin:0 0 10px">For each check, choose what VENTHORA does <b>when a request fails it</b>. Example: an invoice of USD 12,000 against a purchase order with USD 9,000 left.</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:8px;margin:0 0 12px">
+   <div class="tile small"><span class="pill good">Stop and hold</span><div style="margin-top:6px">The request is <b>held</b> in the queue. It is not paid until a person looks at it and approves it.</div><div class="muted" style="margin-top:4px">Example: the invoice waits for a person.</div></div>
+   <div class="tile small"><span class="pill warn">Flag only</span><div style="margin-top:6px">The request is <b>not held</b>. It carries a flag the approver sees, and it can be paid like any other.</div><div class="muted" style="margin-top:4px">Example: the invoice can be paid, marked <span class="mono">po_exceeded</span>.</div></div>
+   <div class="tile small"><span class="pill critical">Do not check</span><div style="margin-top:6px">VENTHORA <b>skips</b> this check. Nothing is held and nothing is flagged.</div><div class="muted" style="margin-top:4px">Example: nobody is told the PO was exceeded.</div></div></div>`;
  const cat=d.categories.map((c,i)=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><b>${i+1} · ${esc(c.title)}</b><span class="small muted">${c.checks.length?`${c.checks.length} checks · `:""}${c.rules.length} rule(s)</span></div>
    <div class="small" style="margin:4px 0 8px"><b>Policy:</b> ${esc(c.policy)}</div>
    ${c.checks.length?`<h3 class="small muted" style="margin:8px 0 4px">Checked on every request, before anything is payable</h3>${hint}<table class="tbl"><tbody>${c.checks.map(check).join("")}</tbody></table>`:""}
@@ -2036,6 +2045,8 @@ async function mandateView(){const seq=window.__mdtSeq=(window.__mdtSeq||0)+1;tr
   document.querySelectorAll("[data-mchk]").forEach(el=>body.checks[el.dataset.mchk]=el.value);
   if($("#mdtAuth").value!==MDT.authority.role)body.authority_role=$("#mdtAuth").value;
   mandateSave(body)};
+ document.querySelectorAll("[data-mchk]").forEach(el=>el.onchange=()=>{const o=$(`[data-mout="${el.dataset.mchk}"]`);
+  if(o)o.firstChild.textContent=`If it fails: ${el.value==="hold"?o.dataset.fails:d.outcomes[el.value]}`});
  document.querySelectorAll("[data-mgo]").forEach(b=>b.onclick=()=>{document.querySelector('[data-mtab="lim"]').click();
   const h=$(`#mlim-${b.dataset.mgo}`);if(h)h.scrollIntoView({behavior:"smooth",block:"start"})});
  document.querySelectorAll("[data-mswitch]").forEach(b=>b.onclick=()=>{$("#actor").value=b.dataset.mswitch;$("#actor").onchange()})}
@@ -2054,6 +2065,91 @@ async function mandateSave(body){$("#mdtMsg").textContent="saving…";
    ev.preventDefault();$("#mdtDlg").close();mandateSave({...body,acknowledged:boxes.map(b=>b.dataset.mack)})};
   $("#mdtDlg").showModal();return}
  const m=typeof j.detail==="string"?j.detail:(j.detail?.message||r.statusText);$("#mdtMsg").innerHTML=`<span class="err">${esc(`${r.status} ${m}`)}</span>`}
+
+// ---- Delegation of Authority: internal payments on standing instructions, external payments by invoice ----------------
+let DOA=null,DOASEL="personnel";
+document.querySelectorAll("#doaTabs [data-dtab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#doaTabs [data-dtab]").forEach(x=>x.classList.toggle("on",x===b));
+ document.querySelectorAll("[data-dpane]").forEach(p=>p.hidden=p.dataset.dpane!==b.dataset.dtab);if(b.dataset.dtab==="ctl")mandateView()});
+const DVERD={auto:["Agent pays on its own","good"],approve:["Prepared for a person","warn"],never:["Not executed","critical"],per_document:["Per approved document","info"]};
+const DSCHED={monthly:"Monthly",quarterly:"Quarterly",annual:"Annual",per_document:"Per approved document"};
+const DSRC={register:"Approved payroll register",fixed:"Fixed amount",document:"Amount on the approved document"};
+const dmoney=(m,c)=>m==null?"-":fmt(m,c||"USD");
+async function doaView(){const seq=window.__doaSeq=(window.__doaSeq||0)+1;try{const d=await api(`/v1/doa?role=${encodeURIComponent(actor().role)}`);if(seq!==window.__doaSeq)return;DOA=d;
+ const on=$("#doaTabs .on")?.dataset.dtab||"int",can=d.authority.you_may_change,dis=can?"":"disabled";
+ const head=`<div class="tile" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Granted by the ${esc(d.authority.label)}</b>
+   <div class="small muted">${can?`You (${esc(actor().name)}) hold the delegation and may change it.`:`You (${esc(actor().name)}) may read the delegation; only the ${esc(d.authority.label)} changes it.`} Today ${esc(d.today)}.</div></div>
+   <label class="check"><input type="checkbox" id="doaPilot" ${d.autopilot?"checked":""} ${dis}> <b>Autopilot</b> <span class="small muted">pays every due instruction marked "Agent pays on its own", every minute, without a click</span></label>
+   <button id="doaRun" class="primary">Run due instructions now</button></div>`;
+ const list=d.internal.map(c=>{const [w,t]=DVERD[c.now.verdict]||["-",""];return `<button data-dsel="${c.key}" class="tile" style="text-align:left;width:100%;margin-bottom:6px;cursor:pointer;${c.key===DOASEL?"outline:2px solid var(--accent,#2f6fed)":""}">
+   <div><b>${esc(c.code)} · ${esc(c.title)}</b></div><div class="small muted">${esc(DSCHED[c.instruction.schedule])}${c.instruction.enabled?"":" · off"} · ${esc(c.instruction.currency)}</div>
+   <div style="margin-top:4px"><span class="pill ${t}">${esc(w)}</span></div></button>`}).join("");
+ const c=d.internal.find(x=>x.key===DOASEL)||d.internal[0],ins=c.instruction,n=c.now,[vw,vt]=DVERD[n.verdict]||["-",""];
+ const payeeOpts=`<option value="">no payee</option>`+d.payees.map(p=>`<option value="${esc(p.id)}" ${p.id===ins.payee_id?"selected":""}>${esc(p.name)} · receives ${esc(p.currency||"?")} · ${esc((p.status||"not onboarded").toLowerCase())}</option>`).join("");
+ const opt=(arr,v,lab)=>arr.map(x=>`<option value="${esc(x)}" ${String(x)===String(v)?"selected":""}>${esc(lab?lab(x):x)}</option>`).join("");
+ const reg=c.key==="personnel"?(d.registers.find(r=>r.period===n.period)||null):null;
+ const regBox=c.key!=="personnel"?"":`<div class="tile" style="margin-top:12px"><b>Payroll register for ${esc(n.period||"-")}</b>
+   ${reg?`<div class="small" style="margin:4px 0">${pill(reg.status.toUpperCase())} ${dmoney(reg.total_minor,reg.currency)} · ${reg.lines.length} employee(s) · prepared by ${esc(reg.prepared_by)}${reg.hr_approved_by?` · HR: ${esc(reg.hr_approved_by)}`:""}${reg.fco_approved_by?` · FCO: ${esc(reg.fco_approved_by)}`:""}</div>
+    ${table([{h:"Employee",f:l=>esc(l.employee)},{h:"Net pay",num:1,f:l=>dmoney(l.amount_minor,reg.currency)},{h:"Charge code",f:l=>`<span class="mono small">${esc(l.charge_code||ins.charge_code)}</span>`}],reg.lines)}
+    <div class="row" style="margin-top:8px"><button data-dreg="hr" ${reg.status==="draft"?"":"disabled"}>Approve for HR</button><button data-dreg="fco" ${reg.status==="hr_approved"?"":"disabled"}>Approve as FCO</button><span class="small muted">two different people, neither of them the preparer</span></div>`
+   :`<div class="small muted" style="margin:4px 0">No register yet: the agent pays no salary without one.</div>`}
+   <details style="margin-top:8px"><summary class="small">${reg?"Prepare the register again":"Prepare the register"}</summary>
+    <div class="small muted" style="margin:6px 0">One line per employee: name, net pay, charge code (optional). Saving resets both approvals.</div>
+    <textarea id="dregLines" rows="4" style="width:100%;font-family:var(--mono,monospace)" placeholder="Ana Silva, 4200.00, US-200.OPS.6010">${reg?esc(reg.lines.map(l=>`${l.employee}, ${(l.amount_minor/100).toFixed(2)}${l.charge_code?", "+l.charge_code:""}`).join("\n")):""}</textarea>
+    <div class="row" style="margin-top:6px"><label class="small">Currency <select id="dregCur">${opt(d.currencies,ins.currency)}</select></label><button id="dregSave">Save register</button><span class="small" id="dregMsg"></span></div></details></div>`;
+ const detail=`<div class="tile"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:15px">${esc(c.code)} · ${esc(c.title)}</b><span class="pill ${vt}">${esc(vw)}</span></div>
+   <div class="small muted">${esc(c.basis)} · evidence: ${esc(c.evidence)}</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:8px;margin:10px 0">
+    <div class="tile small"><span class="pill good">Agent pays on its own</span><div style="margin-top:6px">${esc(c.auto)}</div></div>
+    <div class="tile small"><span class="pill warn">Prepared for a person</span><div style="margin-top:6px">${esc(c.approve)}</div></div>
+    <div class="tile small"><span class="pill critical">Never executed</span><div style="margin-top:6px">${esc(c.never)}</div></div></div>
+   <h3 class="small muted" style="margin:10px 0 6px">Standing payment instruction</h3>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:8px" class="small">
+    <label class="check"><input type="checkbox" id="di-enabled" ${ins.enabled?"checked":""} ${dis}> instruction on</label>
+    <label>Payee<select id="di-payee_id" ${dis}>${payeeOpts}</select></label>
+    <label>Payout currency<select id="di-currency" ${dis}>${opt(d.currencies,ins.currency)}</select></label>
+    <label>Charge code<input id="di-charge_code" value="${esc(ins.charge_code)}" ${dis}></label>
+    <label>Schedule<select id="di-schedule" ${dis}>${opt(d.schedules,ins.schedule,x=>DSCHED[x])}</select></label>
+    <label>Pay day<select id="di-pay_day" ${dis}>${opt(d.pay_days,ins.pay_day,x=>x==="last_working_day"?"Last working day":`Day ${x}`)}</select></label>
+    <label>Amount from<select id="di-source" ${dis}>${opt(c.key==="personnel"?["register"]:["fixed","document"],ins.source,x=>DSRC[x])}</select></label>
+    <label>Fixed amount<input id="di-amount" type="number" step="0.01" value="${ins.amount_minor==null?"":(ins.amount_minor/100).toFixed(2)}" ${dis}></label>
+    <label>Variance allowed, %<input id="di-variance" type="number" step="0.1" value="${(ins.variance_bp/100).toFixed(1)}" ${dis}></label>
+    <label>Limit per payment<input id="di-limit" type="number" step="0.01" value="${(ins.limit_minor/100).toFixed(2)}" ${dis}></label></div>
+   <div class="small muted" style="margin-top:6px">A payout currency other than USD is bought by the agent in the same run, inside the FX limits; the payee's bank account must receive that currency.</div>
+   <div class="row" style="margin-top:8px"><button class="primary" id="diSave" ${dis}>Save instruction</button><span class="small" id="diMsg">${ins.updated_by?`last saved by ${esc(ins.updated_by)}`:"not saved yet: the default applies"}</span></div>
+   <h3 class="small muted" style="margin:14px 0 6px">This period</h3>
+   <div class="small">${n.period?`${esc(n.period)} · pay date ${esc(n.pay_date)} · ${n.due?"<b>due</b>":"not due yet"} · ${dmoney(n.amount_minor,n.currency)} to ${esc(n.payee||"no payee")}`:"paid per approved document"}
+    ${n.reasons.length?`<div style="margin-top:4px">${n.reasons.map(r=>`<div>· ${esc(r)}</div>`).join("")}</div>`:""}
+    ${n.run?`<div style="margin-top:4px">${pill(n.run.status)} ${esc(n.run.message||"")}${n.run.approved_by?` · approved by ${esc(n.run.approved_by)}`:""}</div>`:""}
+    ${n.verdict==="approve"&&n.due&&!(n.run&&["PAID","IN_FLIGHT"].includes(n.run.status))?`<div style="margin-top:6px"><button data-dapprove="${c.key}" class="primary">Approve and pay as ${esc(actor().name)}</button></div>`:""}</div>
+   ${regBox}</div>`;
+ const runs=`<h3 class="small muted" style="margin:14px 0 6px">Runs</h3>${table([{h:"When",f:r=>esc(r.at.replace("T"," ").slice(0,16))},{h:"Category",f:r=>esc((d.internal.find(x=>x.key===r.category)||{}).title||r.category)},{h:"Period",f:r=>esc(r.period)},{h:"Amount",num:1,f:r=>dmoney(r.amount_minor,r.currency)},{h:"Status",f:r=>pill(r.status)},{h:"By",f:r=>esc(r.approved_by||r.by)},{h:"",f:r=>`<span class="small muted">${esc(r.message||"")}</span>`}],d.runs,"no run yet")}`;
+ const intPane=`<div style="display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:12px"><div>${list}</div><div>${detail}</div></div>${runs}`;
+ const ext=d.external.map(e=>`<div class="tile" style="margin-bottom:12px"><b style="font-size:15px">${esc(e.title)}</b><div class="small muted">${esc(e.basis)} · evidence: ${esc(e.evidence)}</div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:8px;margin:10px 0">
+    <div class="tile small"><span class="pill good">Agent pays on its own</span><div style="margin-top:6px">${esc(e.auto)}</div></div>
+    <div class="tile small"><span class="pill warn">Prepared for a person</span><div style="margin-top:6px">${esc(e.approve)}</div></div>
+    <div class="tile small"><span class="pill critical">Never executed</span><div style="margin-top:6px">${esc(e.never)}</div></div></div>
+   <div class="small"><span class="muted">Limits in force:</span> ${e.limits.map(l=>`<span class="chip">${esc(l.label)}: <b>${l.enabled===false?"revoked":esc(mval(l))}</b></span>`).join(" ")}
+    <a href="#" data-dctl class="nw">Change in Treasury limits and controls ›</a> · <a href="#/doc-rules">Document checks ›</a> · <a href="#/pos">Purchase orders ›</a></div></div>`).join("");
+ $("#doaView").innerHTML=`${head}<div data-dpane="int" ${on==="int"?"":"hidden"}>${intPane}</div><div data-dpane="ext" ${on==="ext"?"":"hidden"}>${ext}</div>`;
+ document.querySelectorAll("[data-dsel]").forEach(b=>b.onclick=()=>{DOASEL=b.dataset.dsel;doaView()});
+ document.querySelectorAll("[data-dctl]").forEach(a=>a.onclick=ev=>{ev.preventDefault();document.querySelector('[data-dtab="ctl"]').click()});
+ $("#doaPilot").onchange=async ev=>{try{await api(`/v1/doa/settings?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({autopilot:ev.target.checked})});toast(ev.target.checked?"Autopilot on: due instructions are paid on their own":"Autopilot off","good")}catch(e){toast(e.message,"critical");ev.target.checked=!ev.target.checked}};
+ $("#doaRun").onclick=()=>doaRun([],null);
+ document.querySelectorAll("[data-dapprove]").forEach(b=>b.onclick=()=>doaRun([b.dataset.dapprove],actor()));
+ $("#diSave").onclick=async()=>{const num=id=>$(id).value===""?null:Math.round(parseFloat($(id).value)*100);
+  const body={enabled:$("#di-enabled").checked,payee_id:$("#di-payee_id").value||null,currency:$("#di-currency").value,charge_code:$("#di-charge_code").value.trim(),schedule:$("#di-schedule").value,
+   pay_day:$("#di-pay_day").value,source:$("#di-source").value,amount_minor:num("#di-amount"),variance_bp:num("#di-variance")??0,limit_minor:num("#di-limit")??0};
+  try{await api(`/v1/doa/instructions/${c.key}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast("Instruction saved","good");doaView()}
+  catch(e){$("#diMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+ document.querySelectorAll("[data-dreg]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/doa/registers/${n.period}/approve?step=${b.dataset.dreg}&${who()}`,{method:"POST"});toast("Register approved","good");doaView()}catch(e){toast(e.message,"critical")}});
+ if($("#dregSave"))$("#dregSave").onclick=async()=>{const lines=$("#dregLines").value.split("\n").map(x=>x.trim()).filter(Boolean).map(x=>{const [e,a,cc]=x.split(",").map(y=>y.trim());return {employee:e,amount_minor:Math.round(parseFloat(a||"0")*100),...(cc?{charge_code:cc}:{})}});
+  try{await api(`/v1/doa/registers?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({period:n.period,currency:$("#dregCur").value,lines})});toast("Register saved: it needs HR's and the FCO's approval","good");doaView()}
+  catch(e){$("#dregMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+ catch(e){$("#doaView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function doaRun(keys,who_){$("#doaRun").disabled=true;try{const r=await api("/v1/doa/run",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(who_?{keys,approver:who_.name,role:who_.role}:{keys})});
+  const paid=r.paid.length,held=r.held.length;toast(paid||held?`${paid} paid · ${held} held${r.execution?` · ${r.execution.status}`:""}`:`Nothing to pay now${r.skipped.length?`: ${r.skipped.map(x=>x.key+" "+x.verdict).join(", ")}`:""}`,paid?"good":"info");doaView()}
+ catch(e){toast(e.message,"critical")}finally{const b=$("#doaRun");if(b)b.disabled=false}}
 
 const WH_EVENTS=["deposit.pending","deposit.settled","deposit.rejected","deposit.reversed","payout.transfer.processing","payout.transfer.sent","payout.transfer.paid","payout.transfer.failed","conversion.settled","conversion.cancelled"];
 document.querySelectorAll("#whTabs [data-wtab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#whTabs [data-wtab]").forEach(x=>x.classList.toggle("on",x===b));

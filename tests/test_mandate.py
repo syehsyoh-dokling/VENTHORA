@@ -116,7 +116,7 @@ def test_the_intake_follows_each_checks_mode(client, monkeypatch):
     assert got["status"] == "VERIFIED" and "urgency_pressure" in got["flags"]
     got = send("po-exceeded", 3)
     assert got["status"] == "VERIFIED" and "po_exceeded" in got["flags"]
-    assert any("warn only under the mandate" in x for x in got["reasons"])
+    assert any("Flag only in the mandate" in x for x in got["reasons"])
     assert _put(client, {"checks": {"po_room": "off"}}).status_code == 200
     got = send("po-exceeded", 4)
     assert "po_exceeded" not in got["flags"]

@@ -54,7 +54,7 @@ AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
                ("/health", "/api/status", "/v1/status")),
 }
 NO_KEY = ("/webhooks/",)               # inbound push channels: their own signatures and secrets
-NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection", "/v1/settings/ai", "/v1/settings/email", "/v1/mandate")  # keys, bank, AI vault, mailboxes, the agent's authority
+NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection", "/v1/settings/ai", "/v1/settings/email", "/v1/mandate", "/v1/doa")  # keys, bank, AI vault, mailboxes, the agent's authority
 OPEN_WITH_KEY = ("/openapi.json", "/docs", "/v1/developer/catalog")
 ROLES = ("auditor", "treasury_analyst", "finance_manager", "cfo", "admin")  # the dashboard's roles; auditor is read only
 

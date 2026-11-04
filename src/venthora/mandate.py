@@ -63,7 +63,10 @@ SHORT = {
 }
 
 MODES = ("hold", "warn", "off")
-MODE_LABEL = {"hold": "Hold", "warn": "Warn only", "off": "Off"}
+MODE_LABEL = {"hold": "Stop and hold", "warn": "Flag only", "off": "Do not check"}
+# what a failure leads to under each mode, as the page says it next to the check
+MODE_OUTCOME = {"warn": "flagged for the approver to see; the request is not held and can be paid",
+                "off": "not checked at all; nothing is flagged and nothing is held"}
 
 # the checks the intake runs on every request (src/venthora/intake/pipeline.py, procurement.py); flags are what a person
 # sees. critical: weakening it opens a known fraud or loss path, so the change needs an acknowledged warning.
@@ -291,6 +294,6 @@ def view(setup: dict, org, doc_rules_on: bool, role: str | None = None) -> dict:
     order = [c["key"] for c in CATEGORIES]
     limits.sort(key=lambda x: order.index(x["category"]))
     return {"categories": cats, "limits": limits, "approval_matrix": setup["approval_matrix"], "approvers": setup["approvers"],
-            "standing": st, "titles": {c["key"]: c["title"] for c in CATEGORIES}, "modes": MODE_LABEL,
+            "standing": st, "titles": {c["key"]: c["title"] for c in CATEGORIES}, "modes": MODE_LABEL, "outcomes": MODE_OUTCOME,
             "authority": {"role": st["authority_role"], "label": AUTHORITY_ROLES[st["authority_role"]], "roles": AUTHORITY_ROLES,
                           "you_may_change": role == st["authority_role"] if role else None}}

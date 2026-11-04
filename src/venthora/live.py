@@ -431,12 +431,21 @@ async def step(s: LiveSession, executor: Executor, audit, *, approver: str | Non
         detail = (f"payment {dep.get('id')} {dep.get('status')}; plan {s.plan.decision}" if dep else "no incoming payment expected")
     else:  # execute
         approval = None
-        if s.plan.decision == "REQUIRES_APPROVAL":
-            if not approver:
-                raise LiveError("this plan needs an approver: name the person approving it")
+        held: list[dict] = []
+        run_state, run_plan = s.state, s.plan
+        if s.plan.decision == "REQUIRES_APPROVAL" and approver:
             approval = Approval(approver=approver, role=role, terms_digest=terms_digest(s.plan))
+        elif s.plan.decision == "REQUIRES_APPROVAL":
+            # nobody approved: pay now what is inside the mandate, hold only the exceptions (src/venthora/autonomy.py)
+            from .autonomy import split
+
+            sp = await split(agent, s.state)
+            held = [{"id": s.short(h["obligation_id"]), "reasons": h["reasons"]} for h in sp.held]
+            if sp.auto_plan is None:
+                raise LiveError("nothing in this plan is inside the mandate on its own: name the person approving it")
+            run_state, run_plan = sp.auto_state, sp.auto_plan
         before = await wallet(executor.bank)
-        result = await executor.execute(ExecutionRequest(state=s.state, plan_hash=s.plan.plan_hash, approval=approval, requested_by="VENTHORA"))
+        result = await executor.execute(ExecutionRequest(state=run_state, plan_hash=run_plan.plan_hash, approval=approval, requested_by="VENTHORA"))
         if result.status == "COMPLETED" and s.deposit and s.deposit.get("landed"):
             executor.store.count_deposit(s.deposit["id"], s.deposit["receivable_id"], s.deposit["amount_minor"], s.deposit["currency"], result.execution_id)
         after = await wallet(executor.bank)
@@ -446,8 +455,8 @@ async def step(s: LiveSession, executor: Executor, audit, *, approver: str | Non
         for x in result.steps:
             if x.kind == "simulation" and (x.detail or {}).get("status"):
                 final[x.key] = x.detail["status"]
-        pv = plan_view(s, s.plan)
-        s.execution = {"status": result.status, "message": result.message, "execution_id": result.execution_id,
+        pv = plan_view(s, run_plan)
+        s.execution = {"status": result.status, "autonomous": approval is None, "approved_by": approver if approval else None, "held": held, "message": result.message, "execution_id": result.execution_id,
                        "steps": [{"kind": x.kind, "key": s.short(x.key), "status": x.status, "airwallex_id": x.airwallex_id,
                                   "final": final.get(x.key) if x.kind == "transfer" else (x.detail or {}).get("status"),
                                   "detail": {k: v for k, v in (x.detail or {}).items() if k in ("amount", "method", "fee_minor", "sell_minor", "client_rate")}}
@@ -458,7 +467,8 @@ async def step(s: LiveSession, executor: Executor, audit, *, approver: str | Non
                        "floor_ok": rec.base_floor_ok if rec else None,
                        "book": {c: {k: v for k, v in a.items() if v} for c, a in book.items()},
                        "paid": [o["id"] for o in pv["obligations"] if o["action"] in ("PAY", "CONVERT_AND_PAY")] if result.status in ("COMPLETED", "IN_FLIGHT") else [],
-                       "not_paid": [{"id": o["id"], "action": o["action"]} for o in pv["obligations"] if o["action"] not in ("PAY", "CONVERT_AND_PAY")]}
+                       "not_paid": [{"id": o["id"], "action": o["action"]} for o in pv["obligations"] if o["action"] not in ("PAY", "CONVERT_AND_PAY")]
+                                   + [{"id": h["id"], "action": "HELD"} for h in held]}
         s.views["execute"] = s.execution
         detail = f"{result.status}: {result.message[:140]}"
     s.step += 1

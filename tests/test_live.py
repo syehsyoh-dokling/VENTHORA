@@ -115,3 +115,13 @@ def test_a_finished_session_refuses_another_step(tmp_path):
     s, _ = run_all(tmp_path)
     with pytest.raises(live.LiveError):
         asyncio.run(live.step(s, None, None))
+
+
+def test_without_an_approver_the_run_pays_what_is_inside_the_mandate_and_holds_the_rest(tmp_path):
+    s, _ = run_all(tmp_path, mutate=lambda c: _set(c, "convert_fx", enabled=False))  # nobody approves
+    e = s.views["execute"]
+    assert s.views["deposit"]["plan"]["decision"] == "REQUIRES_APPROVAL"
+    assert e["autonomous"] is True and e["status"] == "COMPLETED", e["message"]
+    assert e["paid"] and e["held"]  # paid on its own authority, the conversions wait for a person
+    assert not set(e["paid"]) & {h["id"] for h in e["held"]}
+    assert all("conversion" in " ".join(h["reasons"]) or "waits behind" in " ".join(h["reasons"]) for h in e["held"])
