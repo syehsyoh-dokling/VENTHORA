@@ -256,7 +256,9 @@
           "label": "70% on installation",
           "amount_minor": 1400000
         }
-      ]
+      ],
+      "Issued": "2026-10-01",
+      "Start": "2026-10-01"
     },
     {
       "Id": "P-78",
@@ -267,7 +269,9 @@
       "CostCode": "US-210.OPS.6700",
       "Memo": "Office supplies, US West branch, Q4",
       "PartialAllowed": true,
-      "Terms": []
+      "Terms": [],
+      "Issued": "2026-10-01",
+      "Start": "2026-10-01"
     },
     {
       "Id": "P-79",
@@ -278,7 +282,26 @@
       "CostCode": "US-210.OPS.6700",
       "Memo": "Office chairs, two deliveries",
       "PartialAllowed": true,
-      "Terms": []
+      "Terms": [],
+      "Issued": "2026-10-01",
+      "Start": "2026-10-01"
+    },
+    {
+      "Id": "P-80",
+      "Number": "PO-2026-0204",
+      "Vendor": "harbor-analytics",
+      "Currency": "GBP",
+      "Total": "13000.00",
+      "CostCode": "UK-300.OPS.6200",
+      "Memo": "Market analysis, 20 consultant days",
+      "PartialAllowed": true,
+      "Terms": [],
+      "Issued": "2026-11-01",
+      "Start": "2026-11-01",
+      "Expiry": "2027-01-31",
+      "LoE": 20,
+      "LoEUnit": "day",
+      "Rate": "650.00"
     }
   ],
   "open_bills": [
@@ -366,6 +389,136 @@
           "role": "cfo"
         }
       ]
+    }
+  ],
+  "purchase_requests": [
+    {
+      "Id": "R-11",
+      "Number": "PR-2026-0101",
+      "Title": "Forklift rental for the EU warehouse, November",
+      "RequestedBy": "Jonas Weber",
+      "Vendor": "nordlicht-logistik",
+      "Currency": "EUR",
+      "Estimate": "4500.00",
+      "CostCode": "DE-400.PRJ900.6100",
+      "NeededBy": "2026-11-15",
+      "Requested": "2026-10-28",
+      "Reason": "racking installation week",
+      "Status": "Approved",
+      "ApprovedBy": "Lena Vogel (country admin)"
+    },
+    {
+      "Id": "R-12",
+      "Number": "PR-2026-0102",
+      "Title": "Printer toner and paper, Q1",
+      "RequestedBy": "Marcus Hale",
+      "Vendor": "pacific-office",
+      "Currency": "USD",
+      "Estimate": "600.00",
+      "CostCode": "US-210.OPS.6700",
+      "NeededBy": "2026-12-20",
+      "Requested": "2026-11-02",
+      "Reason": "quarterly stock",
+      "Status": "Submitted",
+      "ApprovedBy": ""
+    }
+  ],
+  "engagements": [
+    {
+      "Id": "E-5",
+      "Number": "ENG-2026-101",
+      "Name": "Prof. Hannah Weiss",
+      "Type": "resource person",
+      "Organisation": "Bremen Customs Academy",
+      "Email": "h.weiss@bca.example",
+      "Event": "Customs compliance briefing for the EU roll-out",
+      "Date": "2026-11-25",
+      "Fee": "900.00",
+      "Currency": "EUR",
+      "CostCode": "DE-400.PRJ900.6200",
+      "Payee": ""
+    }
+  ],
+  "travel_authorisations": [
+    {
+      "Id": "T-1",
+      "Number": "TA-2026-0101",
+      "Traveller": "dana.finch@acme.example",
+      "From": "United States/New York",
+      "To": "United Kingdom/London",
+      "Start": "2026-11-16",
+      "End": "2026-11-19",
+      "Purpose": "Partner audit, UK country office",
+      "Estimate": "2400.00",
+      "Currency": "USD",
+      "CostCode": "US-200.OPS.6400",
+      "Status": "Approved",
+      "ApprovedBy": "Omar Reyes (CFO)"
+    },
+    {
+      "Id": "T-2",
+      "Number": "TA-2026-0102",
+      "Traveller": "amira.shah@acme.example",
+      "From": "United Kingdom/London",
+      "To": "Germany/Berlin",
+      "Start": "2026-12-07",
+      "End": "2026-12-09",
+      "Purpose": "EU warehouse go-live",
+      "Estimate": "1100.00",
+      "Currency": "GBP",
+      "CostCode": "UK-300.OPS.6400",
+      "Status": "Approved",
+      "ApprovedBy": "Omar Reyes (CFO)"
+    }
+  ],
+  "fund_requests": [
+    {
+      "Id": "F-1",
+      "Number": "CA-2026-0101",
+      "Kind": "cash_advance",
+      "RequestedBy": "jonas.weber@acme.example",
+      "Amount": "800.00",
+      "Currency": "EUR",
+      "CostCode": "PRJ-900.PRJ900.1400",
+      "Purpose": "Site visit expenses, EU warehouse",
+      "Activity": "",
+      "Requested": "2026-11-02",
+      "NeededBy": "2026-11-09",
+      "SettleBy": "2026-11-30",
+      "Status": "Approved",
+      "ApprovedBy": "Lena Vogel (country admin)"
+    },
+    {
+      "Id": "F-2",
+      "Number": "PC-2026-0101",
+      "Kind": "petty_cash",
+      "RequestedBy": "amira.shah@acme.example",
+      "Amount": "300.00",
+      "Currency": "GBP",
+      "CostCode": "UK-300.OPS.1400",
+      "Purpose": "Office petty cash float, November",
+      "Activity": "office float",
+      "Requested": "2026-11-01",
+      "NeededBy": "2026-11-03",
+      "SettleBy": "2026-11-30",
+      "Status": "Submitted",
+      "ApprovedBy": ""
+    },
+    {
+      "Id": "F-3",
+      "Number": "ODC-2026-0101",
+      "Kind": "odc",
+      "RequestedBy": "dana.finch@acme.example",
+      "Amount": "1250.00",
+      "Currency": "USD",
+      "CostCode": "US-200.OPS.6900",
+      "Purpose": "Venue and catering, partner workshop",
+      "Activity": "Partner workshop, Q4",
+      "Requested": "2026-11-03",
+      "NeededBy": "2026-11-20",
+      "SettleBy": "",
+      "Status": "Submitted",
+      "ApprovedBy": ""
     }
   ]
 }

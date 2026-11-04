@@ -9,8 +9,10 @@
 :root{--bg:#f3f5f9;--surface:#ffffff;--surface2:#f8fafc;--ink:#0f1b2d;--ink2:#46536a;--muted:#8792a6;--line:#e4e8ef;
  --brand:#1d3f8f;--brand2:#2f6fe4;--brandlt:#eaf1fe;--accent:#2f6fe4;--seq:#2f6fe4;--seqlt:#d6e4fd;
  --good:#13804f;--goodlt:#e5f6ee;--warn:#b26b00;--warnlt:#fff4e0;--serious:#c2410c;--seriouslt:#fdeee6;--critical:#c0262d;--critlt:#fdecec;
+ --zebra:#eef2f9;--rowhover:#e2eafa;--note:#eef6f3;--noteline:#9fd3bf;
  --shadow:0 1px 2px rgba(15,27,45,.06),0 6px 24px rgba(15,27,45,.06);--radius:14px;--hero1:#0d1f45;--hero2:#18397f;--heroInk:#e9f0ff;--heroMuted:#a8b8dc}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0b1119;--surface:#121a26;--surface2:#0f1621;--ink:#e7edf6;--ink2:#b3bfd1;--muted:#7a879b;--line:#232f3f;
+ --zebra:#16212f;--rowhover:#1d2c43;--note:#10251f;--noteline:#2c6b55;
  --brand:#8fb2ff;--brand2:#6f9dff;--brandlt:#17243b;--accent:#7ea6ff;--seq:#7ea6ff;--seqlt:#20324f;--goodlt:#0f2a1f;--warnlt:#2c2210;--seriouslt:#2e1a10;--critlt:#2e1416;
  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 28px rgba(0,0,0,.35);--hero1:#0a1630;--hero2:#132b5e}}
 *{box-sizing:border-box}
@@ -52,7 +54,7 @@ section h2 .small{text-transform:none;letter-spacing:0;font-weight:500}
 table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
 th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line);padding:7px 10px;white-space:nowrap;background:var(--surface2)}
 td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}tr:last-child td{border-bottom:0}
-tbody tr:hover td{background:var(--surface2)}
+tbody tr:nth-child(even)>td{background:var(--zebra)}tbody tr:hover>td{background:var(--rowhover)}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 /* pills */
@@ -251,21 +253,27 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <a href="/flow" class="mtop"><i>⇢</i>Workflow<span class="ext">↗</span></a>
 
   <div class="mg" data-g="payment"><button type="button" class="mh"><i>⇄</i><span>Payment</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <a href="#/intake" data-nav="intake" data-also="pos travel"><i>✉</i>Intake</a>
+   <a href="#/commitments" data-nav="commitments"><i>◫</i>Commitment</a>
+   <a href="#/pending" data-nav="pending"><i>⏳</i>Pending payment<span class="cnt" id="cnt-intake"></span></a>
+   <a href="#/receiving" data-nav="receiving"><i>⇩</i>Balance received</a>
+  </div></div>
+
+  <div class="mg" data-g="mandate"><button type="button" class="mh"><i>⚖</i><span>Reporting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <a href="#/rep-payroll" data-nav="rep-payroll"><i>☰</i>1 · Payroll</a>
+   <a href="#/rep-fringe" data-nav="rep-fringe"><i>✚</i>2 · Fringe benefit</a>
+   <a href="#/rep-goods" data-nav="rep-goods"><i>▣</i>3 · Goods and services</a>
+   <a href="#/rep-operation" data-nav="rep-operation"><i>⌂</i>4 · Operation</a>
+   <a href="#/rep-cash" data-nav="rep-cash"><i>¤</i>5 · Cash advance</a>
+   <a href="#/rep-travel" data-nav="rep-travel"><i>✈</i>6 · Travel &amp; transport</a>
+   <a href="#/rep-odc" data-nav="rep-odc"><i>◇</i>7 · Other direct cost</a>
    <a href="/live"><i>▶</i>Operations run<span class="ext">↗</span></a>
-   <a href="#/intake" data-nav="intake"><i>✉</i>Intake<span class="cnt" id="cnt-intake"></span></a>
-   <a href="#/commitments" data-nav="commitments"><i>◫</i>Commitments</a>
-   <a href="#/pos" data-nav="pos"><i>▣</i>Purchase orders</a>
-   <a href="#/travel" data-nav="travel"><i>✈</i>Travel requests</a>
+   <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
+   <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Payment reports</a>
    <a href="#/payroll" data-nav="payroll"><i>☰</i>Payroll register</a>
    <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget allocation</a>
    <a href="#/payees" data-nav="payees"><i>☺</i>Payees</a>
    <a href="#/books" data-nav="books"><i>▥</i>Books &amp; segregation</a>
-   <a href="#/executions" data-nav="executions"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
-   <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Payment reports</a>
-   <a href="#/receiving" data-nav="receiving"><i>⇩</i>Receiving accounts</a>
-  </div></div>
-
-  <div class="mg" data-g="mandate"><button type="button" class="mh"><i>⚖</i><span>Mandate &amp; Reporting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/plan" data-nav="plan"><i>◇</i>Plan &amp; proof</a>
    <a href="#/budget" data-nav="budget"><i>▤</i>Budget &amp; mandate</a>
    <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
@@ -384,19 +392,55 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    .cm-name{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}.cm-name:hover{color:var(--accent,#2f6fed)}.cm-name .chev{display:inline-block;width:14px;color:var(--ink3,#888);transition:transform .15s}
    tr.cm-open .cm-name .chev{transform:rotate(90deg)}tr.cm-det>td{background:var(--surface2);padding:10px 12px}tr.cm-det table{background:var(--surface,#fff)}
    .cm-tiles{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}.cm-tiles .tile{min-width:150px}.pill.multi{color:#7b5cff;background:rgba(123,92,255,.12);border-color:transparent}
+   table.cm-t>tbody>tr>td{background:transparent}table.cm-t>tbody>tr.cm-z>td{background:var(--zebra)}table.cm-t>tbody>tr:not(.cm-det):hover>td{background:var(--rowhover)}
+   table.cm-t>tbody>tr.cm-open>td{background:var(--brandlt)}table.cm-t>tbody>tr.cm-det>td{background:var(--surface2);border-left:3px solid var(--accent)}
+   .cm-src{margin:0 0 10px;padding:9px 12px;border-radius:10px;background:var(--note);border:1px solid var(--noteline);font-size:12.5px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+   .cm-src .txt{flex:1;min-width:260px}.cm-src .row{gap:6px}
+   #pdlg{width:min(720px,calc(100vw - 32px))}#pdlg .pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:8px 18px;font-size:13px}
+   #pdlg .pgrid>div>span:first-child{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}#pdlg h4{margin:14px 0 6px;font-size:12px;color:var(--ink2)}
    .cm-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:4px 16px;margin-bottom:10px}</style>
   <h2><span>Commitments</span><span class="tabs" id="cmTabs"><button data-ctab="ven" class="on">1 · Vendors</button><button data-ctab="con">2 · Consultants</button><button data-ctab="eng">3 · One-off engagements</button><button data-ctab="cus">4 · Customers &amp; receivables</button><button data-ctab="stf">5 · Staff &amp; payroll</button></span></h2>
   <div class="small" id="cmNote" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"></div>
   <div class="row" style="margin:10px 0;gap:8px;flex-wrap:wrap"><input id="cmQ" placeholder="Search by name" style="min-width:220px"><select id="cmSt"><option value="">Every status</option></select><span style="flex:1"></span><span id="cmActs" class="row" style="gap:8px"></span></div>
+  <div id="cmSrc"></div>
   <div id="cmTiles" class="cm-tiles"></div>
   <div id="cmBody" class="empty">loading…</div>
  </section>
- <section class="span12" data-view="pos">
-  <h2><span>Purchase orders</span><span class="row"><span class="small muted">a supplier invoice is paid only against an open PO it quotes</span><button class="primary" id="addPO">New PO</button></span></h2>
-  <div id="poTable" class="empty">loading…</div>
- </section>
  <section class="span12" data-view="intake">
-  <h2><span>Intake · invoices, claims and payment orders</span><span class="row"><span class="small muted" id="intakeMeta"></span><button class="primary" id="newOrder">New payment order</button></span></h2>
+  <style>#inTabs{gap:6px;background:transparent;border:0;padding:0;flex-wrap:wrap}#inTabs button{color:#fff;padding:8px 14px;border-radius:9px;opacity:.55}#inTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35)}
+   #inTabs [data-itab=pr]{background:linear-gradient(135deg,#10b981,#0ea5a4)}#inTabs [data-itab=po]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}#inTabs [data-itab=con]{background:linear-gradient(135deg,#f59e0b,#ef4444)}#inTabs [data-itab=travel]{background:linear-gradient(135deg,#7b5cff,#db2777)}#inTabs [data-itab=ca]{background:linear-gradient(135deg,#0ea5a4,#10b981)}#inTabs [data-itab=pc]{background:linear-gradient(135deg,#db2777,#f59e0b)}#inTabs [data-itab=odc]{background:linear-gradient(135deg,#475569,#2f6fed)}</style>
+  <h2><span>Intake</span><span class="tabs" id="inTabs"><button data-itab="pr" class="on">1 · Purchase request</button><button data-itab="po">2 · Purchase order</button><button data-itab="con">3 · Consultant &amp; resource persons</button><button data-itab="travel">4 · Travel authorisation</button><button data-itab="ca">5 · Cash advance</button><button data-itab="pc">6 · Petty cash / slush fund</button><button data-itab="odc">7 · Other direct cost (ODC)</button></span></h2>
+  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px" id="inNote"></div>
+  <div data-ipane="pr"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><input id="prQ" placeholder="Search number, title or person" style="min-width:220px"><select id="prSt"><option value="">Every status</option><option>SUBMITTED</option><option>APPROVED</option><option>ORDERED</option><option>REJECTED</option><option>DRAFT</option></select><span style="flex:1"></span><button data-sync="api">⇅ Sync via API</button><button data-sync="dataset">⇪ Sync via Dataset</button><button class="primary" id="prNew">New purchase request</button></div>
+   <div id="prTiles" class="cm-tiles"></div><div id="prBody" class="empty">loading…</div></div>
+  <div data-ipane="po con" hidden>
+   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><input id="rgQ" placeholder="Search number or name" style="min-width:220px"><select id="rgSt"><option value="">Every state</option><option>In Commitments</option><option>Needs payee</option><option>Expired</option><option>Closed</option><option>Cancelled</option></select>
+    <select id="rgSrc"><option value="">Every source</option><option value="manual">Entered by hand</option><option value="upload">Dataset upload</option><option value="api">Auto Connect (API)</option><option value="seed">Opening data</option></select><span style="flex:1"></span>
+    <button data-sync="api">⇅ Sync via API</button><button data-sync="dataset">⇪ Sync via Dataset</button><span id="rgActs" class="row" style="gap:8px"></span></div>
+   <div id="rgTiles" class="cm-tiles"></div><div id="rgBody" class="empty">loading…</div></div>
+  <div data-ipane="ca pc odc" hidden>
+   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><input id="frQ" placeholder="Search number, person or purpose" style="min-width:220px"><select id="frSt"><option value="">Every status</option><option>SUBMITTED</option><option>APPROVED</option><option>IN_PAYMENT</option><option>SETTLED</option><option>REJECTED</option><option>DRAFT</option><option>CANCELLED</option></select><span style="flex:1"></span><button data-sync="api">⇅ Sync via API</button><button data-sync="dataset">⇪ Sync via Dataset</button><button class="primary" id="frNew">New request</button></div>
+   <div id="frTiles" class="cm-tiles"></div><div id="frBody" class="empty">loading…</div></div>
+  <div data-ipane="travel" hidden>
+   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><input id="taQ" placeholder="Search number or traveller" style="min-width:220px"><span style="flex:1"></span><button data-sync="api">⇅ Sync via API</button><button data-sync="dataset">⇪ Sync via Dataset</button><button class="primary" id="taNew">New travel authorisation</button></div>
+   <h3 class="small muted" style="margin:6px 0">Travel authorisations</h3><div id="taBody" class="empty">loading…</div>
+   <h3 class="small muted" style="margin:16px 0 6px">After the trip: the claim</h3><div id="travelView" class="empty">loading…</div></div>
+ </section>
+
+ <section class="span12" data-view="rep-payroll rep-fringe rep-goods rep-operation rep-cash rep-travel rep-odc">
+  <h2><span id="spTitle">Report</span><span class="row"><button id="spCsv">Export CSV</button></span></h2>
+  <div class="small" id="spNote" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"></div>
+  <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:end">
+   <label class="small">Country office<select id="spCo"><option value="">All</option></select></label><label class="small">Branch<select id="spBr"><option value="">All</option></select></label>
+   <label class="small">Unit<select id="spUn"><option value="">All</option></select></label><label class="small">Person<select id="spPe"><option value="">All</option></select></label>
+   <label class="small">From<input type="date" id="spFrom"></label><label class="small">To<input type="date" id="spTo"></label>
+   <label class="small">Status<select id="spSt"><option value="">All</option><option>Done</option><option>Partial</option><option>New</option></select></label>
+   <label class="small">Type<select id="spTy"><option value="">All</option></select></label><button id="spReset">Reset</button></div>
+  <div id="spTiles" class="cm-tiles"></div><div id="spBody" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="pending">
+  <h2><span>Pending payment</span><span class="row"><span class="small muted" id="intakeMeta"></span><button class="primary" id="newOrder">New payment order</button></span></h2>
+  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"><b>Every payment waiting to go out:</b> invoices and claims that arrived by email, payment orders raised here or from a commitment, and requests synced or uploaded. Each one went through the same checks: a registered sender and payee, an open PO with room, no duplicate, the documents the rules require. What a person must decide is marked; the rest is paid by VENTHORA on its own, within the Delegation of Authority.</div>
   <div id="intake" class="empty">loading…</div>
  </section>
 
@@ -436,12 +480,13 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <!-- ===== Settings ===== -->
  <section class="span12" data-view="allocation">
   <style>#alTabs{gap:6px;background:transparent;border:0;padding:0}#alTabs button{color:#fff;padding:8px 16px;border-radius:9px;opacity:.55}#alTabs button:hover{opacity:.85}
-   #alTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35);transform:translateY(-1px)}#alTabs [data-atab=reg]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}#alTabs [data-atab=prj]{background:linear-gradient(135deg,#0ea5a4,#2f6fed)}
+   #alTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35);transform:translateY(-1px)}#alTabs [data-atab=reg]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}#alTabs [data-atab=lin]{background:linear-gradient(135deg,#f59e0b,#db2777)}#alTabs [data-atab=prj]{background:linear-gradient(135deg,#0ea5a4,#2f6fed)}
    .almode{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:10px;margin:10px 0}.almode label{display:block;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}.almode label.on{border-color:var(--accent,#2f6fed);background:rgba(47,111,237,.06)}</style>
-  <h2><span>Budget allocation</span><span class="tabs" id="alTabs"><button data-atab="reg" class="on">1 · Regular budget allocation</button><button data-atab="prj">2 · Project based allocation</button></span></h2>
+  <h2><span>Budget allocation</span><span class="tabs" id="alTabs"><button data-atab="reg" class="on">1 · Regular budget allocation</button><button data-atab="prj">2 · Project based allocation</button><button data-atab="lin">3 · Budget lines &amp; thresholds</button></span></h2>
   <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>Which budget a payment draws on.</b> Every payment carries a charge code OFFICE.PROJECT.ACCOUNT. The hierarchy is the organisation's: head office, country office, branch, unit or department. A budget given only at the top covers every office and unit under it; a budget given to a lower level covers that level only, and the nearest one governs. Every payment is checked against it again at execution, and never beyond the actual balance.</div>
   <div data-apane="reg"><div id="alMode"></div><div id="alReg"></div></div>
   <div data-apane="prj" hidden><div id="alPrj"></div></div>
+  <div data-apane="lin" hidden><div id="alLines" class="empty">loading…</div></div>
   <div class="small muted" style="margin-top:16px;padding-top:10px;border-top:1px solid var(--line)"><b>To add a country office, branch, unit or department:</b> upload a file in any format (Excel, CSV, Word, PDF, email) that lists them with their name, type (head office, country office, branch, unit), the office it reports to, country, currency and cost centre, in <a href="#/sources-upload">Dataset upload</a>; or <a href="#" id="alAddUnit">add one here ›</a>.</div>
  </section>
 
@@ -691,10 +736,18 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   </div>
  </section>
  <section class="span12" data-view="receiving">
-  <h2><span>Receiving accounts</span><span class="row"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="Customer receipts"><button id="gaOpen">Open another account</button></span></h2>
-  <div class="small muted">Bank details in your name at Airwallex, one per currency. Give them to customers on invoices: they pay by a local
-   transfer, and the money lands in the wallet as a deposit (it shows on the Dashboard as cash in).</div>
-  <div id="gaList" class="empty" style="margin-top:12px">loading…</div>
+  <style>#brTabs{gap:6px;background:transparent;border:0;padding:0}#brTabs button{color:#fff;padding:8px 14px;border-radius:9px;opacity:.55}#brTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35)}
+   #brTabs [data-btab=rc]{background:linear-gradient(135deg,#10b981,#0ea5a4)}#brTabs [data-btab=ga]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}</style>
+  <h2><span>Balance received</span><span class="tabs" id="brTabs"><button data-btab="rc" class="on">1 · Payments received</button><button data-btab="ga">2 · Receiving accounts</button></span></h2>
+  <div data-bpane="rc">
+   <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"><b>Money other parties paid into the organisation's Airwallex account:</b> a customer settling an invoice, a refund, a grant or donation, a loan or capital. Every deposit Airwallex reports is listed here. Record a payment when you are told of it (the payer, amount, date, the receiving account, their reference and the invoice it settles): it shows as <b>awaiting the deposit</b> until Airwallex reports a deposit of the same currency and amount, then <b>confirmed on Airwallex</b>. A deposit nobody recorded shows as <b>received, not recorded</b>: record it to say who paid and what for.</div>
+   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><input id="brQ" placeholder="Search payer, reference or invoice" style="min-width:240px"><select id="brSt"><option value="">Every state</option><option>Confirmed on Airwallex</option><option>Deposit arriving</option><option>Awaiting the deposit</option><option>Received, not recorded</option></select><span style="flex:1"></span><button class="primary" id="brNew">Record a payment received</button></div>
+   <div id="brTiles" class="cm-tiles"></div><div id="brBody" class="empty">loading…</div></div>
+  <div data-bpane="ga" hidden>
+   <div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="Customer receipts"><button id="gaOpen">Open another account</button></div>
+   <div class="small muted">Bank details in your name at Airwallex, one per currency. Give them to customers on invoices: they pay by a local
+    transfer, and the money lands in the wallet as a deposit (it shows in Payments received and on the Dashboard as cash in).</div>
+   <div id="gaList" class="empty" style="margin-top:12px">loading…</div></div>
  </section>
 
  <section class="span12" data-view="admins">
@@ -794,10 +847,6 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <h2><span>Payroll register</span><span class="small muted">one line per employee; HR approves it, then the FCO, before anything is paid</span></h2>
   <div id="payrollView" class="empty">loading…</div>
  </section>
- <section class="span12" data-view="travel">
-  <h2><span>Travel requests</span><span class="small muted">a request made here goes through the same checks as an emailed one</span></h2>
-  <div id="travelView" class="empty">loading…</div>
- </section>
  <section class="span12" data-view="books">
   <div class="small" style="margin-bottom:12px;padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06))"><b>Each book is a separate pool of money.</b> A book only pays the payees it allows, only the approvers named for it may approve its plans, and its own policy, where it has one, replaces the company's limits. A book never spends another book's money. Read from the tenant registry (data/tenants.json).</div>
   <h2><span>Tenants · books</span><span class="small muted" id="tenantMeta">whose book, which payees, whose signature, which policy; a book never spends another book's money</span></h2>
@@ -840,6 +889,13 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <div class="small muted" style="margin-bottom:10px">These changes weaken controls that stop fraud or loss. Read what each one allows, tick it to accept it, then apply. Your acknowledgement is recorded in the audit trail with the change.</div>
  <div id="mdtDlgBody"></div><div id="mdtDlgErr" class="err small"></div>
  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="mdtDlgOk" value="ok" disabled>Apply changes</button></div></form></dialog>
+<dialog id="idlg" style="width:min(860px,calc(100vw - 32px))"><h3 id="idlgTitle"></h3><div id="idlgBody"></div>
+ <div id="idlgOut" class="small" style="margin-top:10px"></div>
+ <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button id="idlgClose">Close</button><button id="idlgSave">Save</button><button class="primary" id="idlgPay">Pay</button></div></dialog>
+<dialog id="sdlg" style="width:min(680px,calc(100vw - 32px))"><h3 id="sdlgTitle"></h3><div id="sdlgBody"></div>
+ <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button id="sdlgClose">Close</button></div></dialog>
+<dialog id="pdlg"><h3 id="pdlgTitle"></h3><div id="pdlgBody"></div>
+ <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px" id="pdlgActs"></div></dialog>
 <dialog id="dlg"><form method="dialog" id="dlgForm"><h3 id="dlgTitle"></h3><div id="dlgBody" class="form"></div><div id="dlgErr" class="err small"></div>
  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="dlgSave" value="save">Save</button></div></form></dialog>
 <script>
@@ -889,9 +945,10 @@ function docChecks(cs){if(!cs.length)return '<span class="small muted">-</span>'
  const held=cs.some(c=>c.status==="fail"&&c.mode==="required");
  return `<details><summary class="small"><span class="pill ${held?"critical":n("fail")+n("warn")?"warn":"good"}">${n("pass")}/${cs.filter(c=>c.status!=="skip").length}</span>${n("fail")?` ${n("fail")} failed`:""}${n("warn")?` · ${n("warn")} to look at`:""}</summary>`
   +cs.map(c=>`<div class="small" style="margin:3px 0"><span class="pill ${CHECK_TONE[c.status]}" title="${esc(c.mode)}">${CHECK_ICON[c.status]}</span> <b>${esc(c.label)}</b>${c.mode==="required"?"":' <span class="muted">(warn)</span>'}${c.source!=="rules"?` <span class="chip">${esc(c.source)}</span>`:""}<div class="muted">${esc(c.detail)}</div>${c.evidence?`<div class="quote">“${esc(c.evidence)}”</div>`:""}</div>`).join("")+"</details>"}
-async function intake(){try{const all=await api("/v1/intake");const needs=location.hash.includes("?needs");
- const rows=needs?all.filter(r=>!r.payment&&["NEEDS_REVIEW","QUARANTINED"].includes(r.status)):all;try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};all.forEach(r=>{const k=r.payment?"PAID":r.status;c[k]=(c[k]||0)+1});
- $("#intakeMeta").innerHTML=esc(Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · "))+(needs?` · <span class="pill warn">showing what needs a person</span> <a href="#/intake">show all</a>`:"");
+async function intake(){try{const every=await api("/v1/intake");const needs=location.hash.includes("?needs");
+ const all=every.filter(r=>!r.payment&&!["REJECTED","DUPLICATE"].includes(r.status));  // pending only: what is paid is in Reporting
+ const rows=needs?all.filter(r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)):all;try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};all.forEach(r=>{const k=r.payment?"PAID":r.status;c[k]=(c[k]||0)+1});
+ $("#intakeMeta").innerHTML=esc(Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · "))+(needs?` · <span class="pill warn">showing what needs a person</span> <a href="#/pending">show all</a>`:"")+` · <a href="#/rep-goods">paid items are in Reporting ›</a>`;
  $("#intake").innerHTML=table([{h:"Status",f:r=>r.payment?`<span class="pill good">PAID</span><div class="small muted">${fmt(r.payment.amount_minor,r.payment.currency)} · ${esc((r.payment.paid_at||"").slice(0,10))}</div>`:pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
   {h:"Trust",f:r=>`<span class="small">${esc(r.trust)}${r.counterparty_name?` · ${esc(r.counterparty_name)}`:r.claimed_name?` · claims ${esc(r.claimed_name)}`:""}</span>`},
   {h:"Kind",f:r=>`${esc(r.kind.replaceAll("_"," "))}${r.category?`<div class="small muted">${esc(r.category)}${r.expense_date?` · spent ${esc(r.expense_date)}`:""}</div>`:""}`},
@@ -901,7 +958,10 @@ async function intake(){try{const all=await api("/v1/intake");const needs=locati
   {h:"Checks",f:r=>docChecks(r.checks||[])},
   {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}${(r.approvers||[]).length?`<div class="small">approvers: ${r.approvers.map(id=>esc((INTAKE_PEOPLE[id]||{}).name||id)).join(", ")}</div>`:""}</details>`},
   {h:"",f:r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`:""}],
-  rows,"No requests waiting. Invoices and claims emailed to the inbound address appear here the moment they arrive.");
+  rows,"Nothing is waiting for payment. Invoices and claims emailed to the inbound address appear here the moment they arrive; what is paid moves to Reporting.");
+ // a click on a row opens the request in full, to correct and pay it
+ $("#intake").querySelectorAll("tbody tr").forEach((tr,i)=>{tr.style.cursor="pointer";tr.title="Open the request to correct it, save or pay";
+  tr.onclick=ev=>{if(ev.target.closest("button,details,summary,a,input,select"))return;pdOpen(rows[i].intake_id)}});
  $("#intake").querySelectorAll("button").forEach(b=>b.onclick=async()=>{const a=actor();const note=prompt(`${b.dataset.d} as ${a.label} — note (e.g. call-back done on the registered phone number, receipt checked):`);if(note===null)return;
   try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:a.name,role:a.role,note})});intake();notifications()}catch(e){alert(e.message)}})}
  catch(e){$("#intake").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
@@ -1049,12 +1109,13 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel requests",payroll:"Payroll register",
+const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake",pending:"Pending payment","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
- standards:"Finance standards",receiving:"Receiving accounts",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>receivingView(),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
- standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),pos:()=>poView(),commitments:()=>cmView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),payroll:()=>payrollView(),integrations:()=>webhookView()};
-function route(){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1];const view=TITLES[v]?v:"overview";
+ standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+ standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),payroll:()=>payrollView(),integrations:()=>webhookView()};
+function route(){const MOVED={pos:"#/intake?po",travel:"#/intake?travel"};const v0=(location.hash.match(/^#\/([\w-]+)/)||[])[1];if(MOVED[v0]){location.hash=MOVED[v0];return}
+ const v=v0;const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
  document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
  const lit=a=>a.dataset.nav===view||(a.dataset.also||"").split(" ").includes(view);
@@ -1128,7 +1189,7 @@ async function kpis(){document.querySelectorAll("#kspan button").forEach(b=>b.cl
  $("#kwin").textContent=`${o.span_label}: ${o.window.from}${o.window.to!==o.window.from?` to ${o.window.to}`:""}`;
  const pp=o.pending_payment,co=o.cash_out,ci=o.cash_in,ac=o.actions;
  const cards=[
-  {k:"Pending payment",ic:"⏳",tone:pp.exceeds_balance?"critical":pp.count?"warn":"good",v:fmt(pp.base_minor,B),href:"#/intake?needs",
+  {k:"Pending payment",ic:"⏳",tone:pp.exceeds_balance?"critical":pp.count?"warn":"good",v:fmt(pp.base_minor,B),href:"#/pending?needs",
    d:`${pp.count} waiting for a person${pp.ready_count?` · ${pp.ready_count} approved, ${fmt(pp.ready_base_minor,B)} ready to pay`:""}${pp.exceeds_balance?"<br><b>Bills exceed the available balance</b>":""}`,f:"Approve or reject →"},
   {k:"Total cash out",ic:"↗",tone:"",v:fmt(co.base_minor,B),href:"#/payment-reports",
    d:`${co.count} payment(s) paid${co.top_vendor?` · largest to ${esc(co.top_vendor)}`:""}${Object.keys(co.by_currency).length>1?`<br>${Object.entries(co.by_currency).map(([c,v])=>fmt(v,c)).join(" · ")}`:""}`,f:"Payment report →"},
@@ -1222,6 +1283,8 @@ const unitName=id=>(ORG.units.find(u=>u.unit_id===id)||{}).name||id||"All units"
 function unitTree(){const by={};ORG.units.forEach(u=>(by[u.parent_id||""]=by[u.parent_id||""]||[]).push(u));const out=[];
  const walk=(pid,d)=>(by[pid]||[]).sort((a,b)=>a.name.localeCompare(b.name)).forEach(u=>{out.push({...u,depth:d});walk(u.unit_id,d+1)});walk("",0);return out}
 const unitOpts=(blank)=>[...(blank?[["",blank]]:[]),...unitTree().map(u=>[u.unit_id,`${"· ".repeat(u.depth)}${u.name}`])];
+const SYNCED=sf=>sf?`<span class="pill info" style="cursor:help" data-tip="Synced from ${esc(sf.name)} through Auto Connect (API). Read only here: the next sync would overwrite a change. Change it in the source system, then refresh the API connection.">⇅ Synced · API</span>`:"";
+const SYNCNOTE=sf=>sf?`<div class="small" style="margin:8px 0;padding:7px 10px;border-radius:8px;background:var(--note);border:1px solid var(--noteline)">⇅ <b>Synced from ${esc(sf.name)}</b> through Auto Connect (API). It is read only here, because the next sync would overwrite a change. Change it in the source system, then refresh the API connection.</div>`:"";
 const rowActs=(col,id)=>`<div class="acts"><button data-edit="${col}" data-id="${esc(id)}">Edit</button><button data-del="${col}" data-id="${esc(id)}">Delete</button></div>`;
 function wireActs(root,col,list,idf,fields,after){
  root.querySelectorAll(`[data-edit="${col}"]`).forEach(b=>b.onclick=()=>openForm(`Edit`,fields(),list().find(r=>r[idf]===b.dataset.id),col,after));
@@ -1272,9 +1335,9 @@ function openForm(title,fields,rec,col,after){rec={...(rec||{})};$("#dlgTitle").
  $("#dlgBody").innerHTML=fields.map(f=>{const v=rec[f.k];const id=`fld-${f.k}`;
   if(f.check)return `<label class="check"><input type="checkbox" id="${id}" ${(f.off?v===true:v!==false)?"checked":""}> ${esc(f.l)}</label>`;
   if(f.multi)return `<label style="grid-column:1/-1">${esc(f.l)}${msel(id,f.multi,Array.isArray(v)?v:[],"","choose")}</label>`;
-  if(f.opts)return `<label>${esc(f.l)}<select id="${id}">${f.opts.map(([o,l])=>`<option value="${esc(o)}" ${String(v??"")===String(o)?"selected":""}>${esc(l)}</option>`).join("")}</select></label>`;
+  if(f.opts)return `<label>${esc(f.l)}<select id="${id}" ${f.ro?"disabled":""}>${f.opts.map(([o,l])=>`<option value="${esc(o)}" ${String(v??"")===String(o)?"selected":""}>${esc(l)}</option>`).join("")}</select></label>`;
   const val=f.money?(v!=null?(v/100).toFixed(2):""):(v??"");
-  return `<label>${esc(f.l)}<input id="${id}" type="${f.money?"number":f.type||"text"}" ${f.money?'step="0.01" min="0"':""} ${f.max?`maxlength="${f.max}"`:""} ${f.req?"required":""} ${f.list?`list="${f.list}"`:""} value="${esc(val)}"></label>`}).join("")
+  return `<label>${esc(f.l)}<input id="${id}" ${f.ro?"disabled":""} type="${f.money?"number":f.type||"text"}" ${f.money?'step="0.01" min="0"':""} ${f.max?`maxlength="${f.max}"`:""} ${f.req?"required":""} ${f.list?`list="${f.list}"`:""} value="${esc(val)}"></label>`}).join("")
   +(fields.some(f=>f.list==="catList")?`<datalist id="catList">${(ORG.standards?.expense_categories||[]).map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`:"");
  const dlg=$("#dlg");dlg.showModal();mselBind($("#dlgBody"));
  $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();
@@ -1329,13 +1392,49 @@ async function saveAlloc(body,msg,after){try{await api(`/v1/org/allocations?${wh
 
 let ALTAB="reg",AL_EDIT=null,AL_PJEDIT=null;
 document.querySelectorAll("#alTabs [data-atab]").forEach(btn=>btn.onclick=()=>{ALTAB=btn.dataset.atab;allocView()});
+// ---- Budget allocation → 3 · Budget lines & thresholds: per month, what the agent pays alone, the alert, a signed bypass
+let BLPER=null;
+async function blView(){const el=$("#alLines");try{const d=await api(`/v1/budget-lines${BLPER?`?period=${BLPER}`:""}`);BLPER=d.period;const ro=!!d.synced_from,dis=ro?"disabled":"";
+ const row=(ln,i)=>`<tr data-bl="${i}"><td><input class="bl-line" list="blNames" value="${esc(ln.line||"")}" ${dis} style="width:150px" placeholder="e.g. suppliers"></td>
+  <td class="num"><input class="bl-amt" type="number" step="0.01" min="0" value="${ln.amount_minor!=null?(ln.amount_minor/100).toFixed(2):""}" ${dis} style="width:130px"></td>
+  <td class="num"><input class="bl-auto" type="number" step="1" min="0" max="100" value="${ln.auto_share_bp!=null?ln.auto_share_bp/100:100}" ${dis} style="width:70px"> %</td>
+  <td class="num"><input class="bl-alert" type="number" step="1" min="0" max="100" value="${ln.alert_share_bp!=null?ln.alert_share_bp/100:80}" ${dis} style="width:70px"> %</td>
+  <td style="text-align:center"><input class="bl-apr" type="checkbox" ${ln.require_approval_on_alert?"checked":""} ${dis}></td>
+  <td><label class="check small"><input class="bl-byp" type="checkbox" ${ln.bypass?"checked":""} ${dis}> unlimited</label><input class="bl-sig" placeholder="signed by" value="${esc(ln.bypass_approved_by||"")}" ${dis} style="width:140px;margin-top:4px"></td>
+  <td>${ro?"":`<button type="button" class="bl-del">Remove</button>`}</td></tr>`;
+ el.classList.remove("empty");
+ el.innerHTML=`<div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin:10px 0"><b>The plan per budget line for the month, and how far the agent may go on its own.</b>
+   Every payee carries a budget line (suppliers, contractors, saas …). <b>VENTHORA alone up to</b> is the share of the line the agent pays without a person; above it a person approves.
+   At the <b>alert</b> share the finance team is warned, and with <b>Approver at alert</b> ticked every further payment on the line waits for an approver.
+   A <b>bypass</b> makes the line unlimited, and it is honoured only when a person signed it. Every payment is still checked against the actual balance and the reserve floor.</div>
+  <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px"><label class="small">Month <select id="blPer">${d.periods.map(p=>`<option ${p===d.period?"selected":""}>${esc(p)}</option>`).join("")}</select></label>
+   <span class="small muted">${d.source?`from ${esc(d.source==="data/budgets.json"?"the default budget file":d.source.replace(/^dashboard:/,"saved by ").replace(/^upload:/,"uploaded from ").replace(/^sync:.*/,"Auto Connect (API)"))}`:"no budget for this month yet"}</span>${SYNCED(d.synced_from)}</div>
+  ${SYNCNOTE(d.synced_from)}
+  <table><thead><tr><th>Budget line</th><th class="num">Amount (${esc(ORG?.standards?.base_currency||"USD")})</th><th class="num">VENTHORA alone up to</th><th class="num">Alert at</th><th>Approver at alert</th><th>Bypass</th><th></th></tr></thead>
+   <tbody id="blRows">${d.lines.map(row).join("")}</tbody></table><datalist id="blNames">${d.line_names.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
+  ${ro?"":`<div class="row" style="margin-top:8px;gap:8px"><button type="button" id="blAdd">Add line</button><button class="primary" id="blSave">Save budget lines for ${esc(d.period)}</button><span class="small" id="blMsg"></span></div>`}
+  <div class="cm-src" style="margin-top:12px"><span aria-hidden="true">ⓘ</span><div class="txt"><b>A payment outside every budget line:</b> ${d.unbudgeted_requires_approval?"waits for an approver":"is paid by the agent within the other limits"}.
+   This rule belongs to the standing mandate: change it in System Setting → Delegation of Authority → Treasury limits and controls → Limits and thresholds.</div><span class="row"><a class="small" href="#/mandate" id="blToDoa">Open the rule ›</a></span></div>`;
+ $("#blPer").onchange=()=>{BLPER=$("#blPer").value;blView()};
+ $("#blToDoa").onclick=()=>{setTimeout(()=>{const t=document.querySelector('[data-dtab="ctl"]');if(t)t.click();setTimeout(()=>{const l=document.querySelector('[data-mtab="lim"]');if(l)l.click()},600)},600)};
+ if(ro)return;
+ const wire=()=>$("#blRows").querySelectorAll(".bl-del").forEach(b=>b.onclick=()=>b.closest("tr").remove());wire();
+ $("#blAdd").onclick=()=>{$("#blRows").insertAdjacentHTML("beforeend",row({},$("#blRows").children.length));wire()};
+ $("#blSave").onclick=async()=>{const lines=[...$("#blRows").querySelectorAll("tr")].map(tr=>({line:tr.querySelector(".bl-line").value.trim(),amount_minor:Math.round(parseFloat(tr.querySelector(".bl-amt").value||"0")*100),
+   auto_share_bp:Math.round(parseFloat(tr.querySelector(".bl-auto").value||"0")*100),alert_share_bp:Math.round(parseFloat(tr.querySelector(".bl-alert").value||"0")*100),
+   require_approval_on_alert:tr.querySelector(".bl-apr").checked,bypass:tr.querySelector(".bl-byp").checked,bypass_approved_by:tr.querySelector(".bl-sig").value.trim()||null})).filter(l=>l.line);
+  $("#blMsg").textContent="saving…";
+  try{await api(`/v1/budget-lines/${encodeURIComponent(BLPER)}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({lines})});toast(`Budget lines for ${esc(BLPER)} saved`,"good");blView()}
+  catch(e){$("#blMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+ catch(e){el.innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+
 const LIMIT_PER={monthly:"Month",quarterly:"Quarter",annual:"Year"};
 function periodsFor(type){const st=+(BP.fiscal_year_start_month||1),[y,m]=BP.current_month.split("-").map(Number),fy=m>=st?y:y-1;const out=[];
  for(const f of [fy,fy+1]){if(type==="annual")out.push(String(f));else if(type==="quarterly")for(let q=1;q<=4;q++)out.push(`${f}-Q${q}`);else for(let i=0;i<12;i++){const mm=(st-1+i)%12+1,yy=f+Math.floor((st-1+i)/12);out.push(`${yy}-${String(mm).padStart(2,"0")}`)}}
  return out}
 const ptype=p=>/^\d{4}$/.test(p)?"annual":/-Q\d$/.test(p)?"quarterly":/^\d{4}-\d{2}$/.test(p)?"monthly":"other";
 async function allocView(){try{const [pol,,pj,st]=await Promise.all([api("/v1/budget-allocation/policy"),loadOrg(),api("/v1/org/projects"),api("/v1/budget-allocation/status?every=true")]);BP=pol;PROJ=pj;
- document.querySelectorAll("#alTabs [data-atab]").forEach(x=>x.classList.toggle("on",x.dataset.atab===ALTAB));document.querySelectorAll("[data-apane]").forEach(x=>x.hidden=x.dataset.apane!==ALTAB);
+ document.querySelectorAll("#alTabs [data-atab]").forEach(x=>x.classList.toggle("on",x.dataset.atab===ALTAB));document.querySelectorAll("[data-apane]").forEach(x=>x.hidden=x.dataset.apane!==ALTAB);if(ALTAB==="lin")blView();
  $("#alAddUnit").onclick=async ev=>{ev.preventDefault();await loadOrg();openForm("Add an office, branch or unit",UNIT_FIELDS(),{kind:"BRANCH_OFFICE",parent_id:"hq",currency:ORG.standards.base_currency,timezone:BP.timezone||"UTC",active:true},"units",allocView)};
  if(ALTAB==="reg")regPane(st);else projectPane(st)}
  catch(e){$("#alReg").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
@@ -1522,19 +1621,8 @@ let SUPPLIERS={};
 async function suppliers(){if(Object.keys(SUPPLIERS).length)return SUPPLIERS;try{(await api("/api/live/setup")).payees.forEach(p=>SUPPLIERS[p.id]=p)}catch(e){}return SUPPLIERS}
 const poBar=(st)=>{const t=st.po.total_minor||1;const seg=(v,c,l)=>v>0?`<i style="width:${100*v/t}%;background:${c}" data-tip="${esc(l)}: ${esc(fmt(v,st.po.currency))}"></i>`:"";
  return `<div class="stack">${seg(st.paid_minor,"var(--good)","paid")}${seg(st.pending_minor,"var(--warn)","pending")}${seg(Math.max(st.remaining_minor,0),"var(--seqlt)","open")}</div>`};
-async function poView(){try{await loadOrg();const [rows,sup]=await Promise.all([api("/v1/procurement/purchase-orders"),suppliers()]);LAST.pos=rows;
- $("#poTable").innerHTML=table([{h:"PO",f:r=>`<b class="mono" style="white-space:nowrap">${esc(r.po.po_id)}</b><div class="small muted">${esc(r.po.description||"")}</div>`},
-  {h:"Supplier",f:r=>esc((sup[r.po.supplier_id]||{}).name||r.po.supplier_id)},{h:"Account code",f:r=>`<span class="mono" style="white-space:nowrap">${esc(r.po.account_code)}</span>`},
-  {h:"Total",num:1,f:r=>fmt(r.po.total_minor,r.po.currency)},
-  {h:"Paid · pending · open",f:r=>`<div style="min-width:160px">${poBar(r)}</div><div class="small muted" style="margin-top:4px">${fmt(r.paid_minor,r.po.currency)} · ${fmt(r.pending_minor,r.po.currency)} · ${fmt(Math.max(r.remaining_minor,0),r.po.currency)}</div>`},
-  {h:"Terms",f:r=>r.terms.length?r.terms.map(t=>`<span class="pill ${t.state==="PAID"?"good":t.state==="PENDING"?"warn":""}" data-tip="${esc(t.label)}">${esc(t.term_id)} ${esc(fmt(t.amount_minor,r.po.currency))}</span>`).join(" ")+' <span class="small muted">· termins of any amount within the total</span>':'<span class="small muted">termins of any amount within the total</span>'},
-  {h:"Status",f:r=>pill(r.po.status==="OPEN"?"OPEN":r.po.status)},{h:"",f:r=>rowActs("purchase-orders",r.po.po_id)}],rows,"no purchase orders yet");
- $("#poTable").querySelectorAll('[data-edit="purchase-orders"]').forEach(b=>b.onclick=()=>poForm(rows.find(r=>r.po.po_id===b.dataset.id).po));
- $("#poTable").querySelectorAll('[data-del="purchase-orders"]').forEach(b=>b.onclick=async()=>{if(!confirm("Delete this PO?"))return;
-  try{await api(`/v1/org/purchase-orders/${encodeURIComponent(b.dataset.id)}?${who()}`,{method:"DELETE"});toast("Deleted","good");poView()}catch(e){toast(esc(e.message),"serious")}})}
- catch(e){$("#poTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 async function poForm(po){const sup=await suppliers();po={currency:"USD",terms:[],allow_partial:true,status:"OPEN",issued_date:new Date().toISOString().slice(0,10),...(po||{})};
- $("#dlgTitle").textContent=po.po_id?`Edit ${po.po_id}`:"New purchase order";$("#dlgErr").textContent="";
+ const LK=!!po.po_id;$("#dlgTitle").textContent=po.po_id?`Edit ${po.po_id} · locked on its number and value`:po._contract?"New consultant contract":po.pr_number?`New purchase order from ${po.pr_number}`:"New purchase order";$("#dlgErr").textContent="";
  const termRow=t=>`<div class="row term"><input class="t-id" placeholder="T1" value="${esc(t.term_id||"")}" style="width:70px"><input class="t-label" placeholder="30% deposit" value="${esc(t.label||"")}" style="flex:1"><input class="t-amt" type="number" step="0.01" min="0" placeholder="amount" value="${t.amount_minor!=null?(t.amount_minor/100).toFixed(2):""}" style="width:120px"><button type="button" class="t-del" formnovalidate>✕</button></div>`;
  $("#dlgBody").innerHTML=`<label>PO number<input id="po-id" required ${po.po_id?"readonly":""} value="${esc(po.po_id||"")}" placeholder="PO-2026-0105"></label>
   <label>Supplier<select id="po-sup">${Object.values(sup).map(p=>`<option value="${esc(p.id)}" data-ccy="${esc(p.currency||"")}" ${p.id===po.supplier_id?"selected":""}>${esc(p.name)}</option>`).join("")}</select></label>
@@ -1549,7 +1637,9 @@ async function poForm(po){const sup=await suppliers();po={currency:"USD",terms:[
    <div class="row" style="gap:8px;flex-wrap:wrap"><input id="po-loe" type="number" step="0.5" min="0" placeholder="LoE, e.g. 20" value="${po.loe??""}" style="width:130px"><select id="po-loeu">${["day","hour","month"].map(u=>`<option ${u===(po.loe_unit||"day")?"selected":""}>${u}</option>`).join("")}</select>
    <input id="po-rate" type="number" step="0.01" min="0" placeholder="rate per unit" value="${po.rate_minor!=null?(po.rate_minor/100).toFixed(2):""}" style="width:150px"><span class="small muted" id="po-loe-out"></span></div>
    <div class="small muted" style="margin-top:4px">The contract value is LoE × rate and becomes the total; every payment uses up paid ÷ rate of the LoE.</div></div>
-  <label>Status<select id="po-status">${["OPEN","CLOSED","CANCELLED"].map(x=>`<option ${x===po.status?"selected":""}>${x}</option>`).join("")}</select></label>`;
+  <label>Status<select id="po-status">${["OPEN","CLOSED","CANCELLED"].map(x=>`<option ${x===po.status?"selected":""}>${x}</option>`).join("")}</select></label>
+  ${LK?'<div class="small" style="grid-column:1/-1;padding:7px 10px;border-radius:8px;background:var(--note);border:1px solid var(--noteline)">🔒 The PO number, supplier, currency, total, LoE and rate are locked: what is paid against this PO was matched to them. A different value is a new PO or an amendment. The description, dates, schedule and status may change.</div>':""}`;
+ if(LK)["#po-sup","#po-ccy","#po-total","#po-loe","#po-loeu","#po-rate"].forEach(x=>{if($(x))$(x).disabled=true});
  const loeCalc=()=>{const l=parseFloat($("#po-loe").value),r=parseFloat($("#po-rate").value);if(l>0&&r>0){$("#po-total").value=(Math.round(l*r*100)/100).toFixed(2);$("#po-loe-out").textContent=`= ${$("#po-ccy").value} ${(l*r).toLocaleString(undefined,{minimumFractionDigits:2})} contract value`}else $("#po-loe-out").textContent=""};
  setTimeout(()=>{$("#po-loe").oninput=loeCalc;$("#po-rate").oninput=loeCalc;loeCalc()});
  const wire=()=>$("#po-terms").querySelectorAll(".t-del").forEach(b=>b.onclick=()=>b.closest(".term").remove());wire();
@@ -1562,18 +1652,18 @@ async function poForm(po){const sup=await suppliers();po={currency:"USD",terms:[
   const terms=[...$("#po-terms").querySelectorAll(".term")].map(t=>({term_id:t.querySelector(".t-id").value.trim().toUpperCase(),label:t.querySelector(".t-label").value.trim(),amount_minor:Math.round(parseFloat(t.querySelector(".t-amt").value||"0")*100)})).filter(t=>t.term_id||t.label||t.amount_minor);
   const body={po_id:$("#po-id").value.trim().toUpperCase(),supplier_id:$("#po-sup").value,currency:$("#po-ccy").value.trim().toUpperCase(),total_minor:Math.round(parseFloat($("#po-total").value||"0")*100),
    account_code:$("#po-code").value.trim().toUpperCase(),description:$("#po-desc").value,terms,allow_partial:true,status:$("#po-status").value,issued_date:po.issued_date,
-   start_date:$("#po-start").value||null,expiry_date:$("#po-exp").value||null,recurring:$("#po-rec").value,
+   start_date:$("#po-start").value||null,expiry_date:$("#po-exp").value||null,recurring:$("#po-rec").value,pr_number:po.pr_number||null,
    loe:parseFloat($("#po-loe").value)>0?parseFloat($("#po-loe").value):null,loe_unit:$("#po-loeu").value,rate_minor:parseFloat($("#po-rate").value)>0?Math.round(parseFloat($("#po-rate").value)*100):null};
-  try{await api(`/v1/org/purchase-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Purchase order saved","good");(po._after||poView)()}
+  try{await api(`/v1/org/purchase-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();toast("Purchase order saved","good");(po._after||rgView)()}
   catch(e){$("#dlgErr").textContent=e.message}}}
-$("#addPO").onclick=()=>poForm(null);
+
 
 // ---- Payment → Commitments: per vendor, consultant, one-off engagement, customer and employee -------------------------
 let CM=null,CMTAB="ven";const CMOPEN=new Set();
 const CM_NOTE={
- ven:`<b>Every vendor and what it is owed.</b> Click a vendor to see its purchase orders: PO number, active date, PO amount, paid, remaining and expiry. <b>New</b> = nothing paid yet; <b>Partial</b> = paid in part; <b>Multi Payment</b> = one PO billed every period (internet, a subscription, rent); <b>Done</b> = fully paid. An invoice is paid only inside an open PO that has not expired; an expired PO holds the invoice for a person.`,
- con:`<b>Every consultant contract and the effort left on it.</b> Click a consultant to see each contract: contract number, active date, LoE bought, rate, paid, LoE left, budget left and expiry. LoE used = paid ÷ rate, so <b>Partial x of y LoE</b> says how much of the effort is already paid. Set the LoE and rate on the contract (New contract, or upload a list in <a href="#/sources-upload">Dataset upload</a> with the columns LoE, effort unit and rate).`,
- eng:`<b>One-off and incidental engagements: a consultant for a single task, a legal specialist, a resource person or a keynote speaker.</b> Each record holds the profile (name, organisation, contacts, tax ID, the registered payee holding the bank account) and the transaction (event, date, fee, charge code, documents). Once it has a payee it is paid against its own engagement number, like a PO. It needs the engagement letter and the invoice or fee note on file. Add them one by one, or upload a list in any format in <a href="#/sources-upload">Dataset upload</a> (type: One-off engagements).`,
+ ven:`<b>Every vendor and what it is owed.</b> Click a vendor to see its purchase orders: PO number, active date, PO amount, paid, remaining and expiry. <b>New</b> = nothing paid yet; <b>Partial</b> = paid in part; <b>Multi Payment</b> = one PO billed every period (internet, a subscription, rent); <b>Done</b> = fully paid. An invoice is paid only inside an open PO that has not expired.<div class="small" style="margin-top:6px"><span class="pill info">🔒 Read only</span> Locked on the PO number and its value. Only open POs that have not expired appear here; to add or change anything, register it in <a href="#/intake?po">Intake → Commitments register</a>.</div>`,
+ con:`<b>Every consultant contract and the effort left on it.</b> Click a consultant to see each contract: contract number, active date, LoE bought, rate, paid, LoE left, budget left and expiry. LoE used = paid ÷ rate, so <b>Partial x of y LoE</b> says how much of the effort is already paid. The LoE and rate are set when the contract is registered in Intake, or uploaded with the columns LoE, effort unit and rate.<div class="small" style="margin-top:6px"><span class="pill info">🔒 Read only</span> Locked on the PO number and its value. Only open POs that have not expired appear here; to add or change anything, register it in <a href="#/intake?po">Intake → Commitments register</a>.</div>`,
+ eng:`<b>One-off and incidental engagements: a consultant for a single task, a legal specialist, a resource person or a keynote speaker.</b> Each record holds the profile (name, organisation, contacts, tax ID, the registered payee holding the bank account) and the transaction (event, date, fee, charge code, documents). Once it has a payee it is paid against its own engagement number, like a PO. It needs the engagement letter and the invoice or fee note on file. An engagement appears here once it has its payee (and so its PO); until then it waits in Intake.<div class="small" style="margin-top:6px"><span class="pill info">🔒 Read only</span> Locked on the engagement number and its fee; to add or change anything, register it in <a href="#/intake?po">Intake → Commitments register</a>.</div>`,
  cus:`<b>Every customer and what it still owes.</b> Click a customer to see its open invoices. Overdue = past the due date; the cash forecast and the matching of money that arrives both read these receivables (upload them as Receivables (AR), or sync them from the accounting system).`,
  stf:`<b>Everyone on payroll and their standing pay.</b> Monthly net pay, salary currency and charge code come from People &amp; roles; the latest register is the payroll register they were last on. <b>Ends soon</b> = the contract ends within 60 days; <b>No bank account</b> = register the employee's own account before the next payroll.`};
 const cmPill=(s,label)=>{const c={Done:"good",Partial:"warn","Multi Payment":"multi",New:"info",Cancelled:"",Expired:"critical",Overdue:"critical",Open:"warn",Clear:"good",
@@ -1581,15 +1671,15 @@ const cmPill=(s,label)=>{const c={Done:"good",Partial:"warn","Multi Payment":"mu
  return `<span class="pill ${c??""}">${esc(label||s)}</span>`};
 const cmDays=d=>d==null?"":d<0?`<div class="small" style="color:var(--critical)">${-d} days ago</div>`:`<div class="small muted">${d} days left</div>`;
 function cmStatuses(){const t=CMTAB,d=CM;if(!d)return[];
- if(t==="ven"||t==="con")return["New","Partial","Multi Payment","Done","Cancelled","Expired","No contract"];
- if(t==="eng")return["Ready to pay","Documents missing","Needs payee","Partial","Done","Cancelled"];
+ if(t==="ven"||t==="con")return["New","Partial","Multi Payment","Done"];
+ if(t==="eng")return["Ready to pay","Documents missing","Partial","Done"];
  if(t==="cus")return["Overdue","Open","Clear"];return["Active","Ends soon","Ended","No bank account","No net pay on file"]}
 async function cmView(){try{CM=await api("/v1/commitments");cmRender()}catch(e){$("#cmBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 function cmTable(cols,rows,detail,key,empty){if(!rows.length)return`<div class="empty">${empty}</div>`;
- return `<table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>{const k=key(r),open=CMOPEN.has(CMTAB+":"+k);
-  return `<tr class="${open?"cm-open":""}" data-ck="${esc(k)}">${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`+(detail?`<tr class="cm-det" ${open?"":"hidden"}><td colspan="${cols.length}">${open?detail(r):""}</td></tr>`:"")}).join("")}</tbody></table>`}
+ return `<table class="cm-t"><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map((r,i)=>{const k=key(r),open=CMOPEN.has(CMTAB+":"+k),z=i%2?"cm-z":"";
+  return `<tr class="${z} ${open?"cm-open":""}" data-ck="${esc(k)}">${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`+(detail?`<tr class="cm-det ${z}" ${open?"":"hidden"}><td colspan="${cols.length}">${open?detail(r):""}</td></tr>`:"")}).join("")}</tbody></table>`}
 const cmName=(name,sub)=>`<button type="button" class="cm-name" data-cmx><span class="chev">▸</span>${esc(name)}</button>${sub?`<div class="small muted" style="margin-left:14px">${sub}</div>`:""}`;
-function cmPartyKV(p){const b=p.bank||{};return `<div class="cm-kv small"><div><span class="muted">Status</span> ${pill(p.status||"-")}</div><div><span class="muted">Currency · payout</span> ${esc(p.currency||"-")} · ${esc(p.payout_method||"-")}</div>
+function cmPartyKV(p){const b=p.bank||{};return `<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>Profile</b><span class="row" style="gap:6px">${SYNCED(p.synced_from)}<button data-cprof="${esc(p.id)}">View full profile</button><a class="small" href="#/${CMTAB==="con"?"consultants":"vendors"}">Open in ${CMTAB==="con"?"Consultants":"Vendors"} ›</a></span></div><div class="cm-kv small"><div><span class="muted">Status</span> ${pill(p.status||"-")}</div><div><span class="muted">Currency · payout</span> ${esc(p.currency||"-")} · ${esc(p.payout_method||"-")}</div>
  <div><span class="muted">Mailboxes</span> ${esc((p.contacts||[]).join(", ")||"-")}</div><div><span class="muted">Call-back number</span> ${esc(p.registered_phone||"-")}</div>
  <div><span class="muted">Bank</span> ${esc([b.bank_name,b.account_number||b.iban].filter(Boolean).join(" · ")||"-")}</div><div><span class="muted">Tax ID</span> ${esc(p.tax_id||"-")}</div></div>`}
 function cmContracts(p,consult){const rows=p.contracts;const ccy=c=>c.currency;
@@ -1602,8 +1692,49 @@ function cmContracts(p,consult){const rows=p.contracts;const ccy=c=>c.currency;
    {h:"Paid",num:1,f:c=>fmt(c.paid_minor,ccy(c))+(c.pending_minor?`<div class="small muted">+ ${fmt(c.pending_minor,ccy(c))} pending</div>`:"")},{h:"Remaining",num:1,f:c=>`<b>${fmt(c.remaining_minor,ccy(c))}</b>`},
    {h:"Expiry date",f:c=>esc(c.expiry_date||"-")+(c.status!=="Done"?cmDays(c.days_left):"")},
    {h:"Status",f:c=>cmPill(c.status)+(c.expired?" "+cmPill("Expired"):"")+(c.periods?`<div class="small muted">${c.periods_paid} of ${c.periods} ${esc({monthly:"months",quarterly:"quarters",annual:"years"}[c.recurring])} paid · ${fmt(c.per_period_minor,ccy(c))} each</div>`:"")+(c.terms.length?`<div class="small muted">${c.terms.map(t=>`${esc(t.label)} ${t.state==="PAID"?"✓":""}`).join(" · ")}</div>`:"")}];
- cols.push({h:"",f:c=>`<div class="acts"><button data-cpo="${esc(c.po_id)}">Edit</button>${c.status!=="Done"&&c.status!=="Cancelled"&&!c.expired&&c.remaining_minor>0?`<button class="primary" data-cpay="${esc(c.po_id)}" data-sup="${esc(p.id)}">Pay</button>`:""}</div>`});
- return cmPartyKV(p)+table(cols,rows,`no ${consult?"contract":"purchase order"} yet`)+`<div class="row" style="margin-top:8px"><button data-cnewpo="${esc(p.id)}" data-ccy="${esc(p.currency||"USD")}">${consult?"New contract":"New PO"} for ${esc(p.name)}</button></div>`}
+ cols.push({h:"",f:c=>`<div class="acts">${c.synced_from?SYNCED(c.synced_from):'<span class="pill" data-tip="Locked on the PO number and its value">🔒</span>'}${c.status!=="Done"&&c.status!=="Cancelled"&&!c.expired&&c.remaining_minor>0?`<button class="primary" data-cpay="${esc(c.po_id)}" data-sup="${esc(p.id)}">Pay</button>`:""}</div>`});
+ return cmPartyKV(p)+table(cols,rows,`no ${consult?"contract":"purchase order"} yet`)}
+const CM_SRC={
+ ven:["Active vendors are read from their <b>active purchase order numbers</b>, synced directly from the accounting system through <b>Auto Connect (API)</b> or from an <b>uploaded dataset</b>.","a vendor or a PO","Intake"],
+ con:["Active consultants are read from their <b>active contract numbers</b> (a contract is a purchase order with an LoE and a rate), synced through <b>Auto Connect (API)</b> or from an <b>uploaded dataset</b>.","a consultant or a contract","Intake"],
+ eng:["One-off engagements come from an <b>uploaded list</b> (any format: Excel, CSV, Word, PDF, email) or are <b>registered one by one in Intake</b>; the payee comes from the registered beneficiaries, synced through <b>Auto Connect (API)</b>.","an engagement or its payee","Intake"],
+ cus:["Customers and their open invoices are synced from the accounting system through <b>Auto Connect (API)</b> or read from an <b>uploaded dataset</b> (Receivables (AR)).","a customer or an invoice",null],
+ stf:["Staff come from <b>People &amp; roles</b>: an uploaded staff list or people added one by one; net pay, contract dates and charge code are read from each person's record.","a person",null]};
+function cmSrc(){const [txt,what,add]=CM_SRC[CMTAB];
+ return `<div class="cm-src"><span aria-hidden="true">ⓘ</span><div class="txt">${txt} If you cannot find ${what}, refresh the API connection, upload a dataset, or register it by hand in Intake.</div>
+  <span class="row"><button id="cmRefresh">Refresh API connection</button><a class="small" href="#/sources-upload">Upload dataset ›</a>${add?`<a class="small" href="#/intake?po">Register in Intake ›</a>`:CMTAB==="stf"?'<a class="small" href="#/users">Add a person ›</a>':'<a class="small" href="#/customers">Add a customer ›</a>'}</span><span class="small muted" id="cmRefreshMsg" style="width:100%"></span></div>`}
+async function cmRefresh(){const btn=$("#cmRefresh");btn.disabled=true;$("#cmRefreshMsg").textContent="Syncing every connected source…";
+ try{const cs=(await api("/v1/sources/connectors")).filter(c=>c.enabled!==false);if(!cs.length){$("#cmRefreshMsg").innerHTML='No source is connected yet: set one up in <a href="#/sources-sync">App Integration · Sync API</a>.';return}
+  let n=0;for(const c of cs){const r=await api(`/v1/sources/connectors/${encodeURIComponent(c.connector_id)}/sync?${who()}`,{method:"POST"});
+   n+=Object.values(r.reports||{}).reduce((a,x)=>a+((x&&x.created)||[]).length+((x&&x.updated)||[]).length,0)}
+  await cmView();$("#cmRefreshMsg").textContent=`Synced ${cs.length} source${cs.length>1?"s":""}: ${n} record${n===1?"":"s"} created or updated.`}
+ catch(e){$("#cmRefreshMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}finally{if($("#cmRefresh"))$("#cmRefresh").disabled=false}}
+const PF=(l,v)=>`<div><span>${esc(l)}</span>${v==null||v===""?"-":v}</div>`;
+async function cmProfile(id){const d=CM,dl=$("#pdlg");let title="",body="",acts="";
+ try{if(CMTAB==="ven"||CMTAB==="con"||CMTAB==="cus"){const kind={ven:"vendor",con:"consultant",cus:"customer"}[CMTAB];const r=(await api(`/v1/beneficiaries?kind=${kind}`)).find(x=>x.id===id);if(!r)throw new Error("the profile is no longer on file");
+   title=`${r.name} · ${kind}`;const note=SYNCNOTE(r.synced_from);
+   if(kind==="customer"){body=`<div class="pgrid">${PF("Customer ID",`<span class="mono">${esc(r.id)}</span>`)}${PF("Currency",esc(r.currency))}${PF("Mailboxes",esc((r.contacts||[]).join(", ")))}${PF("Domains",esc((r.domains||[]).join(", ")))}
+     ${PF("Also known as",esc((r.aliases||[]).join(", ")))}${PF("Payment history",r.history?`${r.history.kept} kept · ${r.history.missed} missed`:"")}${PF("Source",esc(r.source))}</div>`;body=note+body;
+    const c=d.customers.find(x=>x.id===id);body+=`<h4>Open invoices</h4>`+table([{h:"Invoice",f:i=>`<span class="mono">${esc(i.invoice_no)}</span>`},{h:"Amount",num:1,f:i=>fmt(i.amount_minor,i.currency)},{h:"Due",f:i=>esc(i.due_date)}],c?c.invoices:[],"no open invoice");
+    acts=`<a class="small" href="#/customers">Open in Customers ›</a>`}
+   else{const b=r.bank||{},a=r.address||{};const p=[...d.vendors,...d.consultants].find(x=>x.id===id);
+    body=`<h4>Identity</h4><div class="pgrid">${PF("Payee ID",`<span class="mono">${esc(r.id)}</span>`)}${PF("Entity type",esc(r.entity_type))}${PF("Tax ID",esc(r.tax_id))}${kind==="consultant"?PF("Engagement",esc(r.engagement==="regular"?"Regular · monthly retainer":"Short-term · per deliverable")):""}${PF("Lifecycle status",pill(r.status||"-"))}${PF("Verified by",esc(r.verified_by))}${PF("Source",esc(r.source))}</div>
+     <h4>Contact and trust</h4><div class="pgrid">${PF("Registered mailboxes",esc((r.contacts||[]).join(", ")))}${PF("Domains",esc((r.domains||[]).join(", ")))}${PF("Call-back number",esc(r.registered_phone))}${PF("Invoice prefix",esc(r.invoice_prefix))}</div>
+     <h4>Payment</h4><div class="pgrid">${PF("Currency",esc(r.currency))}${PF("Payout method",esc(r.payout_method))}${PF("Priority",esc(r.default_priority))}${PF("Budget line",esc(r.budget_line))}${PF("Transfer reason",esc((r.transfer_reason||"").replace(/_/g," ")))}</div>
+     <h4>Bank account (masked)</h4><div class="pgrid">${PF("Account name",esc(b.account_name))}${PF("Bank",esc(b.bank_name))}${PF("Account / IBAN",esc(b.account_number||b.iban))}${PF("SWIFT",esc(b.swift_code))}${PF("Routing",esc([b.routing_type,b.routing_value].filter(Boolean).join(" ")))}${PF("Bank country",esc(b.bank_country_code))}</div>
+     <h4>Address</h4><div class="pgrid">${PF("Street",esc(a.street_address))}${PF("City",esc(a.city))}${PF("State",esc(a.state))}${PF("Postcode",esc(a.postcode))}${PF("Country",esc(a.country_code))}</div>
+     <h4>${kind==="consultant"?"Contracts":"Purchase orders"}</h4>`+table([{h:"Number",f:c=>`<span class="mono">${esc(c.po_id)}</span>`},{h:"Amount",num:1,f:c=>fmt(c.total_minor,c.currency)},{h:"Remaining",num:1,f:c=>fmt(c.remaining_minor,c.currency)},{h:"Expiry",f:c=>esc(c.expiry_date||"-")},{h:"Status",f:c=>cmPill(c.status,c.status_label)}],p?p.contracts:[],"none yet");
+    body=note+body;acts=`<a class="small" href="#/${kind}s">Open in ${kind==="consultant"?"Consultants":"Vendors"} ›</a>`;
+    dl._edit=()=>{dl.close();benForm(kind,r,null,cmView)}}}
+  else{const e=d.engagements.find(x=>x.engagement_id===id);title=`${e.name} · ${e.role_label}`;
+   body=`<h4>Profile</h4><div class="pgrid">${PF("Engagement number",`<span class="mono">${esc(e.engagement_id)}</span>`)}${PF("Type",esc(e.role_label))}${PF("Organisation",esc(e.organisation))}${PF("Email",esc(e.email))}${PF("Phone",esc(e.phone))}${PF("Tax ID",esc(e.tax_id))}${PF("Registered payee",esc(e.payee_name||e.payee_id||"none yet"))}</div>
+    <h4>Transaction</h4><div class="pgrid">${PF("Event",esc(e.event))}${PF("Date",esc(e.event_date))}${PF("Fee",fmt(e.fee_minor,e.currency))}${PF("Paid",fmt(e.paid_minor,e.currency))}${PF("Still open",fmt(e.remaining_minor,e.currency))}${PF("Charge code",`<span class="mono">${esc(e.charge_code)}</span>`)}${PF("Status",cmPill(e.status_label))}</div>
+    <h4>Documents</h4><div class="small">${Object.entries(d.documents).map(([k,l])=>`<div>${e.documents.includes(k)?"✓":"·"} ${esc(l)}${d.required_documents.includes(k)?' <span class="muted">(required)</span>':""}</div>`).join("")}</div>${e.note?`<h4>Note</h4><div class="small">${esc(e.note)}</div>`:""}`;
+   acts=`<a class="small" href="#/intake?po">Open in Intake ›</a>`}}
+ catch(e){title="Profile";body=`<div class="err">${esc(e.message)}</div>`}
+ $("#pdlgTitle").textContent=title;$("#pdlgBody").innerHTML=body;$("#pdlgActs").innerHTML=acts+'<button class="primary" data-pclose>Close</button>';
+ $("#pdlgActs").querySelector("[data-pclose]").onclick=()=>dl.close();const ed=$("#pdlgActs").querySelector("[data-pedit]");if(ed)ed.onclick=()=>dl._edit();
+ $("#pdlgActs").querySelectorAll("a").forEach(a=>a.onclick=()=>dl.close());if(!dl.open)dl.showModal()}
 const cmTile=(l,v,sub)=>`<div class="tile"><div class="small muted">${l}</div><div style="font-size:18px;font-weight:600">${v}</div>${sub?`<div class="small muted">${sub}</div>`:""}</div>`;
 function cmRender(){const d=CM;if(!d)return;const q=$("#cmQ").value.trim().toLowerCase(),st=$("#cmSt").value;
  $("#cmNote").innerHTML=CM_NOTE[CMTAB];
@@ -1612,14 +1743,14 @@ function cmRender(){const d=CM;if(!d)return;const q=$("#cmQ").value.trim().toLow
  if(CMTAB==="ven"||CMTAB==="con"){const consult=CMTAB==="con",list=consult?d.consultants:d.vendors;
   const ok=p=>has([p.name,...p.contracts.map(c=>c.po_id)])&&(!st||(st==="No contract"?!p.contracts.length:st==="Expired"?p.expired:p.statuses.includes(st)));
   const all=list.flatMap(p=>p.contracts),open=all.filter(c=>!["Done","Cancelled"].includes(c.status));
-  tiles=cmTile(consult?"Consultants":"Vendors",list.length)+cmTile(consult?"Open contracts":"Open POs",open.length)+cmTile("Expiring in 30 days",open.filter(c=>c.days_left!=null&&c.days_left>=0&&c.days_left<=30).length)+cmTile("Expired, still open",open.filter(c=>c.expired).length)
+  tiles=cmTile(consult?"Consultants":"Vendors",list.length)+cmTile(consult?"Open contracts":"Open POs",open.length)+cmTile("Expiring in 30 days",open.filter(c=>c.days_left!=null&&c.days_left>=0&&c.days_left<=30).length)+cmTile("Fully paid",all.filter(c=>c.status==="Done").length)
    +(consult?cmTile("LoE left",[...new Set(open.filter(c=>c.loe_left!=null).map(c=>c.loe_unit))].map(u=>`${open.filter(c=>c.loe_unit===u&&c.loe_left!=null).reduce((a,c)=>a+c.loe_left,0)} ${u}s`).join(" · ")||"-"):cmTile("Multi Payment",all.filter(c=>c.status==="Multi Payment").length));
   html=cmTable([{h:consult?"Consultant":"Vendor",f:p=>cmName(p.name,consult?esc(p.engagement==="regular"?"regular · monthly retainer":"short-term · per deliverable"):esc(p.budget_line||""))},
    {h:consult?"Contracts":"POs",num:1,f:p=>p.contracts.length},{h:"Committed",num:1,f:p=>p.totals_currency?fmt(p.total_minor,p.totals_currency):p.contracts.length?"several currencies":"-"},
    {h:"Paid",num:1,f:p=>p.totals_currency?fmt(p.paid_minor,p.totals_currency):"-"},{h:"Remaining",num:1,f:p=>p.totals_currency?`<b>${fmt(p.remaining_minor,p.totals_currency)}</b>`:"-"},
    {h:"Next expiry",f:p=>esc(p.next_expiry||"-")},{h:"Status",f:p=>p.contracts.length?p.statuses.map(s=>cmPill(s)).join(" ")+(p.expired?" "+cmPill("Expired"):""):`<span class="small muted">no ${consult?"contract":"PO"}</span>`}],
    list.filter(ok),p=>cmContracts(p,consult),p=>p.id,`no ${consult?"consultant":"vendor"} matches`);
-  acts=`<a class="small" href="#/${consult?"consultants":"vendors"}">${consult?"Consultant":"Vendor"} profiles ›</a><button class="primary" data-cnewpo="">${consult?"New contract":"New PO"}</button>`}
+  acts=`<a class="small" href="#/${consult?"consultants":"vendors"}">${consult?"Consultant":"Vendor"} profiles ›</a><a class="small" href="#/intake?po">Register in Intake ›</a>`}
  else if(CMTAB==="eng"){const list=d.engagements.filter(e=>has([e.name,e.organisation,e.event,e.engagement_id])&&(!st||e.status_label===st));
   const open=d.engagements.filter(e=>!["Done","Cancelled"].includes(e.status_label));
   tiles=cmTile("Engagements",d.engagements.length)+cmTile("Ready to pay",d.engagements.filter(e=>e.status_label==="Ready to pay").length)+cmTile("Need a payee",d.engagements.filter(e=>e.status_label==="Needs payee").length)
@@ -1629,18 +1760,18 @@ function cmRender(){const d=CM;if(!d)return;const q=$("#cmQ").value.trim().toLow
    {h:"Payee",f:e=>e.payee_id?esc(e.payee_name||e.payee_id):`<span class="small muted">none yet · <a href="#/consultants">register the bank account</a></span>`},
    {h:"Documents",f:e=>e.documents_missing.length?`<span class="small" style="color:var(--warn)">missing: ${e.documents_missing.map(esc).join(", ")}</span>`:'<span class="small" style="color:var(--good)">complete</span>'},
    {h:"Status",f:e=>cmPill(e.status_label)},
-   {h:"",f:e=>`<div class="acts"><button data-ceng="${esc(e.engagement_id)}">Edit</button><button data-cengdel="${esc(e.engagement_id)}">Delete</button>${e.payee_id&&e.remaining_minor>0&&e.status!=="CANCELLED"?`<button class="primary" data-cpay="${esc(e.engagement_id)}" data-sup="${esc(e.payee_id)}">Pay</button>`:""}</div>`}],
-   list,e=>`<div class="cm-kv small"><div><span class="muted">Email</span> ${esc(e.email||"-")}</div><div><span class="muted">Phone</span> ${esc(e.phone||"-")}</div><div><span class="muted">Tax ID</span> ${esc(e.tax_id||"-")}</div>
+   {h:"",f:e=>`<div class="acts"><span class="pill" data-tip="Locked on the engagement number and its fee">🔒</span>${e.payee_id&&e.remaining_minor>0&&e.status!=="CANCELLED"?`<button class="primary" data-cpay="${esc(e.engagement_id)}" data-sup="${esc(e.payee_id)}">Pay</button>`:""}</div>`}],
+   list,e=>`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>Profile</b><button data-cprof="${esc(e.engagement_id)}">View full profile</button></div><div class="cm-kv small"><div><span class="muted">Email</span> ${esc(e.email||"-")}</div><div><span class="muted">Phone</span> ${esc(e.phone||"-")}</div><div><span class="muted">Tax ID</span> ${esc(e.tax_id||"-")}</div>
     <div><span class="muted">Charge code</span> <span class="mono">${esc(e.charge_code)}</span></div><div><span class="muted">Documents on file</span> ${esc(e.documents.map(k=>d.documents[k]).join(", ")||"none")}</div><div><span class="muted">Note</span> ${esc(e.note||"-")}</div></div>`,
    e=>e.engagement_id,"no engagement matches");
-  acts=`<a class="small" href="#/sources-upload">Upload a list ›</a><button class="primary" id="cmAddEng">Add engagement</button>`}
+  acts=`<a class="small" href="#/intake?po">Register in Intake ›</a>`}
  else if(CMTAB==="cus"){const list=d.customers.filter(c=>has([c.name,...c.invoices.map(i=>i.invoice_no)])&&(!st||c.status===st));
   const tot=k=>[...new Set(d.customers.map(c=>c.totals_currency).filter(Boolean))].map(ccy=>fmt(d.customers.filter(c=>c.totals_currency===ccy).reduce((a,c)=>a+(c[k]||0),0),ccy)).join("<br>")||"-";
   tiles=cmTile("Customers",d.customers.length)+cmTile("Open invoices",d.customers.reduce((a,c)=>a+c.open_count,0))+cmTile("Open",tot("open_minor"))+cmTile("Overdue",tot("overdue_minor"));
   html=cmTable([{h:"Customer",f:c=>cmName(c.name,esc((c.contacts||[]).join(", ")))},{h:"Open invoices",num:1,f:c=>c.open_count},{h:"Open",num:1,f:c=>c.open_minor!=null?fmt(c.open_minor,c.totals_currency):"several currencies"},
    {h:"Overdue",num:1,f:c=>c.overdue_minor?`<b style="color:var(--critical)">${fmt(c.overdue_minor,c.totals_currency)}</b>`:"-"},{h:"Next due",f:c=>esc(c.next_due||"-")},
    {h:"Payment history",f:c=>c.history?`<span class="small">${c.history.kept} kept · ${c.history.missed} missed</span>`:"-"},{h:"Status",f:c=>cmPill(c.status)}],
-   list,c=>table([{h:"Invoice",f:i=>`<b class="mono">${esc(i.invoice_no)}</b>`},{h:"Amount",num:1,f:i=>fmt(i.amount_minor,i.currency)},{h:"Due date",f:i=>esc(i.due_date)+(i.due_date<d.today?` <span class="pill critical">overdue</span>`:"")}],c.invoices,"no open invoice"),
+   list,c=>`<div class="row" style="justify-content:space-between;margin-bottom:6px"><b>Open invoices</b><span class="row" style="gap:6px">${SYNCED(c.synced_from)}<button data-cprof="${esc(c.id)}">View full profile</button><a class="small" href="#/customers">Open in Customers ›</a></span></div>`+table([{h:"Invoice",f:i=>`<b class="mono">${esc(i.invoice_no)}</b>`},{h:"Amount",num:1,f:i=>fmt(i.amount_minor,i.currency)},{h:"Due date",f:i=>esc(i.due_date)+(i.due_date<d.today?` <span class="pill critical">overdue</span>`:"")}],c.invoices,"no open invoice"),
    c=>c.id,"no customer matches");acts=`<a class="small" href="#/customers">Customer profiles ›</a><a class="small" href="#/sources-upload">Upload receivables ›</a>`}
  else{const list=d.staff.filter(u=>has([u.name,u.employee_no,u.office,u.job_title])&&(!st||u.status===st));
   tiles=cmTile("On payroll",d.staff.length)+cmTile("Ends within 60 days",d.staff.filter(u=>u.status==="Ends soon").length)+cmTile("No bank account",d.staff.filter(u=>u.status==="No bank account").length)
@@ -1650,26 +1781,15 @@ function cmRender(){const d=CM;if(!d)return;const q=$("#cmQ").value.trim().toLow
    {h:"Monthly net pay",num:1,f:u=>u.salary_minor!=null?fmt(u.salary_minor,u.salary_currency):"-"},{h:"Charge code",f:u=>`<span class="mono">${esc(u.charge_code||"-")}</span>`},
    {h:"Latest register",f:u=>u.last_register?`${esc(u.last_register)} ${pill(String(u.last_register_status).toUpperCase())}`:'<span class="small muted">none yet</span>'},{h:"Status",f:u=>cmPill(u.status)}],
    list,null,u=>u.user_id,"no one on payroll yet: add net pay in People & roles");acts=`<a class="small" href="#/users">People &amp; roles ›</a><a class="small" href="#/payroll">Payroll register ›</a>`}
- $("#cmTiles").innerHTML=tiles;$("#cmBody").innerHTML=html;$("#cmActs").innerHTML=acts;$("#cmBody").classList.remove("empty");
+ $("#cmTiles").innerHTML=tiles;$("#cmBody").innerHTML=html;$("#cmActs").innerHTML=acts;$("#cmBody").classList.remove("empty");$("#cmSrc").innerHTML=cmSrc();
+ $("#cmRefresh").onclick=cmRefresh;
+ $("#cmBody").querySelectorAll("[data-cprof]").forEach(b=>b.onclick=()=>cmProfile(b.dataset.cprof));
  $("#cmBody").querySelectorAll("[data-cmx]").forEach(b=>b.onclick=()=>{const tr=b.closest("tr"),k=CMTAB+":"+tr.dataset.ck;CMOPEN.has(k)?CMOPEN.delete(k):CMOPEN.add(k);cmRender()});
  const findPO=id=>(LAST.cmPos||[]).find(r=>r.po.po_id===id);
- document.querySelectorAll("[data-view=commitments] [data-cpo]").forEach(b=>b.onclick=async()=>{const rows=await api("/v1/procurement/purchase-orders");LAST.cmPos=rows;const r=findPO(b.dataset.cpo);if(r)poForm({...r.po,_after:cmView})});
- document.querySelectorAll("[data-view=commitments] [data-cnewpo]").forEach(b=>b.onclick=()=>poForm(b.dataset.cnewpo?{supplier_id:b.dataset.cnewpo,currency:b.dataset.ccy,_after:cmView}:{_after:cmView}));
  document.querySelectorAll("[data-view=commitments] [data-cpay]").forEach(b=>b.onclick=()=>{const id=b.dataset.cpay;const c=[...d.vendors,...d.consultants].flatMap(p=>p.contracts).find(x=>x.po_id===id),e=d.engagements.find(x=>x.engagement_id===id);
   const per=c&&c.per_period_minor?Math.min(c.per_period_minor,c.remaining_minor):null;
   orderForm({vendor_id:b.dataset.sup,po_number:id,currency:(c||e).currency,amount_minor:per||(c?c.remaining_minor:e.remaining_minor),description:c?c.description:`${e.role_label}: ${e.event}`,after:cmView})});
- document.querySelectorAll("[data-view=commitments] [data-ceng]").forEach(b=>b.onclick=()=>cmEngForm(d.engagements.find(e=>e.engagement_id===b.dataset.ceng)));
- document.querySelectorAll("[data-view=commitments] [data-cengdel]").forEach(b=>b.onclick=async()=>{if(!confirm(`Delete ${b.dataset.cengdel}?`))return;
-  try{await api(`/v1/org/engagements/${encodeURIComponent(b.dataset.cengdel)}?${who()}`,{method:"DELETE"});toast("Deleted","good");cmView()}catch(e){toast(esc(e.message),"serious")}});
- if($("#cmAddEng"))$("#cmAddEng").onclick=()=>cmEngForm(null)}
-async function cmEngForm(e){const sup=await suppliers();const d=CM;
- const rec=e?Object.fromEntries(Object.entries(e).filter(([k])=>!["role_label","paid_minor","pending_minor","remaining_minor","status_label","payee_name","documents_missing"].includes(k))):{role:"keynote_speaker",currency:"USD",status:"ACTIVE",documents:[],event_date:new Date().toISOString().slice(0,10)};
- openForm(e?`Edit ${e.engagement_id}`:"Add a one-off engagement",[
-  {k:"name",l:"Full name",req:1},{k:"role",l:"Engagement type",opts:Object.entries(d.roles)},{k:"organisation",l:"Organisation or affiliation"},{k:"email",l:"Email",type:"email"},{k:"phone",l:"Phone"},{k:"tax_id",l:"Tax ID"},
-  {k:"payee_id",l:"Registered payee (bank account)",nullable:1,opts:[["","none yet: register the bank account first"],...Object.values(sup).map(p=>[p.id,`${p.name} · ${p.currency||""}`])]},
-  {k:"event",l:"Event, task or matter",req:1},{k:"event_date",l:"Event date",type:"date",req:1},{k:"fee_minor",l:"Fee",money:1,req:1},{k:"currency",l:"Currency",max:3,req:1},
-  {k:"charge_code",l:"Charge code (office . project . account)",req:1},{k:"documents",l:"Documents on file (the engagement letter and the invoice are required before payment)",multi:Object.entries(d.documents)},
-  {k:"note",l:"Note"},{k:"status",l:"Status",opts:[["ACTIVE","Active"],["CANCELLED","Cancelled"]]}],rec,"engagements",cmView)}
+}
 $("#cmTabs").querySelectorAll("[data-ctab]").forEach(b=>b.onclick=()=>{CMTAB=b.dataset.ctab;$("#cmTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));$("#cmSt").value="";cmRender()});
 $("#cmQ").oninput=()=>cmRender();$("#cmSt").onchange=()=>cmRender();
 
@@ -1732,6 +1852,333 @@ async function orderForm(pre={}){const sup=await suppliers();let pos=[];try{pos=
   try{const r=await api(`/v1/intake/payment-orders?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#dlg").close();
    toast(`Payment order ${esc(r.invoice_no)}: ${esc(r.status.toLowerCase().replace("_"," "))}`,r.status==="VERIFIED"?"good":r.status==="NEEDS_REVIEW"?"warn":"serious");(pre.after||intake)()}catch(e){$("#dlgErr").textContent=e.message}}}
 $("#newOrder").onclick=()=>orderForm();
+// ---- Reporting → spending per category: name, request date, number, amount, paid on, left, status; filters
+let SP=null,SPCAT=null;
+const SP_NOTE={payroll:"Every line of each payroll register: the person's net pay, when the DoA run paid it, and what is still unpaid.",
+ fringe:"Fringe benefits paid by the Delegation of Authority runs (pension, health, social security and the others enrolled), per person and period.",
+ goods_services:"Purchase requests, purchase orders, consultant contracts and one-off engagements (consultants, legal specialists, resource persons, keynote speakers), and supplier invoices without a PO. Goods and services are told apart by the PO: a contract with an LoE, an engagement, or a consultant is a service.",
+ operation:"Office and operations: rent, utilities, communications, software and subscriptions, and staff expense claims that are not travel.",
+ cash_advance:"Money transferred to the organisation's own staff: cash advances, petty cash floats and slush funds, with what was paid and whether it is settled against receipts.",
+ travel:"Travel authorisations (approved trips) and travel claims paid after the trip.",
+ odc:"Other direct costs of programme activities: venue, catering, printing, local transport."};
+const dmy=d=>d?`${d.slice(8,10)}/${d.slice(5,7)}/${d.slice(0,4)}`:"-";
+async function spView(cat){SPCAT=cat;$("#spBody").innerHTML='<div class="empty">loading…</div>';
+ try{SP=await api(`/v1/reports/spend?category=${cat}`);$("#spTitle").textContent=SP.title;$("#spNote").innerHTML=`<b>${esc(SP.title)}.</b> ${SP_NOTE[cat]} Pending items are listed as New; what is paid shows the date and the amount, and what is left.`;
+  const keep=id=>$(id).value;const co=keep("#spCo"),ty=keep("#spTy");
+  $("#spCo").innerHTML='<option value="">All</option>'+SP.units.filter(u=>["HQ","COUNTRY_OFFICE"].includes(u.kind)).map(u=>`<option value="${esc(u.unit_id)}">${esc(u.name)}</option>`).join("");$("#spCo").value=co;
+  $("#spTy").innerHTML='<option value="">All</option>'+SP.types.map(t=>`<option>${esc(t)}</option>`).join("");$("#spTy").value=SP.types.includes(ty)?ty:"";
+  spOptions();spRender()}catch(e){$("#spBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function spUnder(root){const out=new Set();if(!root)return null;const walk=id=>{out.add(id);SP.units.filter(u=>u.parent_id===id).forEach(u=>walk(u.unit_id))};walk(root);return out}
+function spOptions(){const co=$("#spCo").value,br=$("#spBr").value,un=$("#spUn").value,pe=$("#spPe").value;const inCo=spUnder(co);
+ const brs=SP.units.filter(u=>u.kind==="BRANCH_OFFICE"&&(!inCo||inCo.has(u.unit_id)));
+ $("#spBr").innerHTML='<option value="">All</option>'+brs.map(u=>`<option value="${esc(u.unit_id)}">${esc(u.name)}</option>`).join("");$("#spBr").value=brs.some(u=>u.unit_id===br)?br:"";
+ const scope=spUnder($("#spBr").value||co);const uns=SP.units.filter(u=>!scope||scope.has(u.unit_id));
+ $("#spUn").innerHTML='<option value="">All</option>'+uns.map(u=>`<option value="${esc(u.unit_id)}">${esc(u.name)}</option>`).join("");$("#spUn").value=uns.some(u=>u.unit_id===un)?un:"";
+ const ppl=[...new Set(spRows(true).map(r=>r.person).filter(Boolean))].sort();
+ $("#spPe").innerHTML='<option value="">All</option>'+ppl.map(x=>`<option>${esc(x)}</option>`).join("");$("#spPe").value=ppl.includes(pe)?pe:""}
+function spRows(noPerson){const co=$("#spCo").value,br=$("#spBr").value,un=$("#spUn").value,pe=$("#spPe").value,from=$("#spFrom").value,to=$("#spTo").value,st=$("#spSt").value,ty=$("#spTy").value;
+ const inUn=spUnder(un);
+ return SP.rows.filter(r=>(!co||r.country_office_id===co)&&(!br||r.branch_id===br)&&(!inUn||inUn.has(r.unit_id))&&(noPerson||!pe||r.person===pe)
+  &&(!from||(r.request_date||"")>=from)&&(!to||(r.request_date||"")<=to)&&(!st||r.status===st)&&(!ty||r.type===ty))}
+function spRender(){const rows=spRows(false),unit=id=>(SP.units.find(u=>u.unit_id===id)||{}).name||"-";
+ const tot={};rows.forEach(r=>{const t=tot[r.currency]=tot[r.currency]||{a:0,p:0,l:0};t.a+=r.amount_minor;t.p+=r.paid_minor;t.l+=r.remaining_minor});
+ const line=k=>Object.entries(tot).map(([c,t])=>fmt(t[k],c)).join("<br>")||"-";
+ $("#spTiles").innerHTML=cmTile("Lines",rows.length)+cmTile("Amount",line("a"))+cmTile("Paid",line("p"))+cmTile("Left",line("l"))+cmTile("Done · Partial · New",["Done","Partial","New"].map(s=>rows.filter(r=>r.status===s).length).join(" · "));
+ $("#spBody").classList.remove("empty");
+ $("#spBody").innerHTML=table([{h:"No",num:1,f:(r)=>rows.indexOf(r)+1},{h:"Name",f:r=>`<b>${esc(r.name||"-")}</b>${r.note?`<div class="small muted">${esc(r.note)}</div>`:""}`},
+  {h:"Request date",f:r=>dmy(r.request_date)},{h:"Number",f:r=>`<span class="mono">${esc(r.reference)}</span><div class="small muted">${esc(r.reference_kind)}</div>`},{h:"Type",f:r=>`<span class="small">${esc(r.type)}</span>`},
+  {h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Paid on",f:r=>dmy(r.paid_date)},{h:"Paid",num:1,f:r=>fmt(r.paid_minor,r.currency)},{h:"Left",num:1,f:r=>`<b>${fmt(r.remaining_minor,r.currency)}</b>`},
+  {h:"Status",f:r=>cmPill(r.status==="Cancelled"?"Cancelled":r.status)},{h:"Office · unit",f:r=>`<span class="small">${esc(unit(r.country_office_id))}${r.unit_id&&r.unit_id!==r.country_office_id?` · ${esc(unit(r.unit_id))}`:""}${r.person?`<div class="muted">${esc(r.person)}</div>`:""}</span>`}],rows,"nothing in this report for the filters chosen")}
+["#spCo","#spBr","#spUn"].forEach(id=>$(id).onchange=()=>{spOptions();spRender()});["#spPe","#spFrom","#spTo","#spSt","#spTy"].forEach(id=>$(id).onchange=spRender);
+$("#spReset").onclick=()=>{["#spCo","#spBr","#spUn","#spPe","#spFrom","#spTo","#spSt","#spTy"].forEach(id=>$(id).value="");spOptions();spRender()};
+$("#spCsv").onclick=()=>{if(!SP)return;const rows=spRows(false),unit=id=>(SP.units.find(u=>u.unit_id===id)||{}).name||"";const q=v=>`"${String(v??"").replaceAll('"','""')}"`;
+ const head=["No","Name","Request date","Number","Type","Currency","Amount","Paid on","Paid","Left","Status","Country office","Branch","Unit","Person"];
+ const lines=rows.map((r,i)=>[i+1,r.name,dmy(r.request_date),r.reference,r.type,r.currency,(r.amount_minor/100).toFixed(2),dmy(r.paid_date),(r.paid_minor/100).toFixed(2),(r.remaining_minor/100).toFixed(2),r.status,unit(r.country_office_id),unit(r.branch_id),unit(r.unit_id),r.person].map(q).join(","));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([[head.join(","),...lines].join("\n")],{type:"text/csv"}));a.download=`venthora-${SPCAT}-report.csv`;a.click();URL.revokeObjectURL(a.href)};
+
+// ---- Pending payment: one request in full; correct it, Save (checks run again) or Pay (save, check, approve, pay)
+let PD=null;
+const PD_FIELDS=[["counterparty_id","Pay to (registered payee)"],["invoice_no","Invoice / reference"],["amount_minor","Amount"],["currency","Currency"],["due_date","Due date"],["po_number","PO number"],["account_code","Account code (office . project . account)"],["category","Category"]];
+async function pdOpen(id){try{PD=await api(`/v1/intake/requests/${encodeURIComponent(id)}`)}catch(e){toast(esc(e.message),"serious");return}
+ const r=PD,paid=!!r.payment,locked=paid||["REJECTED"].includes(r.status);const dis=locked?"disabled":"";
+ $("#idlgTitle").textContent=`${r.kind.replaceAll("_"," ")} · ${r.invoice_no||r.intake_id.slice(0,8)} · ${paid?"PAID":r.status.replace("_"," ")}`;
+ const flagTxt=f=>({po_missing:"no purchase order quoted",po_unknown:"the PO does not exist",po_not_open:"the PO is closed or cancelled",po_supplier_mismatch:"the PO is with another supplier",po_currency_mismatch:"the PO is in another currency",po_exceeded:"above what the PO has left",po_term_mismatch:"no PO term of this amount",po_expired:"the PO has expired",payee_unknown:"the payee is not registered",payee_currency_mismatch:"the payee is paid in another currency",duplicate_invoice:"already in the queue"})[f]||f.replaceAll("_"," ");
+ $("#idlgBody").innerHTML=`<div class="cm-kv small" style="margin-bottom:10px"><div><span class="muted">From</span> ${esc(r.display_name)} <span class="mono muted">${esc(r.sender)}</span></div><div><span class="muted">Received</span> ${esc((r.received_at||"").slice(0,16).replace("T"," "))}</div>
+   <div><span class="muted">Trust</span> ${esc(r.trust)}</div><div><span class="muted">Subject</span> ${esc(r.subject)}</div><div><span class="muted">Read by</span> ${r.reader==="model+rules"?"model + rules":"rules"}</div>${r.reviewer?`<div><span class="muted">Reviewed by</span> ${esc(r.reviewer)}</div>`:""}</div>
+  ${paid?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--goodlt);margin-bottom:8px">Paid ${fmt(r.payment.amount_minor,r.payment.currency)} on ${esc((r.payment.paid_at||"").slice(0,10))}: it no longer changes.</div>`:""}
+  <div class="form" style="grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))">
+   <label>Pay to (registered payee)<select id="pd-counterparty_id" ${dis}><option value="">not registered: choose one</option>${r.payees.map(p=>`<option value="${esc(p.id)}" ${p.id===r.counterparty_id?"selected":""}>${esc(p.name)}${p.currency?` · ${esc(p.currency)}`:""}</option>`).join("")}</select></label>
+   <label>Invoice / reference<input id="pd-invoice_no" value="${esc(r.invoice_no||"")}" ${dis}></label>
+   <label>Amount<input id="pd-amount_minor" type="number" step="0.01" min="0.01" value="${r.amount_minor!=null?(r.amount_minor/100).toFixed(2):""}" ${dis}></label>
+   <label>Currency<input id="pd-currency" maxlength="3" value="${esc(r.currency||"")}" ${dis}></label>
+   <label>Due date<input id="pd-due_date" type="date" value="${esc(r.due_date||"")}" ${dis}></label>
+   <label>PO number<input id="pd-po_number" list="pd-pos" value="${esc(r.po_number||"")}" placeholder="none" ${dis}><datalist id="pd-pos">${r.open_pos.map(p=>`<option value="${esc(p.po_id)}">${esc(p.supplier_id)} · ${esc(p.currency)}</option>`).join("")}</datalist></label>
+   <label>Account code<input id="pd-account_code" value="${esc(r.account_code||"")}" placeholder="from the PO" ${dis}></label>
+   ${r.kind==="expense_claim"?`<label>Category<input id="pd-category" value="${esc(r.category||"")}" ${dis}></label>`:""}
+   <label style="grid-column:1/-1">Note for the record<input id="pd-note" placeholder="what was corrected and why (e.g. invoice number misread, PO added)" ${dis}></label></div>
+  ${r.po?`<div class="small" style="margin-top:6px">PO <b class="mono">${esc(r.po.po_id)}</b>: ${fmt(r.po.total_minor,r.po.currency)} · paid ${fmt(r.po.paid_minor,r.po.currency)} · left ${fmt(r.po.remaining_minor,r.po.currency)}</div>`:""}
+  <h4 class="small muted" style="margin:12px 0 4px">What the checks found</h4>
+  <div class="small">${r.flags.length?r.flags.map(f=>`<span class="pill ${["po_missing","po_unknown","po_exceeded","payee_unknown","duplicate_invoice","po_expired"].includes(f)?"critical":"warn"}" style="margin:2px">${esc(flagTxt(f))}</span>`).join(" "):'<span class="pill good">no flag</span>'}</div>
+  <div class="small" style="margin-top:6px">${r.reasons.map(x=>`<div>· ${esc(x)}</div>`).join("")}</div>
+  ${(r.checks||[]).length?`<h4 class="small muted" style="margin:12px 0 4px">Documents</h4>${docChecks(r.checks)}`:""}
+  ${(r.attachments||[]).length?`<div class="small" style="margin-top:4px">${r.attachments.map(a=>`${a.read?"📄":"⚠"} ${esc(a.name)}${a.problem?` <span class="muted">(${esc(a.problem)})</span>`:""}`).join(" · ")}</div>`:""}
+  ${r.quotes.length?`<details style="margin-top:8px"><summary class="small">Evidence quoted (${r.quotes.length})</summary>${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}</details>`:""}`;
+ $("#idlgOut").innerHTML="";$("#idlgSave").disabled=$("#idlgPay").disabled=locked;if(!$("#idlg").open)$("#idlg").showModal()}
+function pdBody(){const v=id=>$(`#pd-${id}`);const b={note:v("note").value.trim()};const r=PD;
+ const cid=v("counterparty_id").value;if(cid!==(r.counterparty_id||""))b.counterparty_id=cid||null;
+ for(const k of ["invoice_no","currency","due_date","account_code","category"]){const el=v(k);if(el&&el.value.trim()!==(r[k]||""))b[k]=el.value.trim()||null}
+ const po=v("po_number").value.trim();if(po!==(r.po_number||""))b.po_number=po;  // empty takes the PO off
+ const amt=Math.round(parseFloat(v("amount_minor").value||"0")*100);if(amt&&amt!==r.amount_minor)b.amount_minor=amt;
+ return Object.fromEntries(Object.entries(b).filter(([k,x])=>x!==null||k==="counterparty_id"))}
+function pdShow(problems,ok){$("#idlgOut").innerHTML=problems&&problems.length?`<div style="padding:8px 10px;border-radius:8px;background:var(--critlt)"><b>Still stops it:</b>${problems.map(x=>`<div>· ${esc(x)}</div>`).join("")}</div>`:
+ `<div style="padding:8px 10px;border-radius:8px;background:var(--goodlt)">${esc(ok)}</div>`}
+$("#idlgClose").onclick=()=>$("#idlg").close();
+$("#idlgSave").onclick=async()=>{const id=PD.intake_id;$("#idlgOut").textContent="saving and checking again…";
+ try{const r=await api(`/v1/intake/requests/${id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(pdBody())});
+  await pdOpen(id);pdShow(r.problems,"Saved. Every check passes: it waits for an approval, or press Pay.");intake()}catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#idlgPay").onclick=async()=>{const id=PD.intake_id;if(!confirm(`Save, check again and pay ${PD.invoice_no||"this request"} as ${actor().name}?`))return;
+ $("#idlgOut").textContent="saving, checking again, then paying…";$("#idlgPay").disabled=true;
+ try{const res=await fetch(`/v1/intake/requests/${id}/pay?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(pdBody())});const j=await res.json();
+  await pdOpen(id);
+  if(res.ok){pdShow(null,j.paid?`Paid: ${j.message||"sent to Airwallex"}`:j.message);toast(j.paid?"Paid":"Approved, not paid now",j.paid?"good":"warn")}
+  else{const d=j.detail;pdShow(d&&d.problems?d.problems:[typeof d==="string"?d:(d&&d.message)||res.statusText])}
+  intake();executions()}catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`;$("#idlgPay").disabled=false}};
+
+
+// ---- Payment → Intake: 1 Purchase request · 2 Purchase order · 3 Consultant & resource persons · 4 Travel authorisation
+let INTAB="pr";const INTAB_OF=()=>{const m=location.hash.match(/^#\/intake\?(\w+)/);const t=m&&m[1];return t==="register"?"po":["pr","po","con","travel","ca","pc","odc"].includes(t)?t:INTAB};
+const IN_NOTE={
+ pr:`<b>What someone asks to buy, before there is a PO.</b> The requester names what, the estimated amount, the charge code and, if known, the supplier. A person other than the requester approves or rejects it, within their approval limit (People &amp; roles). An approved request is raised as a purchase order with <b>Create PO</b>; the PO may not exceed the approved estimate, and the request then shows as ordered.`,
+ po:`<b>Every purchase order received: registered by hand here, raised from an approved purchase request, uploaded as a dataset, or synced through Auto Connect (API).</b> An open PO that has not passed its expiry date is a commitment and shows in <a href="#/commitments">Payment → Commitment</a>, read only. Once saved, a PO is <b>locked on its number and its value</b> (supplier, currency, amount): a different value is a new PO or an amendment; its description, dates, schedule and status may still change here. A synced PO is changed in the source system.`,
+ con:`<b>Consultant contracts and one-off engagements</b> (a consultant for a single task, a legal specialist, a resource person, a keynote speaker). A contract is a purchase order with a level of effort and a rate; an engagement holds the person's profile and the fee, and is paid against its own number once it has a registered payee. Both are locked on their number and value once they are commitments.`,
+ ca:`<b>A cash advance to a person</b> for an approved activity: asked by the person, decided by someone else within their approval limit, sent to Pending payment and paid to the person's own registered account, booked to 1400 Advances to staff. By the settle-by date the person accounts for it with receipts: what is left is returned, what is over is reimbursed. An instruction by email from the one person chosen in the Delegation of Authority (06) is paid at once.`,
+ pc:`<b>A petty cash (slush fund) float</b> held by a custodian for small office expenses, and each top-up of it: decided by someone other than the custodian, paid to the custodian's own account, booked to 1400 Advances to staff and imprest, and settled against the receipts of what was spent.`,
+ odc:`<b>Other direct costs of a programme activity</b> that belong to no other category: venue, catering, printing, local transport. Decided by a person, charged to 6900 Other direct costs on the activity's charge code, and paid to the supplier (or the person who paid it) through Pending payment. The Delegation of Authority (07) pays them on its own once the activity budget is connected.`,
+ travel:`<b>Travel authorisation:</b> a trip requested here goes through the same checks as an emailed one: the destination's rates, the checklist and the travel policy in the Delegation of Authority.`};
+function inTab(t){INTAB=t;document.querySelectorAll("#inTabs [data-itab]").forEach(b=>b.classList.toggle("on",b.dataset.itab===t));
+ document.querySelectorAll("[data-ipane]").forEach(x=>x.hidden=!x.dataset.ipane.split(" ").includes(t));$("#inNote").innerHTML=IN_NOTE[t];
+ if(t==="pr")prView();else if(t==="travel"){taView();travelView()}else if(FR_KIND[t])frView();else rgView()}
+document.querySelectorAll("#inTabs [data-itab]").forEach(b=>b.onclick=()=>{history.replaceState(null,"",`#/intake?${b.dataset.itab}`);inTab(b.dataset.itab)});
+// -- purchase requests
+let PRS=[];const PR_TONE={SUBMITTED:"warn",APPROVED:"good",ORDERED:"info",REJECTED:"critical",DRAFT:""};
+async function prView(){try{await suppliers();PRS=await api("/v1/purchase-requests");prRender()}catch(e){$("#prBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function prRender(){const q=$("#prQ").value.trim().toLowerCase(),st=$("#prSt").value;
+ const rows=PRS.filter(r=>(!q||[r.pr_number,r.title,r.requested_by].some(x=>String(x||"").toLowerCase().includes(q)))&&(!st||r.status===st));
+ const n=s=>PRS.filter(r=>r.status===s).length;
+ $("#prTiles").innerHTML=cmTile("Requests",PRS.length)+cmTile("Waiting for a decision",n("SUBMITTED"))+cmTile("Approved, no PO yet",n("APPROVED"))+cmTile("Ordered",n("ORDERED"))+cmTile("Rejected",n("REJECTED"));
+ $("#prBody").classList.remove("empty");
+ $("#prBody").innerHTML=table([{h:"PR number",f:r=>`<b class="mono">${esc(r.pr_number)}</b><div class="small muted">needed by ${esc(r.needed_by||"-")}</div>`},
+  {h:"What",f:r=>`<b>${esc(r.title)}</b>${r.justification?`<div class="small muted">${esc(r.justification)}</div>`:""}`},{h:"Requested by",f:r=>esc(r.requested_by)},
+  {h:"Supplier",f:r=>esc((SUPPLIERS[r.supplier_id]||{}).name||r.supplier_id||"to be chosen")},{h:"Estimate",num:1,f:r=>fmt(r.estimated_minor,r.currency)},
+  {h:"Charge code",f:r=>`<span class="mono">${esc(r.charge_code)}</span>`},
+  {h:"Status",f:r=>`<span class="pill ${PR_TONE[r.status]??""}">${esc(r.status)}</span>${r.decided_by?`<div class="small muted">${esc(r.decided_by)}${r.decision_note?` · ${esc(r.decision_note)}`:""}</div>`:""}${r.po?`<div class="small">PO <b class="mono">${esc(r.po.po_id)}</b> · ${fmt(r.po.total_minor,r.po.currency)}</div>`:""}`},
+  {h:"",f:r=>`<div class="acts">${["DRAFT","SUBMITTED"].includes(r.status)?`<button data-pred="${esc(r.pr_number)}">Edit</button>`:""}${r.status==="SUBMITTED"?`<button class="primary" data-prd="approve" data-pr="${esc(r.pr_number)}">Approve</button><button data-prd="reject" data-pr="${esc(r.pr_number)}">Reject</button>`:""}${r.status==="APPROVED"?`<button class="primary" data-prpo="${esc(r.pr_number)}">Create PO</button>`:""}</div>`}],rows,"no purchase request yet");
+ $("#prBody").querySelectorAll("[data-pred]").forEach(b=>b.onclick=()=>prForm(PRS.find(r=>r.pr_number===b.dataset.pred)));
+ $("#prBody").querySelectorAll("[data-prd]").forEach(b=>b.onclick=async()=>{const note=prompt(`${b.dataset.prd==="approve"?"Approve":"Reject"} ${b.dataset.pr} as ${actor().name} — note (optional)`,"");if(note===null)return;
+  try{await api(`/v1/purchase-requests/${encodeURIComponent(b.dataset.pr)}/decision?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.prd,note})});toast(`${b.dataset.pr} ${b.dataset.prd==="approve"?"approved":"rejected"}`,"good");prView()}
+  catch(e){toast(esc(e.message),"serious")}});
+ $("#prBody").querySelectorAll("[data-prpo]").forEach(b=>b.onclick=()=>{const r=PRS.find(x=>x.pr_number===b.dataset.prpo);
+  poForm({pr_number:r.pr_number,supplier_id:r.supplier_id||undefined,currency:r.currency,total_minor:r.estimated_minor,account_code:r.charge_code,description:r.title,_after:prView})})}
+async function prForm(r){await loadOrg();const sup=await suppliers();
+ openForm(r?`Edit ${r.pr_number}`:"New purchase request",[{k:"title",l:"What is to be bought",req:1},{k:"requested_by",l:"Requested by",opts:ORG.users.filter(u=>u.active!==false).map(u=>[u.name,`${u.name} · ${ROLES[u.role]||u.role}`])},
+  {k:"supplier_id",l:"Suggested supplier",nullable:1,opts:[["","to be chosen by procurement"],...Object.values(sup).map(p=>[p.id,`${p.name} · ${p.currency||""}`])]},
+  {k:"estimated_minor",l:"Estimated amount",money:1,req:1},{k:"currency",l:"Currency",max:3,req:1},{k:"charge_code",l:"Charge code (office . project . account)",req:1},
+  {k:"needed_by",l:"Needed by",type:"date",nullable:1},{k:"justification",l:"Why it is needed"},{k:"status",l:"Status",opts:[["SUBMITTED","Submit for a decision"],["DRAFT","Keep as a draft"]]}],
+  r?{...r}:{requested_by:actor().name,currency:ORG.standards?.base_currency||"USD",status:"SUBMITTED"},"purchase-requests",prView)}
+$("#prQ").oninput=prRender;$("#prSt").onchange=prRender;$("#prNew").onclick=()=>prForm(null);
+// ---- Intake → Sync via API / Sync via Dataset: per tab, between two dates or one number; preview, then import
+const SYNC_KINDS={ca:[["cash_advance","Cash advances","request number"]],pc:[["petty_cash","Petty cash requests","request number"]],odc:[["odc","Other direct costs","request number"]],pr:[["pr","Purchase requests","PR number"]],po:[["po","Purchase orders","PO number"]],con:[["contract","Consultant contracts","contract number"],["engagement","One-off engagements","engagement number"]],travel:[["ta","Travel authorisations","TA number"]]};
+const SYNC_ENTITY={cash_advance:"fund_request",petty_cash:"fund_request",odc:"fund_request",pr:"pr",po:"po",contract:"po",engagement:"engagement",ta:"ta"};
+let SY={};
+function syncOpen(via){const kinds=SYNC_KINDS[INTAB];SY={via,kind:kinds[0][0],connector:null,upload:null};
+ $("#sdlgTitle").textContent=`${via==="api"?"Sync via API":"Sync via Dataset"} · ${kinds.map(k=>k[1].toLowerCase()).join(" and ")}`;
+ $("#sdlg").showModal();via==="api"?syncApiStep():syncFileStep()}
+document.querySelectorAll("[data-sync]").forEach(b=>b.onclick=()=>syncOpen(b.dataset.sync));
+$("#sdlgClose").onclick=()=>$("#sdlg").close();
+const syncWhat=()=>{const kinds=SYNC_KINDS[INTAB];return kinds.length>1?`<label class="small" style="display:block;margin-bottom:8px">What to import <select id="syKind">${kinds.map(k=>`<option value="${k[0]}" ${k[0]===SY.kind?"selected":""}>${k[1]}</option>`).join("")}</select></label>`:""};
+const syncLabel=()=>Object.values(SYNC_KINDS).flat().find(k=>k[0]===SY.kind);
+async function syncApiStep(){const body=$("#sdlgBody");body.innerHTML='<div class="empty">reading the connections…</div>';
+ let cs=[];try{cs=await api("/v1/sources/connectors")}catch(e){}
+ const opts=cs.map(c=>`<option value="${esc(c.connector_id)}">${esc(c.name)} · ${esc(c.base_url)}</option>`).join("");
+ body.innerHTML=`${syncWhat()}${cs.length?`<label class="small" style="display:block">Connection <select id="syConn">${opts}<option value="__new">+ Add a new API connection</option></select></label>`:
+   `<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--warnlt);margin-bottom:8px"><b>No API connection yet.</b> Enter the application's API: its base URL, then its key, and test the connection.</div>`}
+  <div id="syNew" ${cs.length?"hidden":""} style="margin-top:8px"><label class="small" style="display:block">Application name <input id="syName" placeholder="e.g. our accounting system" style="width:100%"></label>
+   <label class="small" style="display:block;margin-top:6px">API URL and key <input id="syLine" placeholder="https://erp.example.com/api  Bearer abc123" style="width:100%"></label>
+   <div class="small muted" style="margin-top:4px">One line: the base URL, a space, then the key: <span class="mono">Bearer &lt;token&gt;</span>, <span class="mono">Header-Name: value</span>, or <span class="mono">https://user:password@host/…</span>.</div>
+   <div class="row" style="gap:8px;margin-top:8px"><button id="syTestNew">Test connection</button><button class="primary" id="sySaveNew" disabled>Save connection</button></div></div>
+  <div id="syStatus" class="small" style="margin-top:10px"></div><div id="syFilter"></div><div id="syOut"></div>`;
+ if($("#syKind"))$("#syKind").onchange=()=>{SY.kind=$("#syKind").value;syncTest()};
+ const pick=()=>{const v=$("#syConn")?.value;$("#syNew").hidden=!!v&&v!=="__new";if(v&&v!=="__new"){SY.connector=v;syncTest()}else{$("#syStatus").innerHTML="";$("#syFilter").innerHTML="";$("#syOut").innerHTML=""}};
+ if($("#syConn"))$("#syConn").onchange=pick;
+ $("#syTestNew").onclick=async()=>{$("#syStatus").textContent="testing…";try{const r=await api(`/v1/sources/test-connection?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({connection:$("#syLine").value.trim()})});
+   $("#syStatus").innerHTML=r.ok?`<span class="pill good">Connected</span> ${esc(r.name)} · ${esc(r.message)} · ${r.ms} ms`:`<span class="pill critical">Not connected</span> ${esc(r.message)}`;$("#sySaveNew").disabled=!r.ok}
+  catch(e){$("#syStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+ $("#sySaveNew").onclick=async()=>{try{const c=await api(`/v1/sources/connectors?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:$("#syName").value.trim()||"Finance application",connection:$("#syLine").value.trim(),schedule_minutes:0})});
+   toast(`Connection ${esc(c.name)} saved`,"good");SY.connector=c.connector_id;await syncApiStep();if($("#syConn")){$("#syConn").value=c.connector_id;pick()}}catch(e){$("#syStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+ if(cs.length)pick()}
+async function syncTest(){$("#syStatus").textContent="testing the connection…";$("#syFilter").innerHTML="";$("#syOut").innerHTML="";
+ try{const r=await api(`/v1/sources/test-connection?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({connector_id:SY.connector,kind:SY.kind})});
+  $("#syStatus").innerHTML=r.ok?`<span class="pill good">Connected</span> ${esc(r.name)} · ${esc(r.message)} · ${r.ms} ms`:
+   `<span class="pill critical">Not connected</span> ${esc(r.name)}: ${esc(r.message)}. Check the URL, the key and where it keeps ${esc(syncLabel()[1].toLowerCase())} in <a href="#/sources-sync">App Integration · Sync API</a>.`;
+  if(r.ok)syncFilter()}catch(e){$("#syStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+function syncFileStep(){const body=$("#sdlgBody");
+ body.innerHTML=`${syncWhat()}<div class="small" style="margin-bottom:8px">Any format: Excel, CSV, TSV, JSON, Word, PDF or an email. VENTHORA reads the columns, maps them to its fields and shows what would change before anything is written.</div>
+  <input type="file" id="syFile"><div id="syStatus" class="small" style="margin-top:10px"></div><div id="syFilter"></div><div id="syOut"></div>`;
+ if($("#syKind"))$("#syKind").onchange=()=>{SY.kind=$("#syKind").value;SY.upload=null;$("#syStatus").innerHTML="";$("#syFilter").innerHTML="";$("#syOut").innerHTML="";if($("#syFile").files[0])$("#syFile").onchange()};
+ $("#syFile").onchange=async()=>{const f=$("#syFile").files[0];if(!f)return;$("#syStatus").textContent="reading the file…";$("#syFilter").innerHTML="";$("#syOut").innerHTML="";
+  try{const r=await fetch(`/v1/sources/uploads?filename=${encodeURIComponent(f.name)}&entity=${SYNC_ENTITY[SY.kind]}&${who()}`,{method:"POST",body:f});const j=await r.json();if(!r.ok)throw new Error(typeof j.detail==="string"?j.detail:r.statusText);
+   SY.upload=j;$("#syStatus").innerHTML=`<span class="pill good">Read</span> ${esc(j.filename)}: ${j.rows} row(s) · ${Object.entries(j.mapping).map(([fl,c])=>`${esc(c)} → ${esc(fl)}`).join(", ")}${j.unmapped_fields.length?`<div class="muted">not in the file: ${j.unmapped_fields.map(esc).join(", ")}</div>`:""}`;syncFilter()}
+  catch(e){$("#syStatus").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+function syncFilter(){const k=syncLabel();const today=new Date().toISOString().slice(0,10),from=today.slice(0,8)+"01";
+ $("#syFilter").innerHTML=`<div style="margin-top:12px;padding:10px;border:1px solid var(--line);border-radius:10px"><b class="small">Import ${esc(k[1].toLowerCase())}</b>
+  <div class="row" style="gap:16px;margin-top:8px;flex-wrap:wrap"><label class="check small"><input type="radio" name="syMode" value="range" checked> Every one between two dates</label><label class="check small"><input type="radio" name="syMode" value="one"> One ${esc(k[2])}</label></div>
+  <div id="syRange" class="row" style="gap:8px;margin-top:8px;flex-wrap:wrap"><label class="small">From <input type="date" id="syFrom" value="${from}"></label><label class="small">To <input type="date" id="syTo" value="${today}"></label><label class="check small"><input type="checkbox" id="syAll"> all dates</label></div>
+  <div id="syOne" class="row" style="gap:8px;margin-top:8px;display:none"><input id="syNum" placeholder="${esc(k[2])}" style="width:220px"></div>
+  <div class="row" style="gap:8px;margin-top:10px"><button id="syPrev">Preview</button><button class="primary" id="syGo">Import</button></div></div>`;
+ // one mode at a time: a range (or all dates) has no number; one number has no dates
+ const mode=()=>{const one=document.querySelector("[name=syMode]:checked").value==="one";
+  $("#syRange").style.display=one?"none":"flex";$("#syOne").style.display=one?"flex":"none";
+  $("#syNum").disabled=!one;$("#syAll").disabled=one;$("#syFrom").disabled=$("#syTo").disabled=one||$("#syAll").checked;if(one)$("#syNum").focus()};
+ document.querySelectorAll("[name=syMode]").forEach(x=>x.onchange=mode);$("#syAll").onchange=mode;mode();
+ $("#syPrev").onclick=()=>syncRun(true);$("#syGo").onclick=()=>syncRun(false)}
+async function syncRun(dry){const one=document.querySelector("[name=syMode]:checked").value==="one";
+ if(one&&!$("#syNum").value.trim()){$("#syOut").innerHTML='<div class="err small">enter the number to import</div>';return}
+ const body={via:SY.via,kind:SY.kind,dry_run:dry,number:one?$("#syNum").value.trim():null,date_from:!one&&!$("#syAll").checked?$("#syFrom").value||null:null,date_to:!one&&!$("#syAll").checked?$("#syTo").value||null:null};
+ if(SY.via==="api")body.connector_id=SY.connector;else{body.upload_id=SY.upload.upload_id;body.mapping=SY.upload.mapping}
+ $("#syOut").innerHTML='<div class="small muted" style="margin-top:8px">working…</div>';
+ try{const r=await api(`/v1/intake/import?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+  const lo=Object.entries(r.left_out||{}).map(([w,n])=>`${n} ${esc(w)}`).join(" · ");
+  $("#syOut").innerHTML=`<div class="small" style="margin-top:10px;padding:8px 10px;border-radius:8px;background:${r.matched?"var(--note)":"var(--warnlt)"};border:1px solid var(--line)">
+   ${r.message?`<b>${esc(r.message)}</b>`:`<b>${dry?"Preview":"Imported"}:</b> ${r.matched} of ${r.total} match${lo?` (left out: ${lo})`:""}.`}
+   ${r.created&&r.created.length?`<div><span class="pill good">${dry?"would create":"created"}</span> ${r.created.map(esc).join(", ")}</div>`:""}
+   ${r.updated&&r.updated.length?`<div><span class="pill info">${dry?"would update":"updated"}</span> ${r.updated.map(esc).join(", ")}</div>`:""}
+   ${r.unchanged&&r.unchanged.length?`<div><span class="pill">unchanged</span> ${r.unchanged.map(esc).join(", ")}</div>`:""}
+   ${r.rejected&&r.rejected.length?`<div style="margin-top:4px"><span class="pill critical">refused</span> ${r.rejected.map(x=>`row ${x.row}${x.external_id?` (${esc(x.external_id)})`:""}: ${esc(x.error)}`).join("<br>")}</div>`:""}
+   ${dry&&r.matched?'<div class="muted" style="margin-top:4px">Nothing is written yet: press Import.</div>':""}</div>`;
+  if(!dry){toast(`Imported ${r.created.length} new, ${r.updated.length} updated`,"good");if(SY.via==="dataset")SY.upload=null,$("#syFilter").innerHTML="";inTab(INTAB)}}
+ catch(e){$("#syOut").innerHTML=`<div class="err small" style="margin-top:8px">${esc(e.message)}</div>`}}
+
+// ---- Intake → Travel authorisation: the register of approved trips
+let TAS=[];
+async function taView(){try{await loadOrg();TAS=await api("/v1/intake/travel-authorisations");taRender()}catch(e){$("#taBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function taRender(){const q=$("#taQ").value.trim().toLowerCase();const rows=TAS.filter(t=>!q||[t.ta_number,t.traveller_name,t.destination].some(x=>String(x||"").toLowerCase().includes(q)));
+ $("#taBody").classList.remove("empty");
+ $("#taBody").innerHTML=table([{h:"TA number",f:t=>`<b class="mono">${esc(t.ta_number)}</b>`},{h:"Traveller",f:t=>esc(t.traveller_name)},{h:"Route",f:t=>`${esc(t.origin)} → ${esc(t.destination)}`},
+  {h:"Dates",f:t=>`${esc(t.start)} → ${esc(t.end)}`},{h:"Purpose",f:t=>`<span class="small">${esc(t.purpose||"-")}</span>`},{h:"Estimate",num:1,f:t=>t.estimated_minor!=null?fmt(t.estimated_minor,t.currency):"-"},
+  {h:"Approved by",f:t=>`<span class="small">${esc(t.approved_by||"-")}</span>`},{h:"Status",f:t=>pill(t.status)},
+  {h:"",f:t=>t.synced_from?SYNCED(t.synced_from):`<button data-taed="${esc(t.ta_number)}">Edit</button>`}],rows,"no travel authorisation yet");
+ $("#taBody").querySelectorAll("[data-taed]").forEach(b=>b.onclick=()=>taForm(TAS.find(t=>t.ta_number===b.dataset.taed)))}
+function taForm(t){const rec=t?Object.fromEntries(Object.entries(t).filter(([k])=>!["traveller_name","synced_from"].includes(k))):{currency:ORG.standards?.base_currency||"USD",status:"APPROVED",approved_by:actor().name};
+ openForm(t?`Edit ${t.ta_number}`:"New travel authorisation",[{k:"traveller",l:"Traveller",opts:ORG.users.filter(u=>u.active!==false).map(u=>[u.user_id,u.name])},
+  {k:"origin",l:"From (Country/City)",req:1},{k:"destination",l:"To (Country/City)",req:1},{k:"start",l:"Start",type:"date",req:1},{k:"end",l:"End",type:"date",req:1},
+  {k:"purpose",l:"Purpose"},{k:"estimated_minor",l:"Estimated cost",money:1,nullable:1},{k:"currency",l:"Currency",max:3},{k:"charge_code",l:"Charge code",nullable:1},
+  {k:"approved_by",l:"Approved by"},{k:"status",l:"Status",opts:[["APPROVED","Approved"],["CLAIMED","Claimed"],["CANCELLED","Cancelled"]]}],rec,"travel-authorisations",taView)}
+$("#taQ").oninput=taRender;$("#taNew").onclick=()=>taForm(null);
+// ---- Intake → 5 Cash advance · 6 Petty cash / slush fund · 7 Other direct cost
+const FR_KIND={ca:"cash_advance",pc:"petty_cash",odc:"odc"};const FR_LABEL={cash_advance:"cash advance",petty_cash:"petty cash request",odc:"other direct cost"};
+const FR_TONE={SUBMITTED:"warn",APPROVED:"good",IN_PAYMENT:"info",SETTLED:"good",REJECTED:"critical",DRAFT:"",CANCELLED:""};
+let FRS=[];
+async function frView(){$("#frNew").textContent=`New ${FR_LABEL[FR_KIND[INTAB]]}`;try{await loadOrg();await suppliers();FRS=await api(`/v1/fund-requests?kind=${FR_KIND[INTAB]}`);frRender()}catch(e){$("#frBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function frRender(){const k=FR_KIND[INTAB],odc=k==="odc",q=$("#frQ").value.trim().toLowerCase(),st=$("#frSt").value;
+ const rows=FRS.filter(r=>(!q||[r.request_number,r.requested_by_name,r.purpose,r.activity].some(x=>String(x||"").toLowerCase().includes(q)))&&(!st||r.status===st));
+ const n=s=>FRS.filter(r=>r.status===s).length,open=FRS.filter(r=>["APPROVED","IN_PAYMENT"].includes(r.status));
+ const sum=list=>[...new Set(list.map(r=>r.currency))].map(c=>fmt(list.filter(r=>r.currency===c).reduce((a,r)=>a+r.amount_minor,0),c)).join("<br>")||"-";
+ const due=FRS.filter(r=>r.status==="IN_PAYMENT"&&r.settle_by&&r.settle_by<new Date().toISOString().slice(0,10));
+ $("#frTiles").innerHTML=cmTile("Requests",FRS.length)+cmTile("Waiting for a decision",n("SUBMITTED"))+cmTile(odc?"Approved or in payment":"Outstanding (not settled)",sum(open))+(odc?cmTile("Paid",n("IN_PAYMENT")):cmTile("Settlement overdue",due.length))+cmTile(odc?"Rejected":"Settled",odc?n("REJECTED"):n("SETTLED"));
+ $("#frBody").classList.remove("empty");
+ $("#frBody").innerHTML=table([{h:"Number",f:r=>`<b class="mono">${esc(r.request_number)}</b><div class="small muted">${esc(r.request_date||"")}</div>`},
+  {h:odc?"Requested by":k==="petty_cash"?"Custodian":"Person",f:r=>esc(r.requested_by_name)},
+  {h:"Purpose",f:r=>`${esc(r.purpose)}${r.activity?`<div class="small muted">${esc(r.activity)}</div>`:""}`},{h:"Amount",num:1,f:r=>`<b>${fmt(r.amount_minor,r.currency)}</b>`},
+  {h:"Paid to",f:r=>r.payee_id?esc(r.payee_name||r.payee_id):`<span class="small" style="color:var(--warn)">${odc?"no supplier yet":"no own account yet · <a href=\"#/users\">People &amp; roles</a>"}</span>`},
+  {h:"Charge code",f:r=>`<span class="mono">${esc(r.charge_code)}</span>`},
+  {h:odc?"Needed by":"Needed by · settle by",f:r=>`${esc(r.needed_by||"-")}${odc?"":`<div class="small ${r.status==="IN_PAYMENT"&&r.settle_by&&r.settle_by<new Date().toISOString().slice(0,10)?"err":"muted"}">settle by ${esc(r.settle_by||"-")}</div>`}`},
+  {h:"Status",f:r=>`<span class="pill ${FR_TONE[r.status]??""}">${esc(r.status.replace("_"," "))}</span>${r.decided_by?`<div class="small muted">${esc(r.decided_by)}${r.decision_note?` · ${esc(r.decision_note)}`:""}</div>`:""}${r.status==="SETTLED"&&r.settled_minor!=null?`<div class="small">receipts ${fmt(r.settled_minor,r.currency)} · ${r.amount_minor>=r.settled_minor?`returned ${fmt(r.amount_minor-r.settled_minor,r.currency)}`:`reimbursed ${fmt(r.settled_minor-r.amount_minor,r.currency)}`}</div>`:""}`},
+  {h:"",f:r=>`<div class="acts">${r.synced_from?SYNCED(r.synced_from):""}${["DRAFT","SUBMITTED"].includes(r.status)&&!r.synced_from?`<button data-fred="${esc(r.request_number)}">Edit</button>`:""}${r.status==="SUBMITTED"?`<button class="primary" data-frd="approve" data-fr="${esc(r.request_number)}">Approve</button><button data-frd="reject" data-fr="${esc(r.request_number)}">Reject</button>`:""}${r.status==="APPROVED"?`<button class="primary" data-frpay="${esc(r.request_number)}">Send to payment</button>`:""}${r.status==="IN_PAYMENT"&&!odc?`<button data-frset="${esc(r.request_number)}">Settle</button>`:""}</div>`}],rows,`no ${FR_LABEL[k]} yet`);
+ const go=async(url,body,ok)=>{try{await api(url,{method:"POST",headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined});toast(ok,"good");frView()}catch(e){toast(esc(e.message),"serious")}};
+ $("#frBody").querySelectorAll("[data-fred]").forEach(b=>b.onclick=()=>frForm(FRS.find(r=>r.request_number===b.dataset.fred)));
+ $("#frBody").querySelectorAll("[data-frd]").forEach(b=>b.onclick=()=>{const note=prompt(`${b.dataset.frd==="approve"?"Approve":"Reject"} ${b.dataset.fr} as ${actor().name} — note (optional)`,"");if(note===null)return;
+  go(`/v1/fund-requests/${encodeURIComponent(b.dataset.fr)}/decision?${who()}`,{decision:b.dataset.frd,note},`${b.dataset.fr} ${b.dataset.frd==="approve"?"approved":"rejected"}`)});
+ $("#frBody").querySelectorAll("[data-frpay]").forEach(b=>b.onclick=()=>{if(!confirm(`Send ${b.dataset.frpay} to Pending payment?`))return;go(`/v1/fund-requests/${encodeURIComponent(b.dataset.frpay)}/pay?${who()}`,null,`${b.dataset.frpay} is in Pending payment`)});
+ $("#frBody").querySelectorAll("[data-frset]").forEach(b=>b.onclick=()=>{const r=FRS.find(x=>x.request_number===b.dataset.frset);const v=prompt(`Settle ${r.request_number}: the receipts accounted for (${r.currency}; advanced ${(r.amount_minor/100).toFixed(2)})`,(r.amount_minor/100).toFixed(2));
+  if(v===null)return;const m=Math.round(parseFloat(v)*100);if(!(m>=0)){toast("enter the amount of the receipts","serious");return}
+  go(`/v1/fund-requests/${encodeURIComponent(r.request_number)}/settle?${who()}`,{settled_minor:m,note:"settled on the dashboard"},`${r.request_number} settled`)})}
+function frForm(r){const k=r?r.kind:FR_KIND[INTAB],odc=k==="odc",cc=(ORG.units.find(u=>u.unit_id===((ORG.users.find(u=>u.name===actor().name)||{}).unit_id))||{}).cost_centre||"HQ-100";
+ const rec=r?Object.fromEntries(Object.entries(r).filter(([x])=>!["requested_by_name","payee_name","synced_from"].includes(x))):{kind:k,requested_by:(ORG.users.find(u=>u.name===actor().name)||{}).user_id,currency:ORG.standards?.base_currency||"USD",status:"SUBMITTED",charge_code:`${cc}.OPS.${odc?"6900":"1400"}`};
+ openForm(r?`Edit ${r.request_number}`:`New ${FR_LABEL[k]}`,[{k:"requested_by",l:odc?"Requested by":k==="petty_cash"?"Custodian":"Person receiving the advance",opts:ORG.users.filter(u=>u.active!==false).map(u=>[u.user_id,`${u.name} · ${ROLES[u.role]||u.role}`])},
+  {k:"payee_id",l:odc?"Paid to (supplier or person)":"Paid to",nullable:1,opts:[["",odc?"to be chosen":"the person's own account (People & roles)"],...Object.values(SUPPLIERS).map(p=>[p.id,`${p.name} · ${p.currency||""}`])]},
+  {k:"amount_minor",l:"Amount",money:1,req:1},{k:"currency",l:"Currency",max:3,req:1},{k:"charge_code",l:`Charge code (office . project . ${odc?"6900":"1400"})`,req:1},
+  {k:"purpose",l:"Purpose",req:1},{k:"activity",l:odc?"Programme activity":"Activity or use"},{k:"needed_by",l:"Needed by",type:"date",nullable:1},
+  ...(odc?[]:[{k:"settle_by",l:"Settle by (receipts due)",type:"date",nullable:1}]),{k:"status",l:"Status",opts:[["SUBMITTED","Submit for a decision"],["DRAFT","Keep as a draft"]]}],rec,"fund-requests",frView)}
+$("#frQ").oninput=frRender;$("#frSt").onchange=frRender;$("#frNew").onclick=()=>frForm(null);
+
+
+
+// ---- Payment → Balance received: what other parties paid into the Airwallex account
+let BR=null;const BR_TONE={"Confirmed on Airwallex":"good","Deposit arriving":"info","Awaiting the deposit":"warn","Received, not recorded":"serious"};
+const BR_CAT={customer_payment:"Customer payment",refund:"Refund",grant_or_donation:"Grant or donation",loan:"Loan",capital:"Capital",other:"Other"};
+function brTab(t){document.querySelectorAll("#brTabs [data-btab]").forEach(b=>b.classList.toggle("on",b.dataset.btab===t));document.querySelectorAll("[data-bpane]").forEach(x=>x.hidden=x.dataset.bpane!==t);if(t==="ga")receivingView();else brLoad()}
+document.querySelectorAll("#brTabs [data-btab]").forEach(b=>b.onclick=()=>brTab(b.dataset.btab));
+function brView(){brTab(document.querySelector("#brTabs .on")?.dataset.btab||"rc")}
+async function brLoad(){try{BR=await api("/v1/receipts");brRender()}catch(e){$("#brBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function brRender(){const d=BR;if(!d)return;const q=$("#brQ").value.trim().toLowerCase(),st=$("#brSt").value;
+ const rows=d.rows.filter(r=>(!q||[r.payer_name,r.customer,r.reference,r.invoice&&r.invoice.invoice_no].some(x=>String(x||"").toLowerCase().includes(q)))&&(!st||r.state===st));
+ const n=s=>d.rows.filter(r=>r.state===s).length;
+ $("#brTiles").innerHTML=cmTile("Received and settled",Object.entries(d.settled_by_currency).map(([c,v])=>fmt(v,c)).join("<br>")||"-")+cmTile("Confirmed on Airwallex",n("Confirmed on Airwallex"))+cmTile("Awaiting the deposit",n("Awaiting the deposit"))+cmTile("Received, not recorded",n("Received, not recorded"));
+ $("#brBody").classList.remove("empty");
+ $("#brBody").innerHTML=(d.airwallex_error?`<div class="small" style="margin-bottom:8px;color:var(--warn)">Airwallex deposits could not be read: ${esc(d.airwallex_error)}. Recorded payments are shown.</div>`:"")+table([
+  {h:"Received",f:r=>`${esc(r.received_date||"-")}${r.receipt_id?`<div class="small muted mono">${esc(r.receipt_id)}</div>`:""}`},
+  {h:"Paid by",f:r=>`<b>${esc(r.payer_name)}</b>${r.customer?`<div class="small muted">customer: ${esc(r.customer)}</div>`:""}`},{h:"Amount",num:1,f:r=>`<b>${fmt(r.amount_minor,r.currency)}</b>`},
+  {h:"Into",f:r=>`<span class="small">${esc(r.account||(r.deposit&&r.deposit.account)||"-")}</span>`},{h:"Reference",f:r=>`<span class="small">${esc(r.reference||"-")}</span>`},
+  {h:"Settles",f:r=>r.invoice?`<span class="small">invoice <b class="mono">${esc(r.invoice.invoice_no)}</b> · ${fmt(r.invoice.amount_minor,r.currency)}</span>`:`<span class="small muted">${esc(BR_CAT[r.category]||"-")}</span>`},
+  {h:"State",f:r=>`<span class="pill ${BR_TONE[r.state]||""}">${esc(r.state)}</span>${r.deposit?`<div class="small muted">Airwallex ${esc(r.deposit.status||"")}</div>`:""}`},
+  {h:"",f:(r)=>r.receipt_id?(r.deposit?'<span class="pill" data-tip="Confirmed by the Airwallex deposit">🔒</span>':`<div class="acts"><button data-bred="${esc(r.receipt_id)}">Edit</button><button data-brdel="${esc(r.receipt_id)}">Delete</button></div>`):`<button class="primary" data-brrec="${esc(r.deposit.deposit_id)}">Record</button>`}],rows,"no payment received yet");
+ $("#brBody").querySelectorAll("[data-bred]").forEach(b=>b.onclick=()=>brForm(d.rows.find(r=>r.receipt_id===b.dataset.bred)));
+ $("#brBody").querySelectorAll("[data-brrec]").forEach(b=>b.onclick=()=>{const r=d.rows.find(x=>x.deposit&&x.deposit.deposit_id===b.dataset.brrec);brForm({payer_name:r.payer_name,customer_id:r.customer_id,amount_minor:r.amount_minor,currency:r.currency,received_date:r.received_date,account:r.account,reference:r.reference,category:"customer_payment"})});
+ $("#brBody").querySelectorAll("[data-brdel]").forEach(b=>b.onclick=async()=>{if(!confirm(`Delete ${b.dataset.brdel}?`))return;try{await api(`/v1/org/receipts/${encodeURIComponent(b.dataset.brdel)}?${who()}`,{method:"DELETE"});toast("Deleted","good");brLoad()}catch(e){toast(esc(e.message),"serious")}})}
+function brForm(r){const d=BR;const rec=r?Object.fromEntries(Object.entries(r).filter(([k])=>!["state","deposit","customer","invoice"].includes(k))):{currency:"USD",category:"customer_payment",received_date:new Date().toISOString().slice(0,10)};
+ openForm(r&&r.receipt_id?`Edit ${r.receipt_id}`:"Record a payment received",[{k:"payer_name",l:"Paid by (as on the bank statement)",req:1},
+  {k:"customer_id",l:"Customer",nullable:1,opts:[["","not a customer"],...d.customers.map(c=>[c.id,`${c.name}${c.currency?` · ${c.currency}`:""}`])]},
+  {k:"amount_minor",l:"Amount received",money:1,req:1},{k:"currency",l:"Currency",max:3,req:1},{k:"received_date",l:"Date received",type:"date",req:1},
+  {k:"account",l:"Into receiving account",opts:[["",d.accounts.length?"choose the account":"no receiving account yet"],...d.accounts.map(a=>[a.label,a.label])]},
+  {k:"reference",l:"Payer's reference (e.g. the invoice number)"},{k:"receivable_id",l:"Settles invoice",nullable:1,opts:[["","none"],...d.receivables.map(x=>[x.receivable_id,`${x.invoice_no} · ${fmt(x.amount_minor,x.currency)} · due ${x.due_date}`])]},
+  {k:"category",l:"What it is",opts:Object.entries(BR_CAT)},{k:"note",l:"Note"}],rec,"receipts",brLoad)}
+$("#brQ").oninput=brRender;$("#brSt").onchange=brRender;$("#brNew").onclick=()=>brForm(null);
+
+// ---- Intake → 2 · Purchase order and 3 · Consultant & resource persons: everything received; locked on number and value
+let RG=null;const RG_TONE={"In Commitments":"good","Needs payee":"warn",Expired:"critical",Closed:"",Cancelled:""};
+
+async function rgView(){try{RG=await api("/v1/intake/commitments");rgRender()}catch(e){$("#rgBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function rgRender(){const d=RG;if(!d)return;const q=$("#rgQ").value.trim().toLowerCase(),st=$("#rgSt").value,src=$("#rgSrc").value;
+ const mine=d.rows.filter(r=>INTAB==="po"?r.type==="purchase order":r.type!=="purchase order");
+ const rows=mine.filter(r=>(!q||[r.number,r.party,r.type].some(x=>String(x||"").toLowerCase().includes(q)))&&(!st||r.state===st)&&(!src||r.source.kind===src));
+ const n=s=>mine.filter(r=>r.state===s).length;
+ $("#rgActs").innerHTML=INTAB==="po"?'<button class="primary" id="rgNewPO">New PO</button>':'<button class="primary" id="rgNewCon">New consultant contract</button><button class="primary" id="rgNewEng">New one-off engagement</button>';
+ if($("#rgNewPO"))$("#rgNewPO").onclick=()=>poForm({_after:rgView});if($("#rgNewCon"))$("#rgNewCon").onclick=()=>poForm({loe_unit:"day",_contract:true,_after:rgView});if($("#rgNewEng"))$("#rgNewEng").onclick=()=>rgEngForm(null,false);
+ $("#rgTiles").innerHTML=cmTile("Received",mine.length)+cmTile("In Commitments",n("In Commitments"))+cmTile("Needs payee",n("Needs payee"))+cmTile("Expired",n("Expired"))+cmTile("Closed or cancelled",n("Closed")+n("Cancelled"));
+ $("#rgBody").classList.remove("empty");
+ $("#rgBody").innerHTML=table([{h:"Number",f:r=>`<b class="mono">${esc(r.number)}</b><div class="small muted">${esc(r.type)}</div>`},{h:"Counterparty",f:r=>esc(r.party||"-")},
+  {h:"Value",num:1,f:r=>`${r.locked?"🔒 ":""}${fmt(r.value_minor,r.currency)}${r.account_code?`<div class="small muted mono">${esc(r.account_code)}</div>`:""}`},
+  {h:"Paid · pending · open",f:r=>INTAB==="po"?`<div style="min-width:150px">${poBar({po:{total_minor:r.value_minor,currency:r.currency},paid_minor:r.paid_minor,pending_minor:r.pending_minor||0,remaining_minor:r.value_minor-r.paid_minor-(r.pending_minor||0)})}</div><div class="small muted" style="margin-top:4px">${fmt(r.paid_minor,r.currency)} · ${fmt(r.pending_minor||0,r.currency)} · ${fmt(Math.max(r.value_minor-r.paid_minor-(r.pending_minor||0),0),r.currency)}</div>${(r.terms||[]).length?`<div class="small muted">${r.terms.map(x=>`${esc(x.label)}${x.state==="PAID"?" ✓":""}`).join(" · ")}</div>`:""}${r.pr_number?`<div class="small">from <b class="mono">${esc(r.pr_number)}</b></div>`:""}`:fmt(r.paid_minor,r.currency)},
+  {h:"Active → expiry",f:r=>`${esc(r.active_date||"-")} → ${esc(r.expiry_date||"open")}`},
+  {h:"Source",f:r=>`<span class="small"><b>${esc(r.source.label)}</b>${r.source.detail?`<div class="muted">${esc(r.source.detail)}</div>`:""}</span>`},
+  {h:"State",f:r=>`<span class="pill ${RG_TONE[r.state]??""}">${esc(r.state)}</span>${r.state==="In Commitments"?`<div class="small muted">${esc(r.status_label)}</div>`:""}${r.documents_missing&&r.documents_missing.length?`<div class="small" style="color:var(--warn)">missing: ${r.documents_missing.map(esc).join(", ")}</div>`:""}`},
+  {h:"",f:r=>r.synced_from?SYNCED(r.synced_from):`<div class="acts"><button data-rged="${esc(r.number)}">Edit</button>${r.engagement&&!r.locked?`<button data-rgdel="${esc(r.number)}">Delete</button>`:""}</div>`}],rows,"nothing received yet");
+ $("#rgBody").querySelectorAll("[data-rged]").forEach(b=>b.onclick=()=>{const r=d.rows.find(x=>x.number===b.dataset.rged);
+  if(r.engagement)rgEngForm(r.engagement,r.locked);else poForm({...r.po,_after:rgView})});
+ $("#rgBody").querySelectorAll("[data-rgdel]").forEach(b=>b.onclick=async()=>{if(!confirm(`Delete ${b.dataset.rgdel}?`))return;
+  try{await api(`/v1/org/engagements/${encodeURIComponent(b.dataset.rgdel)}?${who()}`,{method:"DELETE"});toast("Deleted","good");rgView()}catch(e){toast(esc(e.message),"serious")}})}
+async function rgEngForm(e,locked){const sup=await suppliers();const d=RG||await api("/v1/intake/commitments");
+ const rec=e?{...e}:{role:"keynote_speaker",currency:"USD",status:"ACTIVE",documents:[],event_date:new Date().toISOString().slice(0,10)};
+ openForm(e?`Edit ${e.engagement_id}${locked?" · locked on its number and fee":""}`:"Register a one-off engagement",[
+  {k:"name",l:"Full name",req:1},{k:"role",l:"Engagement type",opts:Object.entries(d.roles)},{k:"organisation",l:"Organisation or affiliation"},{k:"email",l:"Email",type:"email"},{k:"phone",l:"Phone"},{k:"tax_id",l:"Tax ID"},
+  {k:"payee_id",l:"Registered payee (bank account)",nullable:1,ro:locked,opts:[["","none yet: register the bank account first"],...Object.values(sup).map(p=>[p.id,`${p.name} · ${p.currency||""}`])]},
+  {k:"event",l:"Event, task or matter",req:1},{k:"event_date",l:"Event date",type:"date",req:1},{k:"fee_minor",l:"Fee",money:1,req:1,ro:locked},{k:"currency",l:"Currency",max:3,req:1,ro:locked},
+  {k:"charge_code",l:"Charge code (office . project . account)",req:1},{k:"documents",l:"Documents on file (the engagement letter and the invoice are required before payment)",multi:Object.entries(d.documents)},
+  {k:"note",l:"Note"},{k:"status",l:"Status",opts:[["ACTIVE","Active"],["CANCELLED","Cancelled"]]}],rec,"engagements",rgView)}
+$("#rgQ").oninput=rgRender;$("#rgSt").onchange=rgRender;$("#rgSrc").onchange=rgRender;
+
+
+
 
 // ---- Settings → data sources ---------------------------------------------------------------------------------------
 // green: done; red: the platform cannot run without it; yellow: optional, still open. Each open item says what to do.
@@ -2534,14 +2981,14 @@ async function benView(kind){try{const rows=await api(`/v1/beneficiaries?kind=${
  if(kind==="customer"){el.innerHTML=table([{h:"Customer",f:r=>`<b>${esc(r.name)}</b><div class="small muted">${esc(r.id)}</div>`},{h:"Currency",f:r=>esc(r.currency)},
   {h:"Registered mailboxes",f:r=>`<span class="small">${esc((r.contacts||[]).join(", ")||"-")}</span>`},{h:"Domains / also known as",f:r=>`<span class="small">${esc([...(r.domains||[]),...(r.aliases||[])].join(", ")||"-")}</span>`},
   {h:"Payment history",f:r=>r.history?`<span class="small">${r.history.kept} kept · ${r.history.missed} missed</span>`:'<span class="small muted">none yet</span>'},{h:"Source",f:r=>`<span class="small muted">${esc(r.source)}</span>`},
-  {h:"",f:r=>`<button data-bedit="${esc(r.id)}">Edit</button>`}],rows,"no customer yet")}
+  {h:"",f:r=>r.synced_from?SYNCED(r.synced_from):`<button data-bedit="${esc(r.id)}">Edit</button>`}],rows,"no customer yet")}
  else{el.innerHTML=table([{h:kind==="consultant"?"Consultant":"Vendor",f:r=>`<b>${esc(r.name)}</b><div class="small muted">${esc(r.id)} · ${esc(r.entity_type==="PERSONAL"?"person":"company")}${r.tax_id?` · tax ${esc(r.tax_id)}`:""}${kind==="consultant"?` · ${r.engagement==="regular"?"regular retainer":"short-term"}`:""}</div>`},
   {h:"Paid in",f:r=>`${esc(r.currency)} · ${esc(r.payout_method)}<div class="small muted">priority ${esc(r.default_priority)} · ${esc(r.budget_line||"no budget line")}</div>`},
   {h:"Bank account",f:r=>r.bank?`<span class="small">${esc(r.bank.bank_name||"")} ${esc(r.bank.bank_country_code||"")}<br>${esc(r.bank.iban||r.bank.account_number||"")}${r.bank.swift_code?` · ${esc(r.bank.swift_code)}`:""}${r.bank.routing_value?` · ${esc(r.bank.routing_type||"routing")} ${esc(r.bank.routing_value)}`:""}</span>`:'<span class="pill critical">NO ACCOUNT</span>'},
   {h:"Registered mailboxes · call-back",f:r=>`<span class="small">${esc((r.contacts||[]).join(", ")||"-")}<br>☎ ${esc(r.registered_phone||"no registered number")}</span>`},
   {h:"Status",f:r=>`${pill(r.status||"NEW")}${r.cooling_until?`<div class="small muted">cooling until ${esc(r.cooling_until.slice(0,10))}</div>`:""}`},
   {h:kind==="consultant"?"Contract (purchase orders)":"Purchase orders",f:r=>r.purchase_orders.length?`<span class="small">${r.purchase_orders.map(p=>`${esc(p.po_id)} · ${dmoney(p.total_minor,p.currency)}`).join("<br>")}</span>`:`<span class="small muted">${kind==="consultant"?"no contract on file":"none"}</span>`},
-  {h:"",f:r=>`<button data-bedit="${esc(r.id)}">Edit</button>`}],rows,`no ${kind} yet`)}
+  {h:"",f:r=>r.synced_from?SYNCED(r.synced_from):`<button data-bedit="${esc(r.id)}">Edit</button>`}],rows,`no ${kind} yet`)}
  el.querySelectorAll("[data-bedit]").forEach(b=>b.onclick=()=>benForm(kind,rows.find(r=>r.id===b.dataset.bedit)))}
  catch(e){$(BENV[kind]).innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 document.querySelectorAll("[data-bnew]").forEach(b=>b.onclick=()=>benForm(b.dataset.bnew,null));

@@ -41,8 +41,8 @@ def test_sync_fills_every_table_and_bank_details_start_untrusted(client):
     assert len(dry["vendor"]["created"]) == 4 and client.get("/v1/sources/master/vendor").json() == []
     rep = client.post("/v1/sources/connectors/legacy-erp-demo/sync").json()["reports"]
     assert {e: len(r["created"]) for e, r in rep.items()} == {"unit": 2, "user": 2, "project": 1, "account": 1, "price": 2,
-                                                             "vendor": 4, "customer": 2, "po": 3, "bill": 3, "receivable": 2,
-                                                             "budget_line": 3, "tenant_book": 1}
+                                                             "vendor": 4, "customer": 2, "po": 4, "bill": 3, "receivable": 2,
+                                                             "budget_line": 3, "tenant_book": 1, "pr": 2, "engagement": 1, "ta": 2, "fund_request": 3}
     # records the organisation already had are matched by their key (cost centre, email, code, item), not copied
     assert {e: rep[e]["updated"] for e in ("unit", "user")} == {"unit": ["co-de"], "user": ["u-dana"]} and rep["price"]["unchanged"] == ["p-saas"]
     units = {u["unit_id"]: u for u in client.get("/v1/org/units").json()}

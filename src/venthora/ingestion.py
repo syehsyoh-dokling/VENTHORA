@@ -94,6 +94,11 @@ def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict
             po = PurchaseOrder.model_validate(row)
             old = org.get("po", po.po_id) if po.po_id else None
             data = po.model_dump()
+            if old and not source.startswith("sync:"):
+                changed = [k for k in ("supplier_id", "currency", "total_minor", "loe", "rate_minor") if data.get(k) != old.get(k)]
+                if changed:
+                    raise OrgError(f"{po.po_id} exists and is locked on its number and value ({', '.join(changed)} differ); "
+                                   "upload it as a new PO number, or register an amendment in Intake")
             if old and {k: old.get(k) for k in data} == data:
                 report["unchanged"].append(po.po_id)
                 continue
@@ -108,7 +113,7 @@ def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict
     return report
 
 
-ORG_ENTITIES = ("unit", "user", "project", "account", "price", "allocation", "travel_rate", "engagement")
+ORG_ENTITIES = ("unit", "user", "project", "account", "price", "allocation", "travel_rate", "engagement", "pr", "ta", "fund_request")
 ROLE_WORDS = {"keynote": "keynote_speaker", "speaker": "keynote_speaker", "legal": "legal_specialist", "lawyer": "legal_specialist",
               "counsel": "legal_specialist", "resource": "resource_person", "narasumber": "resource_person", "consult": "consultant"}
 RECURRING_WORDS = {"month": "monthly", "bulan": "monthly", "quarter": "quarterly", "year": "annual", "annual": "annual", "tahun": "annual"}
@@ -158,6 +163,41 @@ def _org_row(entity: str, row: dict, org) -> tuple[dict, dict | None]:
         key = (" ".join(str(row.get("country", "")).split()).lower(), " ".join(str(row.get("city", "")).split()).lower())
         old = next((x for x in org.list("travel_rate") if (x["country"].lower(), x["city"].lower()) == key), None)
         row["rate_id"] = old["rate_id"] if old else "tr-" + _slug(f"{key[0]}-{key[1]}")
+    elif entity == "pr":
+        row["pr_number"] = str(row.get("pr_number") or "").upper() or None
+        old = org.get("pr", row["pr_number"]) if row["pr_number"] else None
+        if row.get("status"):
+            st = str(row["status"]).upper()
+            row["status"] = next((v for w, v in (("ORDER", "ORDERED"), ("APPROV", "APPROVED"), ("REJECT", "REJECTED"), ("DRAFT", "DRAFT"))
+                                  if w in st), "SUBMITTED")
+        if old:  # what VENTHORA added stays: the PO raised from it
+            row.setdefault("po_id", old.get("po_id"))
+    elif entity == "fund_request":
+        row["request_number"] = str(row.get("request_number") or "").upper() or None
+        k = str(row.get("kind") or "").strip().lower()
+        row["kind"] = k if k in ("cash_advance", "petty_cash", "odc") else ("petty_cash" if any(w in k for w in ("petty", "slush", "imprest", "float"))
+                                                                           else "odc" if ("odc" in k or "direct" in k) else "cash_advance")
+        t = str(row.get("requested_by") or "").strip().lower()
+        hit = next((u for u in org.list("user") if t in (u["user_id"].lower(), u["name"].lower(), u["email"].lower())), None)
+        if hit:
+            row["requested_by"] = hit["user_id"]
+        if row.get("status"):
+            st = str(row["status"]).upper()
+            row["status"] = next((v for w, v in (("SETTLE", "SETTLED"), ("PAID", "IN_PAYMENT"), ("APPROV", "APPROVED"), ("REJECT", "REJECTED"),
+                                                 ("CANCEL", "CANCELLED"), ("DRAFT", "DRAFT")) if w in st), "SUBMITTED")
+        old = org.get("fund_request", row["request_number"]) if row["request_number"] else None
+        if old:
+            row.setdefault("intake_id", old.get("intake_id"))
+    elif entity == "ta":
+        row["ta_number"] = str(row.get("ta_number") or "").upper() or None
+        t = str(row.get("traveller") or "").strip().lower()
+        hit = next((u for u in org.list("user") if t in (u["user_id"].lower(), u["name"].lower(), u["email"].lower())), None)
+        if hit:
+            row["traveller"] = hit["user_id"]
+        if row.get("status"):
+            st = str(row["status"]).upper()
+            row["status"] = "CANCELLED" if "CANCEL" in st else "CLAIMED" if "CLAIM" in st else "APPROVED"
+        old = org.get("ta", row["ta_number"]) if row["ta_number"] else None
     elif entity == "engagement":
         if row.get("role"):
             r = str(row["role"]).strip().lower().replace(" ", "_")
@@ -206,6 +246,10 @@ def _organisation(entity: str, keep, rejected, *, source: str, org, dry_run: boo
         for i, (raw, ext) in todo:
             try:
                 row, old = _org_row(entity, raw, org)
+                if entity in ("pr", "fund_request") and not source.startswith("sync:"):
+                    if old and old["status"] not in ("DRAFT", "SUBMITTED"):
+                        raise OrgError(f"{old[ID_FIELD[entity]]} is already {old['status'].lower()}; it no longer changes")
+                    row = row | {"status": "SUBMITTED", "decided_by": None, "decided_at": None}
                 rec = MODELS[entity].model_validate(row)
                 data = rec.model_dump()
                 rid = data[ID_FIELD[entity]]

@@ -103,7 +103,8 @@ class Vendor(Strict):
     transfer_reason: str = Field(default="business_expenses", max_length=60)
     bank: BankDetails | None = None
     address: Address = Field(default_factory=Address)
-    kind: Literal["vendor", "consultant", "employee"] = Field(default="vendor", description="a vendor of goods and services, an expert or consultant, or an employee's own bank account")
+    kind: Literal["vendor", "consultant", "employee"] | None = Field(
+        default=None, description="a vendor of goods and services, an expert or consultant, or an employee's own bank account; when a source does not say, read from the budget line (see vendor_kind)")
     engagement: Literal["regular", "short_term"] | None = Field(default=None, description="a consultant's engagement: a regular retainer or short-term (per deliverable)")
     tax_id: str = Field(default="", max_length=40, description="tax registration: TIN, EIN, VAT, NPWP")
 
@@ -177,6 +178,8 @@ class BudgetLineIn(Strict):
     auto_share_bp: int = Field(default=10_000, ge=0, le=10_000)
     alert_share_bp: int = Field(default=8_000, ge=0, le=10_000)
     require_approval_on_alert: bool = False
+    bypass: bool = Field(default=False, description="unlimited line: honoured only when a person signed it")
+    bypass_approved_by: str | None = Field(default=None, max_length=120, description="who signed the bypass")
 
 
 class TenantBook(Strict):
@@ -257,6 +260,12 @@ class MasterStore:
             r = c.execute("SELECT record_json FROM records WHERE entity = ? AND key = ?", (entity, key)).fetchone()
         return json.loads(r["record_json"]) if r else None
 
+    def source(self, entity: str, key: str) -> str | None:
+        """What wrote the record last: dashboard:<person>, upload:<file>, sync:<connector>."""
+        with self._connect() as c:
+            r = c.execute("SELECT source FROM records WHERE entity = ? AND key = ?", (entity, key)).fetchone()
+        return r["source"] if r else None
+
     def counts(self) -> dict[str, dict[str, int]]:
         with self._connect() as c:
             out: dict[str, dict[str, int]] = {}
@@ -316,6 +325,11 @@ class MasterStore:
 
 
 # -- overlays: what the rest of VENTHORA reads ----------------------------------------------------------------------------
+def vendor_kind(rec: dict) -> str:
+    """vendor, consultant or employee: as recorded, else a contractors budget line (or priority 7) is a consultant."""
+    return rec.get("kind") or ("consultant" if (rec.get("budget_line") == "contractors" or rec.get("default_priority") == 7) else "vendor")
+
+
 def registry_entries(store: MasterStore) -> tuple[dict, dict]:
     """Vendors and customers in the shape of data/payees.json (payees, payers)."""
     payees, payers = {}, {}
@@ -324,7 +338,7 @@ def registry_entries(store: MasterStore) -> tuple[dict, dict]:
                                   "contacts": v["contacts"], "domains": v["domains"], "aliases": [], "invoice_prefix": v["invoice_prefix"] or v["vendor_id"],
                                   "budget_line": v["budget_line"] or None, "default_priority": v["default_priority"],
                                   "lifecycle": {"status": "NEW", "registered_phone": v["registered_phone"] or None}, "_source": v["_source"],
-                                  "kind": v.get("kind", "vendor"), "engagement": v.get("engagement"), "tax_id": v.get("tax_id", ""),
+                                  "kind": vendor_kind(v), "engagement": v.get("engagement"), "tax_id": v.get("tax_id", ""),
                                   "entity_type": v.get("entity_type", "COMPANY")}
     for c in store.list("customer"):
         hist = None
@@ -370,12 +384,15 @@ def beneficiaries(store: MasterStore) -> dict:
     return {v["vendor_id"]: p for v in store.list("vendor") if (p := beneficiary_payload(v))}
 
 
+BUDGET_LINE_FIELDS = ("line", "amount_minor", "auto_share_bp", "alert_share_bp", "require_approval_on_alert", "bypass", "bypass_approved_by")
+
+
 def budget_for(store: MasterStore, period: str) -> dict | None:
     lines = [ln for ln in store.list("budget_line") if ln["period"] == period]
     if not lines:
         return None
     return {"period": period, "unbudgeted_requires_approval": True,
-            "lines": [{k: ln[k] for k in ("line", "amount_minor", "auto_share_bp", "alert_share_bp", "require_approval_on_alert")} for ln in lines]}
+            "lines": [{k: ln.get(k, False if k == "bypass" else None) for k in BUDGET_LINE_FIELDS} for ln in sorted(lines, key=lambda x: x["line"])]}
 
 
 def tenant_overlay(store: MasterStore, registry: dict) -> dict:

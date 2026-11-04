@@ -627,7 +627,8 @@ class Intake:
             self.store.save(req)
         return req
 
-    def _purchase_order(self, text, subject, cid, amount, quotes, flags, reasons, extra, ignore_exceed: bool = False) -> bool:
+    def _purchase_order(self, text, subject, cid, amount, quotes, flags, reasons, extra, ignore_exceed: bool = False,
+                        exclude: str | None = None) -> bool:
         """Match the invoice to the PO it quotes; True when a person must look first."""
         from .. import procurement
 
@@ -646,7 +647,7 @@ class Intake:
         paid = {r["invoice_fingerprint"] for r in (self.payments.po_payments(po_id) if self.payments is not None else [])}
         pending: dict[str, int] = {}
         for r in self.store.list(500):  # accepted or waiting, not yet paid, a valid draw: they hold part of the PO
-            if r.po_number == po_id and procurement.holds(r, paid):
+            if r.po_number == po_id and r.intake_id != exclude and procurement.holds(r, paid):
                 pending[r.installment or r.intake_id] = pending.get(r.installment or r.intake_id, 0) + r.amount_minor
         m = procurement.match(self.org, self.payments, po_id, supplier_id=cid, currency=amount[2] if amount else None,
                               amount_minor=amount[1] if amount else None, pending=pending)
@@ -707,6 +708,74 @@ class Intake:
             text=json.dumps(bill, sort_keys=True), **extra)
         self.store.save(req)
         return req
+
+    # what a person may correct on a request in Pending payment, and the checks that are run again on it
+    CORRECTABLE = ("counterparty_id", "invoice_no", "amount_minor", "currency", "due_date", "po_number", "account_code", "category")
+    RECHECKED = {"po_missing", "po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_exceeded", "po_term_mismatch",
+                 "po_expired", "payee_unknown", "payee_currency_mismatch", "duplicate_invoice"}
+
+    def recheck(self, intake_id: str, changes: dict, *, by: str) -> tuple[IntakeRequest, list[str]]:
+        """A person corrects a request in Pending payment: the corrected fields replace the read ones and the checks
+        are run again on them (the payee is registered and paid in that currency, the PO is open and has room, the
+        invoice is not already in the queue). Returns the request and what still stops it; an empty list means it
+        passes and waits only for an approval. The original reading stays in the reasons."""
+        req = self.store.get(intake_id)
+        if req is None:
+            raise KeyError(intake_id)
+        if req.payment:
+            raise PermissionError("this request is already paid; it no longer changes")
+        if req.status == "REJECTED":
+            raise PermissionError("a rejected request is not paid; raise a new payment order instead")
+        upd = {k: changes[k] for k in self.CORRECTABLE if k in changes}
+        for k in ("invoice_no", "po_number", "currency", "account_code"):
+            if upd.get(k):
+                upd[k] = str(upd[k]).strip().upper()
+        if "po_number" in upd and not upd["po_number"]:
+            upd["po_number"] = None
+        if upd.get("amount_minor") is not None and (not isinstance(upd["amount_minor"], int) or upd["amount_minor"] <= 0):
+            raise ValueError("the amount is above zero")
+        if upd.get("due_date"):
+            dt.date.fromisoformat(upd["due_date"])
+        changed = [f"{k} {getattr(req, k)!r} → {v!r}" for k, v in upd.items() if getattr(req, k) != v]
+        r = req.model_copy(update=upd)
+        reg = self.registry
+        flags = [f for f in r.flags if f not in self.RECHECKED]
+        problems, reasons, extra = [], [], {}
+        rec = reg.payees.get(r.counterparty_id or "") if r.kind != "remittance_notice" else reg.payers.get(r.counterparty_id or "")
+        if rec is None:
+            flags.append("payee_unknown")
+            problems.append("the payee is not a registered beneficiary: choose one, or register it in Users & Beneficiaries")
+        elif rec.get("currency") and r.currency and rec["currency"] != r.currency and r.kind != "expense_claim":
+            flags.append("payee_currency_mismatch")
+            problems.append(f"{rec['name']} is paid in {rec['currency']}, the request is in {r.currency}")
+        if not r.amount_minor or not r.currency:
+            problems.append("the amount and its currency are needed")
+        if r.kind in ("supplier_invoice", "contractor_claim") and self.org is not None and rec is not None and r.amount_minor:
+            quotes: list[Quote] = []
+            amount = (Quote(field="amount", value=f"{r.currency} {r.amount_minor}", quote="corrected by a person", start=-1, end=-1),
+                      r.amount_minor, r.currency)
+            text = f"PO {r.po_number}" if r.po_number else ""
+            hold = self._purchase_order(text, "", r.counterparty_id, amount, quotes, flags, reasons, extra, exclude=r.intake_id)
+            if not r.po_number:
+                extra |= {"po_number": None, "installment": None}
+            if hold:
+                problems += [x for x in reasons if "matched as its next payment" not in x]
+        fp = _fingerprint(rec, (r.invoice_no or "").upper() or None, r.counterparty_id)
+        dup = self.store.fingerprints().get(fp) if fp else None
+        dup = dup if dup and dup != r.intake_id else None
+        if dup:
+            flags.append("duplicate_invoice")
+            problems.append(f"invoice {r.invoice_no} is already in the queue ({dup}); it is never paid twice")
+        note = f"corrected by {by}: " + ("; ".join(changed) if changed else "no field changed") + " · checks run again: " +             ("all pass, waiting for an approval" if not problems else "; ".join(problems))
+        status = "NEEDS_REVIEW" if r.status in ("VERIFIED", "DUPLICATE", "QUARANTINED") else r.status
+        if r.status == "QUARANTINED" and not problems:
+            status = "QUARANTINED"  # a quarantine (an announced bank change) is released by its own review, not by a correction
+        out = r.model_copy(update={"flags": list(dict.fromkeys(flags)), "status": status, "duplicate_of": dup,
+                                   "counterparty_name": (rec or {}).get("name", r.counterparty_name),
+                                   "invoice_fingerprint": fp, "reasons": [note] + [x for x in reasons if x not in problems] + req.reasons,
+                                   **{k: v for k, v in extra.items() if k in ("po_number", "installment", "account_code")}})
+        self.store.save(out)
+        return out, problems
 
     def _po_terms(self, r: IntakeRequest) -> dict:
         """What the plan needs from the PO: its total and what it already paid (the three-way match), the term, the

@@ -123,6 +123,12 @@ BUILT_IN = {"evidence": "Built into how VENTHORA reads documents: a field nobody
 AUTHORITY_ROLES = {"super_admin": "Super admin (FCO)", "cfo": "CFO", "finance_manager": "Finance manager"}
 DEFAULT_AUTHORITY = "super_admin"
 
+# a switch of the standing mandate that is not a row of MANDATES: every payment outside the period's budget lines
+UNBUDGETED = "unbudgeted_requires_approval"
+UNBUDGETED_LABEL = "A payment outside every budget line waits for an approver"
+UNBUDGETED_HELP = ("A payment charged to no budget line of the period (Payment → Budget allocation → Budget lines) is held for a person. "
+                   "Switched off, the agent pays it on its own within the other limits.")
+
 # book-level numbers that are not rows of MANDATES: key -> (label, unit, category, min, max, help)
 BOOK_LIMITS: dict[str, tuple[str, str, str, int, int, str]] = {
     "allocation_minor": ("Allocation ring-fenced from the wallet", "usd", "liquidity", 0, 10**13, "what this book may use at all"),
@@ -150,8 +156,21 @@ def _bounds(unit: str | None) -> tuple[int, int]:
 def standing(org) -> dict:
     rec = org.get("standing_mandate", "standing_mandate") or {}
     return {"values": rec.get("values", {}), "enabled": rec.get("enabled", {}), "book": rec.get("book", {}),
+            "unbudgeted_requires_approval": rec.get("enabled", {}).get(UNBUDGETED),
             "checks": rec.get("checks", {}), "authority_role": rec.get("authority_role", DEFAULT_AUTHORITY),
             "updated_by": rec.get("updated_by_name"), "acknowledged": rec.get("acknowledged", [])}
+
+
+def unbudgeted_rule(org=None) -> bool | None:
+    """The standing mandate's rule for a payment outside every budget line; None when it was never saved."""
+    try:
+        if org is None:
+            from .organisation import OrgStore
+
+            org = OrgStore(seed=False)
+        return standing(org)["unbudgeted_requires_approval"]
+    except Exception:  # noqa: BLE001 - no organisation store: the budget's own rule applies
+        return None
 
 
 def check_modes(org) -> dict[str, str]:
@@ -197,6 +216,9 @@ def warnings(body: dict, setup: dict, org) -> list[dict]:
         if m and was and not v and (m["kind"] in ("guard", "locked")):
             out.append({"key": f"rule:{k}", "title": f"{m['label']}: switched off",
                         "risk": SWITCHABLE_CRITICAL.get(k, "This safeguard is no longer enforced on any run.")})
+    if (body.get("enabled") or {}).get(UNBUDGETED) is False and setup.get(UNBUDGETED, True):
+        out.append({"key": f"rule:{UNBUDGETED}", "title": f"{UNBUDGETED_LABEL}: switched off",
+                    "risk": "A payment that no budget line covers is paid by the agent without a person looking at it."})
     floor = (body.get("book") or {}).get("reserve_floor_minor")
     if floor is not None and floor < setup["reserve_floor_minor"]:
         out.append({"key": "book:reserve_floor_minor", "title": f"Reserve floor: {_fmt('usd', setup['reserve_floor_minor'])} to {_fmt('usd', floor)}",
@@ -225,6 +247,9 @@ def save(org, body: dict, by: str, *, role: str, setup: dict) -> dict:
             raise ValueError(f"{m['label']}: a whole number from {lo} to {hi} is needed")
         values[k] = v
     for k, v in (body.get("enabled") or {}).items():
+        if k == UNBUDGETED:
+            enabled[k] = bool(v)
+            continue
         m = specs.get(k)
         if m is None:
             raise ValueError(f"{k}: unknown rule")
@@ -291,6 +316,8 @@ def view(setup: dict, org, doc_rules_on: bool, role: str | None = None) -> dict:
     limits += [{"key": m["key"], "label": m["label"], "unit": None, "category": RULE_CATEGORY.get(m["key"], "control"), "kind": m["kind"],
                 "enabled": m.get("enabled", True), "help": m.get("help", ""), "critical": False, "switch_only": True}
                for m in setup["mandates"] if m["unit"] is None and m["kind"] != "locked"]
+    limits.append({"key": UNBUDGETED, "label": UNBUDGETED_LABEL, "unit": None, "category": "authority", "kind": "guard",
+                   "enabled": bool(setup.get(UNBUDGETED, True)), "help": UNBUDGETED_HELP, "critical": True, "switch_only": True})
     order = [c["key"] for c in CATEGORIES]
     limits.sort(key=lambda x: order.index(x["category"]))
     return {"categories": cats, "limits": limits, "approval_matrix": setup["approval_matrix"], "approvers": setup["approvers"],

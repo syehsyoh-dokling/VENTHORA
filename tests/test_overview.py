@@ -68,7 +68,7 @@ def test_balance_equivalents_and_the_four_numbers(client):
     assert (o["cash_in"]["base_minor"], o["cash_in"]["count"]) == (400_000, 1)  # the customer's; the 2020 one is outside the period
     assert (o["cash_in"]["top_ups_base_minor"], o["cash_in"]["top_ups_count"]) == (5_000_000, 1)  # a top-up is not cash in
     acts = {a["label"]: a for a in o["actions"]["items"]}
-    assert acts["invoices and claims to approve or reject"]["count"] >= 1 and acts["invoices and claims to approve or reject"]["href"] == "#/intake?needs"
+    assert acts["invoices and claims to approve or reject"]["count"] >= 1 and acts["invoices and claims to approve or reject"]["href"] == "#/pending?needs"
     assert o["actions"]["count"] == sum(a["count"] for a in o["actions"]["items"])
     client.state["pos"] = _pos(20_000, [_req("NEEDS_REVIEW", 30_000, intake_id=rec["intake_id"])])
     o = client.get("/v1/treasury/overview?span=day").json()

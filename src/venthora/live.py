@@ -205,6 +205,16 @@ def defaults(scenario: str, executor: Executor, standing: dict | None = None) ->
             row["enabled"] = bool(standing["enabled"][m["key"]])
         mandates.append(row)
     budget = st.get("budget") or {}
+    from .masterdata import MasterStore, budget_for
+
+    try:  # the lines set in Payment -> Budget allocation for this month replace the scenario's
+        mine = budget_for(MasterStore(), period_of("monthly", today)["period"])
+    except Exception:  # noqa: BLE001 - no master data store
+        mine = None
+    if mine:
+        budget = {**budget, "lines": mine["lines"]}
+    if (standing or {}).get("unbudgeted_requires_approval") is not None:
+        budget = {**budget, "unbudgeted_requires_approval": standing["unbudgeted_requires_approval"]}
     book = (standing or {}).get("book", {})
     return {"scenario": scenario, "goal": (raw.get("goal") or {}).get("text", ""), "book_name": raw.get("book_name", st["book_id"]),
             "tenant_name": raw.get("tenant_name", ""), "allocation_minor": book.get("allocation_minor", st["balances"]["USD"]),

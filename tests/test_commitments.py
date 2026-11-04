@@ -119,8 +119,9 @@ def test_the_commitments_endpoint_lists_every_tab(client):
     okafor = next(c for c in d["consultants"] if c["id"] == "ben-contractor-okafor")
     assert [c["po_id"] for c in okafor["contracts"]] == ["PO-2026-0104"]  # its one-off engagement sits in its own tab
     assert okafor["contracts"][0]["loe"] == 192.0
-    assert {e["engagement_id"] for e in d["engagements"]} >= {"ENG-2026-001", "ENG-2026-002"}
-    assert {e["role_label"] for e in d["engagements"]} >= {"Keynote speaker", "Consultant"}
+    # only an engagement with its PO (it has a payee) is a commitment; the keynote without a payee waits in Intake
+    assert {e["engagement_id"] for e in d["engagements"]} == {"ENG-2026-002"}
+    assert {e["role_label"] for e in d["engagements"]} == {"Consultant"}
     assert set(d["roles"]) == {"consultant", "legal_specialist", "resource_person", "keynote_speaker"}
     assert all(k in d for k in ("customers", "staff"))
     amira = next(u for u in d["staff"] if u["name"] == "Amira Shah")

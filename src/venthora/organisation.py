@@ -116,6 +116,108 @@ class PurchaseOrder(BaseModel):
     loe: float | None = Field(default=None, gt=0, le=100_000, description="a consultant contract: the level of effort bought")
     loe_unit: Literal["day", "hour", "month"] = "day"
     rate_minor: int | None = Field(default=None, gt=0, le=10**12, description="a consultant contract: the fee per LoE unit")
+    pr_number: str | None = Field(default=None, max_length=40, description="the approved purchase request it was raised from")
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, v: str) -> str:
+        return _ccy(v)
+
+
+class PurchaseRequest(BaseModel):
+    """What someone in the organisation asks to buy, before there is a PO: approved by a person other than the
+    requester, then raised as a purchase order that may not exceed the approved estimate."""
+    pr_number: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$", description="the PR number")
+    title: str = Field(min_length=2, max_length=200, description="what is to be bought")
+    requested_by: str = Field(min_length=1, max_length=120, description="the person asking, from People and roles")
+    supplier_id: str | None = Field(default=None, max_length=80, description="the suggested supplier, a registered payee")
+    currency: str = "USD"
+    estimated_minor: int = Field(gt=0, le=10**13)
+    charge_code: str = Field(min_length=5, max_length=60)
+    needed_by: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    requested_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="the day it was asked (today when blank)")
+    justification: str = Field(default="", max_length=500)
+    status: Literal["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ORDERED"] = "SUBMITTED"
+    decided_by: str | None = Field(default=None, max_length=120)
+    decided_at: str | None = None
+    decision_note: str = Field(default="", max_length=300)
+    po_id: str | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, v: str) -> str:
+        return _ccy(v)
+
+
+class TravelAuthorisation(BaseModel):
+    """A trip approved before it is made: who travels, from where to where, when, why, and the estimated cost. The
+    claim after the trip is checked against the travel rates and policy in the Delegation of Authority."""
+    ta_number: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$", description="the travel authorisation number")
+    traveller: str = Field(min_length=1, max_length=40, description="user_id of the person travelling (People and roles)")
+    origin: str = Field(min_length=2, max_length=120, description="Country/City")
+    destination: str = Field(min_length=2, max_length=120, description="Country/City")
+    start: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    end: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    purpose: str = Field(default="", max_length=500)
+    estimated_minor: int | None = Field(default=None, gt=0, le=10**12)
+    currency: str = "USD"
+    charge_code: str | None = Field(default=None, max_length=60)
+    status: Literal["APPROVED", "CANCELLED", "CLAIMED"] = "APPROVED"
+    approved_by: str = Field(default="", max_length=120)
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, v: str) -> str:
+        return _ccy(v)
+
+
+FUND_KINDS = {"cash_advance": ("CA", "Cash advance"), "petty_cash": ("PC", "Petty cash / slush fund"), "odc": ("ODC", "Other direct cost")}
+
+
+class FundRequest(BaseModel):
+    """A cash advance to a person, a petty cash (slush fund) float or its top-up for a custodian, or an other direct
+    cost of a programme activity: asked by one person, decided by another, then sent to Pending payment. An advance
+    or a float is settled later against receipts."""
+    request_number: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$")
+    kind: Literal["cash_advance", "petty_cash", "odc"]
+    requested_by: str = Field(min_length=1, max_length=40, description="user_id of the person asking (the custodian for petty cash)")
+    payee_id: str | None = Field(default=None, max_length=80, description="who is paid: the person's own account, or the supplier for an ODC")
+    amount_minor: int = Field(gt=0, le=10**12)
+    currency: str = "USD"
+    charge_code: str = Field(min_length=5, max_length=60)
+    purpose: str = Field(min_length=2, max_length=300)
+    activity: str = Field(default="", max_length=160, description="the programme activity (ODC) or the float's use")
+    request_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    needed_by: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    settle_by: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="an advance or a float: when receipts are due")
+    status: Literal["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "IN_PAYMENT", "SETTLED", "CANCELLED"] = "SUBMITTED"
+    decided_by: str | None = Field(default=None, max_length=120)
+    decided_at: str | None = None
+    decision_note: str = Field(default="", max_length=300)
+    intake_id: str | None = None
+    settled_minor: int | None = Field(default=None, ge=0, le=10**12, description="receipts accounted for at settlement")
+    settlement_note: str = Field(default="", max_length=300)
+
+    @field_validator("currency")
+    @classmethod
+    def check_currency(cls, v: str) -> str:
+        return _ccy(v)
+
+
+class Receipt(BaseModel):
+    """Money another party paid into the organisation's Airwallex account: who paid, how much, when, into which
+    receiving account, and the customer invoice it settles. Confirmed once Airwallex reports the deposit."""
+    receipt_id: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$")
+    payer_name: str = Field(min_length=1, max_length=160, description="who paid, as on the bank statement")
+    customer_id: str | None = Field(default=None, max_length=80, description="the customer, when the payer is one")
+    amount_minor: int = Field(gt=0, le=10**13)
+    currency: str = "USD"
+    received_date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    account: str = Field(default="", max_length=120, description="the receiving account (Global Account) it was paid into")
+    reference: str = Field(default="", max_length=120, description="the payer's reference, e.g. the invoice number")
+    receivable_id: str | None = Field(default=None, max_length=80, description="the open customer invoice it settles")
+    category: Literal["customer_payment", "refund", "grant_or_donation", "loan", "capital", "other"] = "customer_payment"
+    note: str = Field(default="", max_length=300)
 
     @field_validator("currency")
     @classmethod
@@ -317,9 +419,12 @@ CREATE TABLE IF NOT EXISTS records (
     updated_by TEXT NOT NULL, PRIMARY KEY (kind, record_id));
 """
 MODELS = {"unit": Unit, "user": User, "allocation": Allocation, "price": Price, "project": Project, "account": Account, "mailbox": Mailbox,
-          "po": PurchaseOrder, "travel_rate": TravelRate, "engagement": Engagement}
+          "po": PurchaseOrder, "travel_rate": TravelRate, "engagement": Engagement, "pr": PurchaseRequest, "receipt": Receipt,
+          "ta": TravelAuthorisation, "fund_request": FundRequest}
 ID_FIELD = {"unit": "unit_id", "user": "user_id", "allocation": "alloc_id", "price": "price_id", "project": "project_id",
-            "account": "account_id", "po": "po_id", "mailbox": "mailbox_id", "travel_rate": "rate_id", "engagement": "engagement_id"}
+            "account": "account_id", "po": "po_id", "mailbox": "mailbox_id", "travel_rate": "rate_id", "engagement": "engagement_id",
+            "pr": "pr_number", "receipt": "receipt_id", "ta": "ta_number",
+            "fund_request": "request_number"}
 SEED_VERSION = 4
 # what v3 adds to the seeded POs: active and expiry dates, a consultant's LoE and rate, and a Multi Payment subscription
 PO_V3 = {"PO-2026-0101": {"start_date": "2026-10-01", "expiry_date": "2027-03-31"},
@@ -500,6 +605,12 @@ class OrgStore:
             rows = c.execute("SELECT record_json FROM records WHERE kind = ? ORDER BY record_id", (kind,)).fetchall()
         return [json.loads(r["record_json"]) for r in rows]
 
+    def source(self, kind: str, rid: str) -> str | None:
+        """Who or what wrote the record last: seed, dashboard:<person>, upload:<file>, sync:<connector>."""
+        with self._connect() as c:
+            r = c.execute("SELECT updated_by FROM records WHERE kind = ? AND record_id = ?", (kind, rid)).fetchone()
+        return r["updated_by"] if r else None
+
     def get(self, kind: str, rid: str) -> dict | None:
         with self._connect() as c:
             r = c.execute("SELECT record_json FROM records WHERE kind = ? AND record_id = ?", (kind, rid)).fetchone()
@@ -513,13 +624,81 @@ class OrgStore:
             year = (data.get("event_date") or "2026")[:4]
             taken = {e["engagement_id"] for e in self.list("engagement")} | {p["po_id"] for p in self.list("po")}
             data[idf] = next(f"ENG-{year}-{n:03d}" for n in range(1, 10_000) if f"ENG-{year}-{n:03d}" not in taken)
+        if kind == "pr" and not data.get("requested_date"):
+            data["requested_date"] = datetime.now(UTC).strftime("%Y-%m-%d")
+        if kind == "fund_request":
+            data["request_date"] = data.get("request_date") or datetime.now(UTC).strftime("%Y-%m-%d")
+            if not data.get(idf):
+                prefix, year = FUND_KINDS[data["kind"]][0], datetime.now(UTC).strftime("%Y")
+                taken = {r[idf] for r in self.list(kind)}
+                data[idf] = next(f"{prefix}-{year}-{n:04d}" for n in range(1, 100_000) if f"{prefix}-{year}-{n:04d}" not in taken)
+            if not data.get("payee_id") and data["kind"] != "odc":  # an advance or a float is paid to the person's own account
+                data["payee_id"] = (self.get("user", data["requested_by"]) or {}).get("payee_id")
+        if kind in ("pr", "receipt", "ta") and not data.get(idf):
+            prefix, year = {"pr": "PR", "receipt": "RC", "ta": "TA"}[kind], datetime.now(UTC).strftime("%Y")
+            taken = {r[idf] for r in self.list(kind)}
+            data[idf] = next(f"{prefix}-{year}-{n:04d}" for n in range(1, 100_000) if f"{prefix}-{year}-{n:04d}" not in taken)
         data[idf] = data.get(idf) or f"{kind[:2]}-{uuid4().hex[:8]}"
         getattr(self, f"_check_{kind}")(data)
+        if kind == "po" and data.get("pr_number"):  # the PR it was raised from is now ordered
+            pr = self.get("pr", data["pr_number"])
+            if pr and pr["status"] == "APPROVED":
+                self._put("pr", pr | {"status": "ORDERED", "po_id": data[idf]}, by)
         if kind == "engagement" and data["payee_id"]:  # paid against its own number, like a PO
             po = engagement_po(data, self.get("po", data[idf]))
             self._check_po(po)
             self._put("po", po, by)
         return self._put(kind, data, by)
+
+    def _check_pr(self, d: dict) -> None:
+        from .intake.pipeline import Registry
+
+        self.account_code(d["charge_code"])
+        if d.get("supplier_id"):
+            payees = Registry().payees
+            if d["supplier_id"] not in payees:
+                raise OrgError(f"unknown supplier {d['supplier_id']!r}: suggest a registered payee, or leave it empty")
+            ccy = payees[d["supplier_id"]].get("currency")
+            if ccy and ccy != d["currency"]:
+                raise OrgError(f"{payees[d['supplier_id']]['name']} is paid in {ccy}, not {d['currency']}")
+
+    def _check_fund_request(self, d: dict) -> None:
+        from .intake.pipeline import Registry
+
+        u = self.get("user", d["requested_by"])
+        if u is None or not u.get("active", True):
+            raise OrgError(f"{d['requested_by']!r} is not an active person in People and roles")
+        self.account_code(d["charge_code"])
+        if d.get("payee_id"):
+            payees = Registry().payees
+            if d["payee_id"] not in payees:
+                raise OrgError(f"unknown payee {d['payee_id']!r}: register the bank account in Users & Beneficiaries first")
+            ccy = payees[d["payee_id"]].get("currency")
+            if ccy and ccy != d["currency"]:
+                raise OrgError(f"{payees[d['payee_id']]['name']} is paid in {ccy}, not {d['currency']}")
+        if d.get("settle_by") and d.get("request_date") and d["settle_by"] < d["request_date"]:
+            raise OrgError("the settlement date is before the request date")
+
+    def _check_ta(self, d: dict) -> None:
+        u = self.get("user", d["traveller"])
+        if u is None or not u.get("active", True):
+            raise OrgError(f"the traveller {d['traveller']!r} is not an active person in People and roles")
+        if d["end"] < d["start"]:
+            raise OrgError("the trip ends before it starts")
+        if d.get("charge_code"):
+            self.account_code(d["charge_code"])
+
+    def _check_receipt(self, d: dict) -> None:
+        if d.get("receivable_id"):
+            from .masterdata import MasterStore
+
+            rv = MasterStore().get("receivable", d["receivable_id"])
+            if rv is None:
+                raise OrgError(f"no open customer invoice {d['receivable_id']!r}")
+            if rv["currency"] != d["currency"]:
+                raise OrgError(f"invoice {rv['invoice_no']} is in {rv['currency']}, the receipt in {d['currency']}")
+            if d.get("customer_id") and rv["customer_id"] != d["customer_id"]:
+                raise OrgError(f"invoice {rv['invoice_no']} belongs to another customer")
 
     def _check_engagement(self, d: dict) -> None:
         from .intake.pipeline import Registry
@@ -668,6 +847,17 @@ class OrgStore:
                            f"{d['currency']} {d['loe'] * d['rate_minor'] / 100:,.2f}, not {d['total_minor'] / 100:,.2f}")
         if d.get("recurring", "none") != "none" and not d.get("expiry_date"):
             raise OrgError("a Multi Payment PO needs an expiry date (the last period it covers)")
+        if d.get("pr_number"):
+            pr = self.get("pr", d["pr_number"])
+            if pr is None:
+                raise OrgError(f"no purchase request {d['pr_number']}")
+            if not (pr["status"] == "APPROVED" or (pr["status"] == "ORDERED" and pr.get("po_id") == d["po_id"])):
+                raise OrgError(f"{d['pr_number']} is {pr['status'].lower()}: a PO is raised only from an approved purchase request")
+            if pr["currency"] != d["currency"]:
+                raise OrgError(f"{d['pr_number']} was approved in {pr['currency']}, not {d['currency']}")
+            if d["total_minor"] > pr["estimated_minor"]:
+                raise OrgError(f"the PO total {d['currency']} {d['total_minor'] / 100:,.2f} is above the approved estimate of "
+                               f"{d['pr_number']} ({pr['currency']} {pr['estimated_minor'] / 100:,.2f}); raise a new request for the difference")
         if sum(t["amount_minor"] for t in d["terms"]) > d["total_minor"]:
             raise OrgError("the payment terms add up to more than the PO total")
 

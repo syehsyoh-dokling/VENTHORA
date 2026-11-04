@@ -37,7 +37,8 @@ from pydantic import BaseModel, Field, field_validator
 from .config import data_path
 from .sync_catalog import PUSH
 
-ENTITY_NAMES = ("unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line", "tenant_book")
+ENTITY_NAMES = ("unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line", "tenant_book",
+                "pr", "engagement", "ta", "fund_request")
 
 
 class EntityMap(BaseModel):
@@ -129,7 +130,25 @@ def demo_connector(base_url: str) -> Connector:
             "promises_kept": "Kept|int", "promises_missed": "Missed|int"}),
         "po": EntityMap(path="purchase_orders", items_path="items", mapping={
             "po_id": "Number|upper", "supplier_id": "Vendor|lower", "currency": "Currency|upper", "total_minor": "Total|major",
-            "account_code": "CostCode|upper", "description": "Memo", "allow_partial": "PartialAllowed", "terms": "Terms"}),
+            "account_code": "CostCode|upper", "description": "Memo", "allow_partial": "PartialAllowed", "terms": "Terms",
+            "issued_date": "Issued|date", "start_date": "Start|date", "expiry_date": "Expiry|date", "loe": "LoE", "loe_unit": "LoEUnit|lower",
+            "rate_minor": "Rate|major"}),
+        "pr": EntityMap(path="purchase_requests", items_path="items", mapping={
+            "pr_number": "Number|upper", "title": "Title", "requested_by": "RequestedBy", "supplier_id": "Vendor|lower", "currency": "Currency|upper",
+            "estimated_minor": "Estimate|major", "charge_code": "CostCode|upper", "needed_by": "NeededBy|date", "requested_date": "Requested|date",
+            "justification": "Reason", "status": "Status|upper", "decided_by": "ApprovedBy"}),
+        "engagement": EntityMap(path="engagements", items_path="items", mapping={
+            "engagement_id": "Number|upper", "name": "Name", "role": "Type|lower", "organisation": "Organisation", "email": "Email|lower",
+            "event": "Event", "event_date": "Date|date", "fee_minor": "Fee|major", "currency": "Currency|upper", "charge_code": "CostCode|upper",
+            "payee_id": "Payee|lower"}),
+        "fund_request": EntityMap(path="fund_requests", items_path="items", mapping={
+            "request_number": "Number|upper", "kind": "Kind", "requested_by": "RequestedBy|lower", "amount_minor": "Amount|major",
+            "currency": "Currency|upper", "charge_code": "CostCode|upper", "purpose": "Purpose", "activity": "Activity", "request_date": "Requested|date",
+            "needed_by": "NeededBy|date", "settle_by": "SettleBy|date", "status": "Status|upper", "decided_by": "ApprovedBy"}),
+        "ta": EntityMap(path="travel_authorisations", items_path="items", mapping={
+            "ta_number": "Number|upper", "traveller": "Traveller|lower", "origin": "From", "destination": "To", "start": "Start|date",
+            "end": "End|date", "purpose": "Purpose", "estimated_minor": "Estimate|major", "currency": "Currency|upper",
+            "charge_code": "CostCode|upper", "status": "Status|upper", "approved_by": "ApprovedBy"}),
         "bill": EntityMap(path="open_bills", items_path="items", mapping={
             "bill_id": "Id", "vendor_id": "Vendor|lower", "invoice_no": "InvoiceNo|upper", "amount_minor": "Amount|major",
             "currency": "Currency|upper", "due_date": "DueDate|date", "po_number": "PO|upper", "description": "Memo"}),
@@ -143,8 +162,8 @@ def demo_connector(base_url: str) -> Connector:
     }, push={k: PushMap(path=f"inbox/{k}") for k in PUSH})
 
 
-ORDER = ("unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line",
-         "tenant_book")  # who must exist before whom: offices before their people, accounts and vendors before POs
+ORDER = ("unit", "user", "project", "account", "price", "vendor", "customer", "pr", "po", "engagement", "ta", "fund_request", "bill", "receivable",
+         "budget_line", "tenant_book")  # who must exist before whom: offices before their people, accounts and vendors before POs
 
 
 class ConnectorStore:
@@ -254,7 +273,7 @@ def dig(obj, path: str):
 
 
 def _transform(v, t: str):
-    if v is None:
+    if v is None or (isinstance(v, str) and not v.strip()):  # an empty field is no value, not a bad one
         return None
     if t == "major":
         try:

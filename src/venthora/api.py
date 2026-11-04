@@ -47,13 +47,17 @@ from .organisation import (  # noqa: E402
     Account,
     Allocation,
     Engagement,
+    FundRequest,
     Mailbox,
     OrgError,
     OrgStore,
     Price,
     Project,
     PurchaseOrder,
+    PurchaseRequest,
+    Receipt,
     Standards,
+    TravelAuthorisation,
     TravelRate,
     Unit,
     User,
@@ -1804,6 +1808,96 @@ async def groundtruth_judge(req: JudgeRequest):
     return compare(case["expect"], view) | {"view": view}
 
 
+class CorrectionIn(BaseModel):
+    counterparty_id: str | None = Field(None, max_length=80, description="the registered payee to pay")
+    invoice_no: str | None = Field(None, max_length=40)
+    amount_minor: int | None = Field(None, gt=0, le=10**13)
+    currency: str | None = Field(None, min_length=3, max_length=3)
+    due_date: str | None = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    po_number: str | None = Field(None, max_length=40, description="empty to take the PO off")
+    account_code: str | None = Field(None, max_length=60)
+    category: str | None = Field(None, max_length=60)
+    note: str = Field("", max_length=300)
+
+
+@app.get("/v1/intake/requests/{intake_id}")
+async def intake_get(intake_id: str):
+    """One request in full, for the Pending payment form: what was read, the checks, the documents and the history."""
+    from . import procurement
+
+    req = app.state.intake.store.get(intake_id)
+    if req is None:
+        raise HTTPException(404, "unknown intake request")
+    po = procurement.status(app.state.org, app.state.executor.store, req.po_number) if req.po_number else None
+    payees = app.state.intake.registry.payees
+    return req.model_dump() | {"po": po and {"po_id": po["po"]["po_id"], "total_minor": po["po"]["total_minor"], "currency": po["po"]["currency"],
+                                             "paid_minor": po["paid_minor"], "remaining_minor": po["remaining_minor"], "supplier_id": po["po"]["supplier_id"]},
+                               "payees": [{"id": k, "name": v["name"], "currency": v.get("currency")} for k, v in sorted(payees.items(), key=lambda x: x[1]["name"])],
+                               "open_pos": [{"po_id": p["po_id"], "supplier_id": p["supplier_id"], "currency": p["currency"]} for p in app.state.org.list("po")
+                                            if p.get("status", "OPEN") == "OPEN"]}
+
+
+@app.put("/v1/intake/requests/{intake_id}")
+async def intake_correct(intake_id: str, body: CorrectionIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Save a person's corrections to a request in Pending payment and run its checks again (payee, currency, PO,
+    duplicate). It is not approved: it waits for an approval, or for Pay."""
+    who = _writer(role, by)
+    try:
+        req, problems = await asyncio.to_thread(app.state.intake.recheck, intake_id, body.model_dump(exclude_none=True, exclude={"note"})
+                                                | ({"po_number": None} if body.po_number == "" else {}), by=who)
+    except KeyError as exc:
+        raise HTTPException(404, "unknown intake request") from exc
+    except PermissionError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "intake_corrected", {"intake_id": intake_id, "by": who, "problems": problems, "note": body.note})
+    return {"request": req.model_dump(), "checks_pass": not problems, "problems": problems}
+
+
+@app.post("/v1/intake/requests/{intake_id}/pay")
+async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Save the corrections, run the checks again and, when they pass, approve the request as this person and pay it
+    now: the book still passes the treasury proof (reserve floor, FX, outflow limits, the balance) before Airwallex is
+    called. When a check fails nothing is approved and the reasons come back."""
+    from . import autonomy
+    from .execution.executor import terms_digest
+    from .execution.models import Approval
+
+    out = await intake_correct(intake_id, body, role=role, by=by)
+    if not out["checks_pass"]:
+        raise HTTPException(409, {"message": "the checks do not pass yet: correct the request first", "problems": out["problems"]})
+    req = app.state.intake.store.get(intake_id)
+    if req.status != "VERIFIED":
+        await review_intake(intake_id, ReviewRequest(decision="verify", reviewer=by, role=role,
+                                                     note=body.note or "corrected and approved in Pending payment"))
+        req = app.state.intake.store.get(intake_id)
+    if req.status != "VERIFIED":
+        raise HTTPException(409, f"it could not be approved: {'; '.join(req.reasons[:2])}")
+    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    state = app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req])
+    try:
+        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+    state, _ = apply_operational_facts(state, app.state.executor.store)
+    s = await autonomy.split(app.state.agent, state)
+    if s.auto_plan is not None and any(d.action in autonomy.PAYING for d in s.auto_plan.obligations):
+        res = await app.state.executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash, requested_by=f"{by} (Pending payment)"))
+    elif s.full.decision == "REQUIRES_APPROVAL" and any(d.action in autonomy.PAYING for d in s.full.obligations):
+        res = await app.state.executor.execute(ExecutionRequest(state=state, plan_hash=s.full.plan_hash, requested_by=f"{by} (Pending payment)",
+                                                                approval=Approval(approver=by, role=role, terms_digest=terms_digest(s.full))))
+    else:
+        held = "; ".join(r for h in s.held for r in h["reasons"]) or "the plan does not pay it now"
+        return {"paid": False, "request": req.model_dump(), "message": f"approved, but not paid now: {held}"}
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "intake_paid_from_pending", {"intake_id": intake_id, "by": by, "execution_id": res.execution_id,
+                                                                                 "status": res.status})
+    return {"paid": res.status in ("COMPLETED", "IN_FLIGHT"), "execution": {"execution_id": res.execution_id, "status": res.status, "message": res.message},
+            "request": app.state.intake.store.get(intake_id).model_dump(), "message": res.message}
+
+
 @app.post("/v1/intake/{intake_id}/review", response_model=IntakeRequest)
 async def review_intake(intake_id: str, review: ReviewRequest):
     if review.decision == "verify":
@@ -2063,7 +2157,8 @@ async def event_stream(request: Request):
 # ---- organisation: units, people, budget allocations, unit prices and finance standards ---------------------
 ORG_KINDS = {"units": ("unit", Unit), "users": ("user", User), "allocations": ("allocation", Allocation), "prices": ("price", Price), "travel-rates": ("travel_rate", TravelRate), "mailboxes": ("mailbox", Mailbox),
              "projects": ("project", Project), "accounts": ("account", Account), "purchase-orders": ("po", PurchaseOrder),
-             "engagements": ("engagement", Engagement)}
+             "engagements": ("engagement", Engagement), "purchase-requests": ("pr", PurchaseRequest), "receipts": ("receipt", Receipt),
+             "travel-authorisations": ("ta", TravelAuthorisation), "fund-requests": ("fund_request", FundRequest)}
 
 
 def _org_kind(collection: str):
@@ -2247,10 +2342,14 @@ async def connectors_list(request: Request):
     if not store.list():  # a fresh install shows the demo connector to the stand-in ERP, ready to sync
         store.save(demo)
     raw = store.get_raw(demo.connector_id)
-    if raw is not None and (set(demo.entities) - set(raw["entities"]) or set(demo.push) - set(raw.get("push") or {})):
+    new_fields = raw is not None and any(set(em.mapping) - set((raw["entities"].get(k) or {}).get("mapping", {}))
+                                         for k, em in demo.entities.items() if k in raw["entities"])
+    if raw is not None and (set(demo.entities) - set(raw["entities"]) or set(demo.push) - set(raw.get("push") or {}) or new_fields):
         add = {k: v for k, v in demo.entities.items() if k not in raw["entities"]}  # entities and push items added since
         push = {k: v for k, v in demo.push.items() if k not in (raw.get("push") or {})}
-        store.save(Connector.model_validate(raw | {"entities": raw["entities"] | add, "push": (raw.get("push") or {}) | push}))
+        ents = {k: em | {"mapping": demo.entities[k].mapping | em.get("mapping", {})} if k in demo.entities else em
+                for k, em in raw["entities"].items()}  # fields mapped since are added; what a person mapped stays
+        store.save(Connector.model_validate(raw | {"entities": ents | add, "push": (raw.get("push") or {}) | push}))
     return store.list()
 
 
@@ -2507,6 +2606,28 @@ async def demo_legacy_erp_inbox_list(limit: int = Query(50, ge=1, le=500)):
 
 
 # ---- Users & Beneficiaries: vendors, consultants and customers, every field a payment or a receipt reads ----------
+def _synced_from(source: str | None) -> dict | None:
+    """A record last written by a connector sync: {connector_id, name}. It is read only on the dashboard, since the next
+    sync would overwrite a change made here; it is changed in the source system and pulled again."""
+    if not source or not str(source).startswith("sync:"):
+        return None
+    from .connectors import ConnectorStore
+
+    cid = str(source)[5:]
+    try:
+        raw = ConnectorStore().get_raw(cid) or {}
+    except Exception:  # noqa: BLE001 - the name is only a label
+        raw = {}
+    return {"connector_id": cid, "name": raw.get("name") or cid}
+
+
+def _refuse_synced(what: str, source: str | None) -> None:
+    s = _synced_from(source)
+    if s:
+        raise HTTPException(409, f"{what} is synced from {s['name']} through Auto Connect (API) and cannot be changed here: the next "
+                                 "sync would overwrite it. Change it in the source system, then refresh the API connection.")
+
+
 def _masked(b: dict | None) -> dict | None:
     if not b:
         return None
@@ -2518,13 +2639,14 @@ async def beneficiaries_list(kind: str = Query("vendor", pattern="^(vendor|consu
     """Every vendor or consultant VENTHORA may pay (or every customer it receives from), with what a payment reads:
     the registered mailboxes, the call-back number, currency, payout method, priority, budget line, the bank details
     (masked), the address, the lifecycle status, and the purchase orders or contracts held against it."""
-    from .masterdata import MasterStore, bank_from_payload
+    from .masterdata import MasterStore, bank_from_payload, vendor_kind
 
     reg = app.state.intake.registry
     if kind == "customer":
         master = {c["customer_id"]: c for c in MasterStore().list("customer")}
         return [{"id": k, "name": v["name"], "currency": v["currency"], "contacts": v.get("contacts", []), "domains": v.get("domains", []),
-                 "aliases": v.get("aliases", []), "history": v.get("history"), "source": "dashboard or sync" if k in master else "data/payees.json"}
+                 "aliases": v.get("aliases", []), "history": v.get("history"), "source": (master.get(k) or {}).get("_source") or "data/payees.json",
+                 "synced_from": _synced_from((master.get(k) or {}).get("_source"))}
                 for k, v in sorted(reg.payers.items(), key=lambda x: x[1]["name"])]
     master = {v["vendor_id"]: v for v in MasterStore().list("vendor")}
     bens = app.state.executor.beneficiaries
@@ -2532,7 +2654,7 @@ async def beneficiaries_list(kind: str = Query("vendor", pattern="^(vendor|consu
     out = []
     for k, v in sorted(reg.payees.items(), key=lambda x: x[1]["name"]):
         m = master.get(k) or {}
-        vk = m.get("kind") or ("consultant" if (v.get("budget_line") == "contractors" or v.get("default_priority") == 7) else "vendor")
+        vk = vendor_kind({"kind": m.get("kind"), "budget_line": m.get("budget_line") or v.get("budget_line"), "default_priority": m.get("default_priority", v.get("default_priority"))})
         if vk != kind:
             continue
         ben = bens.get(k) or {}
@@ -2546,7 +2668,7 @@ async def beneficiaries_list(kind: str = Query("vendor", pattern="^(vendor|consu
                     "transfer_reason": ben.get("transfer_reason", "business_expenses"), "address": b.get("address") or m.get("address") or {},
                     "bank": _masked(bank_from_payload(ben) or m.get("bank")), "status": life.get("status") or (v.get("lifecycle") or {}).get("status"),
                     "verified_by": life.get("verified_by"), "cooling_until": life.get("cooling_until"),
-                    "source": m.get("_source") or "data/payees.json",
+                    "source": m.get("_source") or "data/payees.json", "synced_from": _synced_from(m.get("_source")),
                     "purchase_orders": [{"po_id": p["po_id"], "total_minor": p["total_minor"], "currency": p["currency"], "status": p.get("status", "OPEN"),
                                          "description": p.get("description", "")} for p in pos if p.get("supplier_id") == k]})
     return out
@@ -2569,6 +2691,11 @@ async def beneficiaries_save(body: BeneficiaryIn, kind: str = Query("vendor", pa
     who = _writer(role, by)
     rec = dict(body.record)
     entity = "customer" if kind == "customer" else "vendor"
+    rid = rec.get(f"{entity}_id") or rec.get("id")
+    if rid:
+        from .masterdata import MasterStore
+
+        _refuse_synced(rec.get("name") or rid, MasterStore().source(entity, rid))
     if entity == "vendor":
         rec["kind"] = kind
         rec.setdefault("vendor_id", rec.pop("id", None))
@@ -2876,8 +3003,525 @@ async def purchase_orders():
     out = []
     for po in org.list("po"):
         st = procurement.status(org, pay, po["po_id"], pending=pending.get(po["po_id"]))
-        out.append(st | {"po": po})
+        out.append(st | {"po": po, "synced_from": _synced_from(org.source("po", po["po_id"]))})
     return out
+
+
+class BudgetLinesIn(BaseModel):
+    lines: list[dict] = Field(max_length=50, description="line, amount_minor, auto_share_bp, alert_share_bp, require_approval_on_alert, bypass, bypass_approved_by")
+
+
+def _budget_file() -> list[dict]:
+    from .proofcore.budget import BUDGETS_FILE
+
+    try:
+        return json.loads(BUDGETS_FILE.read_text(encoding="utf-8"))["budgets"]
+    except (OSError, ValueError, KeyError):
+        return []
+
+
+@app.get("/v1/budget-lines")
+async def budget_lines_get(period: str | None = Query(None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$")):
+    """The budget lines of a month: the amount per line, the share the agent pays on its own, the alert share, whether
+    an alert needs an approver, and a bypass with its signatory. Lines set here (or uploaded or synced) replace
+    data/budgets.json for that month; the rule for a payment outside every line is in the standing mandate."""
+    import re
+
+    from . import mandate
+    from .masterdata import BUDGET_LINE_FIELDS, MasterStore
+
+    period = period or datetime.now(UTC).strftime("%Y-%m")
+    m = MasterStore()
+    mine = sorted((ln for ln in m.list("budget_line") if ln["period"] == period), key=lambda x: x["line"])
+    file = next((b for b in _budget_file() if b["period"] == period), None)
+    if mine:
+        lines = [{k: ln.get(k, False if k == "bypass" else None) for k in BUDGET_LINE_FIELDS} for ln in mine]
+        src = mine[0]["_source"]
+    else:
+        lines = [{k: ln.get(k, False if k in ("bypass", "require_approval_on_alert") else 10_000 if k == "auto_share_bp" else 8_000 if k == "alert_share_bp" else None)
+                  for k in BUDGET_LINE_FIELDS} for ln in (file or {}).get("lines", [])]
+        src = "data/budgets.json" if file else None
+    names = sorted({ln["line"] for ln in lines} | {p.get("budget_line") for p in app.state.intake.registry.payees.values() if p.get("budget_line")})
+    periods = sorted({ln["period"] for ln in m.list("budget_line")} | {b["period"] for b in _budget_file() if re.match(r"^\d{4}-\d{2}$", b["period"])} | {period})
+    synced = next((s for s in (_synced_from(ln["_source"]) for ln in mine) if s), None)
+    return {"period": period, "periods": periods, "lines": lines, "source": src, "synced_from": synced, "line_names": names,
+            "unbudgeted_requires_approval": mandate.unbudgeted_rule(app.state.org) if mandate.unbudgeted_rule(app.state.org) is not None
+            else bool((file or {}).get("unbudgeted_requires_approval", True))}
+
+
+@app.put("/v1/budget-lines/{period}")
+async def budget_lines_put(period: str, body: BudgetLinesIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Replace the budget lines of a month. A bypass (unlimited line) needs the person who signed it. Lines synced
+    through Auto Connect (API) are changed in the source system instead."""
+    import re
+
+    from .masterdata import BudgetLineIn, MasterStore
+
+    if not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", period):
+        raise HTTPException(422, "the period is a month, YYYY-MM")
+    who = _writer(role, by)
+    m = MasterStore()
+    old = [ln for ln in m.list("budget_line") if ln["period"] == period]
+    for ln in old:
+        _refuse_synced(f"The budget of {period}", ln["_source"])
+    rows, seen = [], set()
+    for raw in body.lines:
+        row = {k: raw.get(k) for k in ("line", "amount_minor", "auto_share_bp", "alert_share_bp", "require_approval_on_alert", "bypass", "bypass_approved_by")
+               if raw.get(k) is not None} | {"period": period}
+        row["line"] = str(row.get("line", "")).strip().lower()
+        if row["line"] in seen:
+            raise HTTPException(422, f"the line {row['line']} is there twice")
+        seen.add(row["line"])
+        if row.get("bypass") and not str(row.get("bypass_approved_by") or "").strip():
+            raise HTTPException(422, f"{row['line']}: a bypass is honoured only when signed; name the person who signed it")
+        if not row.get("bypass"):
+            row["bypass_approved_by"] = None
+        try:
+            rows.append(BudgetLineIn.model_validate(row).model_dump())
+        except ValueError as exc:
+            raise HTTPException(422, f"{row['line'] or 'a line'}: {exc}") from exc
+    if not rows:
+        raise HTTPException(422, "a budget needs at least one line")
+    rep = await asyncio.to_thread(m.upsert, "budget_line", rows, source=f"dashboard:{who}")
+    if rep["rejected"]:
+        raise HTTPException(422, str(rep["rejected"][0]))
+    for ln in old:
+        if ln["line"] not in seen:
+            await asyncio.to_thread(m.delete, "budget_line", f"{period}:{ln['line']}")
+    await asyncio.to_thread(app.state.audit.append, "budget_lines_saved", {"period": period, "by": who, "lines": rows})
+    return await budget_lines_get(period)
+
+
+PR_DECIDERS = ("finance_manager", "cfo", "super_admin", "country_finance_lead", "hq_admin", "country_admin")
+
+
+class PRDecisionIn(BaseModel):
+    decision: str = Field(pattern="^(approve|reject)$")
+    note: str = Field("", max_length=300)
+
+
+@app.get("/v1/purchase-requests")
+async def purchase_requests_list():
+    """Every purchase request, newest first, with its decision and the PO raised from it."""
+    org = app.state.org
+    pos = {p["po_id"]: p for p in org.list("po")}
+    out = [r | {"po": pos.get(r.get("po_id") or "")} for r in org.list("pr")]
+    return sorted(out, key=lambda r: r["pr_number"], reverse=True)
+
+
+@app.post("/v1/purchase-requests/{pr_number}/decision")
+async def purchase_request_decide(pr_number: str, body: PRDecisionIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Approve or reject a purchase request. The requester never decides their own; an approver decides only
+    within their approval limit (People and roles)."""
+    org = app.state.org
+    pr = org.get("pr", pr_number)
+    if pr is None:
+        raise HTTPException(404, "no such purchase request")
+    if pr["status"] != "SUBMITTED":
+        raise HTTPException(409, f"{pr_number} is {pr['status'].lower()}; only a submitted request is decided")
+    if role not in PR_DECIDERS:
+        raise HTTPException(403, f"role {role} may not decide a purchase request")
+    me = by.strip().lower()
+    if me == pr["requested_by"].strip().lower():
+        raise HTTPException(403, "the requester cannot decide their own purchase request")
+    person = next((u for u in org.list("user") if me in (u["name"].lower(), u["email"].lower())), None)
+    limit = (person or {}).get("approval_limit_minor")
+    if body.decision == "approve" and limit is not None and pr["estimated_minor"] > limit:
+        raise HTTPException(403, f"{by} may approve up to {limit / 100:,.2f}; this request is {pr['currency']} {pr['estimated_minor'] / 100:,.2f}")
+    rec = pr | {"status": "APPROVED" if body.decision == "approve" else "REJECTED", "decided_by": f"{by} ({role})",
+                "decided_at": datetime.now(UTC).isoformat(timespec="seconds"), "decision_note": body.note}
+    await asyncio.to_thread(org._put, "pr", rec, by)
+    await asyncio.to_thread(app.state.audit.append, "purchase_request_decided", {"pr": pr_number, "decision": body.decision, "by": by, "role": role})
+    return rec
+
+
+def _ga_label(g: dict | None) -> str:
+    """A receiving account as people name it: nickname, currencies, last four digits."""
+    if not g:
+        return ""
+    return f"{g['nick_name'] or 'account'} · {', '.join(g['currencies'])} · {(g['iban'] or g['account_number'] or '')[-4:]}"
+
+
+@app.get("/v1/fund-requests")
+async def fund_requests_list(kind: str | None = Query(None, pattern="^(cash_advance|petty_cash|odc)$")):
+    """Cash advances, petty cash (slush fund) floats and other direct costs, newest first, with the person, the payee,
+    the decision, the payment order raised and the settlement."""
+    org = app.state.org
+    users = {u["user_id"]: u for u in org.list("user")}
+    payees = app.state.intake.registry.payees
+    rows = [r | {"requested_by_name": (users.get(r["requested_by"]) or {}).get("name", r["requested_by"]),
+                 "payee_name": (payees.get(r.get("payee_id") or "") or {}).get("name"),
+                 "synced_from": _synced_from(org.source("fund_request", r["request_number"]))}
+            for r in org.list("fund_request") if not kind or r["kind"] == kind]
+    return sorted(rows, key=lambda r: (r.get("request_date") or "", r["request_number"]), reverse=True)
+
+
+@app.post("/v1/fund-requests/{number}/decision")
+async def fund_request_decide(number: str, body: PRDecisionIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Approve or reject a cash advance, petty cash or ODC request: never by the person asking, and within the
+    approver's limit."""
+    org = app.state.org
+    fr = org.get("fund_request", number)
+    if fr is None:
+        raise HTTPException(404, "no such request")
+    if fr["status"] != "SUBMITTED":
+        raise HTTPException(409, f"{number} is {fr['status'].lower()}; only a submitted request is decided")
+    if role not in PR_DECIDERS:
+        raise HTTPException(403, f"role {role} may not decide this request")
+    me = by.strip().lower()
+    asker = org.get("user", fr["requested_by"]) or {}
+    if me in ((asker.get("name") or "").lower(), (asker.get("email") or "").lower(), fr["requested_by"].lower()):
+        raise HTTPException(403, "the person asking cannot decide their own request")
+    person = next((u for u in org.list("user") if me in (u["name"].lower(), u["email"].lower())), None)
+    limit = (person or {}).get("approval_limit_minor")
+    if body.decision == "approve" and limit is not None and fr["amount_minor"] > limit:
+        raise HTTPException(403, f"{by} may approve up to {limit / 100:,.2f}; this request is {fr['currency']} {fr['amount_minor'] / 100:,.2f}")
+    rec = fr | {"status": "APPROVED" if body.decision == "approve" else "REJECTED", "decided_by": f"{by} ({role})",
+                "decided_at": datetime.now(UTC).isoformat(timespec="seconds"), "decision_note": body.note}
+    await asyncio.to_thread(org._put, "fund_request", rec, by)
+    await asyncio.to_thread(app.state.audit.append, "fund_request_decided", {"request": number, "decision": body.decision, "by": by, "role": role})
+    return rec
+
+
+@app.post("/v1/fund-requests/{number}/pay")
+async def fund_request_pay(number: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Send an approved request to Pending payment: a payment order to its payee (the person's own account for an
+    advance or a float), with the same checks as any other, and a person other than the one sending it approves it."""
+    org = app.state.org
+    fr = org.get("fund_request", number)
+    if fr is None:
+        raise HTTPException(404, "no such request")
+    if fr["status"] != "APPROVED":
+        raise HTTPException(409, f"{number} is {fr['status'].lower()}; only an approved request is sent for payment")
+    if not fr.get("payee_id"):
+        raise HTTPException(409, "no payee: register the person's own bank account (People and roles) or name the supplier")
+    from .organisation import FUND_KINDS
+
+    order = PaymentOrderIn(vendor_id=fr["payee_id"], invoice_no=number, amount_minor=fr["amount_minor"], currency=fr["currency"],
+                           due_date=fr.get("needed_by") or datetime.now(UTC).strftime("%Y-%m-%d"),
+                           description=f"{FUND_KINDS[fr['kind']][1]}: {fr['purpose']}"[:300])
+    req = await payment_order(order, role=role, by=by)
+    rec = fr | {"status": "IN_PAYMENT", "intake_id": req.intake_id}
+    await asyncio.to_thread(org._put, "fund_request", rec, by)
+    return rec | {"payment_order": {"intake_id": req.intake_id, "status": req.status}}
+
+
+class SettleIn(BaseModel):
+    settled_minor: int = Field(ge=0, le=10**12, description="the receipts accounted for")
+    note: str = Field("", max_length=300)
+
+
+@app.post("/v1/fund-requests/{number}/settle")
+async def fund_request_settle(number: str, body: SettleIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Settle a cash advance or a petty cash float against its receipts: what is left is returned by the person, what
+    is over is reimbursed to them."""
+    _writer(role, by)
+    org = app.state.org
+    fr = org.get("fund_request", number)
+    if fr is None:
+        raise HTTPException(404, "no such request")
+    if fr["kind"] == "odc":
+        raise HTTPException(409, "an other direct cost is paid against its invoice; it is not settled")
+    if fr["status"] != "IN_PAYMENT":
+        raise HTTPException(409, f"{number} is {fr['status'].lower()}; an advance is settled once it was sent for payment")
+    rec = fr | {"status": "SETTLED", "settled_minor": body.settled_minor, "settlement_note": body.note}
+    await asyncio.to_thread(org._put, "fund_request", rec, by)
+    await asyncio.to_thread(app.state.audit.append, "fund_request_settled", {"request": number, "settled_minor": body.settled_minor, "by": by})
+    diff = fr["amount_minor"] - body.settled_minor
+    return rec | {"to_return_minor": max(diff, 0), "to_reimburse_minor": max(-diff, 0)}
+
+
+@app.get("/v1/reports/spend")
+async def reports_spend(category: str = Query("goods_services", pattern="^(payroll|fringe|goods_services|operation|cash_advance|travel|odc)$")):
+    """Reporting per spending category: every line with the name, the day it was asked for, its number (PO, PR,
+    request, invoice), the amount, what is paid and when, what is left and Done / Partial / New, placed in the
+    organisation (country office, branch, unit, person) so it can be filtered."""
+    from . import paid_reports
+
+    org = app.state.org
+    queue = (await list_intake())
+    rows = await asyncio.to_thread(paid_reports.build, category, org=org, store=app.state.executor.store, intake_rows=queue,
+                                   payees=app.state.intake.registry.payees)
+    units = [{"unit_id": u["unit_id"], "name": u["name"], "kind": u["kind"], "parent_id": u.get("parent_id")} for u in org.list("unit")]
+    people = sorted({r["person"] for r in rows if r.get("person")})
+    totals: dict[str, dict[str, int]] = {}
+    for r in rows:
+        t = totals.setdefault(r["currency"] or "-", {"amount_minor": 0, "paid_minor": 0, "remaining_minor": 0})
+        for k in t:
+            t[k] += r.get(k) or 0
+    return {"category": category, "title": paid_reports.CATEGORIES[category], "rows": rows, "units": units, "people": people,
+            "types": sorted({r["type"] for r in rows}), "totals": totals}
+
+
+@app.get("/v1/receipts")
+async def receipts_list():
+    """Balance received: what other parties paid into the Airwallex account. Every deposit Airwallex reports, and every
+    receipt recorded here; a recorded receipt is confirmed when a deposit of the same currency and amount arrives."""
+    from .gateways.airwallex import to_minor
+    from .masterdata import MasterStore
+
+    deposits, error, accounts = [], None, {}
+    try:
+        bank = _bank()
+        accounts = {g["id"]: g for g in (_ga_row(x) for x in await bank.list_global_accounts())}
+        deposits = [{"deposit_id": d.get("id"), "amount_minor": to_minor(d.get("amount", 0)), "currency": d.get("currency"), "status": d.get("status"),
+                     "payer": (d.get("payer") or {}).get("name") or "", "reference": d.get("reference") or "", "received_at": d.get("created_at"),
+                     "account": _ga_label(accounts.get(d.get("global_account_id"))),
+                     "global_account_id": d.get("global_account_id")} for d in await bank.list_deposits()]
+    except HTTPException as exc:
+        error = exc.detail
+    except AirwallexError as exc:
+        error = f"Airwallex request failed: {exc}"
+    recorded = sorted(app.state.org.list("receipt"), key=lambda r: (r["received_date"], r["receipt_id"]))
+    payers = app.state.intake.registry.payers
+    recv = {r["receivable_id"]: r for r in MasterStore().list("receivable")}
+    used: set[str] = set()
+    rows = []
+    for r in recorded:
+        hit = next((d for d in deposits if d["deposit_id"] not in used and d["currency"] == r["currency"] and d["amount_minor"] == r["amount_minor"]), None)
+        if hit:
+            used.add(hit["deposit_id"])
+        rv = recv.get(r.get("receivable_id") or "")
+        rows.append(r | {"state": "Confirmed on Airwallex" if hit and hit["status"] == "SETTLED" else "Deposit arriving" if hit else "Awaiting the deposit",
+                         "deposit": hit, "customer": (payers.get(r.get("customer_id") or "") or {}).get("name"),
+                         "invoice": rv and {"invoice_no": rv["invoice_no"], "amount_minor": rv["amount_minor"], "due_date": rv["due_date"]}})
+    for d in deposits:
+        if d["deposit_id"] not in used:
+            who = next((k for k, p in payers.items() if d["payer"] and d["payer"].lower() in [p["name"].lower(), *[a.lower() for a in p.get("aliases", [])]]), None)
+            rows.append({"receipt_id": None, "payer_name": d["payer"] or "unknown payer", "customer_id": who, "customer": (payers.get(who or "") or {}).get("name"),
+                         "amount_minor": d["amount_minor"], "currency": d["currency"], "received_date": str(d["received_at"] or "")[:10],
+                         "account": d["account"], "reference": d["reference"], "receivable_id": None, "category": None, "note": "",
+                         "state": "Received, not recorded", "deposit": d, "invoice": None})
+    rows.sort(key=lambda x: (x["received_date"] or ""), reverse=True)
+    totals: dict[str, int] = {}
+    for x in rows:
+        if x["deposit"] and x["deposit"]["status"] == "SETTLED":
+            totals[x["currency"]] = totals.get(x["currency"], 0) + x["amount_minor"]
+    open_rv = [r for r in recv.values()]
+    return {"rows": rows, "settled_by_currency": totals, "airwallex_error": error,
+            "accounts": [{"id": g["id"], "label": _ga_label(g),
+                          "currencies": g["currencies"]} for g in accounts.values() if g["status"] != "CLOSED"],
+            "customers": [{"id": k, "name": p["name"], "currency": p.get("currency")} for k, p in sorted(payers.items(), key=lambda x: x[1]["name"])],
+            "receivables": [{"receivable_id": r["receivable_id"], "customer_id": r["customer_id"], "invoice_no": r["invoice_no"], "amount_minor": r["amount_minor"],
+                             "currency": r["currency"], "due_date": r["due_date"]} for r in sorted(open_rv, key=lambda r: r["due_date"])]}
+
+
+# Intake -> Sync via API / Sync via Dataset: what each tab imports, its number and the date a range is read on
+IMPORT_KINDS = {
+    "cash_advance": {"entity": "fund_request", "label": "cash advances", "number": "request_number", "dates": ("request_date", "needed_by"), "fund": "cash_advance"},
+    "petty_cash": {"entity": "fund_request", "label": "petty cash requests", "number": "request_number", "dates": ("request_date", "needed_by"), "fund": "petty_cash"},
+    "odc": {"entity": "fund_request", "label": "other direct costs", "number": "request_number", "dates": ("request_date", "needed_by"), "fund": "odc"},
+    "pr": {"entity": "pr", "label": "purchase requests", "number": "pr_number", "dates": ("requested_date", "needed_by")},
+    "po": {"entity": "po", "label": "purchase orders", "number": "po_id", "dates": ("start_date", "issued_date"), "contract": False},
+    "contract": {"entity": "po", "label": "consultant contracts", "number": "po_id", "dates": ("start_date", "issued_date"), "contract": True},
+    "engagement": {"entity": "engagement", "label": "one-off engagements", "number": "engagement_id", "dates": ("event_date",)},
+    "ta": {"entity": "ta", "label": "travel authorisations", "number": "ta_number", "dates": ("start",)},
+}
+
+
+class ImportIn(BaseModel):
+    via: str = Field(pattern="^(api|dataset)$")
+    kind: str = Field(pattern="^(pr|po|contract|engagement|ta|cash_advance|petty_cash|odc)$")
+    connector_id: str | None = Field(None, description="via api: the connection to read")
+    upload_id: str | None = Field(None, description="via dataset: the file uploaded with POST /v1/sources/uploads")
+    mapping: dict[str, str] | None = Field(None, description="via dataset: column -> field, as the upload proposed it")
+    date_from: str | None = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    date_to: str | None = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    number: str | None = Field(None, max_length=40, description="import only this one number")
+    dry_run: bool = True
+
+
+def _fund_kind(v) -> str:
+    k = str(v or "").strip().lower()
+    return k if k in ("cash_advance", "petty_cash", "odc") else ("petty_cash" if any(w in k for w in ("petty", "slush", "imprest", "float"))
+                                                                  else "odc" if ("odc" in k or "direct" in k) else "cash_advance")
+
+
+def _import_filter(kind: str, rows: list[dict], ids: list, date_from: str | None, date_to: str | None, number: str | None):
+    """The rows of this kind inside the dates (or the one number), with the reason each other row was left out."""
+    k = IMPORT_KINDS[kind]
+    keep, kept_ids, out = [], [], {"other kind": 0, "outside the dates": 0, "another number": 0, "no date": 0}
+    want = (number or "").strip().upper()
+    for r, i in zip(rows, ids, strict=False):
+        if "_error" in r:
+            keep.append(r)
+            kept_ids.append(i)
+            continue
+        if "contract" in k and (r.get("loe") not in (None, "")) != k["contract"]:
+            out["other kind"] += 1
+            continue
+        if "fund" in k and _fund_kind(r.get("kind")) != k["fund"]:
+            out["other kind"] += 1
+            continue
+        if want:
+            if str(r.get(k["number"]) or "").strip().upper() != want:
+                out["another number"] += 1
+                continue
+        elif date_from or date_to:
+            day = next((str(r[f])[:10] for f in k["dates"] if r.get(f)), None)
+            if day is None:
+                out["no date"] += 1
+                continue
+            if (date_from and day < date_from) or (date_to and day > date_to):
+                out["outside the dates"] += 1
+                continue
+        keep.append(r)
+        kept_ids.append(i)
+    return keep, kept_ids, {a: b for a, b in out.items() if b}
+
+
+@app.get("/v1/intake/travel-authorisations")
+async def travel_authorisations_list():
+    """Every travel authorisation: traveller, route, dates, estimate, who approved it, and where it came from."""
+    org = app.state.org
+    users = {u["user_id"]: u for u in org.list("user")}
+    rows = [t | {"traveller_name": (users.get(t["traveller"]) or {}).get("name", t["traveller"]),
+                 "synced_from": _synced_from(org.source("ta", t["ta_number"]))} for t in org.list("ta")]
+    return sorted(rows, key=lambda r: (r["start"], r["ta_number"]), reverse=True)
+
+
+@app.post("/v1/intake/import")
+async def intake_import(body: ImportIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Pull purchase requests, purchase orders, consultant contracts, one-off engagements or travel authorisations from
+    the connected application (via api) or from an uploaded file (via dataset): every one between two dates, or one
+    number. dry_run shows what would be created, updated or refused; nothing is written until dry_run is false. A
+    record that exists is locked on its number and value; the rules are the same as for any other upload or sync."""
+    from . import imports, ingestion
+    from .connectors import ConnectorStore, fetch
+
+    who = _writer(role, by)
+    k = IMPORT_KINDS[body.kind]
+    if body.date_from and body.date_to and body.date_to < body.date_from:
+        raise HTTPException(422, "the end date is before the start date")
+    if body.via == "api":
+        raw = ConnectorStore().get_raw(body.connector_id or "") if body.connector_id else None
+        if raw is None:
+            raise HTTPException(404, "no such connection: add the API connection first")
+        em = raw["entities"].get(k["entity"])
+        if not em or not em.get("enabled", True):
+            raise HTTPException(422, f"{raw['name']} is not set to provide {k['label']}: switch it on and map its fields in App Integration · Sync API")
+        try:
+            rows, ids = await fetch(raw, k["entity"])
+        except Exception as exc:  # noqa: BLE001 - the other application's answer, shown as it is
+            raise HTTPException(502, f"{raw['name']} did not answer for {k['label']}: {type(exc).__name__}: {str(exc)[:200]}") from exc
+        source = f"sync:{raw['connector_id']}"
+    else:
+        up = getattr(app.state, "uploads", {}).get(body.upload_id or "")
+        if up is None:
+            raise HTTPException(404, "unknown upload; upload the file again")
+        if up["entity"] != k["entity"]:
+            raise HTTPException(422, f"the file was read as {imports.ENTITIES[up['entity']][0].lower()}, not {k['label']}")
+        mapping = body.mapping or imports.suggest(k["entity"], up["headers"])
+        bad = [f for f in mapping if f not in imports.FIELDS[k["entity"]]]
+        if bad:
+            raise HTTPException(422, f"unknown field {bad[0]}")
+        rows = imports.clean(k["entity"], up["rows"], mapping)
+        ids = [None] * len(rows)
+        source = f"upload:{up['filename']}"
+    total = len(rows)
+    rows, ids, left_out = _import_filter(body.kind, rows, ids, body.date_from, body.date_to, body.number)
+    if body.number and not rows:
+        return {"kind": body.kind, "total": total, "matched": 0, "left_out": left_out, "created": [], "updated": [], "unchanged": [], "rejected": [],
+                "message": f"{body.number.upper()} is not in the {'connection' if body.via == 'api' else 'file'}"}
+    report = await asyncio.to_thread(ingestion.apply, k["entity"], rows, ids, source=source, dry_run=body.dry_run, **_ingest_ctx())
+    out = {k2: v for k2, v in report.items() if k2 in ("created", "updated", "unchanged", "rejected", "followed")} | {
+        "kind": body.kind, "total": total, "matched": len(rows), "left_out": left_out, "dry_run": body.dry_run}
+    if not body.dry_run:
+        app.state.position_cache = None
+        if body.via == "dataset":
+            getattr(app.state, "uploads", {}).pop(body.upload_id, None)
+        await asyncio.to_thread(app.state.audit.append, "intake_imported", {
+            "by": who, "via": body.via, "kind": body.kind, "source": source, "date_from": body.date_from, "date_to": body.date_to,
+            "number": body.number, "created": len(report["created"]), "updated": len(report["updated"]), "rejected": len(report["rejected"])})
+    return out
+
+
+class TestConnectionIn(BaseModel):
+    connection: str | None = Field(None, min_length=8, max_length=800, description="a new connection: base URL, then its key")
+    connector_id: str | None = Field(None, description="or a saved connection")
+    kind: str | None = Field(None, pattern="^(pr|po|contract|engagement|ta|cash_advance|petty_cash|odc)$", description="also read this item, to see it is there")
+
+
+@app.post("/v1/sources/test-connection")
+async def sources_test_connection(body: TestConnectionIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Reach the application before anything is imported: for a saved connection the item's own address is read (so
+    the key and the path are both tested); for a new one its base URL. Nothing is written."""
+    import time as _t
+
+    import httpx
+
+    from .connectors import ConnectorStore, dig, headers_for
+    from .sync_catalog import parse_connection
+
+    _writer(role, by)
+    if body.connector_id:
+        raw = ConnectorStore().get_raw(body.connector_id)
+        if raw is None:
+            raise HTTPException(404, "no such connection")
+        url, headers, name = raw["base_url"], headers_for(raw), raw["name"]
+        em = raw["entities"].get(IMPORT_KINDS[body.kind]["entity"]) if body.kind else None
+        if em:
+            url = raw["base_url"] + "/" + em["path"].lstrip("/")
+    elif body.connection:
+        try:
+            base, auth = parse_connection(body.connection)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        url, headers, name, em = base, headers_for({"auth": auth, "_secret": auth.get("secret", "")}), base, None
+    else:
+        raise HTTPException(422, "give the connection line or a saved connection")
+    t0 = _t.perf_counter()
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            res = await client.get(url, headers=headers)
+    except httpx.HTTPError as exc:
+        return {"ok": False, "name": name, "message": f"could not reach it: {type(exc).__name__}", "ms": round((_t.perf_counter() - t0) * 1000)}
+    ms = round((_t.perf_counter() - t0) * 1000)
+    if res.status_code in (401, 403):
+        return {"ok": False, "name": name, "status_code": res.status_code, "ms": ms, "message": "reached, but the key was refused"}
+    items = None
+    if em and res.status_code < 300:
+        try:
+            got = dig(res.json(), em.get("items_path") or "")
+            items = len(got) if isinstance(got, list) else None
+        except ValueError:
+            items = None
+    ok = res.status_code < 500 and (not em or res.status_code < 300)
+    what = ("purchase orders and consultant contracts" if body.kind in ("po", "contract") else "cash advances, petty cash and ODC requests"
+            if body.kind in ("cash_advance", "petty_cash", "odc") else IMPORT_KINDS[body.kind]["label"] if body.kind else "")
+    msg = ("connected" + (f"; {items} {what} available" if items is not None else "")) if ok else \
+        f"reached, but it answered {res.status_code}"
+    return {"ok": ok, "name": name, "status_code": res.status_code, "ms": ms, "items": items, "message": msg}
+
+
+@app.get("/v1/intake/commitments")
+async def intake_commitments():
+    """Intake -> Commitments register: every PO, consultant contract and one-off engagement received, entered by hand,
+    uploaded or synced, with its state (In Commitments, Expired, Closed, Cancelled, Needs payee) and its source."""
+    from . import commitments
+
+    pos = await purchase_orders()
+    return await asyncio.to_thread(commitments.register, org=app.state.org, po_statuses=pos, payees=app.state.intake.registry.payees)
+
+
+# what a PO is locked on once it exists: its number is the key, these are its value
+PO_LOCKED = {"supplier_id": "supplier", "currency": "currency", "total_minor": "value", "loe": "LoE", "rate_minor": "rate"}
+ENGAGEMENT_LOCKED = {"payee_id": "payee", "currency": "currency", "fee_minor": "fee"}
+
+
+def _refuse_value_change(kind: str, rid: str, new: dict) -> None:
+    """A PO (or an engagement with its PO) is locked on its number and value: what is paid against it was matched to
+    them. A different value is a new PO or an amendment registered in Intake."""
+    old = app.state.org.get(kind, rid)
+    if old is None:
+        return
+    if kind == "engagement" and app.state.org.get("po", rid) is None:
+        return  # not a commitment yet: it has no PO until it has a payee
+    fields = PO_LOCKED if kind == "po" else ENGAGEMENT_LOCKED
+    changed = [label for k, label in fields.items() if k in new and new.get(k) != old.get(k)]
+    if changed:
+        raise HTTPException(409, f"{rid} is locked on its number and value; its {', '.join(changed)} cannot change. "
+                                 "Register a new PO, or an amendment, in Intake.")
 
 
 @app.get("/v1/commitments")
@@ -2945,6 +3589,19 @@ def _org_writer(role: str, by: str, kind: str, rec: dict | None) -> str:
 async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
     kind, model = _org_kind(collection)
     who = _org_writer(role, by, kind, body)
+    rid = body.get(ID_FIELD[kind]) if isinstance(body, dict) else None
+    if rid:
+        _refuse_synced(f"{rid}", app.state.org.source(kind, rid))
+        if kind in ("po", "engagement"):
+            _refuse_value_change(kind, rid, model.model_validate(body).model_dump())
+        if kind in ("pr", "fund_request"):
+            old = app.state.org.get(kind, rid)
+            if old and old["status"] not in ("DRAFT", "SUBMITTED"):
+                raise HTTPException(409, f"{rid} is {old['status'].lower()}; it no longer changes")
+    if kind in ("pr", "fund_request"):
+        if body.get("status") not in (None, "DRAFT", "SUBMITTED"):
+            raise HTTPException(409, "a request is approved or rejected through its decision, not saved as such")
+        body = {**body, "decided_by": None, "decided_at": None} | ({"po_id": None} if kind == "pr" else {"intake_id": None, "settled_minor": None})
     try:
         rec = await asyncio.to_thread(app.state.org.save, kind, model.model_validate(body), who)
     except OrgError as exc:
@@ -2959,6 +3616,7 @@ async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "
 async def org_delete(collection: str, record_id: str, role: str = "finance_manager", by: str = "dashboard"):
     kind, _ = _org_kind(collection)
     who = _org_writer(role, by, kind, app.state.org.get(kind, record_id))
+    _refuse_synced(record_id, app.state.org.source(kind, record_id))
     if kind in ("po", "engagement") and app.state.executor.store.po_payments(record_id):
         raise HTTPException(409, "money has been paid against this PO; close or cancel it instead, so its payments keep their PO")
     try:
@@ -3342,7 +4000,7 @@ async def treasury_overview(span: str = Query("month", pattern="^(day|week|month
     store = app.state.executor.store
     payees = await asyncio.to_thread(store.list_payees)
     actions = [
-        {"label": "invoices and claims to approve or reject", "count": sum(1 for r in queue if r.status in ("NEEDS_REVIEW", "QUARANTINED")), "href": "#/intake?needs"},
+        {"label": "invoices and claims to approve or reject", "count": sum(1 for r in queue if r.status in ("NEEDS_REVIEW", "QUARANTINED")), "href": "#/pending?needs"},
         {"label": "payees waiting for a call-back", "count": sum(1 for p in payees if p["status"] in ("NEW", "CHANGED")), "href": "#/payees"},
         {"label": "books locked by a reconciliation case", "count": len(await asyncio.to_thread(store.open_recon_cases)), "href": "#/executions"},
         {"label": "payment incidents open", "count": sum(1 for i in await asyncio.to_thread(store.list_incidents, 200) if i.get("status") != "RESOLVED"), "href": "#/executions"},

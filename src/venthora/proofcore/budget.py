@@ -34,13 +34,21 @@ def load_budget(period: str | None = None, path: Path = BUDGETS_FILE) -> Budget 
 
         synced = budget_for(MasterStore(), period)
         if synced:
-            return Budget.model_validate(synced)
+            return Budget.model_validate(_with_rule(synced))
     if not path.is_file():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
     budgets = data["budgets"]
     chosen = next((b for b in budgets if b["period"] == period), None) if period else (budgets[0] if budgets else None)
-    return Budget.model_validate(chosen) if chosen else None
+    return Budget.model_validate(_with_rule(chosen)) if chosen else None
+
+
+def _with_rule(budget: dict) -> dict:
+    """The standing mandate's rule for a payment outside every line (DoA -> Treasury limits and controls), when saved."""
+    from ..mandate import unbudgeted_rule
+
+    rule = unbudgeted_rule()
+    return budget if rule is None else {**budget, "unbudgeted_requires_approval": rule}
 
 
 def attach_budget(state: TreasuryState, period: str | None = None, *, realized: dict[str, int] | None = None,

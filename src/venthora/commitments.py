@@ -9,6 +9,10 @@ Staff        people on payroll: monthly net pay, contract dates, the latest payr
 
 Paid is money Airwallex reported PAID against the PO; pending is a payment waiting in the queue. Both come from
 procurement.status, so this page and the PO match of an invoice always agree.
+
+Commitments shows only what is in force: a PO that is open and not past its expiry date (an engagement once it has
+its PO). It is read only, locked on the PO number and its value. Everything is entered, uploaded or synced through
+Intake; register() is that list, with where each record came from and why it is or is not a commitment.
 """
 from __future__ import annotations
 
@@ -47,7 +51,7 @@ def po_line(st: dict, today: str) -> dict:
             "remaining_minor": remaining, "status": status, "payments": len(st.get("payments") or []),
             "expired": bool(exp and exp < today and status not in ("Done", "Cancelled")),
             "days_left": (date.fromisoformat(exp) - date.fromisoformat(today)).days if exp else None,
-            "recurring": rec, "terms": [{"label": t["label"], "amount_minor": t["amount_minor"], "state": t["state"]} for t in st.get("terms") or []]}
+            "recurring": rec, "synced_from": st.get("synced_from"), "terms": [{"label": t["label"], "amount_minor": t["amount_minor"], "state": t["state"]} for t in st.get("terms") or []]}
     if rec != "none" and exp:
         n = max(_months(start, exp) // PERIOD_MONTHS[rec], 1)
         per = round(total / n)
@@ -62,13 +66,64 @@ def po_line(st: dict, today: str) -> dict:
     return line
 
 
+def in_force(po: dict, today: str) -> bool:
+    """An open PO that has not passed its expiry date: what Commitments shows."""
+    return po.get("status", "OPEN") == "OPEN" and not (po.get("expiry_date") and po["expiry_date"] < today)
+
+
+def source_label(source: str | None) -> dict:
+    """Where a record came from: entered by hand, uploaded, synced, or the demo seed."""
+    s = str(source or "")
+    if s.startswith("sync:"):
+        return {"kind": "api", "label": "Auto Connect (API)", "detail": s[5:]}
+    if s.startswith("upload:"):
+        return {"kind": "upload", "label": "Dataset upload", "detail": s[7:]}
+    if s == "seed":
+        return {"kind": "seed", "label": "Opening data", "detail": ""}
+    return {"kind": "manual", "label": "Entered by hand", "detail": s.replace("dashboard:", "").replace("dashboard", "")}
+
+
+def register(*, org, po_statuses: list[dict], payees: dict, today: str | None = None) -> dict:
+    """Intake -> Commitments register: every PO, contract and one-off engagement VENTHORA received, from any source,
+    with its state; only the ones in force are commitments."""
+    today = today or date.today().isoformat()
+    eng = {e["engagement_id"]: e for e in org.list("engagement")}
+    rows = []
+    for s in po_statuses:
+        po = s["po"]
+        if po["po_id"] in eng:
+            continue
+        ln = po_line(s, today)
+        state = ("Cancelled" if po.get("status") == "CANCELLED" else "Closed" if po.get("status") == "CLOSED" else "Expired" if ln["expired"]
+                 else "In Commitments")
+        rows.append({"type": "consultant contract" if po.get("loe") is not None else "purchase order", "number": po["po_id"],
+                     "party_id": po["supplier_id"], "party": (payees.get(po["supplier_id"]) or {}).get("name", po["supplier_id"]),
+                     "currency": po["currency"], "value_minor": po["total_minor"], "paid_minor": ln["paid_minor"], "pending_minor": ln["pending_minor"],
+                     "terms": ln["terms"], "pr_number": po.get("pr_number"), "account_code": po["account_code"], "description": po.get("description", ""), "active_date": ln["active_date"],
+                     "expiry_date": ln["expiry_date"], "state": state, "status_label": ln["status_label"], "source": source_label(org.source("po", po["po_id"])),
+                     "synced_from": s.get("synced_from"), "locked": True, "po": po})
+    by_po = {s["po"]["po_id"]: s for s in po_statuses}
+    for k, e in eng.items():
+        st = by_po.get(k)
+        ln = engagement_line(e, st, payees)
+        state = ("Cancelled" if e.get("status") == "CANCELLED" else "Needs payee" if not st
+                 else "In Commitments" if in_force(st["po"], today) else "Closed")
+        rows.append({"type": ENGAGEMENT_ROLES[e["role"]].lower(), "number": k, "party_id": e.get("payee_id"), "party": e["name"],
+                     "currency": e["currency"], "value_minor": e["fee_minor"], "paid_minor": ln["paid_minor"], "active_date": e["event_date"],
+                     "expiry_date": (st or {}).get("po", {}).get("expiry_date"), "state": state, "status_label": ln["status_label"],
+                     "source": source_label(org.source("engagement", k)), "synced_from": None, "locked": st is not None,
+                     "engagement": e, "documents_missing": ln["documents_missing"]})
+    rows.sort(key=lambda r: (r["state"] != "In Commitments", r["number"]))
+    return {"today": today, "rows": rows, "roles": ENGAGEMENT_ROLES, "documents": ENGAGEMENT_DOCUMENTS, "required_documents": sorted(ENGAGEMENT_REQUIRED)}
+
+
 def _party(p: dict, lines: list[dict]) -> dict:
     ccy = {ln["currency"] for ln in lines}
     one = len(ccy) == 1
     order = ("New", "Partial", "Multi Payment", "Done", "Cancelled")
     return {"id": p["id"], "name": p["name"], "currency": p.get("currency"), "status": p.get("status"), "engagement": p.get("engagement"),
             "contacts": p.get("contacts", []), "payout_method": p.get("payout_method"), "bank": p.get("bank"), "registered_phone": p.get("registered_phone"),
-            "tax_id": p.get("tax_id", ""), "budget_line": p.get("budget_line"),
+            "tax_id": p.get("tax_id", ""), "budget_line": p.get("budget_line"), "synced_from": p.get("synced_from"),
             "contracts": sorted(lines, key=lambda x: (x["expiry_date"] or "9999", x["po_id"])),
             "statuses": sorted({ln["status"] for ln in lines}, key=order.index),
             "total_minor": sum(ln["total_minor"] for ln in lines) if one else None,
@@ -108,19 +163,20 @@ def build(*, org, po_statuses: list[dict], vendors: list[dict], consultants: lis
     by_po = {s["po"]["po_id"]: s for s in po_statuses}
     lines: dict[str, list[dict]] = {}
     for s in po_statuses:
-        if s["po"]["po_id"] in eng:
-            continue  # paid against an engagement: shown under One-off engagements
+        if s["po"]["po_id"] in eng or not in_force(s["po"], today):
+            continue  # an engagement's PO shows under One-off engagements; a closed, cancelled or expired PO in Intake only
         lines.setdefault(s["po"]["supplier_id"], []).append(po_line(s, today))
-    out_v = [_party(v, lines.get(v["id"], [])) for v in vendors]
-    out_c = [_party(c, lines.get(c["id"], [])) for c in consultants]
-    out_e = sorted((engagement_line(e, by_po.get(k), payees) for k, e in eng.items()), key=lambda x: (x["event_date"], x["engagement_id"]))
+    out_v = [_party(v, lines[v["id"]]) for v in vendors if lines.get(v["id"])]  # an active vendor = one with an active PO
+    out_c = [_party(c, lines[c["id"]]) for c in consultants if lines.get(c["id"])]
+    out_e = sorted((engagement_line(e, by_po.get(k), payees) for k, e in eng.items() if k in by_po and in_force(by_po[k]["po"], today)
+                    and e.get("status") != "CANCELLED"), key=lambda x: (x["event_date"], x["engagement_id"]))
     out_r = []
     for c in customers:
         mine = sorted((r for r in receivables if r["customer_id"] == c["id"]), key=lambda r: r["due_date"])
         ccy = {r["currency"] for r in mine}
         one = len(ccy) <= 1
         overdue = [r for r in mine if r["due_date"] < today]
-        out_r.append({"id": c["id"], "name": c["name"], "currency": c.get("currency"), "contacts": c.get("contacts", []),
+        out_r.append({"id": c["id"], "name": c["name"], "currency": c.get("currency"), "contacts": c.get("contacts", []), "synced_from": c.get("synced_from"),
                       "history": c.get("history"), "invoices": mine, "open_count": len(mine),
                       "open_minor": sum(r["amount_minor"] for r in mine) if one else None,
                       "overdue_minor": sum(r["amount_minor"] for r in overdue) if one else None,
