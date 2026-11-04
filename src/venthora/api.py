@@ -571,6 +571,7 @@ async def doa_get(role: str | None = None):
             "consultant_catalog": {"senders": doa.CONSULTANT_SENDERS, "documents": doa.CONSULTANT_DOCUMENTS},
             "office_catalog": {"senders": doa.OFFICE_SENDERS, "requirements": doa.OFFICE_REQUIREMENTS},
             "custom": doa.custom_categories(org), "custom_requirements": doa.CUSTOM_REQUIREMENTS,
+            "pending": doa.pending(org, _payee_status, payees, today),
             "travel_catalog": {"senders": doa.TRAVEL_SENDERS, "documents": doa.TRAVEL_DOCUMENTS, "channels": doa.TRAVEL_CHANNELS, "places": doa.travel_places(org)},
             "engine_currencies": list(doa.ENGINE_CURRENCIES),
             "people": [{"user_id": u["user_id"], "name": u["name"], "role": u["role"]} for u in org.list("user") if u.get("active", True)],
@@ -733,7 +734,13 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
 
 @app.post("/v1/doa/run")
 async def doa_run(req: DoARunIn, by: str = "dashboard"):
-    """Run the due lines now (the autopilot does the same on its own when it is on)."""
+    """Run the due lines now (the autopilot does the same on its own when it is on). Refused while any due payment
+    is blocked: what stops it is shown first, and the run goes once everything is fixed."""
+    from . import doa
+
+    p = doa.pending(app.state.org, _payee_status, app.state.intake.registry.payees, datetime.now(UTC).date())
+    if p["blocked"] and not req.refs:
+        raise HTTPException(409, {"message": "fix what stops the due payments first", "blocked": p["blocked"]})
     return await _doa_run(req.refs, req.approver, req.role, f"{by} ({req.role})" if req.approver else "VENTHORA (DoA)")
 
 

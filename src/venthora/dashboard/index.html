@@ -2090,24 +2090,24 @@ document.querySelectorAll("#doaTabs [data-dtab]").forEach(b=>b.onclick=()=>{docu
  document.querySelectorAll("[data-dpane]").forEach(p=>p.hidden=p.dataset.dpane!==b.dataset.dtab);if(b.dataset.dtab==="ctl")mandateView()});
 const DSCHED={monthly:"Monthly",quarterly:"Quarterly",annual:"Annual",per_document:"Per approved document"};
 const dmoney=(m,c)=>m==null?"-":fmt(m,c||"USD");
-const DSUM={via_intake:["Paid from the intake queue","good"],dashboard_only:["Dashboard requests only","good"],auto:["Agent pays on its own","good"],mixed:["Partly prepared for a person","warn"],never:["Not executed","critical"],no_document:["No source document this period","info"],not_connected:["Source not connected yet","info"],off:["Delegation off","warn"]};
+const DPILL=(on,long)=>on?[long?"Delegated to VENTHORA · autopilot processing and payment":"Delegated to VENTHORA · autopilot","good"]:["Delegation off","warn"];
 async function doaView(){const seq=window.__doaSeq=(window.__doaSeq||0)+1;try{const d=await api(`/v1/doa?role=${encodeURIComponent(actor().role)}`);if(seq!==window.__doaSeq)return;DOA=d;
  const on=$("#doaTabs .on")?.dataset.dtab||"int",can=d.authority.you_may_change,dis=can?"":"disabled";
  const head=`<div class="tile" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:260px"><b>Granted by the ${esc(d.authority.label)}</b>
    <div class="small muted">${can?`You (${esc(actor().name)}) hold the delegation and may change it.`:`You (${esc(actor().name)}) may read the delegation; only the ${esc(d.authority.label)} changes it.`} The delegation is general policy: it names no person, vendor, account or amount. Today ${esc(d.today)}.</div></div>
-   <label class="check"><input type="checkbox" id="doaPilot" ${d.autopilot?"checked":""} ${dis}> <b>Autopilot</b> <span class="small muted">pays every due payment the delegation allows, every minute, without a click</span></label>
-   <button id="doaRun" class="primary">Run due payments now</button></div>`;
- const list=d.internal.map(c=>{const [w,t]=DSUM[c.now.summary]||["-",""];return `<button data-dsel="${c.key}" class="tile" style="text-align:left;width:100%;margin-bottom:6px;cursor:pointer;${c.key===DOASEL?"outline:2px solid var(--accent,#2f6fed)":""}">
-   <div><b>${esc(c.code)} · ${esc(c.title)}</b></div><div class="small muted">${esc(DSCHED[c.policy.schedule])} · ${esc(c.policy.currencies.join(", "))}</div>
+   <label class="check"><input type="checkbox" id="doaPilot" ${d.autopilot?"checked":""} ${dis}> <b>Autopilot</b> <span class="small muted">VENTHORA processes and pays each payment the delegation allows the moment it falls due</span></label></div>
+  ${duePanel(d.pending)}`;
+ const list=d.internal.map(c=>{const [w,t]=DPILL(c.policy.enabled);return `<button data-dsel="${c.key}" class="tile" style="text-align:left;width:100%;margin-bottom:6px;cursor:pointer;${c.key===DOASEL?"outline:2px solid var(--accent,#2f6fed)":""}">
+   <div><b>${esc(c.code)} · ${esc(c.title)}</b></div><div class="small muted">${esc(c.policy.schedule==="per_document"?"Real time":DSCHED[c.policy.schedule])} · ${esc(c.policy.currencies.join(", "))}</div>
    <div style="margin-top:4px"><span class="pill ${t}">${esc(w)}</span></div></button>`}).join("");
  const customList=d.custom.map(x=>`<button data-dsel="${esc(x.key)}" class="tile" style="text-align:left;width:100%;margin-bottom:6px;cursor:pointer;${x.key===DOASEL?"outline:2px solid var(--accent,#2f6fed)":""}">
    <div><b>${esc(x.code)} · ${esc(x.title)}</b></div><div class="small muted">${esc(x.charge_code)} · real time</div>
-   <div style="margin-top:4px"><span class="pill ${x.enabled?"good":"warn"}">${x.enabled?"Paid in real time":"Delegation off"}</span></div></button>`).join("")
+   <div style="margin-top:4px"><span class="pill ${DPILL(x.enabled)[1]}">${DPILL(x.enabled)[0]}</span></div></button>`).join("")
   +(can?`<button data-dsel="__new" class="tile" style="text-align:left;width:100%;cursor:pointer;${DOASEL==="__new"?"outline:2px solid var(--accent,#2f6fed)":""}"><b>+ Add a category</b><div class="small muted">an item of your own, with its charge code</div></button>`:"");
  if(DOASEL==="__new"||d.custom.some(x=>x.key===DOASEL)){const x=d.custom.find(y=>y.key===DOASEL)||null;
   $("#doaView").innerHTML=`${head}<div data-dpane="int" ${on==="int"?"":"hidden"}><div style="display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:12px"><div>${list}${customList}</div><div>${customForm(d,x,dis)}</div></div></div><div data-dpane="ext" ${on==="ext"?"":"hidden"}></div>`;
   doaBindCommon(d);customBind(d,x);return}
- const c=d.internal.find(x=>x.key===DOASEL)||d.internal[0],pol=c.policy,n=c.now,[sw,st]=DSUM[n.summary]||["-",""];
+ const c=d.internal.find(x=>x.key===DOASEL)||d.internal[0],pol=c.policy,n=c.now,[sw,st]=DPILL(pol.enabled,true);
  const opt=(arr,v,lab)=>arr.map(x=>`<option value="${esc(x)}" ${String(x)===String(v)?"selected":""}>${esc(lab?lab(x):x)}</option>`).join("");
  const fld=(label,inner)=>`<label style="display:flex;flex-direction:column;gap:4px">${esc(label)}${inner}</label>`;
  const detail=`<div class="tile"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:15px">${esc(c.code)} · ${esc(c.title)}</b><span class="pill ${st}">${esc(sw)}</span></div>
@@ -2149,7 +2149,7 @@ async function doaView(){const seq=window.__doaSeq=(window.__doaSeq||0)+1;try{co
  document.querySelectorAll("[name=dt-channel]").forEach(r=>r.onchange=()=>{$("#dt-email-box").hidden=$("[name=dt-channel]:checked").value!=="email"});
  document.querySelectorAll("[data-dctl]").forEach(a=>a.onclick=ev=>{ev.preventDefault();document.querySelector('[data-dtab="ctl"]').click()});
  $("#doaPilot").onchange=async ev=>{try{await api(`/v1/doa/settings?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({autopilot:ev.target.checked})});toast(ev.target.checked?"Autopilot on: due payments are made on their own":"Autopilot off","good")}catch(e){toast(e.message,"critical");ev.target.checked=!ev.target.checked}};
- $("#doaRun").onclick=()=>doaRun();
+ if($("#doaRun"))$("#doaRun").onclick=()=>doaRun();
  $("#dpSave").onclick=async()=>{
   const body={enabled:$("#dp-enabled").checked,schedule:$("#dp-schedule")?.value??pol.schedule,pay_day:$("#dp-pay_day")?.value??pol.pay_day,currencies:mselVal("dp-currencies"),
    ...(c.key==="travel"?travelBody():{}),
@@ -2210,12 +2210,19 @@ function travelPlaces(d,pol,dis){const P=d.travel_catalog.places,countries=[[ALL
   <div class="small muted" style="margin:6px 0">The destination decides whether the agent may pay a trip at all; a city with no rate on file is never paid on the agent's own authority.</div>
   <h3 class="small muted" style="margin:12px 0 6px">Value per destination city</h3><div id="dt-rates">${rateTable(d,pol.dest_countries,pol.dest_cities)}</div>
   <div class="small muted" style="margin-top:4px">From your travel rates. To change them, upload the new rates in <a href="#/sources-upload">Dataset upload</a>.</div>`}
+function duePanel(p){if(!p.ready.length&&!p.blocked.length)return "";
+ const who=x=>x.who?`${esc(x.who)}${x.amount_minor!=null?` · ${dmoney(x.amount_minor,x.currency)}`:""}`:"-";
+ const bl=p.blocked.length?`<div class="small" style="margin-bottom:8px"><b>${p.blocked.length} due payment${p.blocked.length===1?"":"s"} cannot go yet.</b> Fix what is listed; the run becomes available once nothing stops the due payments.</div>
+  ${table([{h:"Category",f:x=>esc(x.category)},{h:"Period",f:x=>esc(x.period||"-")},{h:"Who",f:who},{h:"What stops it",f:x=>`<span class="small">${esc(x.reason)}</span>`},{h:"What to do",f:x=>`<a href="${esc(x.where)}" class="small">${esc(x.fix)} ›</a>`}],p.blocked)}`:"";
+ const ready=p.ready.length?(p.may_run?`<div class="row" style="margin-top:8px"><button id="doaRun" class="primary">Run ${p.ready.length} due payment${p.ready.length===1?"":"s"} now</button><span class="small muted">${p.ready.map(x=>`${esc(x.who||x.category)}`).join(", ")}</span></div>`
+  :`<div class="small muted" style="margin-top:8px">${p.ready.length} payment${p.ready.length===1?" is":"s are"} ready and wait${p.ready.length===1?"s":""} for the run.</div>`):"";
+ return `<div class="tile" style="margin-bottom:12px;border-left:3px solid ${p.blocked.length?"var(--warn,#c78a00)":"var(--good,#1a8a4a)"};border-radius:0"><h3 class="small muted" style="margin:0 0 6px">Due payments</h3>${bl}${ready}</div>`}
 function doaBindCommon(d){document.querySelectorAll("[data-dsel]").forEach(b=>b.onclick=()=>{DOASEL=b.dataset.dsel;doaView()});
  const pilot=$("#doaPilot");if(pilot&&!pilot.onchange)pilot.onchange=async ev=>{try{await api(`/v1/doa/settings?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({autopilot:ev.target.checked})});toast(ev.target.checked?"Autopilot on":"Autopilot off","good")}catch(e){toast(e.message,"critical");ev.target.checked=!ev.target.checked}};
  const run=$("#doaRun");if(run&&!run.onclick)run.onclick=()=>doaRun()}
 function customForm(d,x,dis){const ppl=d.people.map(u=>[u.user_id,`${u.name} · ${(ROLES[u.role]||u.role)}`]);const v=x||{title:"",charge_code:"",enabled:true,email_people:[],login_people:[],requirements:["pr_number","vendor_name","account_number","bank_name","country","amount"],currencies:["USD"]};
  const fl=(label,inner)=>`<label style="display:flex;flex-direction:column;gap:4px">${esc(label)}${inner}</label>`;
- return `<div class="tile"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:15px">${x?`${esc(x.code)} · ${esc(x.title)}`:"Add a category of your own"}</b>${x?`<span class="pill ${x.enabled?"good":"warn"}">${x.enabled?"Paid in real time":"Delegation off"}</span>`:""}</div>
+ return `<div class="tile"><div class="row" style="justify-content:space-between;align-items:center"><b style="font-size:15px">${x?`${esc(x.code)} · ${esc(x.title)}`:"Add a category of your own"}</b>${x?`<span class="pill ${DPILL(x.enabled)[1]}">${DPILL(x.enabled,true)[0]}</span>`:""}</div>
   <div class="small muted" style="margin:4px 0 10px">Paid in real time: a request for this item from a person chosen below, by email or signed in on the dashboard, that carries everything ticked, is paid at once to the vendor's registered account and booked to the charge code.</div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:10px 12px;align-items:end" class="small">
    ${fl("Item name",`<input id="dx-title" value="${esc(v.title)}" maxlength="80" placeholder="Generator fuel" ${dis}>`)}
@@ -2310,7 +2317,8 @@ async function travelView(){try{const [d,q]=await Promise.all([api("/v1/doa"),ap
    toast(r.status==="VERIFIED"?"Travel request complete: the agent pays it":r.status==="REJECTED"?"Travel request rejected: see why":"Travel request waits for a person",r.status==="VERIFIED"?"good":r.status==="REJECTED"?"critical":"info")}
   catch(e){$("#tr-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
  catch(e){$("#travelView").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-async function doaRun(){$("#doaRun").disabled=true;try{const r=await api("/v1/doa/run",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
+async function doaRun(){$("#doaRun").disabled=true;try{const res=await fetch("/v1/doa/run",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});const r=await res.json();
+  if(res.status===409){toast("Fix what stops the due payments first","warn");doaView();return}if(!res.ok)throw new Error(`${res.status} ${typeof r.detail==="string"?r.detail:res.statusText}`);
   const paid=r.paid.length,held=r.held.length;toast(paid||held?`${paid} paid · ${held} held`:`Nothing to pay now${r.skipped.length?`: ${r.skipped.map(x=>x.reasons[0]).join("; ")}`:""}`,paid?"good":"info");doaView()}
  catch(e){toast(e.message,"critical")}finally{const b=$("#doaRun");if(b)b.disabled=false}}
 

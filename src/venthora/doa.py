@@ -684,6 +684,54 @@ def _personnel(org, pol, payee_status, payees, row) -> None:
     row["reasons"] = [f"{n['auto']} line(s) the agent pays on its own, {n['approve']} prepared for a person, {n['never']} never executed"]
 
 
+def _fix(reason: str) -> tuple[str, str]:
+    """What to do about a reason a due payment cannot go, and where."""
+    r = reason.lower()
+    if "register" in r and ("no payroll" in r or "not approved" in r):
+        return "Prepare the period's payroll register and have HR and the FCO approve it", "#/mandate"
+    if "not verified" in r or "not onboarded" in r or "not a registered payee" in r:
+        return "Verify the bank account in Payees (call-back on the registered number)", "#/payees"
+    if "receives" in r or "currency" in r:
+        return "Allow the currency in this category's policy, or register an account in the line's currency", "#/mandate"
+    if "charge code" in r:
+        return "Correct the charge code in Projects and accounts", "#/codes"
+    if "first payroll" in r or "new on the register" in r:
+        return "A person approves this line once", "#/mandate"
+    return "Look at the reason and correct the source document", "#/mandate"
+
+
+def pending(org, payee_status, payees: dict, today: dt.date) -> dict:
+    """The due payments of the standing categories not paid yet: those the agent can pay now, and those it cannot,
+    each with why (including an earlier run that held or failed) and what to fix. A run is allowed only when
+    nothing is blocked."""
+    runs = {r["_id"]: r for r in org.list("doa_run")}
+    ready, blocked = [], []
+    for row in evaluate(org, payee_status, payees, today):
+        c = BY_KEY[row["key"]]
+        if not row["enabled"] or not row["due"]:
+            continue
+        if not row["lines"]:
+            if row["summary"] in ("no_document", "never"):
+                for reason in row["reasons"]:
+                    fix, where = _fix(reason)
+                    blocked.append({"category": c["title"], "period": row["period"], "who": None, "reason": reason, "fix": fix, "where": where})
+            continue
+        for ln in row["lines"]:
+            done = runs.get(ln.get("ref") or "")
+            if done and done["status"] in ("PAID", "IN_FLIGHT"):
+                continue
+            item = {"category": c["title"], "period": row["period"], "who": ln["employee"], "amount_minor": ln.get("amount_minor"), "currency": ln.get("currency")}
+            if done and done["status"] == "HELD" and ln["verdict"] == "auto":
+                blocked.append(item | {"reason": f"the last run did not pay it: {done['message']}", "fix": "Correct what the last run reports, then run again", "where": "#/mandate"})
+            elif ln["verdict"] == "auto":
+                ready.append(item)
+            else:
+                for reason in ln["reasons"]:
+                    fix, where = _fix(reason)
+                    blocked.append(item | {"reason": reason, "fix": fix, "where": where})
+    return {"ready": ready, "blocked": blocked, "may_run": bool(ready) and not blocked}
+
+
 def book(base: TreasuryState, row: dict, lines: list[dict], payees: dict, today: dt.date) -> TreasuryState:
     """The book of the lines to pay now: one obligation per line, its evidence the approved source document."""
     c = BY_KEY[row["key"]]

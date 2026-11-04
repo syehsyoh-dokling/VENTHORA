@@ -252,3 +252,28 @@ def test_travel_places_must_be_on_file_and_the_checklist_and_channel_are_kept(cl
     assert client.put(f"/v1/doa/policies/travel?{FCO}", json={"dest_countries": ["Indonesia"], "dest_cities": ["Kenya/Nairobi"]}).status_code == 422
     assert client.put(f"/v1/doa/policies/travel?{FCO}", json={"channel": "email", "senders": ["finance"], "finance_people": []}).status_code == 422
     assert client.put(f"/v1/doa/policies/travel?{FCO}", json={"channel": "email", "senders": ["finance"], "finance_people": ["u-omar"]}).status_code == 200
+
+
+# -- due payments: what stops them first, the run only when nothing does ---------------------------------------------
+def test_a_due_payment_that_cannot_go_is_shown_with_what_to_fix_and_the_run_waits(client):
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "1"}).status_code == 200  # due today
+    p = client.get("/v1/doa").json()["pending"]
+    assert not p["may_run"] and p["blocked"][0]["reason"].startswith("no payroll register")
+    assert "payroll register" in p["blocked"][0]["fix"]
+    r = client.post("/v1/doa/run", json={})
+    assert r.status_code == 409 and r.json()["detail"]["blocked"]
+    # last month's register was paid; this month's has the same people: the run may go
+    last = (dt.date.today().replace(day=1) - dt.timedelta(days=1)).strftime("%Y-%m")
+    for period in (last, _period()):
+        assert client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": period, "lines": LINES}).status_code == 200
+        assert client.post(f"/v1/doa/registers/{period}/approve?step=hr&role=hq_admin&by=Hana%20HR").status_code == 200
+        assert client.post(f"/v1/doa/registers/{period}/approve?step=fco&{FCO}").status_code == 200
+    p = client.get("/v1/doa").json()["pending"]
+    assert p["may_run"] and len(p["ready"]) == 3 and p["blocked"] == []
+    # a line whose account is not verified blocks the run again, with where to fix it
+    bad = LINES[:2] + [LINES[2] | {"payee_id": "harbor-analytics"}]
+    client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": bad})
+    client.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=hq_admin&by=Hana%20HR")
+    client.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}")
+    p = client.get("/v1/doa").json()["pending"]
+    assert not p["may_run"] and p["blocked"][0]["who"] == "Cleo Hart" and p["blocked"][0]["where"] == "#/payees"
