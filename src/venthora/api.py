@@ -648,6 +648,17 @@ async def doa_register_post(req: RegisterIn, role: str = "finance_manager", by: 
         raise HTTPException(422, str(exc)) from exc
 
 
+@app.get("/v1/doa/registers")
+async def doa_registers():
+    """Every payroll register, newest period first, with the people of the organisation and the registered accounts
+    a line may pay into (name and currency), for the register page."""
+    org = app.state.org
+    reg = app.state.intake.registry.payees
+    return {"registers": sorted(org.list("payroll_register"), key=lambda r: r["period"], reverse=True),
+            "people": [{"user_id": u["user_id"], "name": u["name"], "role": u["role"], "payee_id": u.get("payee_id")} for u in org.list("user") if u.get("active", True)],
+            "accounts": [{"id": k, "name": v["name"], "currency": v.get("currency"), "status": _payee_status(k)} for k, v in reg.items()]}
+
+
 @app.get("/v1/doa/registers/{period}")
 async def doa_register_get(period: str):
     from . import doa

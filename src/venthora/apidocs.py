@@ -121,6 +121,7 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("PUT", "/v1/doa/policies/{key}"): ("Set a category's policy", "Schedule, pay day and payout currencies of one internal category; it names no person or amount. Only the holder of the delegation may call it."),
     ("PUT", "/v1/doa/settings"): ("Switch the DoA autopilot", "On: the agent pays every due line the DoA lets it pay on its own, every minute, without a click. Only the holder of the delegation may call it."),
     ("POST", "/v1/doa/registers"): ("Prepare a payroll register", "One line per employee: the employee's registered bank account, currency, net pay and charge code; it needs HR's and then the FCO's approval."),
+    ("GET", "/v1/doa/registers"): ("List payroll registers", "Every payroll register, newest first, with the organisation's people and the registered accounts a line may pay into."),
     ("GET", "/v1/doa/registers/{period}"): ("Get a payroll register", "The period's register with its lines, totals per currency and approvals."),
     ("POST", "/v1/doa/registers/{period}/approve"): ("Approve a payroll register", "step=hr, then step=fco, by two different people, neither of them the preparer."),
     ("POST", "/v1/doa/run"): ("Run the due lines", "Pay now what the DoA lets the agent pay on its own, plus the prepared lines a person approves; the treasury proof and the split still apply."),

@@ -19,9 +19,9 @@ from venthora.testing.fake_airwallex import FakeAirwallex
 FCO = "role=super_admin&by=Rosa%20Lindqvist"
 CC = "US-200.OPS.6010"
 # the demo registry has no employees as payees; registered accounts in each currency stand in for theirs
-LINES = [{"employee": "Ana Silva", "payee_id": "payroll-group-us", "currency": "USD", "amount_minor": 420_000, "charge_code": CC},
-         {"employee": "Ben Ortiz", "payee_id": "ben-eu-components", "currency": "EUR", "amount_minor": 380_000, "charge_code": CC},
-         {"employee": "Cleo Hart", "payee_id": "ben-uk-logistics", "currency": "GBP", "amount_minor": 300_000, "charge_code": CC}]
+LINES = [{"employee": "Amira Shah", "payee_id": "payroll-group-us", "currency": "USD", "amount_minor": 420_000, "charge_code": CC},
+         {"employee": "Lee Park", "payee_id": "ben-eu-components", "currency": "EUR", "amount_minor": 380_000, "charge_code": CC},
+         {"employee": "Ines Duarte", "payee_id": "ben-uk-logistics", "currency": "GBP", "amount_minor": 300_000, "charge_code": CC}]
 
 
 @pytest.fixture
@@ -98,13 +98,13 @@ def test_each_line_is_paid_in_its_own_accounts_currency_when_the_policy_allows_i
     assert client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": bad}).status_code == 200
     _approve(client)
     v = {x["employee"]: x for x in _now(client)["lines"]}
-    assert v["Ben Ortiz"]["verdict"] == "never" and "receives EUR, not USD" in v["Ben Ortiz"]["reasons"][0]
+    assert v["Lee Park"]["verdict"] == "never" and "receives EUR, not USD" in v["Lee Park"]["reasons"][0]
     assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"currencies": ["USD"]}).status_code == 200
     client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": LINES})
     _approve(client)
     v = {x["employee"]: x for x in _now(client)["lines"]}
-    assert "EUR is not a payout currency the delegation allows" in v["Ben Ortiz"]["reasons"]
-    assert v["Ana Silva"]["verdict"] == "approve"  # first payroll, but the line itself is fine
+    assert "EUR is not a payout currency the delegation allows" in v["Lee Park"]["reasons"]
+    assert v["Amira Shah"]["verdict"] == "approve"  # first payroll, but the line itself is fine
 
 
 def test_due_lines_are_paid_on_the_agents_own_authority_in_each_currency(tmp_path):
@@ -276,4 +276,30 @@ def test_a_due_payment_that_cannot_go_is_shown_with_what_to_fix_and_the_run_wait
     client.post(f"/v1/doa/registers/{_period()}/approve?step=hr&role=hq_admin&by=Hana%20HR")
     client.post(f"/v1/doa/registers/{_period()}/approve?step=fco&{FCO}")
     p = client.get("/v1/doa").json()["pending"]
-    assert not p["may_run"] and p["blocked"][0]["who"] == "Cleo Hart" and p["blocked"][0]["where"] == "#/payees"
+    assert not p["may_run"] and p["blocked"][0]["who"] == "Ines Duarte" and p["blocked"][0]["where"] == "#/payees"
+
+
+def test_the_register_page_lists_registers_people_and_the_accounts_a_line_may_pay_into(client):
+    g = client.get("/v1/doa/registers").json()
+    assert g["registers"] == [] and any(u["user_id"] == "u-amira" for u in g["people"])
+    assert {"id": "payroll-group-us", "name": "Northwind Payroll Services Inc", "currency": "USD"}.items() <= next(a for a in g["accounts"] if a["id"] == "payroll-group-us").items()
+    client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": LINES})
+    assert client.get("/v1/doa/registers").json()["registers"][0]["period"] == _period()
+    assert client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch",
+                       json={"period": _period(), "lines": [LINES[0] | {"payee_id": None}]}).status_code == 422  # no account, no line
+    assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "1"}).status_code == 200
+    blocked = client.get("/v1/doa").json()["pending"]["blocked"]
+    assert blocked and all(b["where"] == "#/payroll" for b in blocked)
+
+
+def test_no_salary_after_the_contract_end_date_or_for_someone_not_in_people_and_roles(client):
+    lee = next(u for u in client.get("/v1/org/users").json() if u["name"] == "Lee Park")
+    ended = (dt.date.today().replace(day=1) - dt.timedelta(days=1)).isoformat()  # the last day of last month
+    assert client.post(f"/v1/org/users?{FCO}", json=lee | {"contract_end": ended}).status_code == 200
+    lines = LINES + [{"employee": "Nobody Known", "payee_id": "payroll-group-us", "currency": "USD", "amount_minor": 100_000, "charge_code": CC}]
+    client.post("/v1/doa/registers?role=finance_manager&by=Dana%20Finch", json={"period": _period(), "lines": lines})
+    _approve(client)
+    v = {x["employee"]: x for x in _now(client)["lines"]}
+    assert v["Lee Park"]["verdict"] == "never" and f"the contract ended on {ended}" in v["Lee Park"]["reasons"][0]
+    assert v["Nobody Known"]["verdict"] == "never" and "not a person in People and roles" in v["Nobody Known"]["reasons"]
+    assert v["Amira Shah"]["verdict"] == "approve"  # still running; the first payroll goes to a person once

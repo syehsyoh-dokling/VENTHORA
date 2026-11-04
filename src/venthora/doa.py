@@ -40,51 +40,51 @@ INTERNAL: list[dict[str, Any]] = [
     {"key": "personnel", "code": "01", "title": "Personnel", "basis": "Salaries and wages (2 CFR 200.430)", "priority": 10, "account": "6010",
      "source": "Payroll register: one line per employee, with the employee's registered bank account, currency and net pay; prepared by HR, approved by HR and the FCO",
      "connected": True,
-     "auto": "On the pay date, every line of the approved register, to the employee's verified account, in an allowed currency.",
-     "approve": "The first payroll under this delegation, and anyone new on the register.",
-     "never": "A register not approved by both HR and the FCO; a line whose account is not verified, or does not receive the line's currency."},
+     "auto": "No payment instruction is needed each month. On the pay day chosen below VENTHORA reads that period's approved payroll register, checks every line (the employee's own verified account, an allowed currency, a contract still running on the pay day), buys any foreign currency and pays each employee in real time. The first payroll under the delegation, and anyone new on the register, go to a person once.",
+     "approve": "Payment → Payroll register. Before the pay day, make sure every employee to be paid this month is on it with the right net pay and charge code, and that HR and then the FCO have approved it. People and roles must hold each employee's own registered bank account and contract end date: a line for an employee without an account, or whose contract has ended, is not paid.",
+     "never": 'VENTHORA pays no salary. The register is still checked and shown on Payment → Payroll register, but every salary is paid by a person.'},
     {"key": "fringe", "code": "02", "title": "Fringe benefits", "basis": "Insurance, pension, social security, leave (2 CFR 200.431)", "priority": 9, "account": "6020",
      "source": "The premium schedule of each policy or plan", "connected": False,
-     "auto": "Each premium on its due date, to the registered insurer or fund.",
-     "approve": "The first premium of a new policy, or a premium that is not on the schedule.",
-     "never": "A premium to anyone but the registered insurer or fund."},
+     "auto": "On each benefit's due date, at the frequency set in the list below, VENTHORA pays the insurer, fund or authority with no instruction needed. Not active yet: the benefit schedule is not connected, so nothing is paid from this category today.",
+     "approve": 'Switch on below the benefits the organisation provides and how often each is paid. The insurer, pension fund or authority of each benefit must be a registered and verified payee (Payment → Payees). Benefits paid to the employee go with the payroll register.',
+     "never": 'Premiums and contributions are paid by a person; VENTHORA only records them.'},
     {"key": "consultants", "code": "03", "title": "Experts and consultants", "basis": "Regular consultants on a retainer (2 CFR 200.459)", "priority": 7, "account": "6200",
      "source": "The consultant's payment request, by email from the senders chosen below, with every document ticked attached", "connected": True,
-     "auto": "A request from an allowed sender, with every required document attached, inside the consultant's contract value (unless exceeding claims are ignored).",
-     "approve": "A request while the delegation is switched off.",
-     "never": "A request from any other sender, or with a required document missing: it is rejected, not held."},
+     "auto": "No schedule: VENTHORA pays as requests arrive. A consultant's payment request by email from a sender chosen below, carrying every document chosen below, is checked against the consultant's contract value and paid to the consultant's registered account in real time. An incomplete request, or one from anyone else, is rejected.",
+     "approve": 'Each consultant must be a registered and verified payee (Payment → Payees) with an open contract or purchase order holding the contract value (Payment → Purchase orders). Choose below who may send the request and which documents it must carry.',
+     "never": 'Consultant requests wait in Payment → Intake for a person to approve them.'},
     {"key": "travel", "code": "04", "title": "Travel and transport", "basis": "Travel, per diem and transport (2 CFR 200.475)", "priority": 6, "account": "6400",
      "source": "The traveller's request, with the documents ticked below, for a trip between the places chosen, at the organisation's travel rates", "connected": True,
-     "auto": "A complete request for a trip from an allowed origin to an allowed destination, at or below that city's lodging and per diem rates.",
-     "approve": "A trip to a destination with no travel rate on file, or an amount above the rates.",
-     "never": "A trip outside the places chosen, a request with a required document missing, or one from a channel the delegation does not accept."},
+     "auto": "No schedule: VENTHORA pays as requests arrive, by email or on Payment → Travel requests. Each claim is checked against the origins and destinations chosen, the lodging and per diem rates of the destination city and the documents ticked; a complete claim inside them is paid to the traveller's own account in real time.",
+     "approve": "Upload the organisation's travel rates per destination city (System Setting → Dataset upload) and choose the places below. Each traveller needs their own registered bank account in People and roles, and each request carries the documents ticked below.",
+     "never": 'Travel claims wait in Payment → Intake for a person to approve them.'},
     {"key": "office", "code": "05", "title": "Office and operations", "basis": "Rent, utilities, communications, software", "priority": 6, "account": "6300",
      "source": "The vendor's bill without a purchase order, by email from the senders chosen below, carrying everything ticked below", "connected": True,
-     "auto": "In real time, as soon as a bill arrives from an allowed sender and carries everything ticked below; paid to the vendor's registered account.",
-     "approve": "A bill that misses something ticked below, or arrives while the delegation is off.",
-     "never": "A vendor that is not registered and verified. A bill that quotes a purchase order is an external vendor invoice instead."},
+     "auto": "No schedule: VENTHORA pays as bills arrive. A bill without a purchase order, from a sender ticked below and carrying everything ticked below, is paid at once to the vendor's registered account.",
+     "approve": 'Each vendor must be a registered and verified payee (Payment → Payees), and its bills must carry the details ticked below. A bill that quotes a purchase order is paid as an external vendor invoice instead.',
+     "never": 'Bills without a purchase order wait in Payment → Intake for a person to approve them.'},
     {"key": "cash_advance", "code": "06", "title": "Cash advance and slush fund", "basis": "Advances to staff and imprest (petty cash) floats, settled later against receipts", "priority": 6, "account": "1400",
      "source": "An instruction by email from the one person chosen below, naming the person to pay and the amount", "connected": True,
-     "auto": "In real time, when the instruction comes from the person chosen, names someone in People and roles with a registered bank account, and states the amount.",
-     "approve": "An instruction for someone without a registered bank account, or in a currency their account does not receive.",
-     "never": "An instruction from anyone else. The advance is booked as a receivable from the person until it is settled."},
+     "auto": "No schedule: VENTHORA pays the moment the instruction arrives. An email from the one person chosen below, naming someone in People and roles and an amount, is paid to that person's own account and booked to 1400 Advances to staff until it is settled.",
+     "approve": 'Choose below the one person who instructs advances. Each person who receives an advance needs their own registered bank account in People and roles.',
+     "never": 'Cash advances and slush fund floats are paid by a person.'},
     {"key": "other_direct", "code": "07", "title": "Other direct costs (ODC)", "basis": "Programme activity costs not in another category", "priority": 5, "account": "6900",
      "source": "The approved activity budget or work plan", "connected": False,
-     "auto": "Costs inside an approved activity budget.",
-     "approve": "Anything outside the work plan or the activity's budget.",
-     "never": "A charge code that is not active."},
+     "auto": 'VENTHORA will pay programme activity costs inside an approved activity budget, as they arrive. Not active yet: the activity budget is not connected, so nothing is paid from this category today.',
+     "approve": 'The approved activity budget or work plan, per activity (System Setting → Budget), with the charge code of each activity.',
+     "never": 'Other direct costs are paid by a person.'},
 ]
 EXTERNAL: list[dict[str, Any]] = [
     {"key": "vendors", "title": "Vendor invoices", "basis": "Supplies, services and equipment against a purchase order",
      "source": "The purchase order, proof of delivery and the invoice (three-way match)",
-     "auto": "A verified vendor's invoice that quotes an open purchase order and matches it within the tolerance, up to the single-payment limit.",
-     "approve": "Above a limit, a first payment to a new vendor, a vendor in its cooling period, a budget line exceeded.",
-     "never": "No purchase order, a duplicate invoice, bank details changed by email, an unverified vendor."},
+     "auto": "No schedule: VENTHORA pays as invoices arrive. A verified vendor's invoice that quotes an open purchase order and matches it within the tolerance is paid in real time, up to the single-payment limit in Treasury limits and controls.",
+     "approve": "The purchase order (Payment → Purchase orders), the vendor as a registered and verified payee (Payment → Payees), and the invoice sent from the vendor's registered mailbox.",
+     "never": 'An invoice above a limit, a first payment to a new vendor, or one without a purchase order waits in Payment → Intake for a person; a duplicate, or bank details changed by email, is never paid.'},
     {"key": "specialists", "title": "Short-term specialists and experts", "basis": "Non-regular consultants paid per deliverable (2 CFR 200.459)",
      "source": "The contract or statement of work and the accepted deliverable",
-     "auto": "A deliverable's payment term in the contract, inside the contract's total, from the specialist's registered mailbox.",
-     "approve": "An amount that is not a term of the contract, or the term that reaches the contract's total.",
-     "never": "No contract on file, or payment beyond its total."},
+     "auto": "No schedule: VENTHORA pays as requests arrive. A payment term of the specialist's contract, sent from the specialist's registered mailbox and inside the contract's total, is paid in real time.",
+     "approve": 'The contract or statement of work as a purchase order with its payment terms (Payment → Purchase orders), and the specialist as a registered and verified payee (Payment → Payees).',
+     "never": 'An amount that is not a term of the contract, or one that passes its total, waits in Payment → Intake for a person.'},
 ]
 BY_KEY = {c["key"]: c for c in INTERNAL}
 
@@ -655,6 +655,8 @@ def _personnel(org, pol, payee_status, payees, row) -> None:
     prev = _previous_register(org, row["period"])
     whole = ["the first payroll paid under this delegation"] if prev is None else []
     known = {_slug(ln["employee"]) for ln in (prev or {}).get("lines", [])}
+    staff = {_slug(u["name"]): u for u in org.list("user")}
+    start = dt.date.fromisoformat(row["period"] + "-01")
     for i, ln in enumerate(reg["lines"]):
         never, approve = [], []
         p = payees.get(ln["payee_id"]) or {}
@@ -665,6 +667,11 @@ def _personnel(org, pol, payee_status, payees, row) -> None:
             never.append(f"the bank account is {str(status or 'not onboarded').lower()}, not verified")
         elif p.get("currency") and p["currency"] != ln["currency"]:
             never.append(f"the account receives {p['currency']}, not {ln['currency']}")
+        person = staff.get(_slug(ln["employee"]))
+        if person is None:
+            never.append("not a person in People and roles")
+        elif person.get("contract_end") and dt.date.fromisoformat(person["contract_end"]) < start:
+            never.append(f"the contract ended on {person['contract_end']}, before this period")
         if ln["currency"] not in pol["currencies"]:
             never.append(f"{ln['currency']} is not a payout currency the delegation allows")
         elif ln["currency"] not in ENGINE_CURRENCIES:
@@ -688,15 +695,17 @@ def _fix(reason: str) -> tuple[str, str]:
     """What to do about a reason a due payment cannot go, and where."""
     r = reason.lower()
     if "register" in r and ("no payroll" in r or "not approved" in r):
-        return "Prepare the period's payroll register and have HR and the FCO approve it", "#/mandate"
+        return "Prepare the period's payroll register and have HR and the FCO approve it", "#/payroll"
     if "not verified" in r or "not onboarded" in r or "not a registered payee" in r:
         return "Verify the bank account in Payees (call-back on the registered number)", "#/payees"
     if "receives" in r or "currency" in r:
         return "Allow the currency in this category's policy, or register an account in the line's currency", "#/mandate"
+    if "contract ended" in r or "not a person in people" in r:
+        return "Correct the person in People and roles (contract end date), or take the line off the register", "#/users"
     if "charge code" in r:
         return "Correct the charge code in Projects and accounts", "#/codes"
     if "first payroll" in r or "new on the register" in r:
-        return "A person approves this line once", "#/mandate"
+        return "A person approves this line once", "#/payroll"
     return "Look at the reason and correct the source document", "#/mandate"
 
 

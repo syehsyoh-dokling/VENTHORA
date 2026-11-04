@@ -138,7 +138,8 @@ class User(BaseModel):
     unit_id: str
     approval_limit_minor: int = Field(default=0, ge=0, le=10**13)
     may_order_by_email: bool = Field(default=False, description="may ask VENTHORA to pay a vendor by email (Settings → Email)")
-    payee_id: str | None = Field(default=None, max_length=60, description="the person's own registered bank account (a payee), for travel claims and reimbursements")
+    payee_id: str | None = Field(default=None, max_length=60, description="the person's own registered bank account (a payee), for salary, travel claims and reimbursements")
+    contract_end: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="the last day of the person's contract; no salary is paid after it")
     active: bool = True
 
 
