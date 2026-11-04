@@ -1172,9 +1172,9 @@ function actorsFill(){const keep=(()=>{try{return localStorage.getItem("venthora
 async function loadActors(){try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
  const rank=["super_admin","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
  ACTORS=us.sort((a,b)=>rank.indexOf(a.role)-rank.indexOf(b.role)||a.name.localeCompare(b.name)).map(u=>({role:u.role,name:u.name,label:`${u.name} · ${R[u.role]||u.role}`}));
- if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();if(location.hash==="#/mandate")doaView()}catch(e){actorsFill()}}
+ if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()}catch(e){actorsFill()}}
 actorsFill();loadActors();
-$("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")doaView()};
+$("#actor").onchange=()=>{try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()};
 const actor=()=>ACTORS[+$("#actor").value]||ACTORS[0];
 const who=()=>`role=${encodeURIComponent(actor().role)}&by=${encodeURIComponent(actor().name)}`;
 
@@ -1962,7 +1962,7 @@ function sopGuide(){const P=SOPPOL,T=SOP.timing,fifo=P.mode==="fifo";
    <li><b>Save the policy.</b> From then on every plan, and the scheduler every five minutes, follow it. To stop one payment, use <b>Hold</b> in Agent plan → Today's plan: a held payment is never paid by the policy.</li></ol>
   <div style="margin-top:6px"><b>A priority never makes a payment allowed.</b> Every payment first passes the checks that are always enforced: a genuine request, a registered payee confirmed by call-back, an open purchase order with room, no duplicate, the documents, the Delegation of Authority, the budget line, the reserve floor and the treasury limits.</div>
   <div class="muted" style="margin-top:6px">The standard levels follow international practice: wages first (ILO C95 and C173), then taxes and social security withheld, then suppliers whose non-payment stops operations, contracted services and normal suppliers next (EU Directive 2011/7/EU), what is cheapest to defer last (docs/PAYMENT_PRIORITY_SOP.md).</div>`}
-function sopRender(){sopRank();const can=SOP.authority.you_may_change,dis=can?"":"disabled",P=SOPPOL,fifo=P.mode==="fifo";
+function sopRender(){sopRank();const can=actor().role===SOP.authority.role,dis=can?"":"disabled",P=SOPPOL,fifo=P.mode==="fifo";
  $("#sopMeta").textContent=SOP.policy_saved?`saved by ${SOP.updated_by}`:SOP.saved?`levels saved by ${SOP.updated_by}; the policy rules are not saved yet`:"not saved yet: each payee's own priority applies";
  $("#sopSave").disabled=!can;$("#sopReset").disabled=!can;
  $("#sopAuth").innerHTML=can?"":`<div class="small" style="margin-bottom:8px;color:var(--warn)">Only the mandate authority (${esc(SOP.authority.role.replace("_"," "))}) changes this policy; you may read it.</div>`;

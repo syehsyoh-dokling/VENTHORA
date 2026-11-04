@@ -990,8 +990,8 @@ async def _policy_run(now: datetime | None = None) -> dict:
     if due:
         r = await pay(due)
         if r:
-            out["paid"] = due
             out["execution"] = r
+            out["paid" if r["status"] in ("COMPLETED", "IN_FLIGHT") else "failed"] = due
     if pol["deemed_approval"]:
         from .execution.models import Approval
 
@@ -1004,7 +1004,7 @@ async def _policy_run(now: datetime | None = None) -> dict:
             role = (state.policy.approver_roles or ["finance_manager"])[0]
             r = await pay([o.obligation_id], Approval(approver="Deemed approval (Standard Payment Priority Policy)", role=role,
                                                      note=f"no intervention {priority_sop.DEEMED_BEFORE_H} h before the deadline"), "deemed_approval")
-            if r:
+            if r and r["status"] in ("COMPLETED", "IN_FLIGHT"):
                 out["deemed"].append(o.obligation_id)
     app.state.position_cache = None
     return out
@@ -3643,6 +3643,14 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     data = state.model_dump()
     data["obligations"] += extra[0]
     data["evidence"] += extra[1]
+    # an invoice already paid or in flight (the duplicate lock holds it) is never planned again
+    done = await asyncio.to_thread(lambda: app.state.executor.store.live_payout_fingerprints() | app.state.executor.store.paid_fingerprints())
+    already = [o["obligation_id"] for o in data["obligations"] if o.get("invoice_fingerprint") and o["invoice_fingerprint"] in done]
+    if already:
+        source["already_paid"] = already
+        data["obligations"] = [o for o in data["obligations"] if o["obligation_id"] not in already]
+        if not data["obligations"]:
+            return None, source
     if len(data["obligations"]) > 12:  # one plan proves at most 12 obligations: the most urgent by the SOP now, the rest next round
         source["next_round"] = len(data["obligations"]) - 12
         data["obligations"] = sorted(data["obligations"], key=lambda o: (-o["priority"], o["due_in_hours"], o["obligation_id"]))[:12]
