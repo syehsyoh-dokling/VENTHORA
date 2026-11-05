@@ -5757,21 +5757,29 @@ async def treasury_overview(span: str = Query("month", pattern="^(day|week|month
     """The available balance at Airwallex with what it is worth in the major currencies and the reporting currency,
     and for the chosen period: pending payments (what cannot go without a person), cash out (paid), cash in (settled
     customer payments, not top-ups), and every action that waits for a person, with where to clear it."""
+    from decimal import Decimal
     from zoneinfo import ZoneInfo
 
     from . import payment_reports
-    from .position import MAJORS
+    from .position import MAJORS, due_within, next_rate_slot, rate_slot
 
     pos = await treasury_position()
     base, rates = pos["base_currency"], pos["rates"]
     cfg = load_reporting_config()
     local = cfg.reporting_currency
     avail = pos["available"]["base_minor"]
+    # the main account in other currencies, at the rates read at the last 00:01 / 11:59 UTC slot (kept, not re-read each view)
+    now = datetime.now(UTC)
+    snap = app.state.org.get("rate_snapshot", "dashboard") or {}
+    if snap.get("slot") != rate_slot(now) or snap.get("base") != base or not snap.get("rates"):
+        snap = {"_id": "dashboard", "slot": rate_slot(now), "base": base, "rates": dict(rates), "fetched_at": now.isoformat(timespec="seconds")}
+        await asyncio.to_thread(app.state.org._put, "rate_snapshot", snap, "dashboard")
+    srates = snap["rates"]
     equivalents = []
     for c in (*MAJORS, local):
-        if c == base or c not in rates or any(e["currency"] == c for e in equivalents):
+        if c == base or c not in srates or any(e["currency"] == c for e in equivalents):
             continue
-        equivalents.append({"currency": c, "amount": round(avail / 100 / float(rates[c]), 2), "rate": rates[c], "local": c == local})
+        equivalents.append({"currency": c, "amount": round(avail / 100 / float(srates[c]), 2), "rate": srates[c], "local": c == local})
     rows, tz, start = await asyncio.to_thread(_report_rows)
     day = datetime.now(ZoneInfo(tz)).date()
     out = payment_reports.running(rows, span, day, start)
@@ -5798,8 +5806,30 @@ async def treasury_overview(span: str = Query("month", pattern="^(day|week|month
         {"label": "books locked by a reconciliation case", "count": len(await asyncio.to_thread(store.open_recon_cases)), "href": "#/executions"},
         {"label": "payment incidents open", "count": sum(1 for i in await asyncio.to_thread(store.list_incidents, 200) if i.get("status") != "RESOLVED"), "href": "#/executions"},
     ]
+    # commitments: everything still owed (the Total Spending recap's unpaid part), what falls due in 72 hours, and after
+    recap = await reports_spending_recap()
+    by_report: dict[str, int] = {}
+    for line in recap["lines"]:
+        if line.get("left_base_minor"):
+            by_report[line["report_label"]] = by_report.get(line["report_label"], 0) + line["left_base_minor"]
+    committed = sum(by_report.values())
+    drates = {c: Decimal(str(v)) for c, v in rates.items()}
+    paid_fp = await asyncio.to_thread(lambda: store.paid_fingerprints() | store.live_payout_fingerprints())
+    due72 = due_within(queue, paid_fp, drates, base, day, 72)
+    horizon = (day + timedelta(days=3)).isoformat()
+    inc = pos["incoming_uncleared"]
+
+    def in_base(x):
+        return x["amount_minor"] if x["currency"] == base else int(Decimal(x["amount_minor"]) * drates.get(x["currency"], Decimal(0)))
+    incoming72 = sum(in_base(x) for x in inc.get("arrived_pending") or []) + sum(
+        in_base(x) for x in inc.get("announced") or [] if x.get("expected") and str(x["expected"])[:10] <= horizon) + pos["deposits_pending"]["base_minor"]
     return {"as_of": pos["as_of"], "base_currency": base, "reporting_currency": local, "span": span, "span_label": out["label"],
             "window": {"from": window[0], "to": window[1]},
+            "rates_snapshot": {"slot": snap["slot"], "fetched_at": snap["fetched_at"], "next": next_rate_slot(now), "slots_utc": ["00:01", "11:59"]},
+            "commitments": {"total_base_minor": committed, "by_report": [{"report": k, "base_minor": v} for k, v in sorted(by_report.items(), key=lambda kv: -kv[1])],
+                            "due_72h": due72, "incoming_72h_base_minor": incoming72,
+                            "balance_after_commitments_base_minor": avail - committed,
+                            "available_after_72h_base_minor": avail - due72["base_minor"] + incoming72, "horizon": horizon},
             "balance": {"available_base_minor": avail, "wallet": pos["available"]["wallet"], "processing_out": pos["processing_out"],
                         "equivalents": equivalents, "missing_rates": pos["missing_rates"],
                         "shortfall": bills["base_minor"] > avail, "bills_unpaid_base_minor": bills["base_minor"]},

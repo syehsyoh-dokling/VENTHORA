@@ -176,6 +176,9 @@ section.plain{background:none;border:0;box-shadow:none;padding:0}
 .seg button{border:0;background:transparent;padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
 .seg button.on{background:var(--brand2);color:var(--surface)}
 .k4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.c4.commit .v{font-size:22px}.c4 .v.neg{color:var(--critical)}
+.ratestamp{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--seq) 10%,transparent);color:var(--ink2);font-size:11.5px;font-variant-numeric:tabular-nums}
+.ratestamp b{font-weight:650}
 .c4{background:var(--surface);border:1px solid var(--line);border-radius:calc(var(--radius) + 2px);box-shadow:var(--shadow);padding:16px 18px 14px;display:flex;flex-direction:column;gap:6px;position:relative;cursor:pointer;transition:border-color .15s,transform .15s}
 .c4:hover{border-color:var(--brand2);transform:translateY(-1px)}
 .c4 .h{display:flex;align-items:center;gap:10px}.c4 .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:color-mix(in srgb,var(--seq) 14%,transparent);color:var(--seq)}
@@ -354,12 +357,14 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <!-- ===== Overview: charts and notifications only ===== -->
  <section class="span12 plain" data-view="overview">
   <div id="bal" class="bal"><div class="empty">loading…</div></div>
+  <div id="kcommit" class="k4" style="margin-top:14px"></div>
   <div class="kbar"><span class="small muted" id="kwin"></span></div>
   <div id="kpis" class="k4"></div>
  </section>
  <section class="span8" data-view="overview"><h2><span>Payment activity</span><span class="small muted">executions per day, last 14 days</span></h2><div id="chActivity" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span4 notif" data-view="overview"><h2><span>Notifications</span><span class="small muted" id="notifMeta"></span></h2><div id="notifs" class="feed"><div class="empty">loading…</div></div></section>
- <section class="span6" data-view="overview"><h2><span>Budget used by line</span><span class="small muted" id="chBudgetMeta"></span></h2><div id="chBudget" class="chart"><div class="empty">loading…</div></div></section>
+ <section class="span12" data-view="overview"><h2><span>What the agent did for you</span><span class="small muted">controls that saved money or time</span></h2><div id="agentWins" class="k4"><div class="empty">loading…</div></div></section>
+ <section class="span6" data-view="overview"><h2><span>Spending by report</span><span class="small muted" id="chBudgetMeta">paid · still committed, base currency</span></h2><div id="chBudget" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span6" data-view="overview"><h2><span>Allocation by unit</span><span class="small muted" id="chAllocMeta"></span></h2><div id="chAlloc" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span6" data-view="overview"><h2><span>Execution outcomes</span><span class="small muted">last 50</span></h2><div id="chExec" class="chart"><div class="empty">loading…</div></div></section>
  <section class="span6" data-view="overview"><h2><span>Spending by project</span><span class="small muted">paid, base currency</span></h2><div id="chProjects" class="chart"><div class="empty">loading…</div></div></section>
@@ -1364,14 +1369,25 @@ async function kpis(){document.querySelectorAll("#kspan button").forEach(b=>b.cl
  const o=r.v,B=o.base_currency,b=o.balance,av=b.available_base_minor,whole=Math.trunc(av/100),cents=String(Math.abs(av)%100).padStart(2,"0");
  const out=b.processing_out,wal=b.wallet.filter(w=>w.available).sort((x,y)=>(y.available_base_minor||0)-(x.available_base_minor||0));
  $("#bal").className=`bal ${b.shortfall?"short":""}`;
- $("#bal").innerHTML=`<div><div class="lbl">Available balance · Airwallex</div>
+ const dmy=t=>{if(!t)return"-";const d=new Date(t),z=n=>String(n).padStart(2,"0");return`${z(d.getUTCDate())}/${z(d.getUTCMonth()+1)}/${d.getUTCFullYear()} ${z(d.getUTCHours())}:${z(d.getUTCMinutes())}:${z(d.getUTCSeconds())}`};
+ const rs=o.rates_snapshot||{};
+ $("#bal").innerHTML=`<div><div class="lbl">Actual balance · Airwallex</div>
    <div class="big"><span class="ccy">${esc(B)}</span>${whole.toLocaleString("en")}<small>.${cents}</small></div>
-   <div class="sub">Spendable now: old balance + settled deposits + received payments.${out.count?`<br>${fmt(out.base_minor,B)} in ${out.count} transfer(s) processing, already taken out.`:""}<br><span class="muted">As of ${esc(o.as_of.slice(11,16))} UTC · indicative rates</span></div>
+   <div class="sub">Main account <b>${esc(B)}</b>, the account deposits arrive in; every currency held is counted in ${esc(B)}. Spendable now: old balance + settled deposits + received payments.${out.count?`<br>${fmt(out.base_minor,B)} in ${out.count} transfer(s) processing, already taken out.`:""}<br><span class="muted">Balance read ${esc(dmy(o.as_of))} UTC</span></div>
    ${b.shortfall?`<div class="alert">Unpaid bills ${fmt(b.bills_unpaid_base_minor,B)} exceed the balance by ${fmt(b.bills_unpaid_base_minor-av,B)}: approvals the balance cannot cover are refused until it is funded.</div>`:""}</div>
-  <div><div class="lbl">Worth today in</div><div class="eqs">${b.equivalents.map(e=>`<div class="eq ${e.local?"local":""}" data-tip="${esc(`1 ${e.currency} = ${Number(e.rate).toPrecision(4)} ${B}`)}"><b>${esc(e.currency)}</b><span>${new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:2}).format(e.amount)}</span></div>`).join("")||'<div class="muted small">no rates yet</div>'}</div>
-   ${b.missing_rates.length?`<div class="sub muted">no rate for ${esc(b.missing_rates.join(", "))}</div>`:""}</div>
+  <div><div class="lbl">Main account in other currencies</div><div class="eqs">${b.equivalents.map(e=>`<div class="eq ${e.local?"local":""}" data-tip="${esc(`1 ${e.currency} = ${Number(e.rate).toPrecision(4)} ${B}`)}"><b>${esc(e.currency)}</b><span>${new Intl.NumberFormat("en",{notation:"compact",maximumFractionDigits:2}).format(e.amount)}</span></div>`).join("")||'<div class="muted small">no rates yet</div>'}</div>
+   ${b.missing_rates.length?`<div class="sub muted">no rate for ${esc(b.missing_rates.join(", "))}</div>`:""}
+   <div class="ratestamp" data-tip="Rates are read twice a day, at 00:01 and 11:59 UTC, and kept until the next read">⟳ Last update <b>${esc(dmy(rs.fetched_at))} UTC</b> · next ${esc((rs.next||"").slice(11,16))} UTC</div></div>
   <div class="wcol"><div class="lbl">Held in ${wal.length} currenc${wal.length===1?"y":"ies"}</div><div class="wal">${wal.map(w=>{const pct=av?Math.round(100*(w.available_base_minor||0)/av):0;
    return `<div class="r" data-tip="${esc(`${fmt(w.available,w.currency)} = ${fmt(w.available_base_minor||0,B)}${w.pending?`; ${fmt(w.pending,w.currency)} pending`:""}`)}"><b>${esc(w.currency)}</b><div class="t"><i style="width:${Math.max(pct,1)}%"></i></div><span>${cmp(w.available/100,w.currency)} · ${pct}%</span></div>`}).join("")||'<div class="muted small">empty</div>'}</div></div>`;
+ const cm=o.commitments;if(cm){const d72=cm.due_72h,neg=v=>v<0?"neg":"";
+  const cc=[
+   {k:"Total commitment",ic:"▤",v:cm.total_base_minor,href:"#/payment-reports",d:`Everything still owed: ${cm.by_report.slice(0,3).map(x=>`${esc(x.report)} ${fmt(x.base_minor,B)}`).join(" · ")||"nothing open"}${cm.by_report.length>3?` · +${cm.by_report.length-3} more`:""}`,f:"Total Spending →"},
+   {k:"Due in 72 hours",ic:"⏱",tone:d72.overdue_count?"critical":d72.count?"warn":"good",v:d72.base_minor,href:"#/pending",d:`${d72.count} bill(s) due by ${esc(cm.horizon)}${d72.overdue_count?` · <b>${d72.overdue_count} overdue, ${fmt(d72.overdue_base_minor,B)}</b>`:""}${d72.undated_count?`<br><span class="muted">${d72.undated_count} without a due date</span>`:""}`,f:"Pending payment →"},
+   {k:"Balance after commitment",ic:"⚖",tone:cm.balance_after_commitments_base_minor<0?"critical":"",v:cm.balance_after_commitments_base_minor,href:"#/payment-reports",d:`Actual balance ${fmt(b.available_base_minor,B)} − total commitment ${fmt(cm.total_base_minor,B)}`,f:"What is truly free"},
+   {k:"Available after 72 hours",ic:"⇥",tone:cm.available_after_72h_base_minor<0?"critical":"good",v:cm.available_after_72h_base_minor,href:"#/agent-plan",d:`Actual balance − due in 72 h ${fmt(d72.base_minor,B)} + incoming expected ${fmt(cm.incoming_72h_base_minor,B)}`,f:"Agent plan →"}];
+  $("#kcommit").innerHTML=cc.map(c=>`<div class="c4 commit ${c.tone||""}" data-href="${c.href}"><div class="h"><span class="ic">${c.ic}</span><span class="k">${esc(c.k)}</span></div><div class="v ${neg(c.v)}" title="${esc(fmt(c.v,B))}">${esc(fmt(c.v,B))}</div><div class="d">${c.d}</div><div class="f">${c.f}</div></div>`).join("");
+  $("#kcommit").querySelectorAll(".c4").forEach(el=>el.onclick=()=>location.hash=el.dataset.href)}
  $("#kwin").textContent=`${o.span_label}: ${o.window.from}${o.window.to!==o.window.from?` to ${o.window.to}`:""}`;
  const pp=o.pending_payment,co=o.cash_out,ci=o.cash_in,ac=o.actions;
  const cards=[
@@ -1394,7 +1410,30 @@ async function poCharts(){const [sp,pos]=await Promise.all([settle(api("/v1/proc
  else $("#chProjects").innerHTML=`<div class="muted small">${esc(sp.e.message)}</div>`;
  if(pos.ok)$("#chPOs").innerHTML=pos.v.filter(r=>r.po.status==="OPEN").map(r=>`<div class="hb"><div class="hl">${esc(r.po.po_id)}<small>${esc(r.po.account_code)}</small></div><div>${poBar(r)}</div><div class="hv">${fmt(Math.max(r.remaining_minor,0),r.po.currency).replace(/.00$/,"")} open</div></div>`).join("")+`<div class="legend"><span style="--c:var(--good)">paid</span><span style="--c:var(--warn)">pending</span><span style="--c:var(--seqlt)">open</span></div>`;
  else $("#chPOs").innerHTML=`<div class="muted small">${esc(pos.e.message)}</div>`}
-async function charts(){poCharts();const [ex,bud,tree,pay]=await Promise.all([settle(api("/v1/executions?limit=50")),settle(budgetSnapshot()),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`)),settle(api("/v1/payees"))]);
+const REPORTS=[["payroll","01","Payroll","#/rep-payroll"],["fringe","02","Fringe benefit","#/rep-fringe"],["goods_services","03","Goods and services","#/rep-goods"],["operation","04","Operation","#/rep-operation"],
+ ["cash_advance","05","Cash advance","#/rep-cash"],["travel","06","Travel & transport","#/rep-travel"],["odc","07","Other direct cost","#/rep-odc"],["fx","08","FX & transfer costs","#/rep-fx"],["card","10","Virtual card (Visa)","#/rep-card"]];
+function spendByReport(r){const B=r.base_currency||"USD",agg={};
+ r.lines.forEach(l=>{const a=agg[l.report]=agg[l.report]||{paid:0,left:0,n:0};a.paid+=(l.payments||[]).reduce((s,p)=>s+(p.base_minor||0),0);a.left+=l.left_base_minor||0;a.n++});
+ const rows=REPORTS.filter(([k])=>agg[k]).map(([k,no,name,href])=>({k,no,name,href,...agg[k]}));const max=Math.max(1,...rows.map(x=>x.paid+x.left));
+ $("#chBudget").innerHTML=rows.length?rows.map(x=>`<a class="hb" href="${x.href}" style="text-decoration:none;color:inherit"><div class="hl">${x.no} · ${esc(x.name)}<small>${x.n} line(s)</small></div>
+  <div class="ht" data-tip="${esc(`${x.no} ${x.name}: ${fmt(x.paid,B)} paid, ${fmt(x.left,B)} still committed`)}"><i style="width:${(100*x.paid/max).toFixed(1)}%;background:var(--seq)"></i><i style="width:${(100*x.left/max).toFixed(1)}%;background:var(--warn);opacity:.75"></i></div>
+  <div class="hv">${usd(x.paid)}${x.left?` <span class="muted small">+ ${usd(x.left)}</span>`:""}</div></a>`).join("")+`<div class="legend"><span style="--c:var(--seq)">paid</span><span style="--c:var(--warn)">still committed</span></div>`:'<div class="empty">nothing reported yet</div>'}
+async function agentWins(recap){const [ink,pb,ch,ex]=await Promise.all([settle(api("/v1/intake")),settle(api("/v1/procurement/board")),settle(api("/v1/reports/contract-chain")),settle(api("/v1/executions?limit=200"))]);
+ const B=(recap&&recap.base_currency)||"USD",cards=[];
+ if(ink.ok){const q=ink.v,auto=q.filter(r=>r.status==="VERIFIED").length,stop=q.filter(r=>["QUARANTINED","DUPLICATE","REJECTED"].includes(r.status));
+  const byC={};stop.forEach(r=>{if(r.amount_minor&&r.currency)byC[r.currency]=(byC[r.currency]||0)+r.amount_minor});
+  cards.push({ic:"🛡",k:"Money stopped by the controls",v:Object.entries(byC).map(([c,v])=>fmt(v,c)).join(" · ")||fmt(0,B),d:`${stop.length} invoice(s) or claim(s) quarantined, duplicate or rejected before any money moved: look-alike senders, changed bank details, a second copy, over a PO`,href:"#/intake"});
+  const esc8=q.filter(r=>r.status==="NEEDS_REVIEW").length;
+  cards.push({ic:"✦",k:"Emails read and decided",v:`${q.length}`,d:`every invoice, claim and notice read by the agent: <b>${auto}</b> cleared on their own, <b>${stop.length}</b> stopped, <b>${esc8}</b> sent to a person with the reason`,href:"#/intake"})}
+ if(pb.ok){const aw=pb.v.board.filter(b=>b.rfq.status==="AWARDED"),saved=aw.reduce((s,b)=>s+Math.max(0,(b.pr.estimated_minor||0)-(b.rfq.award.total_minor||0)),0);
+  const open=pb.v.board.reduce((s,b)=>s+b.quotes.length,0);
+  cards.push({ic:"⚑",k:"Procurement savings",v:fmt(saved,B),d:aw.length?`${aw.length} award(s) below the approved estimate; ${open} quotation(s) compared on brand and specification`:`${open} quotation(s) in; savings show once a request is awarded`,href:"#/proc-quotes"})}
+ if(ch.ok){const chains=ch.v.rows||[],intact=chains.filter(x=>x.chain_state==="Intact").length,att=chains.filter(x=>x.verdict!=="Intact").length;
+  cards.push({ic:"⛓",k:"Contract chains intact",v:chains.length?`${intact} / ${chains.length}`:"0",d:`every PO and contract hashed block by block; an edit after signing shows as altered${att?` · <b>${att} need attention</b>`:""}`,href:"#/rep-chain"})}
+ if(ex.ok&&cards.length<4){const done=ex.v.filter(r=>r.status==="COMPLETED").length;cards.push({ic:"⇄",k:"Payments executed",v:String(done),d:`of ${ex.v.length} runs, each under the mandate`,href:"#/executions"})}
+ $("#agentWins").innerHTML=cards.slice(0,4).map(c=>`<div class="c4" data-href="${c.href}"><div class="h"><span class="ic">${c.ic}</span><span class="k">${esc(c.k)}</span></div><div class="v" style="font-size:22px" title="${esc(c.v)}">${esc(c.v)}</div><div class="d">${c.d}</div></div>`).join("")||'<div class="empty">nothing yet</div>';
+ $("#agentWins").querySelectorAll(".c4").forEach(el=>el.onclick=()=>location.hash=el.dataset.href)}
+async function charts(){poCharts();const [ex,rec,tree,pay]=await Promise.all([settle(api("/v1/executions?limit=50")),settle(api("/v1/reports/spending-recap")),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`)),settle(api("/v1/payees"))]);
  // activity: executions per day, last 14 days
  if(ex.ok){const days=[];const now=new Date();for(let i=13;i>=0;i--){const d=new Date(now);d.setDate(now.getDate()-i);const key=d.toISOString().slice(0,10);
    const rows=ex.v.filter(r=>(r.created_at||"").slice(0,10)===key);days.push({key,n:rows.length,ok:rows.filter(r=>r.status==="COMPLETED").length,tick:String(d.getDate()),label:d.toLocaleDateString(undefined,{day:"numeric",month:"short"})})}
@@ -1403,12 +1442,8 @@ async function charts(){poCharts();const [ex,bud,tree,pay]=await Promise.all([se
   const col={COMPLETED:"var(--good)",IN_FLIGHT:"var(--warn)",RUNNING:"var(--warn)",REFUSED:"var(--serious)",FAILED:"var(--critical)",RECONCILIATION_MISMATCH:"var(--critical)"};
   $("#chExec").innerHTML=ex.v.length?stacked(Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([s,n])=>({label:s.replaceAll("_"," ").toLowerCase(),n,c:col[s]||"var(--muted)"}))):'<div class="empty">no executions yet</div>'}
  else{$("#chActivity").innerHTML=$("#chExec").innerHTML=`<div class="err small">${esc(ex.e.message)}</div>`}
- // budget used per line, with the alert threshold marked
- if(bud.ok){const b=bud.v;$("#chBudgetMeta").textContent=`${b.period} · ${b.label}`;
-  $("#chBudget").innerHTML=hbars(b.lines.map(r=>{const used=r.realized_minor+r.paying_now_minor+r.committed_minor,pct=r.utilisation_bp/100;
-   return {label:r.line,value:Math.min(r.utilisation_bp,12000),display:`${pct.toFixed(0)}%`,tone:r.utilisation_bp>=10000?"critical":r.utilisation_bp>=r.alert_share_bp?"warn":"",
-    tip:`${r.line}: ${usd(used)} used or owed of ${usd(r.mandate_minor)}`,mark:r.alert_share_bp,markTip:`alert at ${r.alert_share_bp/100}%`}}),12000)}
- else $("#chBudget").innerHTML=`<div class="muted small">${esc(bud.e.message)}</div>`;
+ if(rec.ok)spendByReport(rec.v);else $("#chBudget").innerHTML=`<div class="muted small">${esc(rec.e.message)}</div>`;
+ agentWins(rec.ok?rec.v:null);
  // allocation per unit, in tree order; a unit that passed down more than it received is flagged
  if(tree.ok){const rows=treeRows(tree.v);$("#chAllocMeta").textContent=`${new Date().getFullYear()} · USD`;
   $("#chAlloc").innerHTML=hbars(rows.map(r=>({label:r.name,indent:r.depth,value:(r.allocated.USD||0),display:usd(r.allocated.USD||0),tone:Object.keys(r.over_allocated).length?"critical":"",
@@ -1428,7 +1463,7 @@ const whTitle=e=>`${e.kind==="deposit"?"Incoming payment":e.kind==="transfer"?"T
 const whDetail=e=>`${e.amount?`${esc(e.currency||"")} ${esc(e.amount)} · `:""}${esc(e.note||"waiting for the Airwallex API")}`;
 async function notifications(){const [wh,rc,inc,ink,pay,bud,tree]=await Promise.all([settle(api("/v1/webhooks/events?limit=10")),settle(api("/v1/recon-cases")),settle(api("/v1/incidents")),
   settle(api("/v1/intake")),settle(api("/v1/payees")),settle(budgetSnapshot()),settle(api(`/v1/org/allocation-tree?period=${new Date().getFullYear()}`))]);
- const n=[];const rank={critical:0,serious:1,warn:2,good:2,"":2};  // what needs a person is pinned; the rest is newest first
+ const n=[];const rank={critical:0,serious:1,warn:2,good:2,"":2};  // newest first; at the same moment, what needs a person first
  if(rc.ok)rc.v.filter(c=>c.status==="OPEN").forEach(c=>n.push({tone:"critical",ic:"⛔",t:`Book ${c.book_id} locked`,x:"Reconciliation found a difference with Airwallex; a person must close the case.",w:c.opened_at,href:"#/executions"}));
  if(inc.ok)inc.v.filter(i=>i.status!=="RESOLVED").forEach(i=>n.push({tone:"serious",ic:"⚠",t:`Payment incident · ${i.obligation_id}`,x:`${i.decision||"open"}${i.failure_type?` · ${i.failure_type.toLowerCase().replaceAll("_"," ")}`:""}`,w:i.updated_at,href:"#/executions"}));
  if(pay.ok)pay.v.filter(p=>p.status==="CHANGED"||p.status==="SUSPENDED").forEach(p=>n.push({tone:"serious",ic:"⚑",t:`Payee ${p.beneficiary_id} ${p.status.toLowerCase()}`,x:p.status==="CHANGED"?"Bank details changed: never paid until a call-back on the registered number.":"Suspended: no payments.",w:p.changed_at,href:"#/payee-lifecycle"}));
@@ -1438,7 +1473,7 @@ async function notifications(){const [wh,rc,inc,ink,pay,bud,tree]=await Promise.
  if(tree.ok)tree.v.filter(r=>Object.keys(r.over_allocated).length).forEach(r=>n.push({tone:"warn",ic:"◔",t:`${r.name} over-allocated`,x:`Passed down ${Object.entries(r.over_allocated).map(([c,v])=>fmt(v,c)).join(", ")} more than it received.`,href:"#/allocation"}));
  if(wh.ok)wh.v.forEach(e=>n.push({tone:WH_TONE[e.state]||"",ic:"⚡",t:whTitle(e),x:whDetail(e),w:e.received_at,href:"#/integrations",id:e.event_id}));
  if(!n.length)n.push({tone:"good",ic:"✓",t:"All clear",x:"No open cases, incidents, reviews or alerts."});
- n.sort((a,b)=>rank[a.tone]-rank[b.tone]||String(b.w||"").localeCompare(String(a.w||"")));LAST.notifs=n;
+ n.sort((a,b)=>(b.w?1:0)-(a.w?1:0)||String(b.w||"").localeCompare(String(a.w||""))||rank[a.tone]-rank[b.tone]);LAST.notifs=n;  // newest first
  $("#cnt-exec").textContent=n.filter(x=>x.href==="#/executions").length||"";
  $("#notifMeta").textContent=`${n.filter(x=>x.tone==="critical"||x.tone==="serious").length} need attention`;
  attention();$("#notifs").innerHTML=n.slice(0,14).map(x=>`<a class="nt ${x.tone}${x.id&&x.id===LAST.fresh?" fresh":""}" href="${x.href||"#/overview"}"><span class="ic">${x.ic}</span><span><div class="t">${esc(x.t)}</div><div class="x">${x.x}</div>${x.w?`<div class="w">${esc(ago(x.w))}</div>`:""}</span></a>`).join("")}

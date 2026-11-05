@@ -89,3 +89,39 @@ def test_no_approval_the_balance_cannot_cover(client):
         b"Invoice LD-4403. Amount due: USD 300.00, due 30 Nov 2026.")).json()
     client.state["pos"] = _pos(10_000_000)
     assert client.post(f"/v1/intake/{rec2['intake_id']}/review", json=review).status_code == 200
+
+
+def test_rates_are_read_at_0001_and_1159_utc():
+    at = lambda h, m: dt.datetime(2026, 11, 5, h, m, 30, tzinfo=dt.UTC)  # noqa: E731
+    assert position.rate_slot(at(0, 0)) == "2026-11-04T11:59:00+00:00"  # before 00:01: yesterday's noon read
+    assert position.rate_slot(at(0, 1)) == "2026-11-05T00:01:00+00:00"
+    assert position.rate_slot(at(11, 58)) == "2026-11-05T00:01:00+00:00"
+    assert position.rate_slot(at(18, 0)) == "2026-11-05T11:59:00+00:00"
+    assert position.next_rate_slot(at(18, 0)) == "2026-11-06T00:01:00+00:00"
+    assert position.next_rate_slot(at(6, 0)) == "2026-11-05T11:59:00+00:00"
+
+
+def test_due_in_72_hours_counts_overdue_and_skips_paid_and_undated():
+    today = dt.date(2026, 11, 5)
+    reqs = [NS(**vars(_req("VERIFIED", 10_000, intake_id="a")) | {"due_date": "2026-11-08"}),
+            NS(**vars(_req("NEEDS_REVIEW", 5_000, ccy="EUR", intake_id="b")) | {"due_date": "2026-11-01"}),  # overdue
+            NS(**vars(_req("VERIFIED", 7_000, intake_id="c")) | {"due_date": "2026-11-09"}),  # after 72 hours
+            NS(**vars(_req("VERIFIED", 9_000, intake_id="d", fp="paid")) | {"due_date": "2026-11-06"}),  # already paid
+            _req("VERIFIED", 3_000, intake_id="e")]  # no due date
+    d = position.due_within(reqs, {"paid"}, {"EUR": Decimal("1.10")}, "USD", today, 72)
+    assert d["count"] == 2 and d["base_minor"] == 10_000 + 5_500 and d["overdue_count"] == 1 and d["overdue_base_minor"] == 5_500
+    assert d["undated_count"] == 1 and [x["intake_id"] for x in d["items"]] == ["b", "a"]
+
+
+def test_overview_carries_commitments_and_the_rate_snapshot(client):
+    o = client.get("/v1/treasury/overview?span=month").json()
+    cm, rs = o["commitments"], o["rates_snapshot"]
+    assert cm["balance_after_commitments_base_minor"] == o["balance"]["available_base_minor"] - cm["total_base_minor"]
+    assert cm["available_after_72h_base_minor"] == o["balance"]["available_base_minor"] - cm["due_72h"]["base_minor"] + cm["incoming_72h_base_minor"]
+    assert cm["total_base_minor"] == sum(x["base_minor"] for x in cm["by_report"])
+    assert rs["slots_utc"] == ["00:01", "11:59"] and rs["fetched_at"] and rs["slot"] <= rs["fetched_at"]
+    # the snapshot is kept until the next slot: a second view uses the same rates even if Airwallex's moved
+    client.state["pos"] = client.state["pos"] | {"rates": {**client.state["pos"]["rates"], "EUR": "2.00"}}
+    again = client.get("/v1/treasury/overview?span=month").json()
+    assert again["rates_snapshot"]["fetched_at"] == rs["fetched_at"]
+    assert {e["currency"]: e["rate"] for e in again["balance"]["equivalents"]}["EUR"] != "2.00"

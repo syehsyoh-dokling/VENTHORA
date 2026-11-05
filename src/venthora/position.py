@@ -60,6 +60,58 @@ def _sum(items: list[dict], rates, base) -> tuple[int, dict[str, int], list[str]
     return total, by_ccy, missing
 
 
+RATE_SLOTS = ((0, 1), (11, 59))  # the dashboard's conversion rates are read at 00:01 and 11:59 UTC
+
+
+def rate_slot(now) -> str:
+    """The latest 00:01 / 11:59 UTC slot at or before now (ISO, UTC)."""
+    from datetime import timedelta
+
+    slots = [now.replace(hour=h, minute=m, second=0, microsecond=0) for h, m in RATE_SLOTS]
+    past = [s for s in slots if s <= now]
+    last = max(past) if past else slots[-1] - timedelta(days=1)
+    return last.isoformat(timespec="seconds")
+
+
+def next_rate_slot(now) -> str:
+    from datetime import timedelta
+
+    slots = [now.replace(hour=h, minute=m, second=0, microsecond=0) for h, m in RATE_SLOTS]
+    ahead = [s for s in slots if s > now]
+    return (min(ahead) if ahead else slots[0] + timedelta(days=1)).isoformat(timespec="seconds")
+
+
+def due_within(requests, paid_fingerprints: set[str], rates: dict[str, Decimal], base: str, today, hours: int = 72) -> dict:
+    """Unpaid supplier invoices and contractor claims (approved or waiting) whose due date falls within the next
+    `hours` (overdue ones included), in the base currency; bills without a due date are counted apart."""
+    from datetime import date, timedelta
+
+    limit = today + timedelta(days=max(1, hours // 24))  # a due date is a day: 72 hours = today and the next three days
+    due, overdue, undated = [], [], 0
+    for r in requests:
+        if r.kind not in ("supplier_invoice", "contractor_claim") or not r.amount_minor or not r.currency:
+            continue
+        if r.status not in ("VERIFIED", "NEEDS_REVIEW") or (r.invoice_fingerprint and r.invoice_fingerprint in paid_fingerprints):
+            continue
+        try:
+            d = date.fromisoformat(str(r.due_date)[:10]) if r.due_date else None
+        except ValueError:
+            d = None
+        if d is None:
+            undated += 1
+            continue
+        if d <= limit:
+            row = {"currency": r.currency, "amount_minor": r.amount_minor, "who": r.counterparty_name or r.sender, "due_date": d.isoformat(),
+                   "invoice_no": r.invoice_no, "intake_id": r.intake_id}
+            due.append(row)
+            if d < today:
+                overdue.append(row)
+    total, by_ccy, missing = _sum(due, rates, base)
+    over, _, _ = _sum(overdue, rates, base)
+    return {"base_minor": total, "by_currency": by_ccy, "count": len(due), "overdue_base_minor": over, "overdue_count": len(overdue),
+            "undated_count": undated, "items": sorted(due, key=lambda x: x["due_date"])[:20], "missing_rates": missing}
+
+
 def compose(*, balances: dict[str, dict[str, int]], rates: dict[str, Decimal], base: str, transfers: list[dict],
             deposits: list[dict], requests: list, paid_fingerprints: set[str], customers: set[str]) -> dict:
     """Pure: the position from what Airwallex reported and what the intake queue holds."""
