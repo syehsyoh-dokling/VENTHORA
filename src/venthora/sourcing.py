@@ -153,10 +153,16 @@ async def find_vendors(org, pr_number: str, *, payees: dict, model=None, by: str
         raise SourcingError(f"{pr_number} is already awarded")
     unit = org.account_code(pr["charge_code"])["unit"]
     web, note = await _from_web(pr, model, unit.get("country") or unit.get("name") or "")
-    # alpha-sandbox: the demo directory stays beside the web results, so the demo can show vendors replying
-    # (VENTHORA_PROCUREMENT_DEMO_DIRECTORY=0 turns it off; it is then only the fallback when the web gives nothing)
-    demo_dir = env("VENTHORA_PROCUREMENT_DEMO_DIRECTORY", "1") != "0"
-    cands = _registered(pr, payees) + web + (_from_directory(pr) if demo_dir or not web else [])
+    # alpha-sandbox (demo mode on): the demo directory stays beside the web results, so the demo can show vendors
+    # replying (VENTHORA_PROCUREMENT_DEMO_DIRECTORY=0 keeps it only as the fallback when the web gives nothing).
+    # Demo mode off (the real version): never a demo vendor.
+    from . import edition
+
+    demo = edition.demo_on(org)
+    demo_dir = demo and env("VENTHORA_PROCUREMENT_DEMO_DIRECTORY", "1") != "0"
+    cands = _registered(pr, payees) + web + (_from_directory(pr) if demo_dir or (demo and not web) else [])
+    if not demo and not web:
+        note += "; demo mode is off, so no demo vendors: add vendors by hand"
     keep = {c["cand_id"]: c for c in old.get("candidates", []) if c.get("invited_at")}  # invited vendors stay
     seen = {(c["name"].lower(), c.get("email")) for c in keep.values()}
     for c in cands:

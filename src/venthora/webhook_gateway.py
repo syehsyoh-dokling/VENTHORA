@@ -9,6 +9,7 @@ here instead. Only these routes are passed to the API, each with its raw body an
 * ``POST /webhooks/airwallex/remote-auth``  Airwallex asks whether a card charge may go (x-signature, x-nonce)
 * ``GET /.well-known/venthora-agent.json``  the agent's public signing keys (Visa Trusted Agent Protocol)
 * ``GET|POST /rfq/{token}``, ``GET /rfq/{token}/data``  a vendor's quotation form (procurement; the token is the key)
+* ``GET /developers`` (+ catalog.json, openapi.json, postman.json)  the public API Catalog: read only, no key, no data
 
 Every other method or path gets 404 without reaching the API. The API still authenticates, dedupes and checks
 everything itself, so the gateway adds no trust, only removes reach.
@@ -47,6 +48,7 @@ API_HEADERS = ("content-type", "authorization", "x-api-key", "accept")
 MAX_API_BODY = 16 * 1024 * 1024
 RFQ_TOKEN = re.compile(r"^[A-Za-z0-9_-]{20,40}$")  # a vendor's quotation form link (sourcing.invite)
 MAX_RFQ_BODY = 12 * 1024 * 1024  # the form posts the quotation file as base64 (8 MB file)
+DEVELOPER_PATHS = ("/developers", "/developers/catalog.json", "/developers/openapi.json", "/developers/postman.json")  # the API Catalog
 
 
 def has_key(headers) -> bool:
@@ -116,6 +118,15 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
             return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)
         return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
 
+    async def developers(request: Request) -> Response:
+        """The public API Catalog (read only, no key, no data): the page and its three files."""
+        try:
+            res = await http.get(request.url.path)
+        except httpx.HTTPError:
+            return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)
+        keep = {k: v for k, v in res.headers.items() if k.lower() in ("content-disposition", "cache-control")}
+        return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"), headers=keep)
+
     @contextlib.asynccontextmanager
     async def lifespan(app):
         yield
@@ -125,4 +136,5 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
     return Starlette(routes=[Route(PATH, forward, methods=["POST"]), Route(EMAIL_PATH, forward, methods=["POST"]),
                              Route(REMOTE_AUTH_PATH, forward, methods=["POST"]), Route(AGENT_KEYS_PATH, agent_keys, methods=["GET"]),
                              Route("/rfq/{token}", rfq, methods=["GET", "POST"]), Route("/rfq/{token}/data", rfq, methods=["GET"]),
+                             *[Route(p, developers, methods=["GET"]) for p in DEVELOPER_PATHS],
                              Route("/{rest:path}", nothing, methods=every)], lifespan=lifespan)

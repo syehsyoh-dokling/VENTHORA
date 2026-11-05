@@ -53,7 +53,7 @@ paid.
 
 ## Control center (3:20 – 4:45)
 
-**[3:20 – 3:40 · Click Control center; Payment → Agent plan (2 · Transaction log), then System Setting → Airwallex webhooks (VENTHORA services)]**
+**[3:20 – 3:40 · Click Control center; Payment → Agent plan (2 · Transaction log), then Platform Setup → Airwallex webhooks (VENTHORA services)]**
 The Control center keeps all of it on the record. Any plan can be re-proven here, with every alternative and its chance
 of breaching the reserve. Your policy runs in two engines that must agree, the Airwallex connection refuses production,
 and every event goes into a hash-chained audit trail.
@@ -91,6 +91,6 @@ block. If a take runs long, drop the Period close block first, then the Payee li
 **What each claim rests on, all on screen.** The checks and the counterfactual figure are in the plan card's "Checks and
 alternatives" (paying every verified obligation now: USD 1,951.63 over the floor on 25 Oct 2026; it moves with live
 rates). The approval matrix is in the mandate form. Fees are in the result table's Detail column. The two engines, the
-production refusal and the audit chain are in the VENTHORA services tiles (System Setting → Airwallex webhooks). Case N34 returns REPLACE and matches its ground truth;
+production refusal and the audit chain are in the VENTHORA services tiles (Platform Setup → Airwallex webhooks). Case N34 returns REPLACE and matches its ground truth;
 N35 (wrong account details) returns ESCALATE. Lookalike emails and injected instructions are intake cases I02, I09 and
 I17.

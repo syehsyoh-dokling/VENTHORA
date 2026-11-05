@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VENTHORA API Catalog</title>
+<style>
+:root{--ink:#14183a;--muted:#5b6280;--line:#dfe3ef;--bg:#f5f7fb;--card:#fff;--accent:#1a1f71;--get:#13795b;--post:#1d4ed8;--put:#b45309;--del:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:linear-gradient(135deg,#0f1b4d,#1a1f71);color:#fff;padding:28px 16px}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}header .wrap{padding:0}
+h1{margin:0 0 4px;font-size:24px}header p{margin:0;color:#c9d2ff}
+main{padding:20px 0 60px}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+h2{font-size:15px;margin:0 0 10px}code,.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px}
+code{background:#eef0fb;border-radius:5px;padding:1px 6px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}.muted{color:var(--muted)}.small{font-size:12.5px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}a.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;border-radius:8px;padding:8px 14px;font-size:13px}
+a.btn.alt{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}select,input{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;min-width:0}
+input{flex:1 1 220px}
+.area{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:700}
+.ep{border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:8px}
+.ep summary{list-style:none;display:flex;gap:10px;align-items:baseline;padding:10px 12px;cursor:pointer;flex-wrap:wrap}.ep summary::-webkit-details-marker{display:none}
+.m{font-weight:700;font-size:11px;border-radius:5px;padding:2px 7px;color:#fff;min-width:52px;text-align:center}
+.m.GET{background:var(--get)}.m.POST{background:var(--post)}.m.PUT,.m.PATCH{background:var(--put)}.m.DELETE{background:var(--del)}
+.ep .p{font-family:ui-monospace,Consolas,monospace;font-size:13px;overflow-wrap:anywhere}.ep .s{color:var(--muted);font-size:13px}
+.ep .scope{margin-left:auto;font-size:11.5px;background:#eef0fb;border-radius:999px;padding:1px 9px;white-space:nowrap}
+.ep .body{padding:0 12px 12px 12px;border-top:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;margin-top:8px}td,th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;font-size:12.5px}th{color:var(--muted)}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.ep .scope{margin-left:0}}
+</style></head>
+<body>
+<header><div class="wrap"><h1>VENTHORA API Catalog</h1><p>Connect your application (ERP, payroll, accounting) to the VENTHORA treasury agent.</p></div></header>
+<main class="wrap">
+ <div class="card"><h2>Getting started</h2><div class="grid small" id="auth">loading…</div>
+  <div class="btns"><a class="btn" id="dlOpenapi" href="/developers/openapi.json">Download OpenAPI</a><a class="btn alt" id="dlPostman" href="/developers/postman.json">Download Postman collection</a></div></div>
+ <div class="card"><h2>Areas and scopes</h2><div id="areas" class="small">loading…</div></div>
+ <div class="filters"><select id="fa"><option value="">All areas</option></select><select id="fm"><option value="">All methods</option><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select><input id="fq" placeholder="search path or words"><span class="small muted" id="count"></span></div>
+ <div id="list">loading…</div>
+</main>
+<script>
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $=s=>document.querySelector(s);let C=null;
+async function load(){C=await (await fetch("/developers/catalog.json")).json();const a=C.auth;
+ $("#auth").innerHTML=`<div><b>Base URL</b><br><code>${esc(C.base_url)}</code></div><div><b>Authentication</b><br><code>${esc(a.header)}</code> or <code>${esc(a.alternative)}</code></div>
+  <div><b>Getting a key</b><br>${esc(a.get_a_key)}</div><div><b>Scopes</b><br>${esc(a.read)}; ${esc(a.write)}</div><div><b>Safe retries</b><br>${esc(a.idempotency)}</div><div><b>Errors</b><br>${esc(a.errors)}</div>`;
+ $("#areas").innerHTML=`<table><tr><th>Area</th><th>Covers</th><th>Scopes</th><th>Endpoints</th></tr>${C.areas.map(x=>`<tr><td><b>${esc(x.label)}</b></td><td>${esc(x.covers)}</td><td class="mono">${x.scopes.map(esc).join(", ")}</td><td>${x.count}</td></tr>`).join("")}</table>`;
+ $("#fa").innerHTML='<option value="">All areas</option>'+C.areas.map(x=>`<option value="${esc(x.area)}">${esc(x.label)}</option>`).join("");render()}
+function render(){const a=$("#fa").value,m=$("#fm").value,q=$("#fq").value.trim().toLowerCase();
+ const eps=C.endpoints.filter(e=>(!a||e.area===a)&&(!m||e.method===m)&&(!q||[e.path,e.summary,e.description].some(x=>String(x||"").toLowerCase().includes(q))));
+ $("#count").textContent=`${eps.length} of ${C.endpoints.length} endpoints`;const label=Object.fromEntries(C.areas.map(x=>[x.area,x.label]));let last=null;
+ $("#list").innerHTML=eps.map(e=>{const head=e.area!==last?`<div class="area">${esc(label[e.area]||e.area)}</div>`:"";last=e.area;
+  return head+`<details class="ep"><summary><span class="m ${e.method}">${e.method}</span><span class="p">${esc(e.path)}</span><span class="s">${esc(e.summary)}</span><span class="scope">${esc(e.scope)}</span></summary>
+   <div class="body small"><p>${esc(e.description||"")}</p>${e.params.length?`<table><tr><th>Parameter</th><th>In</th><th>Required</th></tr>${e.params.map(p=>`<tr><td class="mono">${esc(p.name)}</td><td>${esc(p.in)}</td><td>${p.required?"yes":"no"}</td></tr>`).join("")}</table>`:""}
+   ${e.body?`<p>Body: <code>${esc(e.body)}</code> (JSON; see the OpenAPI file for its fields)</p>`:""}
+   <p class="muted">curl -H "Authorization: Bearer $VENTHORA_KEY" ${e.method!=="GET"?`-X ${e.method} -H "Content-Type: application/json" -d '{}' `:""}${esc(C.base_url+e.path)}</p></div></details>`}).join("")||'<div class="card">nothing matches</div>'}
+["#fa","#fm"].forEach(s=>$(s).onchange=render);$("#fq").oninput=render;load();
+</script></body></html>

@@ -22,7 +22,7 @@ Every figure below is on screen in this take. Figures that follow live sandbox r
 | 1:06 | Waiting for Airwallex, then SETTLED and the re-plan | Now the customer's payment arrives. VENTHORA counts it only when Airwallex confirms it settled, then re-reads the balance and recalculates only what it affects. The subscription is paid, with a budget alert. |
 | 1:22 | Execution on Airwallex (waiting for the rail) | Then VENTHORA pays through Airwallex: two currency conversions and four payments, each sent exactly once. |
 | 1:33 | Result, then the wallet against the book's ledger | All four payments come back paid, with Airwallex references and the real fees. The wallet moved about twenty-one thousand dollars, matching the ledger to the cent, and the reserve held. |
-| 1:46 | Control center: VENTHORA services (System Setting → Airwallex webhooks) | In the Control center, two policy engines must agree, every event is hash-chained, and production is refused. |
+| 1:46 | Control center: VENTHORA services (Platform Setup → Airwallex webhooks) | In the Control center, two policy engines must agree, every event is hash-chained, and production is refused. |
 | 1:53 | Reporting → Total Spending (Against budget), then Books & ledger and its Segregation panel | Budgets are tracked against plan, here with an alert at eighty-three percent. Each book keeps its own ledger, owner, payees and approvers. |
 | 2:04 | System Setting → Checks & resilience, Ground-truth checks: case N34, a payout the bank returned | If the bank returns a payout, VENTHORA replaces it under the same invoice lock, without paying twice. Check it yourself. |
 | 2:14 | Resilience test matrix, 136 of 136 | Every one of the hundred thirty-six stress scenarios passes. |

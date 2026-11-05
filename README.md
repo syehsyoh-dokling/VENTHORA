@@ -474,12 +474,20 @@ The side menu shows only its main items:
   - Total Spending (spending and commitments, and against budget), Books & ledger, Period close.
 - **Users & Beneficiaries**: offices and units, people and roles, consultants, vendors, customers, payee lifecycle,
   projects and accounts, admin team.
-- **Platform Setup**: Airwallex account and cards, card authorization, Visa TAP and Intelligent Commerce, Metal testnet
-  anchoring, Airwallex MCP, Agent (AI & Model), App Integration, Email Sync, Setup Checklist.
-- **System Setting**: datasets, finance standards, document validation, Delegation of Authority, the payment priority
-  policy, period and cut-off, webhooks, unit prices, the **Autopilot Console** (the agent's own end-to-end run on the
-  live wallet), Checks & resilience, and Hackathon evidence (`#/evidence`: each organiser guide item and the screen
-  that proves it).
+- **Platform Setup**, in setup order. *Required*: 1 Airwallex Global Account, 2 Airwallex webhooks, 3 Agent
+  (AI & Model), 4 Email Sync, 5 Setup Checklist. *Optional*: App Integration, API Catalog (a public, read-only
+  developer page to share: `/developers`, with OpenAPI and Postman files), Airwallex Cards, Card Authorization.
+  *Developer · demo mode*: Visa Agent Identity (TAP), Visa Intelligent Commerce, Airwallex MCP, Metal (testnet anchoring).
+
+**Two views, one switch (Platform Setup → Setup Checklist → Edition · Demo mode).** Demo mode **ON is the developer
+view** (the alpha-sandbox): every menu, with Workflow, the technical setup, *Tools & evidence* and the demo buttons and
+data. **OFF is the end-user view** (the real version): only what the finance team and its admin use, and the demo
+endpoints answer 404. Only a Super admin switches it, every switch is in the audit chain, and a server started with
+`VENTHORA_EDITION=production` keeps it off.
+- **System Setting**, in setup order. *Required*: 1 Finance standards, 2 Delegation of Authority, 3 Period, cut-off &
+  sync, 4 Document validation, 5 Standard Payment Priority Policy. *Optional*: Dataset upload, Unit prices.
+  *Tools & evidence*: the **Autopilot Console** (the agent's own end-to-end run on the live wallet), Checks &
+  resilience, and Hackathon evidence (`#/evidence`: each organiser guide item and the screen that proves it).
 
 A group opens below
 its item on hover, or on a click or tap; one at a time, and the group of the page in view stays marked. A group

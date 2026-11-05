@@ -153,6 +153,17 @@ app = FastAPI(title="VENTHORA", version=__version__, lifespan=lifespan,
 
 
 @app.middleware("http")
+async def demo_only(request: Request, call_next):
+    """Demo endpoints (demo data, sandbox simulations, the hackathon evidence, the Autopilot page) answer only while
+    demo mode is on (Platform Setup → Setup Checklist); in the real version they are gone (404)."""
+    from . import edition
+
+    if edition.is_demo_path(request.url.path) and not await asyncio.to_thread(edition.demo_on, request.app.state.org):
+        return JSONResponse({"detail": "not available: demo mode is off (Platform Setup → Setup Checklist)"}, status_code=404)
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def idempotency(request: Request, call_next):
     """A write that carries an Idempotency-Key is answered once: a retry with the same key and body gets the stored
     response (Idempotent-Replayed: true), the same key with another body is refused (422). Declared before
@@ -246,7 +257,8 @@ def _scenario_file(scenario_id: str):
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return FileResponse(DASHBOARD, media_type="text/html")
+    # no-cache: the browser asks again each load (a 304 when unchanged), so a new menu or page shows on a plain refresh
+    return FileResponse(DASHBOARD, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/health")
@@ -3437,6 +3449,32 @@ async def procurement_board():
     return {"board": rows, "requests": sorted(waiting, key=lambda p: p["pr_number"], reverse=True), "public_url": sourcing.public_url()}
 
 
+class EditionIn(BaseModel):
+    demo: bool
+
+
+@app.get("/v1/edition")
+async def edition_get():
+    """Demo mode on (alpha-sandbox: demo menus, buttons and endpoints) or off (the real version), and whether the
+    server locks it off (VENTHORA_EDITION=production)."""
+    from . import edition
+
+    return await asyncio.to_thread(edition.state, app.state.org)
+
+
+@app.put("/v1/edition")
+async def edition_put(body: EditionIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Switch demo mode: a Super admin only; recorded in the audit chain."""
+    from . import edition
+
+    try:
+        out = await asyncio.to_thread(edition.set_demo, app.state.org, body.demo, role=role, by=by)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "edition_demo_mode", {"demo": body.demo, "by": f"{by} ({role})"})
+    return out
+
+
 @app.get("/v1/evidence")
 async def hackathon_evidence():
     """System Setting → Hackathon evidence: every organiser item with its status, the screen that proves it and a live
@@ -5437,6 +5475,39 @@ async def developer_catalog(request: Request):
                      "errors": "every refusal is JSON {\"detail\": ...} with the HTTP status"},
             "openapi": "/openapi.json", "docs": "/docs",
             "gateway": {"command": "python scripts/webhook_gateway.py --api", "note": "forwards the API only for requests carrying a key"}}
+
+
+def _public_base() -> str:
+    from .sourcing import public_url
+
+    return public_url()
+
+
+@app.get("/developers", include_in_schema=False)
+async def developers_page():
+    """The public API Catalog page for other applications' developers (read only; no key, no data)."""
+    return FileResponse(DASHBOARD.parent / "developers.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/developers/catalog.json", include_in_schema=False)
+async def developers_catalog():
+    from . import devportal
+
+    return devportal.catalog(app.openapi(), _public_base())
+
+
+@app.get("/developers/openapi.json", include_in_schema=False)
+async def developers_openapi():
+    from . import devportal
+
+    return JSONResponse(devportal.openapi(app.openapi(), _public_base()), headers={"Content-Disposition": 'attachment; filename="venthora-openapi.json"'})
+
+
+@app.get("/developers/postman.json", include_in_schema=False)
+async def developers_postman():
+    from . import devportal
+
+    return JSONResponse(devportal.postman(app.openapi(), _public_base()), headers={"Content-Disposition": 'attachment; filename="venthora.postman_collection.json"'})
 
 
 @app.get("/v1/developer/keys/{key_id}/requests")
