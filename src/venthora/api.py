@@ -3909,7 +3909,8 @@ async def metal_view():
     from . import metal
 
     heads = await asyncio.to_thread(_anchor_heads)
-    return await metal.status(app.state.org) | {"heads": heads, "digest_now": metal.digest(heads), "anchors": metal.anchors(app.state.org)}
+    return await metal.status(app.state.org) | {"heads": heads, "digest_now": metal.digest(heads), "anchors": metal.anchors(app.state.org),
+                                                "topups": metal.topups(app.state.org)[:20], "topup_limit_per_day": metal.MAX_TOPUP_PER_DAY}
 
 
 @app.put("/v1/metal/settings")

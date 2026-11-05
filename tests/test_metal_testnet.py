@@ -86,6 +86,40 @@ def test_an_x402_offer_on_another_network_or_too_dear_is_refused(keys):
             asyncio.run(metal.buy_endpoint("x", httpx.AsyncClient(transport=httpx.MockTransport(handler))))
 
 
+def _out_of_credit_then_paid(calls):
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls.append(bool(req.headers.get("payment-signature")))
+        if not req.headers.get("payment-signature"):
+            return httpx.Response(402, headers={"payment-required": base64.b64encode(json.dumps(OFFER).encode()).decode()}, json={})
+        receipt = base64.b64encode(json.dumps({"success": True, "transaction": "0x" + "aa" * 32}).encode()).decode()
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": "0x10"}, headers={"payment-response": receipt})
+    return handler
+
+
+def test_an_endpoint_out_of_credit_is_topped_up_and_the_call_sent_again(keys):
+    org, calls = Org(), []
+    client = httpx.AsyncClient(transport=httpx.MockTransport(_out_of_credit_then_paid(calls)))
+    assert asyncio.run(metal.rpc(metal.RPC_BASE + "/ep", "eth_blockNumber", [], client, org)) == "0x10"
+    assert calls == [False, True]  # refused, then paid and served
+    t = metal.topups(org)
+    assert len(t) == 1 and t[0]["paid"] == 1 and t[0]["payment_tx"] == "0x" + "aa" * 32 and t[0]["by"] == "agent (auto top-up)"
+    with pytest.raises(metal.MetalError, match="no credit"):  # without org (no record to keep) there is no top-up
+        asyncio.run(metal.rpc(metal.RPC_BASE + "/ep", "eth_blockNumber", [], client))
+
+
+def test_auto_top_up_stops_at_the_daily_limit(keys):
+    import datetime as dt
+
+    org, calls = Org(), []
+    today = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+    for i in range(metal.MAX_TOPUP_PER_DAY):
+        org._put("metal_topup", {"_id": f"t{i}", "at": today, "paid": 1}, "agent")
+    client = httpx.AsyncClient(transport=httpx.MockTransport(_out_of_credit_then_paid(calls)))
+    with pytest.raises(metal.MetalError, match="limit is 5 a day"):
+        asyncio.run(metal.rpc(metal.RPC_BASE + "/ep", "eth_blockNumber", [], client, org))
+    assert calls == [False]  # nothing paid
+
+
 def test_faucet_and_settings(keys):
     acct, store = keys
 

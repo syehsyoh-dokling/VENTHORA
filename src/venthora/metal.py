@@ -96,10 +96,52 @@ async def _post(url: str, client: httpx.AsyncClient | None, **kw) -> httpx.Respo
         raise MetalError(f"{type(exc).__name__}: {exc}") from exc
 
 
-async def rpc(url: str | None, method: str, params: list, client: httpx.AsyncClient | None = None):
+MAX_TOPUP_PER_DAY = 5  # USDZ the agent may spend on RPC credit in one UTC day, on its own
+
+
+def topups(org) -> list[dict]:
+    return sorted(org.list("metal_topup"), key=lambda r: r.get("at", ""), reverse=True) if org is not None else []
+
+
+def _spent_today(org) -> float:
+    today = dt.datetime.now(dt.UTC).date().isoformat()
+    return sum(t.get("paid") or 0 for t in topups(org) if str(t.get("at", "")).startswith(today))
+
+
+async def _topup(org, url: str, body: dict, refused: httpx.Response, client) -> httpx.Response:
+    """The endpoint answered 402 (no credit, or it lapsed): pay its x402 offer with VENTHORA's key and send the same
+    request again. Within MAX_TOPUP_PER_DAY; every top-up is recorded (Platform Setup -> Metal)."""
+    key, addr = secret_values.get(PRIVATE), address()
+    if not key or not addr or not refused.headers.get("payment-required"):
+        raise MetalError("the RPC endpoint has no credit left, and VENTHORA cannot pay for more (no key or no x402 offer)")
+    offer = json.loads(base64.b64decode(refused.headers["payment-required"]))
+    header, req = _pay_header(offer, key, addr)
+    price = int(req["amount"]) / 10 ** GAS_TOKEN["decimals"]
+    if _spent_today(org) + price > MAX_TOPUP_PER_DAY:
+        raise MetalError(f"the RPC endpoint needs more credit, but VENTHORA already paid {_spent_today(org):g} USDZ today "
+                         f"(its limit is {MAX_TOPUP_PER_DAY} a day): a person buys more on Platform Setup -> Metal")
+    res = await _post(url, client, json=body, headers={"PAYMENT-SIGNATURE": header})
+    if res.status_code == 402:
+        raise MetalError(f"the x402 top-up was not accepted: {res.headers.get('payment-response') or res.text[:200]}")
+    receipt = json.loads(base64.b64decode(res.headers["payment-response"])) if res.headers.get("payment-response") else {}
+    if res.headers.get("rpc-aas-endpoint") and res.headers["rpc-aas-endpoint"] != url:
+        secret_values.put(ENDPOINT, res.headers["rpc-aas-endpoint"], "agent: x402 top-up")
+    at = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+    org._put("metal_topup", {"_id": receipt.get("transaction") or f"topup-{at}", "at": at, "paid": price, "token": GAS_TOKEN["symbol"],
+                             "payment_tx": receipt.get("transaction"), "reason": "the RPC endpoint answered 402 (no credit)", "by": "agent (auto top-up)"},
+             "agent")
+    return res
+
+
+async def rpc(url: str | None, method: str, params: list, client: httpx.AsyncClient | None = None, org=None):
+    """One JSON-RPC call. With `org`, an endpoint that runs out of credit is topped up over x402 on the spot (within
+    the daily limit) and the call is sent again, so an anchor never fails for want of RPC credit."""
     if not url:
         raise MetalError("no RPC endpoint yet: let VENTHORA buy one over x402 (1 USDZ), or paste one from the Metal console")
-    res = await _post(url, client, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+    body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
+    res = await _post(url, client, json=body)
+    if res.status_code == 402 and org is not None:
+        res = await _topup(org, url, body, res, client)
     if res.status_code == 402:
         raise MetalError("the RPC endpoint has no credit left: buy a new credit pack (1 USDZ over x402)")
     try:
@@ -192,11 +234,11 @@ async def status(org, client: httpx.AsyncClient | None = None) -> dict:
         return out
     try:
         url = endpoint()
-        cid = int(await rpc(url, "eth_chainId", [], client), 16)
-        block = int(await rpc(url, "eth_blockNumber", [], client), 16)
+        cid = int(await rpc(url, "eth_chainId", [], client, org), 16)
+        block = int(await rpc(url, "eth_blockNumber", [], client, org), 16)
         out["network"] = {"chain_id": cid, "block": block, "matches": cid == CHAIN_ID, "name": NETWORK}
         if addr:
-            out["balance_wei"] = int(await rpc(url, "eth_getBalance", [addr, "latest"], client), 16)  # Metal answers in the gas token (USDZ)
+            out["balance_wei"] = int(await rpc(url, "eth_getBalance", [addr, "latest"], client, org), 16)  # Metal answers in the gas token (USDZ)
             out["balance"] = out["balance_wei"] / 10 ** GAS_TOKEN["decimals"]
     except MetalError as exc:
         out["error"] = str(exc)
@@ -216,18 +258,18 @@ async def anchor(org, heads: dict, by: str, client: httpx.AsyncClient | None = N
         raise MetalError("create the testnet key first")
     d = digest(heads)
     data = "0x" + (TAG + bytes.fromhex(d)).hex()
-    nonce = int(await rpc(url, "eth_getTransactionCount", [addr, "pending"], client), 16)
-    price = max(int(await rpc(url, "eth_gasPrice", [], client), 16), 1)
-    gas = int(int(await rpc(url, "eth_estimateGas", [{"from": addr, "to": addr, "value": "0x0", "data": data}], client), 16) * 1.2) + 1000
+    nonce = int(await rpc(url, "eth_getTransactionCount", [addr, "pending"], client, org), 16)
+    price = max(int(await rpc(url, "eth_gasPrice", [], client, org), 16), 1)
+    gas = int(int(await rpc(url, "eth_estimateGas", [{"from": addr, "to": addr, "value": "0x0", "data": data}], client, org), 16) * 1.2) + 1000
     fee = price * 2  # Metal: effective price = min(maxFee, maxPriority); the base fee is zero
-    bal = int(await rpc(url, "eth_getBalance", [addr, "latest"], client), 16)
+    bal = int(await rpc(url, "eth_getBalance", [addr, "latest"], client, org), 16)
     if bal < gas * fee:
         raise MetalError("the testnet address has no USDZ for gas: fund it from the faucet first")
     tx = {"type": 2, "chainId": CHAIN_ID, "nonce": nonce, "to": addr, "value": 0, "data": data, "gas": gas,
           "maxFeePerGas": fee, "maxPriorityFeePerGas": fee}
     signed = Account.sign_transaction(tx, key)
     raw = getattr(signed, "raw_transaction", None) or signed.rawTransaction
-    tx_hash = await rpc(url, "eth_sendRawTransaction", ["0x" + bytes(raw).hex().removeprefix("0x")], client)
+    tx_hash = await rpc(url, "eth_sendRawTransaction", ["0x" + bytes(raw).hex().removeprefix("0x")], client, org)
     rec = {"_id": tx_hash, "tx_hash": tx_hash, "digest": d, "heads": heads, "chain_id": CHAIN_ID, "network": NETWORK, "from": addr, "nonce": nonce,
            "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "by": by, "explorer": f"{st['explorer']}/tx/{tx_hash}"}
     org._put("metal_anchor", rec, by)

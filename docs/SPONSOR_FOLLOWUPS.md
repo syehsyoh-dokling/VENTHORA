@@ -13,20 +13,31 @@ Tested on Metal Testnet before writing (6 Nov 2026; test tokens only):
 
 ## 1. Metal team (Metal Award, USD 15,000): paste into the Metal Slack channel
 
-Thanks for the pointer! :raised_hands: We've moved VENTHORA to **Metal Testnet (chain 63825)**, and it works end to end:
-- VENTHORA funds its address from the faucet API.
-- It **buys its own RPC endpoint over x402**: 1 USDZ, EIP-3009, signed by the agent.
-- It **anchors its audit trail**: one EIP-1559 transaction, value 0, carrying the SHA-256 digest of our audit-log head and every contract's hash-chain head.
+Answered by our own tests and the docs (6 Nov), so not asked:
+- **Eligibility:** the hackathon page says the Metal Award "Requires use of Metal and Airwallex tooling". VENTHORA
+  uses Metal Testnet (RPC, faucet, x402, anchoring) and Airwallex.
+- **Anchoring pattern:** a zero-value self-transaction with the digest in calldata is accepted (status 1). The Atlas
+  explorer shows it as *finalized*, with the raw input `VENTHORA-ANCHOR-1:` + the digest, readable by any judge.
+  `MetalAssertions` needs a bonded domain whose names are not documented, and it is not needed for this.
+- **RPC endpoint expiry or credit:** VENTHORA tops its endpoint up over x402 by itself when it answers 402 (a GET on
+  the endpoint shows the 1 USDZ offer), within 5 USDZ a day. One credit pack covers about 20,000 calls; an anchor
+  uses about 6.
+- **Mandates (Kit 11):** tested with `metal-agent` 0.3.3 on testnet (6 Nov). Account created; a mandate with cap 2 USDZ,
+  budget 5, one payee and a 1-day expiry was bound on chain. A 1 USDZ pull was **paid**; 3 USDZ was **refused**
+  (`mandate_cap_exceeded`); an unlisted payee was **refused** (`mandate_payee_not_listed`). `mandate renew` revoked it
+  and bound a fresh one with nothing spent, so a monthly limit is a renew each month (the budget never resets alone).
 
-The first one is on the explorer: `0xb57d7e0d7bc8641e4238877793e4a532c97571f6764cf3893682e1028e03a4f6`.
+Message:
 
-A few questions so we build the right thing for the Award:
+Thanks for the pointer! :raised_hands: VENTHORA now runs on **Metal Testnet (chain 63825)** end to end:
+- It funds its address from the faucet API.
+- It **buys and tops up its own RPC endpoint over x402** (1 USDZ, EIP-3009, signed by the agent).
+- It **anchors its audit trail**: one transaction carries the SHA-256 digest of our audit log and every contract's hash chain.
+- We tried **mandates** with `metal-agent`: a pull inside the cap was paid, one above the cap and one to an unlisted payee were refused, and `renew` started a fresh budget. That's how we'll mirror our Delegation of Authority's monthly limits.
 
-1. **Anchoring pattern:** is a zero-value self-transaction with the digest in calldata the way you'd like it done? Or should we use `MetalAssertions` (`0x…018c`, a Merkle-root claim) or an event from a small contract?
-2. **What counts for the Metal Award:** is anchoring plus the agent paying for its own RPC over x402 enough? Or do you want value moving on Metal? We could add a **USDZ / EURZ / GBPZ payout rail** beside Airwallex: VENTHORA would pay a vendor in a Metal stablecoin under the same approvals.
-3. **Mandates (Kit 11):** VENTHORA already enforces a Delegation of Authority: who approves, per-payment and monthly limits, allowed payees. Should we mirror it as a **Metal mandate**, so the limits are enforced on chain when the agent pays? Is there a testnet example of `@metalntwx/metal-pay` mandates from Python, or only TypeScript?
-4. **The x402-bought endpoint:** does it expire, and does its credit last until Demo Day (19 Nov)? Can its owner address see or manage it in the console, or is the console needed at all?
-5. **Testnet stability:** will the testnet, faucet and explorer stay up, with no reset, until judging ends? Is there an explorer API (or a verify page) we can link judges to, so they can check the digest in a transaction's input themselves?
+The first anchor: https://testnet.metalntwx.com/tx/0xb57d7e0d7bc8641e4238877793e4a532c97571f6764cf3893682e1028e03a4f6
+
+One quick check: **will Metal Testnet, the faucet and the Atlas explorer stay up, with no reset, until judging ends** (after Demo Day, 19 Nov)? Our proof links for the judges point at testnet.metalntwx.com.
 
 Thanks! :pray:
 
