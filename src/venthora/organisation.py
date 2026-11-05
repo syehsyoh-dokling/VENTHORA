@@ -137,6 +137,10 @@ class PurchaseRequest(BaseModel):
     needed_by: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     requested_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$", description="the day it was asked (today when blank)")
     justification: str = Field(default="", max_length=500)
+    quantity: float | None = Field(default=None, gt=0, le=10**7, description="how many are to be bought")
+    unit: str = Field(default="", max_length=20, description="the unit of the quantity: pcs, box, licence ...")
+    brand: str = Field(default="", max_length=80, description="a required brand; quotations of another brand are not recommended")
+    specs: list[str] = Field(default_factory=list, max_length=30, description="the specifications a quotation must meet, one per line")
     status: Literal["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ORDERED"] = "SUBMITTED"
     decided_by: str | None = Field(default=None, max_length=120)
     decided_at: str | None = None
@@ -147,6 +151,13 @@ class PurchaseRequest(BaseModel):
     @classmethod
     def check_currency(cls, v: str) -> str:
         return _ccy(v)
+
+    @field_validator("specs", mode="before")
+    @classmethod
+    def split_specs(cls, v):
+        if isinstance(v, str):  # a form or a file gives them as one text: one per line, or separated by ;
+            v = re.split(r"[\n;]+", v)
+        return [str(x).strip()[:200] for x in (v or []) if str(x).strip()]
 
 
 class TravelAuthorisation(BaseModel):

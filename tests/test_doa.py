@@ -310,7 +310,7 @@ def test_what_is_ready_is_paid_and_what_waits_is_listed_with_the_fix(client):
     assert client.put(f"/v1/doa/policies/personnel?{FCO}", json={"pay_day": "1"}).status_code == 200  # due today
     p = client.get("/v1/doa").json()["pending"]
     assert p["may_run"] and [x["who"] for x in p["ready"]] == ["Dana Finch"]  # one blocked line stops nothing else
-    assert {b["where"] for b in p["blocked"]} <= {"#/users", "#/executions", "#/payees", "#/mandate", "#/codes"} and p["blocked"]
+    assert {b["where"] for b in p["blocked"]} <= {"#/users", "#/executions", "#/payee-lifecycle", "#/mandate", "#/codes"} and p["blocked"]
     e = client.get("/v1/exceptions").json()
     pay = {x["employee"]: x for x in e["payroll"]}
     assert "Dana Finch" not in pay and pay["Amira Shah"]["inside_mandate"] and not pay["Lee Park"]["inside_mandate"]

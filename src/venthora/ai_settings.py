@@ -30,7 +30,7 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field, field_validator
 
 from .config import data_path, env
-from .evidence.llm import AnthropicModel, ChatModel
+from .evidence.llm import AnthropicModel, BedrockModel, ChatModel
 
 PROVIDERS: dict[str, dict] = {
     "openai": {"label": "OpenAI", "base_url": "https://api.openai.com/v1", "api": "openai"},
@@ -50,6 +50,7 @@ PROVIDERS: dict[str, dict] = {
     "cohere": {"label": "Cohere", "base_url": "https://api.cohere.ai/compatibility/v1", "api": "openai"},
     "perplexity": {"label": "Perplexity", "base_url": "https://api.perplexity.ai", "api": "openai"},
     "huggingface": {"label": "Hugging Face Inference", "base_url": "https://router.huggingface.co/v1", "api": "openai"},
+    "bedrock": {"label": "Amazon Bedrock (AWS)", "base_url": "https://bedrock-runtime.us-east-1.amazonaws.com", "api": "bedrock", "regional": True},
     "custom": {"label": "Other OpenAI-compatible service", "base_url": "", "api": "openai", "custom": True},
 }
 # The usual model ids per provider, for the dropdown; the first is the default. List models asks the provider for its
@@ -72,6 +73,7 @@ MODELS: dict[str, list[str]] = {
     "cohere": ["command-a-03-2025", "command-r-plus", "command-r"],
     "perplexity": ["sonar", "sonar-pro"],
     "huggingface": ["meta-llama/Llama-3.3-70B-Instruct", "Qwen/Qwen2.5-72B-Instruct"],
+    "bedrock": ["us.anthropic.claude-sonnet-4-5-20250929-v1:0", "amazon.nova-pro-v1:0", "amazon.nova-lite-v1:0", "us.meta.llama3-3-70b-instruct-v1:0"],
     "custom": [],
 }
 for _name, _models in MODELS.items():
@@ -280,6 +282,8 @@ def model_for(rec: dict | None):
         p = rec["provider"]
         if PROVIDERS[p["name"]]["api"] == "anthropic":
             return AnthropicModel(api_key=p["api_key"], model=p["model"], timeout_s=timeout, workspace_id=p.get("workspace_id", ""))
+        if PROVIDERS[p["name"]]["api"] == "bedrock":
+            return BedrockModel(api_key=p["api_key"], model=p["model"], endpoint=p.get("base_url") or PROVIDERS["bedrock"]["base_url"], timeout_s=timeout)
         return ChatModel(endpoint=p.get("base_url") or PROVIDERS[p["name"]]["base_url"], model=p["model"], token=p["api_key"], timeout_s=timeout)
     return ChatModel(endpoint="", model="")
 
@@ -296,6 +300,8 @@ def describe(model) -> str:
         return "rules only"
     if isinstance(model, AnthropicModel):
         return f"Anthropic · {model.model}"
+    if isinstance(model, BedrockModel):
+        return f"Amazon Bedrock · {model.model} ({model.endpoint.split('.')[1] if '.' in model.endpoint else model.endpoint})"
     return f"{model.model} at {model.endpoint}"
 
 
@@ -303,6 +309,8 @@ async def list_models(model) -> list[str]:
     """Model ids the server or provider offers (OpenAI-compatible GET /models; Anthropic's models list)."""
     if isinstance(model, AnthropicModel):
         return await model.list_models()
+    if isinstance(model, BedrockModel):  # a Bedrock API key reaches the runtime only: offer the usual ids, Other takes any
+        return list(PROVIDERS["bedrock"]["suggested"])
     import httpx
 
     base = model.endpoint if model.endpoint.endswith("/v1") or "/openai" in model.endpoint or model.endpoint.endswith("/api/v1") else f"{model.endpoint}/v1"

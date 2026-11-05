@@ -105,14 +105,28 @@ async def lifespan(app: FastAPI):
     scheduler = asyncio.create_task(_budget_scheduler()) if env("VENTHORA_BUDGET_SCHEDULER", "1") != "0" else None
     syncer = asyncio.create_task(_sync_scheduler()) if env("VENTHORA_SYNC_SCHEDULER", "1") != "0" else None
     doa_pilot = asyncio.create_task(_doa_scheduler()) if env("VENTHORA_DOA_SCHEDULER", "1") != "0" else None
+    mailer = asyncio.create_task(_outbox_worker()) if env("VENTHORA_OUTBOX_WORKER", "1") != "0" else None
     yield
     _llm.FRAMER = None  # the organisation's prompt leaves with the app
-    for task in (pending, scheduler, syncer, doa_pilot):
+    for task in (pending, scheduler, syncer, doa_pilot, mailer):
         if task is not None:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await task
     await app.state.agent.close()
+
+
+async def _outbox_worker(every_s: int = 60) -> None:
+    """The outbox's worker: every minute, once outgoing email is set up, send what waits in the queue and retry what
+    failed (at most 5 tries); the audit log records each message sent."""
+    from . import outbox
+
+    while True:
+        await asyncio.sleep(every_s)
+        with contextlib.suppress(Exception):  # a mail server that is down only leaves the messages queued
+            for rec in await asyncio.to_thread(outbox.flush, app.state.org):
+                await asyncio.to_thread(app.state.audit.append, "outbox_" + rec["status"], {"outbox_id": rec["_id"], "ref": rec.get("ref"),
+                                                                                           "to": rec.get("to"), "attempts": rec.get("attempts")})
 
 
 def _warm_horizon() -> None:
@@ -407,6 +421,38 @@ async def ledger_books():
     """Every book with its balances per currency (cash, committed, expense, fees, fx, funding)."""
     store = app.state.executor.store
     return [{"book_id": b, "balances": store.book_balances(b), "entries": len(store.journal(b))} for b in store.books()]
+
+
+JOURNAL_ACCOUNTS = {"cash": ("1010", "Cash at bank (Airwallex wallet)"), "committed": ("1050", "Payments in transit"),
+                    "expense": ("6000", "Payments to payees"), "fees": ("6950", "Bank and transfer fees"),
+                    "fx": ("7900", "Foreign exchange"), "funding": ("3000", "Treasury funding")}
+
+
+@app.get("/v1/ledger/export.csv")
+async def ledger_export(book: str | None = Query(None, max_length=80), date_from: str | None = Query(None, alias="from", max_length=10),
+                        date_to: str | None = Query(None, alias="to", max_length=10)):
+    """Books & ledger -> the journal for an accounting system: one row per journal line, debit or credit, in the
+    line's own currency, with the account code and name, the entry type, its reference and the execution."""
+    import csv
+    import io
+
+    from fastapi.responses import Response
+
+    rows = await asyncio.to_thread(app.state.executor.store.journal, book or None)
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(["Date", "Journal entry", "Book", "Entry type", "Reference", "Execution", "Account code", "Account name", "Currency", "Debit", "Credit"])
+    for e in rows:
+        day = str(e["at"])[:10]
+        if (date_from and day < date_from) or (date_to and day > date_to):
+            continue
+        for ln in e["lines"]:
+            code, name = JOURNAL_ACCOUNTS.get(ln["account"], ("", ln["account"]))
+            amt = int(ln["amount"])
+            w.writerow([day, e["entry_id"], e["book_id"], e["kind"], e["ref"], e.get("execution_id") or "", code, name, ln["currency"],
+                        f"{amt / 100:.2f}" if amt > 0 else "", f"{-amt / 100:.2f}" if amt < 0 else ""])
+    name = f"venthora-journal{'-' + book if book else ''}{'-' + date_from if date_from else ''}{'-' + date_to if date_to else ''}.csv"
+    return Response(out.getvalue(), media_type="text/csv", headers={"content-disposition": f'attachment; filename="{name}"'})
 
 
 @app.get("/v1/ledger/{book_id}")
@@ -1504,8 +1550,9 @@ async def list_intake():
         for r in app.state.executor.store.paid_rows():
             if not r.get("invoice_fingerprint"):
                 continue
-            p = paid.setdefault(r["invoice_fingerprint"], {"amount_minor": 0, "currency": r["currency"], "transfers": [], "paid_at": r["paid_at"]})
+            p = paid.setdefault(r["invoice_fingerprint"], {"amount_minor": 0, "currency": r["currency"], "transfers": [], "paid_at": r["paid_at"], "base_cost_minor": 0})
             p["amount_minor"] += r["amount_minor"]
+            p["base_cost_minor"] += r.get("base_cost_minor") or 0
             p["transfers"].append(r["transfer_id"])
             p["paid_at"] = max(p["paid_at"], r["paid_at"])
         return [q.model_copy(update={"payment": paid.get(q.invoice_fingerprint)}) if q.invoice_fingerprint in paid else q
@@ -3349,6 +3396,193 @@ async def purchase_request_decide(pr_number: str, body: PRDecisionIn, role: str 
     return rec
 
 
+# ---- Procurement process: vendor sourcing, RFQ forms, quotations, recommendation, award → PO (sourcing.py) ----
+class ProcVendorIn(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=5, max_length=120)
+    website: str = Field("", max_length=200)
+
+
+class ProcInviteIn(BaseModel):
+    cand_ids: list[str] = Field(min_length=1, max_length=20)
+    deadline: str | None = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+
+class ProcAwardIn(BaseModel):
+    cand_id: str = Field(min_length=1, max_length=60)
+    note: str = Field("", max_length=500)
+
+
+def _proc(fn, *a, **k):
+    from .sourcing import SourcingError
+
+    try:
+        return fn(*a, **k)
+    except SourcingError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except OrgError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.get("/v1/procurement/board")
+async def procurement_board():
+    """Every purchase request in procurement: candidates, invitations, quotations (one row per vendor) and the
+    recommendation. Purchase requests not yet sourced are listed under `requests`."""
+    from . import sourcing
+
+    org = app.state.org
+    rows = await asyncio.to_thread(sourcing.board, org)
+    inside = {r["pr"]["pr_number"] for r in rows}
+    waiting = [p for p in org.list("pr") if p["pr_number"] not in inside and p["status"] in ("SUBMITTED", "APPROVED")]
+    return {"board": rows, "requests": sorted(waiting, key=lambda p: p["pr_number"], reverse=True), "public_url": sourcing.public_url()}
+
+
+@app.get("/v1/evidence")
+async def hackathon_evidence():
+    """System Setting → Hackathon evidence: every organiser item with its status, the screen that proves it and a live
+    probe (data/hackathon_evidence.json; the line-by-line matrix is docs/HACKATHON_COMPLIANCE.md)."""
+    from .config import ROOT
+
+    data = json.loads((ROOT / "data" / "hackathon_evidence.json").read_text(encoding="utf-8"))
+    items = [i for g in data["groups"] for i in g["items"]]
+    data["counts"] = {s: sum(1 for i in items if i["status"] == s) for s in ("done", "partial", "blocked", "na")} | {"total": len(items)}
+    return data
+
+
+@app.post("/v1/procurement/demo-requests")
+async def procurement_demo_requests(role: str = "finance_manager", by: str = "dashboard"):
+    """For the alpha-sandbox demo: two purchase requests in Intake (toner with a locked brand, approved; chairs, waiting)."""
+    from . import sourcing
+
+    who = _writer(role, by)
+    return {"created": await asyncio.to_thread(_proc, sourcing.demo_requests, app.state.org, who)}
+
+
+@app.post("/v1/procurement/{pr_number}/source")
+async def procurement_source(pr_number: str, role: str = "finance_manager", by: str = "dashboard"):
+    """The agent lists candidate vendors for a PR: registered vendors that fit, and vendors found online by the AI model
+    (or the demo directory). Nothing is sent."""
+    from . import sourcing
+
+    who = _writer(role, by)
+    try:
+        rec = await sourcing.find_vendors(app.state.org, pr_number, payees=app.state.intake.registry.payees, model=active_model(), by=who)
+    except (sourcing.SourcingError, OrgError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "procurement_sourced", {"pr": pr_number, "by": who, "candidates": len(rec["candidates"])})
+    return {k: v for k, v in rec.items() if k != "candidates"} | {"candidates": [{k: v for k, v in c.items() if k != "token"} for c in rec["candidates"]]}
+
+
+@app.post("/v1/procurement/{pr_number}/vendors")
+async def procurement_add_vendor(pr_number: str, body: ProcVendorIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Add a vendor procurement already knows to the PR's candidates."""
+    from . import sourcing
+
+    who = _writer(role, by)
+    await asyncio.to_thread(_proc, sourcing._pr, app.state.org, pr_number)
+    await asyncio.to_thread(_proc, sourcing.add_vendor, app.state.org, pr_number, name=body.name, email=body.email, website=body.website, by=who)
+    return {"ok": True}
+
+
+@app.post("/v1/procurement/{pr_number}/invite")
+async def procurement_invite(pr_number: str, body: ProcInviteIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Queue the RFQ email to the chosen vendors, each with its own quotation form link."""
+    from . import sourcing
+
+    who = _writer(role, by)
+    rec = await asyncio.to_thread(_proc, sourcing.invite, app.state.org, pr_number, body.cand_ids, by=who, deadline=body.deadline)
+    await asyncio.to_thread(app.state.audit.append, "procurement_rfq_sent", {"pr": pr_number, "by": who, "to": rec["sent"]})
+    return {"sent": rec["sent"], "deadline": rec["deadline"]}
+
+
+@app.get("/v1/procurement/{pr_number}/form-link/{cand_id}")
+async def procurement_form_link(pr_number: str, cand_id: str):
+    """For the demo only: the form link of an invited demo-directory vendor (a real vendor's link is never shown)."""
+    from . import sourcing
+
+    r = sourcing.rfq(app.state.org, pr_number) or {}
+    c = next((c for c in r.get("candidates", []) if c["cand_id"] == cand_id), None)
+    if not c or not c.get("token"):
+        raise HTTPException(404, "not invited")
+    if not c.get("demo"):
+        raise HTTPException(403, "only a demo-directory vendor's form is opened from here; a real vendor uses the link in its email")
+    return {"url": f"/rfq/{c['token']}"}
+
+
+@app.post("/v1/procurement/{pr_number}/demo-replies")
+async def procurement_demo_replies(pr_number: str, role: str = "finance_manager", by: str = "dashboard"):
+    """For the demo: the invited demo-directory vendors submit their forms (never a real vendor)."""
+    from . import sourcing
+
+    _writer(role, by)
+    out = await asyncio.to_thread(_proc, sourcing.demo_replies, app.state.org, pr_number)
+    return {"submitted": [q["cand_id"] for q in out]}
+
+
+@app.post("/v1/procurement/{pr_number}/review")
+async def procurement_review(pr_number: str):
+    """The AI model reads every vendor's remarks against the specifications; a contradicted 'complies' is not met."""
+    from . import sourcing
+
+    try:
+        return await sourcing.review(app.state.org, pr_number, active_model())
+    except sourcing.SourcingError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/v1/procurement/{pr_number}/award")
+async def procurement_award(pr_number: str, body: ProcAwardIn, role: str = "finance_manager", by: str = "dashboard"):
+    """A person awards one quotation (the recommendation, or another with the reason); the PO is raised and sent."""
+    from . import sourcing
+    from .masterdata import MasterStore
+
+    out = await asyncio.to_thread(_proc, sourcing.award, app.state.org, pr_number, body.cand_id, role=role, by=by, note=body.note,
+                                  master=MasterStore(), payees_store=app.state.executor.store, registry_payees=app.state.intake.registry.payees)
+    await asyncio.to_thread(app.state.audit.append, "procurement_awarded", {k: v for k, v in out.items() if k not in ("po", "vendor_followed")})
+    return out
+
+
+@app.get("/v1/procurement/{pr_number}/file/{cand_id}")
+async def procurement_file(pr_number: str, cand_id: str):
+    """The quotation document a vendor uploaded."""
+    from . import sourcing
+
+    q = app.state.org.get("quote", f"{pr_number}:{cand_id}")
+    p = sourcing.stored_file(pr_number, (q or {}).get("file", {}).get("path", "")) if q and q.get("file") else None
+    if p is None:
+        raise HTTPException(404, "no quotation file")
+    return FileResponse(p, filename=q["file"]["name"])
+
+
+@app.get("/rfq/{token}", include_in_schema=False)
+async def rfq_form(token: str):
+    """The vendor's quotation form (public, reached through the gateway; the token is the only key)."""
+    return FileResponse(DASHBOARD.parent / "rfq.html", media_type="text/html")
+
+
+@app.get("/rfq/{token}/data", include_in_schema=False)
+async def rfq_form_data(token: str):
+    from . import sourcing
+
+    found = sourcing.by_token(app.state.org, token)
+    if found is None:
+        raise HTTPException(404, "this link is not valid")
+    r, c, pr = found
+    q = app.state.org.get("quote", f"{r['pr_number']}:{c['cand_id']}")
+    return {"pr": {k: pr.get(k) for k in ("pr_number", "title", "quantity", "unit", "brand", "specs", "currency", "needed_by")},
+            "vendor": {"name": c["name"], "email": c.get("email")}, "deadline": r.get("deadline"), "closed": r["status"] == "AWARDED",
+            "quote": {k: v for k, v in (q or {}).items() if k not in ("model_review",)} if q else None}
+
+
+@app.post("/rfq/{token}", include_in_schema=False)
+async def rfq_form_submit(token: str, body: Annotated[dict, Body()]):
+    from . import sourcing
+
+    q = await asyncio.to_thread(_proc, sourcing.submit, app.state.org, token, body)
+    await asyncio.to_thread(app.state.audit.append, "procurement_quote_received", {"pr": q["pr_number"], "vendor": q["cand_id"], "total_minor": q["total_minor"], "revision": q["revision"]})
+    return {"ok": True, "pr_number": q["pr_number"], "total_minor": q["total_minor"], "currency": q["currency"], "revision": q["revision"]}
+
+
 def _ga_label(g: dict | None) -> str:
     """A receiving account as people name it: nickname, currencies, last four digits."""
     if not g:
@@ -3445,6 +3679,40 @@ async def fund_request_settle(number: str, body: SettleIn, role: str = "finance_
     return rec | {"to_return_minor": max(diff, 0), "to_reimburse_minor": max(-diff, 0)}
 
 
+async def _rates_to_base(currencies) -> dict:
+    """Rates into the organisation's main currency for a report: Airwallex's indicative rate when the bank is
+    connected (cached with the treasury position), else the demo book's rate; a currency with neither is listed as missing."""
+    from decimal import Decimal
+
+    base = app.state.org.standards().get("base_currency") or "USD"
+    cache = app.state.__dict__.setdefault("rate_cache", {})
+    book = json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"].get("fx_to_base") or {}
+    bank = app.state.agent.proof.airwallex
+    rates: dict[str, Decimal] = {}
+    sources: dict[str, str] = {}
+    for c in sorted({c for c in currencies if c and c != base}):
+        if c not in cache and bank.configured:
+            with contextlib.suppress(Exception):  # a currency without a rate is listed as missing, not guessed
+                cache[c] = await bank.rate_to_base(c, base)
+        if c in cache:
+            rates[c], sources[c] = Decimal(str(cache[c])), "airwallex"
+        elif base == "USD" and c in book:
+            rates[c], sources[c] = Decimal(str(book[c])), "demo book"
+    missing = sorted({c for c in currencies if c and c != base} - set(rates))
+    return {"base": base, "rates": rates, "sources": sources, "missing": missing}
+
+
+def _in_base(minor: int | None, ccy: str | None, fx: dict) -> int | None:
+    from decimal import ROUND_HALF_UP, Decimal
+
+    if minor is None or not ccy:
+        return None
+    if ccy == fx["base"]:
+        return minor
+    r = fx["rates"].get(ccy)
+    return None if r is None else int((Decimal(minor) * r).to_integral_value(rounding=ROUND_HALF_UP))
+
+
 @app.get("/v1/reports/spend")
 async def reports_spend(category: str = Query("goods_services", pattern="^(payroll|fringe|goods_services|operation|cash_advance|travel|odc)$")):
     """Reporting per spending category: every line with the name, the day it was asked for, its number (PO, PR,
@@ -3463,8 +3731,293 @@ async def reports_spend(category: str = Query("goods_services", pattern="^(payro
         t = totals.setdefault(r["currency"] or "-", {"amount_minor": 0, "paid_minor": 0, "remaining_minor": 0})
         for k in t:
             t[k] += r.get(k) or 0
+    fx = await _rates_to_base({r["currency"] for r in rows})
+    for r in rows:
+        r["base_minor"] = _in_base(r.get("amount_minor"), r.get("currency"), fx)
+        # what was really spent: the USD Airwallex converted at for paid money; today's rate only where no conversion is on record
+        actual = r.get("paid_base_minor")
+        r["spent_basis"] = "actual" if actual is not None else "rate" if r.get("paid_minor") else None
+        r["spent_base_minor"] = actual if actual is not None else _in_base(r.get("paid_minor") or 0, r.get("currency"), fx)
+        r["left_base_minor"] = _in_base(r.get("remaining_minor") or 0, r.get("currency"), fx)
     return {"category": category, "title": paid_reports.CATEGORIES[category], "rows": rows, "units": units, "people": people,
-            "types": sorted({r["type"] for r in rows}), "totals": totals}
+            "types": sorted({r["type"] for r in rows}), "totals": totals, "base_currency": fx["base"],
+            "rates": {c: str(v) for c, v in fx["rates"].items()}, "rate_sources": fx["sources"], "missing_rates": fx["missing"]}
+
+
+class PlacementPolicyIn(BaseModel):
+    buffer_pct: int = Field(10, ge=0, le=100)
+    min_amount_minor: int = Field(100_000, ge=0)
+    destination: str = Field("Term deposit, 1 month", max_length=120)
+    enabled: bool = True
+
+
+class PlacementIn(BaseModel):
+    amount_minor: int = Field(gt=0)
+    destination: str = Field("", max_length=120)
+    note: str = Field("", max_length=300)
+
+
+class PlacementDecisionIn(BaseModel):
+    status: str = Field(pattern="^(APPROVED|DONE|CANCELLED)$")
+
+
+async def _placement_basis() -> dict:
+    from . import cash_placement
+
+    org = app.state.org
+    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    recap = await reports_spending_recap()
+    commitments = sum(line.get("left_base_minor") or 0 for line in recap["lines"])
+    out = {"base_currency": recap["base_currency"], "wallet": [], "error": None}
+    try:
+        pos = await treasury_position()
+        available, bills = pos["available"]["base_minor"], pos["bills_unpaid"]["base_minor"]
+        out["wallet"] = [{"currency": w["currency"], "available_minor": w["available"], "base_minor": w.get("available_base_minor")} for w in pos["available"].get("wallet") or []]
+        out["processing_minor"] = pos["processing_out"]["base_minor"]
+    except HTTPException as exc:
+        available, bills, out["error"] = 0, 0, f"the Airwallex balance could not be read: {exc.detail}"
+    return out | cash_placement.compute(available_minor=available, reserve_floor_minor=base.policy.reserve_floor_minor, bills_minor=bills,
+                                        commitments_minor=commitments, pol=cash_placement.policy(org))
+
+
+@app.get("/v1/cash-placement")
+async def cash_placement_view():
+    """Budget allocation -> Cash placement: what must stay (reserve floor, approved bills, open commitments, a
+    buffer), the idle cash above it, the policy, and every placement instruction a person proposed or approved."""
+    from . import cash_placement
+
+    return {"basis": await _placement_basis(), "policy": cash_placement.policy(app.state.org), "instructions": cash_placement.items(app.state.org)}
+
+
+@app.put("/v1/cash-placement/policy")
+async def cash_placement_policy(body: PlacementPolicyIn, role: str = "finance_manager", by: str = "dashboard"):
+    from . import cash_placement
+
+    who = _writer(role, by)
+    pol = await asyncio.to_thread(cash_placement.save_policy, app.state.org, body.model_dump(), who)
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_policy", pol | {"by": who})
+    return pol
+
+
+@app.post("/v1/cash-placement/instructions")
+async def cash_placement_instruct(body: PlacementIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Propose placing idle cash; never above the idle amount. Nothing moves: a second person approves, then the
+    placement is carried out outside VENTHORA (Airwallex has no placement product) and marked done."""
+    from . import cash_placement
+
+    who = _writer(role, by)
+    basis = await _placement_basis()
+    pol = cash_placement.policy(app.state.org)
+    try:
+        rec = await asyncio.to_thread(cash_placement.instruct, app.state.org, amount_minor=body.amount_minor, currency=basis["base_currency"],
+                                      destination=body.destination or pol["destination"], note=body.note, by=who,
+                                      basis={k: basis[k] for k in ("available_minor", "needed_minor", "idle_minor", "reserve_floor_minor", "bills_minor", "commitments_minor", "buffer_minor")})
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_proposed", {"id": rec["_id"], "amount_minor": rec["amount_minor"], "destination": rec["destination"], "by": who})
+    return rec
+
+
+@app.post("/v1/cash-placement/instructions/{pid}")
+async def cash_placement_decide(pid: str, body: PlacementDecisionIn, role: str = "finance_manager", by: str = "dashboard"):
+    from . import cash_placement
+
+    who = _writer(role, by)
+    try:
+        rec = await asyncio.to_thread(cash_placement.decide, app.state.org, pid, body.status, who)
+    except KeyError as exc:
+        raise HTTPException(404, "no such placement") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_" + body.status.lower(), {"id": pid, "by": who})
+    return rec
+
+
+def _anchor_heads() -> dict:
+    org = app.state.org
+    audit = app.state.audit.verify()
+    return {"audit": {"head": audit.get("head"), "events": audit.get("checked"), "verified": audit.get("verified")},
+            "contracts": {r["_id"]: r.get("head") for r in sorted(org.list("contract_seal"), key=lambda r: r["_id"])}}
+
+
+class DocsQuestion(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+
+
+@app.get("/v1/mcp")
+async def mcp_view():
+    """Platform Setup -> Airwallex MCP: the docs and developer MCP servers, connected or not, and the docs server's tools."""
+    from . import mcp_client
+
+    return await mcp_client.status()
+
+
+@app.post("/v1/mcp/docs/ask")
+async def mcp_docs_ask(body: DocsQuestion, role: str = "finance_manager", by: str = "dashboard"):
+    """Ask Airwallex's docs MCP server (search_public_docs); nothing about the organisation is sent, only the question."""
+    from . import mcp_client
+
+    _writer(role, by)
+    try:
+        return {"question": body.question, "answer": await mcp_client.ask_docs(body.question)}
+    except mcp_client.MCPError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.get("/v1/metal")
+async def metal_view():
+    """Platform Setup -> Metal: the testnet, VENTHORA's address and its balance (the key is never shown), the heads
+    an anchor would write now, and every anchor sent with its explorer link."""
+    from . import metal
+
+    heads = await asyncio.to_thread(_anchor_heads)
+    return await metal.status(app.state.org) | {"heads": heads, "digest_now": metal.digest(heads), "anchors": metal.anchors(app.state.org)}
+
+
+@app.put("/v1/metal/settings")
+async def metal_settings(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
+    from . import metal
+
+    who = _connector(role, by)
+    try:
+        return await asyncio.to_thread(metal.save_settings, app.state.org, body, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/v1/metal/key")
+async def metal_key(role: str = "super_admin", by: str = "dashboard"):
+    """Create VENTHORA's testnet key (a new one replaces the old; only the address is returned)."""
+    from . import metal
+
+    who = _connector(role, by)
+    rec = await asyncio.to_thread(metal.generate, who)
+    await asyncio.to_thread(app.state.audit.append, "metal_key_created", {"address": rec["address"], "by": who})
+    return rec
+
+
+@app.post("/v1/metal/anchor")
+async def metal_anchor(role: str = "finance_manager", by: str = "dashboard"):
+    """Write the digest of the audit head and every contract head on Metal, in one transaction."""
+    from . import metal
+
+    who = _writer(role, by)
+    heads = await asyncio.to_thread(_anchor_heads)
+    try:
+        rec = await metal.anchor(app.state.org, heads, who)
+    except metal.MetalError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "metal_anchor", {"tx_hash": rec["tx_hash"], "digest": rec["digest"], "by": who})
+    return rec
+
+
+@app.get("/v1/reports/spending-recap")
+async def reports_spending_recap():
+    """Reporting -> Payment reports: one recap of every report above. Each line (payroll, fringe, goods and services,
+    operation, cash advance, travel, ODC; the FX and transfer costs; live Visa card charges) with its place (country
+    office, branch, unit, person), charge code, the payments actually made (date, amount, the USD Airwallex really
+    converted at) and what is still committed and unpaid (at today's rate). The page filters and totals it."""
+    from . import fx_cost_report, paid_reports
+
+    org, store = app.state.org, app.state.executor.store
+    queue = await list_intake()
+    payees = app.state.intake.registry.payees
+    units = {u["unit_id"]: u for u in org.list("unit")}
+    name = lambda uid: (units.get(uid or "") or {}).get("name")  # noqa: E731
+    raw: list[tuple[str, dict]] = []
+    for cat in paid_reports.CATEGORIES:
+        rows = await asyncio.to_thread(paid_reports.build, cat, org=org, store=store, intake_rows=queue, payees=payees)
+        raw += [(cat, r) for r in rows]
+    fx = await _rates_to_base({r["currency"] for _, r in raw if r.get("currency")} | {p["currency"] for _, r in raw for p in r.get("payments") or []})
+    lines = []
+    for cat, r in raw:
+        pays = []
+        for p in r.get("payments") or []:
+            actual = p.get("base_minor")
+            pays.append({"paid_at": p["paid_at"], "amount_minor": p["amount_minor"], "currency": p["currency"], "transfer_id": p.get("transfer_id"),
+                         "base_minor": actual if actual is not None else _in_base(p["amount_minor"], p["currency"], fx), "basis": "actual" if actual is not None else "rate"})
+        open_ = r.get("status") not in ("Done", "Cancelled")
+        lines.append({"report": cat, "report_label": paid_reports.CATEGORIES[cat], "type": r.get("type"), "name": r.get("name"), "person": r.get("person"),
+                      "reference": r.get("reference"), "reference_kind": r.get("reference_kind"), "request_date": r.get("request_date"), "status": r.get("status"),
+                      "currency": r.get("currency"), "amount_minor": r.get("amount_minor") or 0, "paid_minor": r.get("paid_minor") or 0,
+                      "remaining_minor": (r.get("remaining_minor") or 0) if open_ else 0,
+                      "left_base_minor": _in_base((r.get("remaining_minor") or 0) if open_ else 0, r.get("currency"), fx),
+                      "country_office": name(r.get("country_office_id")), "branch": name(r.get("branch_id")), "unit": name(r.get("unit_id")),
+                      "charge_code": r.get("charge_code"), "payments": pays})
+    rep = await asyncio.to_thread(fx_cost_report.build, store, None)
+    reqs = await asyncio.to_thread(app.state.intake.store.list, 2000)
+    rep = await asyncio.to_thread(fx_cost_report.lines, rep, store, intake_rows=reqs, org=org)
+    for x in rep["rows"]:
+        if not x.get("total_base_minor"):
+            continue
+        lines.append({"report": "fx", "report_label": "FX & transfer costs", "type": x.get("kind_label"), "name": x.get("payee"), "person": None,
+                      "reference": x.get("txn_code") or x.get("ref"), "reference_kind": "Airwallex transaction", "request_date": x.get("value_date"), "status": "Done",
+                      "currency": rep["base_currency"], "amount_minor": x["total_base_minor"], "paid_minor": x["total_base_minor"], "remaining_minor": 0, "left_base_minor": 0,
+                      "country_office": x.get("country_office"), "branch": None, "unit": x.get("unit"), "charge_code": x.get("charge_code"),
+                      "payments": [{"paid_at": x.get("value_date") or x.get("at"), "amount_minor": x["total_base_minor"], "currency": rep["base_currency"],
+                                    "transfer_id": x.get("ref"), "base_minor": x["total_base_minor"], "basis": "actual"}]})
+    cards = {c["_id"]: c for c in org.list("card")}
+    for d in org.list("card_auth"):
+        if d.get("decision") != "AUTHORIZED" or d.get("source") == "test":
+            continue
+        cfx = await _rates_to_base({d.get("currency")})
+        b = _in_base(d.get("amount_minor"), d.get("currency"), cfx)
+        lines.append({"report": "card", "report_label": "Virtual card (Visa)", "type": "card charge", "name": d.get("merchant") or (cards.get(d.get("card_id")) or {}).get("payee"),
+                      "person": None, "reference": d.get("_id"), "reference_kind": "card charge", "request_date": str(d.get("at") or "")[:10], "status": "Done",
+                      "currency": d.get("currency"), "amount_minor": d.get("amount_minor") or 0, "paid_minor": d.get("amount_minor") or 0, "remaining_minor": 0, "left_base_minor": 0,
+                      "country_office": None, "branch": None, "unit": None, "charge_code": None,
+                      "payments": [{"paid_at": d.get("at"), "amount_minor": d.get("amount_minor"), "currency": d.get("currency"), "transfer_id": d.get("_id"), "base_minor": b, "basis": "rate"}]})
+    labels = dict(paid_reports.CATEGORIES) | {"fx": "FX & transfer costs", "card": "Virtual card (Visa)"}
+    return {"base_currency": fx["base"], "lines": lines, "reports": labels, "rate_sources": fx["sources"], "missing_rates": fx["missing"],
+            "as_of": datetime.now(UTC).isoformat(timespec="seconds")}
+
+
+@app.get("/v1/reports/virtual-cards")
+async def reports_virtual_cards():
+    """Reporting -> Virtual card (Visa): every Visa virtual card VENTHORA issued, its limits and spend, and every
+    charge on it: VENTHORA's authorization decision with the rule that decided it, joined with what Airwallex recorded
+    (authorization, clearing, refund); plus where the card program stands."""
+    from . import card_report, cards, secret_values, visa_tap
+
+    org = app.state.org
+    holder = org.get("issuing", "cardholder") or {}
+    program = {"cardholder": holder.get("name"), "cardholder_status": holder.get("status"), "cards_issued": len(org.list("card")),
+               "remote_auth": None, "secret_kept": secret_values.info(cards.SECRET)["set"], "error": None}
+    airwallex = None
+    try:
+        bank = _bank()
+        cfg = await bank.issuing_config()
+        st = cfg.get("remote_auth_settings") or {}
+        program["remote_auth"] = bool(st.get("enabled")) if st else False
+        if org.list("card"):
+            airwallex = await bank.card_transactions()
+    except HTTPException as exc:
+        program["error"] = exc.detail
+    except AirwallexError as exc:
+        program["error"] = f"Airwallex request failed: {exc}"
+    ccys = {d.get("currency") for d in org.list("card_auth")} | {t.get("transaction_currency") for t in airwallex or []}
+    fx = await _rates_to_base({c for c in ccys if c})
+    rep = await asyncio.to_thread(card_report.build, org=org, airwallex=airwallex, to_base=lambda m, c: _in_base(m, c, fx), program=program,
+                                  tap=visa_tap.public_info())
+    return rep | {"base_currency": fx["base"], "missing_rates": fx["missing"]}
+
+
+@app.get("/v1/reports/contract-chain")
+async def reports_contract_chain():
+    """Reporting -> Contract blockchain: every purchase order and consultant contract as its own SHA-256 hash chain
+    (the agreed terms, then each invoice and payment against it, with the Airwallex transaction code), compared with
+    the seal kept from the last read (new blocks are sealed, and the seal written to the audit hash chain), next to the
+    checks on the contract: value, payee, currency, period, duplicate invoice, terms, charge code, level of effort."""
+    from . import contract_chain
+
+    org = app.state.org
+    reqs = await asyncio.to_thread(app.state.intake.store.list, 2000)
+    fx = await _rates_to_base({p["currency"] for p in org.list("po")})
+    rep = await asyncio.to_thread(contract_chain.build, org=org, store=app.state.executor.store, intake_rows=reqs,
+                                  payees=app.state.intake.registry.payees, to_base=lambda m, c: _in_base(m, c, fx), audit=app.state.audit)
+    from . import metal
+
+    return rep | {"base_currency": fx["base"], "rate_sources": fx["sources"], "missing_rates": fx["missing"], "anchor": (metal.anchors(org) or [None])[0]}
 
 
 @app.get("/v1/reports/fx-costs")
@@ -3474,7 +4027,9 @@ async def reports_fx_costs(period: str | None = Query(None, max_length=20)):
     period; set against what the period converted and paid."""
     from . import fx_cost_report
 
-    return await asyncio.to_thread(fx_cost_report.build, app.state.executor.store, period or None)
+    rep = await asyncio.to_thread(fx_cost_report.build, app.state.executor.store, period or None)
+    reqs = await asyncio.to_thread(app.state.intake.store.list, 2000)
+    return await asyncio.to_thread(fx_cost_report.lines, rep, app.state.executor.store, intake_rows=reqs, org=app.state.org)
 
 
 @app.get("/v1/exceptions")
@@ -3736,6 +4291,12 @@ async def agent_plan_today():
 
     today = await asyncio.to_thread(agent_today.summary, state, source, s, app.state.org, app.state.intake.registry.payees,
                                     meta["horizon_hours"], _next_policy_run(pol))
+    try:  # the whole wallet (the plan uses the allocation ring-fenced from it): what a deposit changes first
+        pos = await treasury_position()
+        today["wallet_minor"] = pos["available"]["base_minor"]
+    except Exception:  # noqa: BLE001 - no bank: the plan's balance is all there is
+        today["wallet_minor"] = None
+    today["allocation_minor"] = (mandate.standing(app.state.org).get("book") or {}).get("allocation_minor")
     return meta | {"plan": s.full.model_dump(), "split": s.summary(), "today": today,
                    "balances": {c: v for c, v in state.balances.items()}, "obligations": [o.model_dump() for o in state.obligations]}
 
@@ -3874,7 +4435,12 @@ async def agent_plan_payment(obligation_id: str):
     payee = (app.state.intake.registry.payees.get(o.beneficiary_id) if o else None) or {}
     req = log.get("request") or {}
     contacts = payee.get("contacts") or ([req["sender"]] if req.get("sender") else [])
-    return log | {"obligation": o.model_dump() if o else None, "vendor": {"name": payee.get("name") or log.get("payee"), "contacts": contacts}}
+    from . import outbox
+
+    why = next((e["detail"] for e in reversed(log["events"]) if e["kind"] == "decision"), None)
+    return log | {"obligation": o.model_dump() if o else None, "vendor": {"name": payee.get("name") or log.get("payee"), "contacts": contacts},
+                  "findings": agent_today.findings(req, why), "outbox": outbox.items(app.state.org, obligation_id),
+                  "email": {"configured": outbox.smtp(app.state.org)["configured"]}}
 
 
 @app.post("/v1/agent-plan/notify-vendor")
@@ -3888,9 +4454,67 @@ async def agent_plan_notify_vendor(body: VendorNoticeIn, role: str = "finance_ma
         raise HTTPException(409, "the vendor has no registered mailbox")
     from urllib.parse import quote
 
+    from . import outbox
+
     subject = f"Your payment {body.obligation_id}" + (f" (invoice {d['request']['invoice_no']})" if (d.get("request") or {}).get("invoice_no") else "")
-    await asyncio.to_thread(app.state.audit.append, "vendor_notified", {"obligation_id": body.obligation_id, "to": to, "message": body.message, "by": who})
-    return {"to": to, "subject": subject, "mailto": f"mailto:{','.join(to)}?subject={quote(subject)}&body={quote(body.message)}"}
+    rec = await asyncio.to_thread(outbox.queue, app.state.org, to=to, subject=subject, body=body.message, ref=body.obligation_id, by=who)
+    rec = await asyncio.to_thread(outbox.deliver, app.state.org, rec["_id"])
+    await asyncio.to_thread(app.state.audit.append, "vendor_notified", {"obligation_id": body.obligation_id, "to": to, "message": body.message, "by": who,
+                                                                        "outbox_id": rec["_id"], "status": rec["status"]})
+    return {"to": to, "subject": subject, "status": rec["status"], "error": rec.get("error"), "outbox_id": rec["_id"],
+            "mailto": f"mailto:{','.join(to)}?subject={quote(subject)}&body={quote(body.message)}"}
+
+
+class SmtpIn(BaseModel):
+    host: str = Field(min_length=3, max_length=200)
+    port: int = Field(587, ge=1, le=65535)
+    user: str = Field("", max_length=200)
+    password: str | None = Field(None, max_length=300, description="write-only; empty keeps the stored one")
+    sender: str = Field(min_length=3, max_length=200)
+    security: str = Field("starttls", pattern="^(starttls|ssl|none)$")
+
+
+@app.get("/v1/outbox")
+async def outbox_list():
+    """The outbox: every email VENTHORA prepared for someone outside, its status (queued, sent, failed), and whether
+    outgoing email is set up (the password is never returned)."""
+    from . import outbox
+
+    return {"smtp": outbox.smtp(app.state.org), "items": outbox.items(app.state.org)[:200]}
+
+
+@app.put("/v1/outbox/smtp")
+async def outbox_smtp(body: SmtpIn, role: str = "super_admin", by: str = "dashboard"):
+    from . import outbox
+
+    who = _connector(role, by)
+    try:
+        s = await asyncio.to_thread(outbox.save_smtp, app.state.org, body.model_dump(), who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "outbox_smtp", {"host": s["host"], "sender": s["sender"], "by": who})
+    return s
+
+
+@app.post("/v1/outbox/smtp/check")
+async def outbox_smtp_check(role: str = "super_admin", by: str = "dashboard"):
+    """Connect and log in to the SMTP server; nothing is sent."""
+    from . import outbox
+
+    _connector(role, by)
+    return await asyncio.to_thread(outbox.check, app.state.org)
+
+
+@app.post("/v1/outbox/{msg_id}/send")
+async def outbox_send(msg_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Send a queued or failed message again (when outgoing email is set up)."""
+    from . import outbox
+
+    _writer(role, by)
+    try:
+        return await asyncio.to_thread(outbox.deliver, app.state.org, msg_id)
+    except KeyError as exc:
+        raise HTTPException(404, "no such message") from exc
 
 
 @app.get("/v1/transaction-log")
@@ -3961,6 +4585,465 @@ async def prompt_system_put(body: PromptSystemIn, role: str = "super_admin", by:
         raise HTTPException(422, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "prompt_system_saved", {"by": who, "chars": len(rec["prompt"]), "notes_chars": len(rec["notes"])})
     return await prompt_system_get()
+
+
+# ---- Platform Setup -> Airwallex Cards / Card Authorization: card-billed vendors under the mandate ----------------
+class CardholderIn(BaseModel):
+    first_name: str = Field(min_length=1, max_length=60)
+    last_name: str = Field(min_length=1, max_length=60)
+    email: str = Field(min_length=3, max_length=200)
+    date_of_birth: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    mobile_number: str | None = Field(None, max_length=30)
+    address: dict = Field(description="line1, city, postcode, country (2 letters), state")
+
+
+class CardIn(BaseModel):
+    payee_id: str = Field(min_length=1, max_length=80)
+    per_transaction_minor: int = Field(gt=0)
+    monthly_minor: int = Field(gt=0)
+    currency: str = Field("USD", min_length=3, max_length=3)
+    merchant: str = Field("", max_length=120, description="the vendor's merchant name the card is locked to (empty: the payee's name)")
+    merchant_category_codes: list[str] = Field(default_factory=list, max_length=20)
+    purpose: str = Field("SUBSCRIPTIONS", max_length=40)
+
+
+class CardChargeIn(BaseModel):
+    amount_minor: int = Field(gt=0)
+    currency: str = Field("USD", min_length=3, max_length=3)
+    merchant: str = Field("", max_length=120)
+    merchant_category_code: str = Field("5734", max_length=4, description="5734: computer software stores")
+    capture: bool = True
+
+
+class RemoteAuthIn(BaseModel):
+    url: str = Field(pattern=r"^https://", max_length=300)
+    default_action: str = Field("DECLINED", pattern="^(AUTHORIZED|DECLINED)$")
+
+
+class SecretIn(BaseModel):
+    shared_secret: str = Field(min_length=8, max_length=500)
+
+
+class FreezeIn(BaseModel):
+    frozen: bool
+
+
+async def _remote_auth_url() -> str | None:
+    """Where Airwallex can reach the card decision: the gateway that already receives Airwallex webhooks."""
+    from urllib.parse import urlparse
+
+    from .webhook_gateway import REMOTE_AUTH_PATH
+
+    try:
+        hooks = await _bank().list_webhooks()
+    except Exception:  # noqa: BLE001 - no bank or no webhook: the person types the address
+        return None
+    url = next((h.get("url") for h in hooks if h.get("url")), None)
+    return f"https://{urlparse(url).netloc}{REMOTE_AUTH_PATH}" if url else None
+
+
+@app.get("/v1/cards")
+async def cards_list():
+    """Airwallex Cards: the issuing configuration, the company cardholder, VENTHORA's cards (live status from Airwallex),
+    the card-billed vendors to choose from, and the mandate ceiling every card limit stays under."""
+    from . import cards
+
+    org = app.state.org
+    out = {"cardholder": org.get("issuing", "cardholder"), "cards": org.list("card"), "mandate_ceiling_minor": cards.mandate_ceiling(org),
+           "purposes": list(cards.PURPOSES), "payees": [{"id": k, "name": v.get("name"), "currency": v.get("currency"), "kind": v.get("kind")}
+                                                       for k, v in app.state.intake.registry.payees.items() if v.get("kind") != "employee"],
+           "config": None, "error": None}
+    try:
+        bank = _bank()
+        cfg = await bank.issuing_config()
+        live = {c.get("card_id"): c for c in await bank.list_cards()}
+        out["config"] = {"primary_currency": cfg.get("primary_currency"), "enable_auto_conversion": cfg.get("enable_auto_conversion"),
+                         "per_transaction_limits": (cfg.get("spending_limit_settings") or {}).get("per_transaction_limits", []),
+                         "remote_auth": cfg.get("remote_auth_settings")}
+        for c in out["cards"]:
+            if c["_id"] in live:
+                c["status"] = live[c["_id"]].get("card_status") or c.get("status")
+        out["airwallex_cards"] = len(live)
+    except HTTPException as exc:
+        out["error"] = exc.detail
+    except AirwallexError as exc:
+        out["error"] = f"Airwallex request failed: {exc}"
+    return out
+
+
+@app.post("/v1/cards/cardholder")
+async def cards_cardholder(body: CardholderIn, role: str = "finance_manager", by: str = "dashboard"):
+    """The company's cardholder (a DELEGATE: the person who answers for VENTHORA's cards), created once on Airwallex."""
+    from . import cards
+
+    who = _connector(role, by)
+    try:
+        resp = await _bank().create_cardholder(cards.cardholder_body(body.model_dump()))
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex refused the cardholder: {exc}") from exc
+    rec = {"_id": "cardholder", "cardholder_id": resp.get("cardholder_id"), "status": resp.get("status"), "type": resp.get("type"),
+           "name": f"{body.first_name} {body.last_name}", "email": body.email, "created_by": who}
+    app.state.org._put("issuing", rec, who)
+    await asyncio.to_thread(app.state.audit.append, "issuing_cardholder", {k: rec[k] for k in ("cardholder_id", "status", "type", "created_by")})
+    return rec
+
+
+@app.post("/v1/cards")
+async def cards_issue(body: CardIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Issue a Visa virtual card for one card-billed vendor, its limits inside the mandate."""
+    from . import cards
+
+    who = _writer(role, by)
+    org = app.state.org
+    holder = org.get("issuing", "cardholder")
+    if not holder or not holder.get("cardholder_id"):
+        raise HTTPException(409, "create the company cardholder first")
+    payee = app.state.intake.registry.payees.get(body.payee_id)
+    if payee is None:
+        raise HTTPException(404, "unknown payee")
+    try:
+        cards.check_limits(org, body.per_transaction_minor, body.monthly_minor)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    merchant = body.merchant.strip() or payee["name"]
+    req = cards.card_body(cardholder_id=holder["cardholder_id"], payee={"_id": body.payee_id, "name": payee["name"]},
+                          per_tx_minor=body.per_transaction_minor, monthly_minor=body.monthly_minor, currency=body.currency.upper(), by=who,
+                          purpose=body.purpose, mcc=body.merchant_category_codes)
+    try:
+        resp = await _bank().create_card(req)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex refused the card: {exc}") from exc
+    rec = await asyncio.to_thread(cards.record_card, org, resp, payee={"_id": body.payee_id, "name": payee["name"]}, per_tx_minor=body.per_transaction_minor,
+                                  monthly_minor=body.monthly_minor, currency=body.currency.upper(), merchant=merchant, mcc=body.merchant_category_codes, by=who)
+    await asyncio.to_thread(app.state.audit.append, "card_issued", {k: rec.get(k) for k in ("_id", "payee_id", "per_tx_minor", "monthly_minor", "currency", "brand", "issued_by")})
+    return rec
+
+
+@app.post("/v1/cards/{card_id}/freeze")
+async def cards_freeze(card_id: str, body: FreezeIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Freeze a card: on Airwallex (card_status INACTIVE, so the network declines it whatever VENTHORA answers) and in
+    VENTHORA (every charge declined at remote authorization), until it is unfrozen. If Airwallex cannot be reached the
+    card is still frozen in VENTHORA, and the answer says so."""
+    who = _writer(role, by)
+    rec = app.state.org.get("card", card_id)
+    if rec is None:
+        raise HTTPException(404, "not a card VENTHORA issued")
+    on_airwallex = None
+    try:
+        res = await _bank().set_card_status(card_id, "INACTIVE" if body.frozen else "ACTIVE")
+        on_airwallex = res.get("card_status") or ("INACTIVE" if body.frozen else "ACTIVE")
+    except HTTPException as exc:
+        on_airwallex = f"not updated: {exc.detail}"
+    except AirwallexError as exc:
+        on_airwallex = f"not updated: {exc}"
+    app.state.org._put("card", rec | {"frozen": body.frozen, "status": on_airwallex if not str(on_airwallex).startswith("not") else rec.get("status")}, who)
+    await asyncio.to_thread(app.state.audit.append, "card_frozen" if body.frozen else "card_unfrozen", {"card_id": card_id, "by": who, "airwallex": on_airwallex})
+    return rec | {"frozen": body.frozen, "airwallex": on_airwallex}
+
+
+@app.post("/v1/cards/{card_id}/simulate")
+async def cards_simulate(card_id: str, body: CardChargeIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Sandbox: the vendor charges the card (and captures it). With remote authorization on, Airwallex asks VENTHORA first."""
+    from . import cards
+
+    who = _writer(role, by)
+    rec = app.state.org.get("card", card_id)
+    if rec is None:
+        raise HTTPException(404, "not a card VENTHORA issued")
+    bank = _bank()
+    if not bank.sandbox:
+        raise HTTPException(409, "card charges are simulated on the sandbox only")
+    req = {"card_id": card_id, "transaction_amount": float(cards.major(body.amount_minor)), "transaction_currency": body.currency.upper(),
+           "merchant_category_code": body.merchant_category_code, "merchant_info": (body.merchant or rec.get("merchant") or rec["payee"])[:60]}
+    if body.capture:
+        req["single_phase"] = True
+    try:
+        res = await bank.simulate_card_authorization(req)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex refused the simulated charge: {exc}") from exc
+    await asyncio.to_thread(app.state.audit.append, "card_charge_simulated", {"card_id": card_id, "amount_minor": body.amount_minor, "currency": body.currency,
+                                                                              "status": res.get("status"), "by": who})
+    return res
+
+
+@app.get("/v1/cards/{card_id}/limits")
+async def cards_limits(card_id: str):
+    """The card's limits as Airwallex enforces them (with what remains), beside the limits VENTHORA issued and the
+    mandate ceiling: a limit changed on Airwallex outside VENTHORA shows as drift."""
+    from . import cards
+
+    rec = app.state.org.get("card", card_id)
+    if rec is None:
+        raise HTTPException(404, "not a card VENTHORA issued")
+    try:
+        live = await _bank().card_limits(card_id)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+    out = cards.compare_limits(rec, live, cards.mandate_ceiling(app.state.org))
+    if out["drift"]:
+        await asyncio.to_thread(app.state.audit.append, "card_limit_drift", {"card_id": card_id, "drift": out["drift"]})
+    return out
+
+
+@app.get("/v1/cards/{card_id}/transactions")
+async def cards_transactions(card_id: str):
+    try:
+        return await _bank().card_transactions(card_id)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+
+
+@app.get("/v1/card-authorization")
+async def card_auth_status():
+    """Card Authorization: whether Airwallex asks VENTHORA before a card charge goes, the address it calls, whether
+    the shared secret is kept, and every decision with its reason."""
+    from . import cards, secret_values
+
+    out = {"settings": None, "error": None, "secret": secret_values.info(cards.SECRET), "suggested_url": await _remote_auth_url(),
+           "decisions": sorted(app.state.org.list("card_auth"), key=lambda d: d.get("at", ""), reverse=True)[:100]}
+    try:
+        cfg = await _bank().issuing_config()
+        out["settings"] = cfg.get("remote_auth_settings")
+    except HTTPException as exc:
+        out["error"] = exc.detail
+    except AirwallexError as exc:
+        out["error"] = f"Airwallex request failed: {exc}"
+    return out
+
+
+@app.post("/v1/card-authorization/enable")
+async def card_auth_enable(body: RemoteAuthIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Turn remote authorization on: Airwallex calls VENTHORA's address for every charge; the shared secret it returns
+    (once) is kept here, write-only. Airwallex must have enabled remote authorization for the account first."""
+    from . import cards, secret_values
+
+    who = _connector(role, by)
+    have = secret_values.info(cards.SECRET)["set"]
+    try:
+        resp = await _bank().update_issuing_config({"remote_auth": {"url": body.url, "enabled": True, "default_action": body.default_action,
+                                                                    "version": 2, "new_shared_secret": not have}})
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex refused it: {exc}") from exc
+    st = resp.get("remote_auth_settings") or resp.get("remote_auth") or {}
+    if st.get("shared_secret"):
+        await asyncio.to_thread(secret_values.put, cards.SECRET, st["shared_secret"], who)
+    await asyncio.to_thread(app.state.audit.append, "card_authorization_enabled", {"url": body.url, "default_action": body.default_action, "by": who,
+                                                                                   "secret_received": bool(st.get("shared_secret"))})
+    return await card_auth_status()
+
+
+@app.post("/v1/card-authorization/secret")
+async def card_auth_secret(body: SecretIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Keep a shared secret Airwallex gave another way (write-only)."""
+    from . import cards, secret_values
+
+    who = _connector(role, by)
+    await asyncio.to_thread(secret_values.put, cards.SECRET, body.shared_secret, who)
+    return secret_values.info(cards.SECRET)
+
+
+@app.post("/v1/card-authorization/test")
+async def card_auth_test(body: CardChargeIn, card_id: str = Query(..., max_length=80), role: str = "finance_manager", by: str = "dashboard"):
+    """A signed authorization request, as Airwallex would send it, through the same check and decision (nothing is
+    charged; the decision is recorded as a test)."""
+    from . import cards, secret_values
+
+    _writer(role, by)
+    rec = app.state.org.get("card", card_id)
+    if rec is None:
+        raise HTTPException(404, "not a card VENTHORA issued")
+    secret = secret_values.get(cards.SECRET)
+    test_secret = not secret
+    secret = secret or "venthora-local-test-secret"
+    req = cards.test_request(rec, body.amount_minor, body.currency.upper(), body.merchant or rec.get("merchant") or rec["payee"], body.merchant_category_code)
+    nonce = cards.new_nonce()
+    ok, why = cards.verify(nonce, cards.sign(nonce, secret), secret)
+    decision, reason = cards.decide(app.state.org, req) if ok else ("DECLINED", why)
+    rec_d = await asyncio.to_thread(cards.record_decision, app.state.org, req, decision, reason, source="test")
+    return {"signature": why, "test_secret": test_secret, "request": req, "answer": cards.answer(req, decision, reason), "decision": rec_d}
+
+
+@app.post("/webhooks/airwallex/remote-auth", include_in_schema=True)
+async def card_remote_auth(request: Request):
+    """Airwallex asks whether a card charge may go. Answered from the mandate alone, well inside the 2.5 s limit."""
+    from . import cards, secret_values
+
+    raw = await request.body()
+    ok, why = cards.verify(request.headers.get("x-nonce"), request.headers.get("x-signature"), secret_values.get(cards.SECRET))
+    if not ok:
+        await asyncio.to_thread(app.state.audit.append, "card_authorization_refused", {"reason": why})
+        raise HTTPException(401, why)
+    try:
+        req = json.loads(raw or b"{}")
+    except ValueError as exc:
+        raise HTTPException(400, "not JSON") from exc
+    decision, reason = cards.decide(app.state.org, req)
+    rec = await asyncio.to_thread(cards.record_decision, app.state.org, req, decision, reason, source="airwallex")
+    await asyncio.to_thread(app.state.audit.append, "card_authorization", {k: rec.get(k) for k in ("_id", "card_id", "payee", "amount_minor", "currency",
+                                                                                                   "merchant", "decision", "reason")})
+    return cards.answer(req, decision, reason)
+
+
+# ---- Platform Setup -> Visa Agent Identity (TAP) and Visa Intelligent Commerce --------------------------------------
+class TapSignIn(BaseModel):
+    url: str = Field(pattern=r"^https?://", max_length=500)
+    tag: str = Field("agent-payer-auth", pattern="^(agent-browser-auth|agent-payer-auth)$")
+
+
+class VisaCredentialsIn(BaseModel):
+    api_key: str | None = Field(None, max_length=200)
+    shared_secret: str | None = Field(None, max_length=300)
+    consumer_id: str | None = Field(None, max_length=200)
+    token_id: str | None = Field(None, max_length=300)
+
+
+class VicPreviewIn(BaseModel):
+    card_id: str = Field(min_length=1, max_length=80)
+    amount_minor: int | None = Field(None, gt=0)
+    description: str = Field("Software subscription", max_length=100)
+    recurring: bool = True
+
+
+@app.get("/v1/visa/tap")
+async def visa_tap_status():
+    """The agent's signing identity: the public key merchants check, where it is published, and the tags it signs."""
+    from . import visa_tap
+
+    return visa_tap.public_info() | {"tags": visa_tap.TAGS, "published_at": "/.well-known/venthora-agent.json (gateway) · /v1/visa/tap/keys.json",
+                                     "private_key_kept": visa_tap.secret_values.info(visa_tap.PRIVATE)["set"]}
+
+
+@app.get("/v1/visa/tap/keys.json")
+async def visa_tap_keys():
+    """Public: the agent's TAP public keys (what a merchant or a registry reads)."""
+    from . import visa_tap
+
+    return visa_tap.public_info()
+
+
+@app.post("/v1/visa/tap/keys")
+async def visa_tap_generate(role: str = "finance_manager", by: str = "dashboard"):
+    """A new Ed25519 signing key for the agent (rotates: the previous key stops signing at once)."""
+    from . import visa_tap
+
+    who = _connector(role, by)
+    info = await asyncio.to_thread(visa_tap.generate, who)
+    await asyncio.to_thread(app.state.audit.append, "visa_tap_key", {"key_id": info["keys"][0]["key_id"] if info["keys"] else None, "by": who})
+    return info
+
+
+@app.post("/v1/visa/tap/sign-test")
+async def visa_tap_sign_test(body: TapSignIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Sign a request to a merchant URL as the agent, then check it as the merchant would with the published key."""
+    from . import visa_tap
+
+    _writer(role, by)
+    try:
+        headers = visa_tap.sign(body.url, body.tag)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    pub = visa_tap.secret_values.get(visa_tap.PUBLIC)
+    ok, why = visa_tap.verify(body.url, headers, pub)
+    return {"headers": headers, "verified": ok, "check": why}
+
+
+@app.get("/v1/visa/vic")
+async def visa_vic_status():
+    """Visa Intelligent Commerce: which credentials are kept (never their values) and what is still missing."""
+    from . import visa_vic
+
+    return {"credentials": visa_vic.credentials_info(), "ready": visa_vic.vic_ready(), "last_test": app.state.org.get("visa", "last_test"),
+            "sandbox": visa_vic.SANDBOX}
+
+
+@app.put("/v1/visa/vic/credentials")
+async def visa_vic_credentials(body: VisaCredentialsIn, role: str = "finance_manager", by: str = "dashboard"):
+    from . import visa_vic
+
+    who = _connector(role, by)
+    info = await asyncio.to_thread(visa_vic.save_credentials, body.model_dump(), who)
+    await asyncio.to_thread(app.state.audit.append, "visa_credentials", {"set": [k for k, v in info.items() if v["set"]], "by": who})
+    return info
+
+
+@app.get("/v1/visa/fx-rate")
+async def visa_fx_rate(source: str = Query(pattern="^[A-Z]{3}$"), destination: str = Query(pattern="^[A-Z]{3}$"),
+                       amount_minor: int | None = Query(None, ge=0, le=10**13)):
+    """Visa's daily rate (Foreign Exchange Rates, rate product A) for source -> destination, kept 30 minutes per pair;
+    with an amount, what that amount comes to at Visa's rate. On the sandbox Visa answers with test data, and says so."""
+    from decimal import ROUND_HALF_UP, Decimal
+
+    from . import visa_vic
+
+    cache = app.state.__dict__.setdefault("visa_fx_cache", {})
+    hit = cache.get((source, destination))
+    if not hit or time.monotonic() - hit[0] > 1800:
+        r = await visa_vic.fx_rate(source, destination, "100")
+        if r.get("ok"):
+            cache[(source, destination)] = (time.monotonic(), r)
+        hit = (time.monotonic(), r)
+    r = dict(hit[1])
+    r["environment"] = "sandbox" if visa_vic.SANDBOX.startswith("https://sandbox") else "production"
+    r["note"] = "Visa sandbox: test data, not market rates" if r["environment"] == "sandbox" else "Visa daily rate"
+    if r.get("ok") and amount_minor is not None and r.get("conversion_rate"):
+        r["amount_minor"] = amount_minor
+        r["destination_minor"] = int((Decimal(amount_minor) * Decimal(str(r["conversion_rate"]))).to_integral_value(rounding=ROUND_HALF_UP))
+    return r
+
+
+class XPaySecretIn(BaseModel):
+    encrypted_shared_secret: str = Field(min_length=16, max_length=4000)
+
+
+@app.post("/v1/visa/vic/xpay-public-key")
+async def visa_xpay_public_key(role: str = "super_admin", by: str = "dashboard"):
+    """VENTHORA's public key to upload to Visa (Credentials -> X-Pay Token -> Public Key): created once, then the same."""
+    from . import visa_vic
+
+    who = _connector(role, by)
+    out = await asyncio.to_thread(visa_vic.xpay_public_key, who)
+    if out["created"]:
+        await asyncio.to_thread(app.state.audit.append, "visa_xpay_keypair_created", {"fingerprint": out["fingerprint"], "by": who})
+    return out
+
+
+@app.post("/v1/visa/vic/xpay-secret")
+async def visa_xpay_secret(body: XPaySecretIn, role: str = "super_admin", by: str = "dashboard"):
+    """The encrypted shared secret Visa shows, decrypted with VENTHORA's private key and kept write-only."""
+    from . import visa_vic
+
+    who = _connector(role, by)
+    try:
+        info = await asyncio.to_thread(visa_vic.save_encrypted_secret, body.encrypted_shared_secret, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "visa_shared_secret_kept", {"by": who})
+    return info
+
+
+@app.post("/v1/visa/vic/test")
+async def visa_vic_test(role: str = "finance_manager", by: str = "dashboard"):
+    """Visa's connectivity check for the sandbox project (GET /vdp/helloworld with an X-Pay token)."""
+    from . import visa_vic
+
+    _writer(role, by)
+    res = await visa_vic.hello_world()
+    app.state.org._put("visa", {"_id": "last_test", **res}, by)
+    return res
+
+
+@app.post("/v1/visa/vic/preview")
+async def visa_vic_preview(body: VicPreviewIn):
+    """VENTHORA's mandate for a card-billed vendor as Visa's purchase instruction (what would be sent, nothing sent)."""
+    from . import visa_vic
+
+    rec = app.state.org.get("card", body.card_id)
+    if rec is None:
+        raise HTTPException(404, "not a card VENTHORA issued")
+    amount = min(body.amount_minor or rec["per_tx_minor"], rec["per_tx_minor"])
+    return visa_vic.purchase_instruction(payee=rec.get("merchant") or rec["payee"], amount_minor=amount, currency=rec["currency"],
+                                         mcc=(rec.get("mcc") or [None])[0], category="Software",
+                                         description=body.description, recurring=body.recurring) | {"ready": visa_vic.vic_ready()}
 
 
 @app.get("/v1/receipts")
@@ -4711,7 +5794,7 @@ async def treasury_overview(span: str = Query("month", pattern="^(day|week|month
     payees = await asyncio.to_thread(store.list_payees)
     actions = [
         {"label": "invoices and claims to approve or reject", "count": sum(1 for r in queue if r.status in ("NEEDS_REVIEW", "QUARANTINED")), "href": "#/pending?needs"},
-        {"label": "payees waiting for a call-back", "count": sum(1 for p in payees if p["status"] in ("NEW", "CHANGED")), "href": "#/payees"},
+        {"label": "payees waiting for a call-back", "count": sum(1 for p in payees if p["status"] in ("NEW", "CHANGED")), "href": "#/payee-lifecycle"},
         {"label": "books locked by a reconciliation case", "count": len(await asyncio.to_thread(store.open_recon_cases)), "href": "#/executions"},
         {"label": "payment incidents open", "count": sum(1 for i in await asyncio.to_thread(store.list_incidents, 200) if i.get("status") != "RESOLVED"), "href": "#/executions"},
     ]

@@ -120,8 +120,8 @@ def summary(state, source: dict, split, org, payees: dict, horizon: int, next_pa
                 later.append(r)
         rec = ({"pay_now": now_rows, "pay_later": later, "spendable_minor": spendable,
                 "short_minor": max(0, ready_total + payable_manual - spendable)} if now_rows or later else None)
-    cover = coverage(state, rows, available, floor, pay_date=source.get("pay_date"))
-    return {"coverage": cover, "horizon_hours": horizon, "base_currency": base, "categories": sorted(cats.values(), key=lambda c: -c["base_minor"]),
+    cover = coverage(state, rows, available, floor, horizon)
+    return {"coverage": cover, "executive": executive(horizon_rows), "horizon_hours": horizon, "base_currency": base, "categories": sorted(cats.values(), key=lambda c: -c["base_minor"]),
             "total_minor": total, "count": len(horizon_rows), "ready_minor": ready_total, "ready_count": len(ready),
             "manual_minor": sum(r["base_minor"] or 0 for r in manual), "manual_count": len(manual),
             "available_minor": available, "reserve_floor_minor": floor, "spendable_minor": spendable, "enough": enough,
@@ -134,28 +134,20 @@ def summary(state, source: dict, split, org, payees: dict, horizon: int, next_pa
             "next_pay_at": next_pay_at if ready else None, "ready": ready, "others": others, "recommendation": rec}
 
 
-COVER_DAYS = 21  # the coverage view: every known obligation in the next three weeks, whatever its status
-
-
-def coverage(state, rows: list[dict], available: int, floor: int, days: int = COVER_DAYS, pay_date: str | None = None) -> dict:
-    """Is the balance enough for everything known to be due in the next weeks? Every obligation in the queue (ready,
-    waiting for an approval, stopped by a check: it may be corrected) and every salary of the pay day, by due date,
-    against the balance above the reserve floor. Expected customer receipts are shown, never counted (conservative)."""
+def coverage(state, rows: list[dict], available: int, floor: int, hours: int) -> dict:
+    """Is the balance enough for everything due inside the planning horizon (the hours the Standard Payment Priority
+    Policy sets)? Every obligation in it, whatever its status today (a stopped one may be corrected), by due time,
+    against the balance above the reserve floor, day by day. Expected customer receipts are shown, never counted."""
+    from . import priority_sop
     from .domain.money import value_in_base
 
     now = dt.datetime.now(dt.UTC)
-    if pay_date:  # at least three weeks, and always up to the next pay day: the salaries are the largest outflow
-        try:
-            pay = dt.datetime.fromisoformat(f"{str(pay_date)[:10]}T17:00:00+00:00")
-            days = max(days, -(-int((pay - now).total_seconds()) // 86400))
-        except ValueError:
-            pass
-    end = now + dt.timedelta(days=days)
+    end = now + dt.timedelta(hours=hours)
 
     def due_at(r):
         if r.get("due_date"):
             try:
-                return dt.datetime.fromisoformat(f"{str(r['due_date'])[:10]}T17:00:00+00:00")
+                return dt.datetime.fromisoformat(f"{str(r['due_date'])[:10]}T{priority_sop.DEADLINE_HOUR_UTC:02d}:00:00+00:00")
             except ValueError:
                 pass
         return now + dt.timedelta(hours=r.get("due_in_hours") or 0)
@@ -163,15 +155,16 @@ def coverage(state, rows: list[dict], available: int, floor: int, days: int = CO
     items = sorted(({**r, "due_at": due_at(r)} for r in rows if r.get("base_minor") is not None), key=lambda r: r["due_at"])
     items = [r for r in items if r["due_at"] <= end]
     spendable = max(0, available - floor)
-    weeks, cum, short_at = [], 0, None
-    for w in range((days + 6) // 7):
-        lo, hi = now + dt.timedelta(days=7 * w), now + dt.timedelta(days=7 * (w + 1))
-        due = [r for r in items if r["due_at"] < hi and (w == 0 or r["due_at"] >= lo)]  # anything overdue counts in week 1
+    days, cum, short_at = [], 0, None
+    n = -(-hours // 24)
+    for d in range(n):
+        lo, hi = now + dt.timedelta(hours=24 * d), min(end, now + dt.timedelta(hours=24 * (d + 1)))
+        last = d == n - 1  # the last day keeps what is due exactly at the end of the horizon
+        due = [r for r in items if (r["due_at"] < hi or (last and r["due_at"] <= end)) and (d == 0 or r["due_at"] >= lo)]  # overdue: day 1
         amt = sum(r["base_minor"] for r in due)
         cum += amt
-        weeks.append({"week": w + 1, "from": lo.date().isoformat(), "to": (hi - dt.timedelta(days=1)).date().isoformat(), "count": len(due), "due_minor": amt,
-                      "cumulative_minor": cum, "left_minor": spendable - cum,
-                      "groups": {g: sum(r["base_minor"] for r in due if _group(r) == g) for g in ("ready", "approval", "blocked")}})
+        days.append({"day": d + 1, "from": lo.isoformat(timespec="minutes"), "to": hi.isoformat(timespec="minutes"), "count": len(due),
+                     "due_minor": amt, "cumulative_minor": cum, "left_minor": spendable - cum})
     run = 0
     for r in items:
         run += r["base_minor"]
@@ -180,7 +173,7 @@ def coverage(state, rows: list[dict], available: int, floor: int, days: int = CO
             break
     receipts = []
     for v in state.receivables:
-        if v.expected_in_hours <= days * 24:
+        if v.expected_in_hours <= hours:
             try:
                 b = v.amount_minor if v.currency == state.base_currency else value_in_base(v.amount_minor, state.ppm_down(v.currency))
             except KeyError:
@@ -188,10 +181,45 @@ def coverage(state, rows: list[dict], available: int, floor: int, days: int = CO
             receipts.append({"payer": v.payer, "amount_minor": v.amount_minor, "currency": v.currency, "base_minor": b,
                              "expected": (now + dt.timedelta(hours=v.expected_in_hours)).date().isoformat(), "confidence_bp": v.confidence_bp})
     total = sum(r["base_minor"] for r in items)
-    return {"days": days, "pay_date": pay_date, "until": end.date().isoformat(), "total_minor": total, "count": len(items), "available_minor": available,
+    return {"hours": hours, "until": end.isoformat(timespec="minutes"), "total_minor": total, "count": len(items), "available_minor": available,
             "reserve_floor_minor": floor, "spendable_minor": spendable, "enough": total <= spendable, "short_minor": max(0, total - spendable),
-            "short_from": short_at, "weeks": weeks, "receipts": receipts, "receipts_minor": sum(x["base_minor"] for x in receipts),
+            "short_from": short_at, "days": days, "receipts": receipts, "receipts_minor": sum(x["base_minor"] for x in receipts),
             "by_group": {g: sum(r["base_minor"] for r in items if _group(r) == g) for g in ("ready", "approval", "blocked")}}
+
+
+# why a payment is not paid, in the words of the executive summary (counted, never listed one by one)
+REASONS = (("pending", "the documents are not verified yet"), ("contract total", "the amount goes above its purchase order or contract"),
+           ("purchase order", "there is no purchase order"), ("first salary", "it is the first salary of the person"),
+           ("changed", "the bank details changed"), ("duplicate", "it is a duplicate"), ("limit", "it is above a limit of the mandate"),
+           ("budget", "it is outside the budget"), ("reserve", "the reserve floor would be at risk"), ("cooling", "the payee is in its cooling period"))
+
+
+def reason_kind(why: str) -> str:
+    w = (why or "").lower()
+    return next((label for key, label in REASONS if key in w), "another check")
+
+
+def executive(rows: list[dict]) -> dict:
+    """The figures the executive summary is written from: groups, the largest categories, the commonest reasons."""
+    out = {}
+    for g in ("ready", "approval", "blocked"):
+        rs = [r for r in rows if _group(r) == g]
+        why: dict[str, int] = {}
+        for r in rs:
+            k = reason_kind(r["why"]) if g != "ready" else None
+            if k:
+                why[k] = why.get(k, 0) + 1
+        out[g] = {"count": len(rs), "base_minor": sum(r["base_minor"] or 0 for r in rs),
+                  "reasons": [{"reason": k, "count": n} for k, n in sorted(why.items(), key=lambda x: -x[1])]}
+    cats: dict[str, dict] = {}
+    for r in rows:
+        c = cats.setdefault(r["category_label"], {"category": r["category_label"], "count": 0, "base_minor": 0})
+        c["count"] += 1
+        c["base_minor"] += r["base_minor"] or 0
+    ranked = sorted(cats.values(), key=lambda c: -c["base_minor"])
+    top, rest = ranked[:3], ranked[3:]
+    out["categories"] = top + ([{"category": "other categories", "count": sum(c["count"] for c in rest), "base_minor": sum(c["base_minor"] for c in rest)}] if rest else [])
+    return out
 
 
 def _group(r: dict) -> str:
@@ -285,6 +313,53 @@ def _when(at: str) -> dt.datetime:
     except ValueError:
         return dt.datetime.min.replace(tzinfo=dt.UTC)
     return w if w.tzinfo else w.replace(tzinfo=dt.UTC)
+
+
+OK_WORDS = ("registered mailbox", "quoted verbatim", "matched", "charged to", "left after it", "verified", "passed")
+BAD_WORDS = ("no ", "not ", "missing", "above", "exceed", "unknown", "mismatch", "without", "expired", "changed", "only against", "over ",
+             "does not", "past ", "duplicate", "unreadable", "failed", "too ", "lacks", "differs")
+
+
+def _money(minor: str) -> str:
+    try:
+        return f"{int(minor) / 100:,.2f}"
+    except ValueError:
+        return minor
+
+
+def findings(req: dict | None, why: str | None) -> list[str]:
+    """What a vendor must complete so the payment can go, in plain words (for the notice to the vendor)."""
+    import re
+
+    out: list[str] = []
+    req = req or {}
+    for c in req.get("checks") or []:
+        if c.get("status") == "fail":
+            out.append(f"{c.get('label')}: {c.get('detail')}".rstrip(": "))
+        elif c.get("status") == "warn":
+            out.append(f"{c.get('label')} (please confirm): {c.get('detail')}".rstrip(": "))
+    for r in req.get("reasons") or []:
+        for part in [p.strip() for p in str(r).split(";") if p.strip()]:
+            low = part.lower()
+            if any(w in low for w in OK_WORDS) and not any(w in low for w in BAD_WORDS):
+                continue
+            if any(w in low for w in BAD_WORDS):
+                out.append(part[0].upper() + part[1:])
+    if "payee_bank_details_changed" in (req.get("flags") or []):
+        out.append("Your bank details changed: we must confirm them with you by phone, on your registered number, before paying")
+    m = re.search(r"paid (\d+) \+ claimed (\d+) > (\d+)", why or "")
+    if m:
+        ccy = req.get("currency") or ""
+        out.append(f"The amount goes above what is left on the purchase order: {ccy} {_money(m.group(1))} already paid, "
+                   f"{ccy} {_money(m.group(2))} invoiced now, order total {ccy} {_money(m.group(3))}")
+    if not out and why and "pending" in why:
+        out.append("The invoice is still being checked by our finance team")
+    seen, uniq = set(), []
+    for x in out:
+        if x.lower() not in seen:
+            seen.add(x.lower())
+            uniq.append(x)
+    return uniq
 
 
 def base_fmt(v) -> str:

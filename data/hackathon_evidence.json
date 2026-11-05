@@ -1,0 +1,68 @@
+{
+  "_note": "System Setting -> Hackathon evidence. Each organiser item (airwallexdev.com/guide, airwallex.hackerearth.com) with the screen that proves it and a live probe. Status: done, partial, blocked (waiting on a sponsor), na. Full line-by-line matrix: docs/HACKATHON_COMPLIANCE.md.",
+  "updated": "2026-11-05",
+  "groups": [
+    {"id": "submission", "title": "Submission (hackerearth)", "items": [
+      {"ref": "S1", "item": "Working demo", "status": "done", "screen": "#/autopilot", "probe": "/v1/status", "proof": "Autopilot Console and /live walk goal, plan, new information, revised decision, result on the real sandbox (18 recorded cycles)", "doc": "docs/SANDBOX_RESULTS.md"},
+      {"ref": "S2", "item": "Video walkthrough under 5 minutes", "status": "partial", "screen": "/flow", "proof": "voice-over and script ready; recording tracked by the team", "doc": "docs/DEMO_VOICEOVER_3MIN.md"},
+      {"ref": "S3", "item": "Repository with setup instructions", "status": "partial", "screen": "#/readiness", "proof": "README quick start; publishing tracked by the team", "doc": "README.md"},
+      {"ref": "S4", "item": "Built on Airwallex APIs", "status": "done", "screen": "#/airwallex", "probe": "/v1/webhooks/status", "proof": "balances, rates, quotes, conversions, beneficiaries, transfers, deposits, simulation, issuing, webhooks"}
+    ]},
+    {"id": "conventions", "title": "General conventions (guide 1-30)", "items": [
+      {"ref": "1-2", "item": "Sandbox only, /api/v1 base", "status": "done", "screen": "#/airwallex", "proof": "the executor refuses non-sandbox URLs"},
+      {"ref": "3-4", "item": "Client id + API key, then a Bearer token", "status": "done", "screen": "#/airwallex", "proof": "token cached, refreshed 60 s before expiry, retried once on 401"},
+      {"ref": "6-8", "item": "One request_id per operation, reused only on retry", "status": "done", "screen": "#/executions", "probe": "/v1/executions", "proof": "request_id persisted before every call; a lost response is recovered, never resent"},
+      {"ref": "9", "item": "Credentials never in code or prompts", "status": "done", "screen": "#/api-access", "probe": "/v1/developer/catalog", "proof": "write-only secret store; scoped API keys; the model never sees a credential"},
+      {"ref": "21-22", "item": "Back off on 429, no parallel bursts", "status": "done", "screen": "#/assurance", "proof": "retries with backoff on 429/5xx; execution is sequential"}
+    ]},
+    {"id": "decision", "title": "Build around a financial decision (guide 31-41)", "items": [
+      {"ref": "31-32", "item": "A finance decision that changes with balance, deadline, evidence or risk", "status": "done", "screen": "#/agent-plan", "probe": "/v1/agent-plan", "proof": "pay, convert, defer or escalate; a delay email or a deposit revises the plan"},
+      {"ref": "33", "item": "Say which actions need a person", "status": "done", "screen": "#/mandate", "probe": "/v1/mandate", "proof": "Delegation of Authority and the approval matrix (four-eyes)"},
+      {"ref": "35/41", "item": "Rules and limits in code, not in the prompt", "status": "done", "screen": "#/assurance", "proof": "ProofCore + Rego mirror: 0 disagreements on 10,618 inputs"},
+      {"ref": "36", "item": "The model reads, compares evidence, proposes and explains", "status": "done", "screen": "#/intake", "probe": "/v1/intake", "proof": "Claude reads invoices and claims (model+rules), proposes the plan, explains exceptions"},
+      {"ref": "38", "item": "Approval bound to amount, currency, counterparty and terms", "status": "done", "screen": "#/pending", "proof": "terms_digest on every approval; execution refuses an approval on other terms"},
+      {"ref": "40", "item": "End in a financial action or an escalation", "status": "done", "screen": "#/executions", "proof": "conversions and transfers executed; exceptions escalated"}
+    ]},
+    {"id": "kit01", "title": "Kit 01 Adaptive Treasury Controller (guide 42-73)", "items": [
+      {"ref": "42-48", "item": "Fund the critical bill, convert the minimum, defer the cheapest, escalate the exception", "status": "done", "screen": "#/agent-plan", "proof": "SHIPPING paid, minimum conversion, SaaS deferred, changed bank details escalated"},
+      {"ref": "49", "item": "Recalculate only what a deposit affects", "status": "done", "screen": "#/receiving", "proof": "incremental re-plan with locked decisions and a diff"},
+      {"ref": "50-51", "item": "Execution limit tied to forecast confidence", "status": "done", "screen": "#/mandate", "proof": "90% -> 70% lowers the limit; the same conversion then needs a person"},
+      {"ref": "58-59", "item": "Execute one conversion and one transfer, confirm the reserve", "status": "done", "screen": "#/executions", "proof": "real sandbox cycle 4; reserve confirmed at reconciliation", "doc": "docs/SANDBOX_RESULTS.md"},
+      {"ref": "70", "item": "SWIFT fee added to the conversion", "status": "done", "screen": "#/rep-fx", "probe": "/v1/reports/fx-costs", "proof": "observed fees override the guide's EUR 12.85; FX & transfer costs report, with Visa's daily rate beside it"}
+    ]},
+    {"id": "rails", "title": "Beneficiaries, transfers, FX, deposits (guide 74-106)", "items": [
+      {"ref": "74", "item": "Beneficiary schema before every create", "status": "done", "screen": "#/vendors", "probe": "/v1/payees", "proof": "required fields compared; a missing one fails before create"},
+      {"ref": "92-93", "item": "Poll to a terminal state; read failure_type", "status": "done", "screen": "#/executions", "proof": "only PAID/CANCELLED/FAILED are terminal"},
+      {"ref": "100-106", "item": "Global Account, deposits, re-read balances", "status": "done", "screen": "#/receiving", "proof": "deposit counted only when /deposits says SETTLED; webhook through venthora.muwahid.org in 4 s"}
+    ]},
+    {"id": "kit03", "title": "Kit 03 Payment Ops Incident Commander", "items": [
+      {"ref": "K3", "item": "Wait, replace or escalate a failed transfer under the duplicate lock", "status": "done", "screen": "#/executions", "probe": "/v1/incidents", "proof": "all 32 Airwallex failure types; real sandbox cycle 5", "doc": "docs/SCENARIO_MATRIX.md"}
+    ]},
+    {"id": "kit02", "title": "Kit 02 cards and the Visa award", "items": [
+      {"ref": "K2-1", "item": "Issue virtual cards with limits inside the mandate", "status": "blocked", "screen": "#/cards", "probe": "/v1/cards", "proof": "built; Airwallex has not enabled the card program for the sandbox account", "waiting": "Airwallex card program"},
+      {"ref": "K2-2", "item": "Remote authorization: VENTHORA answers every charge", "status": "blocked", "screen": "#/card-auth", "probe": "/v1/card-authorization", "proof": "signed answers within 2.5 s, tested locally", "waiting": "Airwallex remote auth"},
+      {"ref": "K2-3", "item": "Freeze a card (agent revokes its own authority)", "status": "done", "screen": "#/cards", "proof": "POST issuing/cards/{id}/update card_status INACTIVE; still frozen in VENTHORA if Airwallex is unreachable"},
+      {"ref": "K2-4", "item": "Read card limits and remaining", "status": "done", "screen": "#/cards", "proof": "GET issuing/cards/{id}/limits compared with the mandate; drift goes to the audit chain"},
+      {"ref": "K2-5", "item": "Card spend report", "status": "done", "screen": "#/rep-card", "probe": "/v1/reports/virtual-cards", "proof": "every decision joined with Airwallex's authorization and clearing"},
+      {"ref": "V1", "item": "Visa Trusted Agent Protocol (agent signatures)", "status": "done", "screen": "#/visa-tap", "probe": "/v1/visa/tap", "proof": "public keys at /.well-known/venthora-agent.json"},
+      {"ref": "V2", "item": "Visa Intelligent Commerce", "status": "blocked", "screen": "#/visa-vic", "probe": "/v1/visa/vic", "proof": "X-Pay signing works (helloworld 200); FX rates live", "waiting": "Visa VIC onboarding"}
+    ]},
+    {"id": "sponsors", "title": "Sponsor technology", "items": [
+      {"ref": "C1", "item": "Claude as the model", "status": "done", "screen": "#/ai", "probe": "/v1/settings/ai", "proof": "Claude Opus 5.5 reads, plans, explains, searches vendors and checks quotations"},
+      {"ref": "M1", "item": "Metal: anchor the audit head on testnet", "status": "blocked", "screen": "#/metal", "probe": "/v1/metal", "proof": "signing and anchoring built", "waiting": "Metal faucet funds and a moving Tahoe testnet"},
+      {"ref": "A1", "item": "AWS Bedrock as a model provider", "status": "blocked", "screen": "#/ai", "proof": "Bedrock Converse provider built", "waiting": "an AWS account"},
+      {"ref": "X1", "item": "Airwallex MCP servers", "status": "partial", "screen": "#/mcp", "probe": "/v1/mcp", "proof": "docs server connected; the developer server needs OAuth (REST is allowed by the guide)"},
+      {"ref": "K9", "item": "Kit 09 shopping agent (Airi CLI)", "status": "blocked", "screen": "#/proc-sourcing", "proof": "the procurement agent uses the same idea (approval bound to vendor, items and total) without real orders", "waiting": "Airi CLI allowlist"},
+      {"ref": "K5-6", "item": "Kits 05 and 06 connected accounts", "status": "blocked", "screen": "#/offices", "proof": "per-book segregation built", "waiting": "Airwallex connected accounts"}
+    ]},
+    {"id": "beyond", "title": "Beyond the kits (VENTHORA's own controls)", "items": [
+      {"ref": "B1", "item": "Procurement: 3 quotations, recommendation, human award, PO", "status": "done", "screen": "#/proc-quotes", "probe": "/v1/procurement/board", "proof": "brand and specification lock, model reads remarks, award outside the recommendation only with a reason"},
+      {"ref": "B2", "item": "Contract blockchain (tamper-evident PO and contract chain)", "status": "done", "screen": "#/rep-chain", "probe": "/v1/reports/contract-chain", "proof": "SHA-256 blocks, seals, 9 checks"},
+      {"ref": "B3", "item": "Inbound email to the agent", "status": "done", "screen": "#/sources-email", "probe": "/v1/outbox", "proof": "invoices@ and pay@muwahid.org through Cloudflare Email Routing to /webhooks/email"},
+      {"ref": "B4", "item": "Journal export for accounting", "status": "done", "screen": "#/ledger", "proof": "/v1/ledger/export.csv with the chart of accounts"},
+      {"ref": "B5", "item": "Cash placement proposal with four-eyes", "status": "done", "screen": "#/allocation", "probe": "/v1/cash-placement", "proof": "needed = reserve + bills + commitments + buffer; never above idle cash"},
+      {"ref": "B6", "item": "Standard Payment Priority Policy", "status": "done", "screen": "#/priority-sop", "probe": "/v1/priority-sop", "proof": "order of payment when cash is short, in code"},
+      {"ref": "B7", "item": "Robustness: 136-scenario matrix", "status": "done", "screen": "#/assurance", "proof": "136 / 136 through the full pipeline and ten invariants", "doc": "docs/SCENARIO_MATRIX.md"}
+    ]}
+  ]
+}

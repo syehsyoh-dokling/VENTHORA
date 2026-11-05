@@ -488,6 +488,26 @@ class ExecutionStore:
         with self._lock, self._connect() as c:
             return [dict(r) for r in c.execute(q + " ORDER BY paid_at", args).fetchall()]
 
+    def operations_by_ref(self, refs) -> dict[str, dict]:
+        """The stored Airwallex operations (conversion, transfer) by their Airwallex id, with the answer Airwallex gave."""
+        refs = [r for r in set(refs) if r]
+        if not refs:
+            return {}
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT op_key, execution_id, kind, status, airwallex_id, response_json, updated_at FROM operations"
+                             f" WHERE airwallex_id IN ({', '.join('?' * len(refs))})", refs).fetchall()
+        return {r["airwallex_id"]: dict(r) | {"response": json.loads(r["response_json"]) if r["response_json"] else {}} for r in rows}
+
+    def transfers_in(self, execution_ids) -> list[dict]:
+        """The transfers made in these executions (what a conversion of the same execution funded)."""
+        ids = [e for e in set(execution_ids) if e]
+        if not ids:
+            return []
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT op_key, execution_id, airwallex_id, response_json FROM operations WHERE kind IN ('transfer', 'replacement')"
+                             f" AND status = 'SUCCEEDED' AND execution_id IN ({', '.join('?' * len(ids))})", ids).fetchall()
+        return [dict(r) | {"response": json.loads(r["response_json"]) if r["response_json"] else {}} for r in rows]
+
     def operations_for(self, obligation_id: str) -> list[dict]:
         """The Airwallex operations of one payment: its transfer(s), and the conversion into its currency booked in the
         same execution."""

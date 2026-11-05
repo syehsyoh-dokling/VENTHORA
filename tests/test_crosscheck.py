@@ -138,4 +138,4 @@ def test_a_paid_request_shows_its_payment(client):
                   " reporting_period, recorded_at, po_number) VALUES ('t-7711','b','o',?,'USD',12000,12000,'2026-10-30T03:00:00+00:00','2026-10','x','PO-2026-0101')",
                   (rec["invoice_fingerprint"],))
     got = next(r for r in client.get("/v1/intake").json() if r["intake_id"] == rec["intake_id"])
-    assert got["payment"] == {"amount_minor": 12000, "currency": "USD", "transfers": ["t-7711"], "paid_at": "2026-10-30T03:00:00+00:00"}
+    assert got["payment"] == {"amount_minor": 12000, "currency": "USD", "transfers": ["t-7711"], "paid_at": "2026-10-30T03:00:00+00:00", "base_cost_minor": 12000}

@@ -34,12 +34,12 @@ def test_every_kind_of_data_has_an_entry_and_a_page(client):
     assert set(kinds) == set(imports.FIELDS)  # nothing VENTHORA imports is missing from the dropdown
     assert {"unit", "user", "project", "account", "price", "vendor", "customer", "po", "bill", "receivable", "budget_line", "allocation", "tenant_book"} <= set(kinds)
     assert all(k["page"].startswith("#/") and k["label"] and k["why"] for k in kinds.values())
-    assert kinds["allocation"]["page"] == "#/allocation" and kinds["vendor"]["page"] == "#/payees"
+    assert kinds["allocation"]["page"] == "#/allocation" and kinds["vendor"]["page"] == "#/payee-lifecycle"
 
 
 def test_auto_detects_vendors_from_their_columns(client):
     up = client.post("/v1/sources/uploads?entity=auto&filename=suppliers.csv", content=VENDORS_CSV).json()
-    assert up["entity"] == "vendor" and up["detected"]["by"] == "column names" and up["page"] == "#/payees"
+    assert up["entity"] == "vendor" and up["detected"]["by"] == "column names" and up["page"] == "#/payee-lifecycle"
     assert up["mapping"]["bank.iban"] == "IBAN"
     up2 = client.post("/v1/sources/uploads?filename=suppliers.csv", content=VENDORS_CSV).json()  # auto is the default
     assert up2["entity"] == "vendor"

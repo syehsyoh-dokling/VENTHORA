@@ -53,24 +53,28 @@ paid.
 
 ## Control center (3:20 – 4:45)
 
-**[3:20 – 3:40 · Click Control center; Plan & proof, then Platform]**
+**[3:20 – 3:40 · Click Control center; Payment → Agent plan (2 · Transaction log), then System Setting → Airwallex webhooks (VENTHORA services)]**
 The Control center keeps all of it on the record. Any plan can be re-proven here, with every alternative and its chance
 of breaching the reserve. Your policy runs in two engines that must agree, the Airwallex connection refuses production,
 and every event goes into a hash-chained audit trail.
 
-**[3:40 – 3:55 · Budget · mandate, Books · ledger, Tenants · books]**
+**[3:40 – 3:55 · Reporting → Total Spending (Against budget), then Reporting → Books & ledger and its Segregation panel]**
 You see spending against each budget line, a double-entry ledger for every book, and which team owns each book, with
 its own payees, approvers and limits. One team's money is never spent by another.
 
-**[3:55 – 4:05 · Payees · lifecycle]**
+**[Optional, before the payees block · Procurement Process → Vendor Sourcing, then Quotation; click Approve on the recommended row]**
+A purchase request gets three quotations: the agent finds the vendors, a person sends the request, and approving the
+cheapest compliant quote raises the PO.
+
+**[3:55 – 4:05 · Users & Beneficiaries → Payee lifecycle]**
 Every payee moves from new, to verified, to active. A bank change starts a cooling period, and the call-back goes only
 to the number already on file.
 
-**[4:05 – 4:13 · Reporting periods]**
+**[4:05 – 4:13 · Reporting → Period close]**
 At your cut-off, each payment lands in the right period, consolidated into your reporting currency, with the exchange
 difference shown.
 
-**[4:13 – 4:38 · Ground-truth checks: choose "anomalies", then case N34, then Submit; then the Resilience test matrix]**
+**[4:13 – 4:38 · System Setting → Checks & resilience, Ground-truth checks: choose "anomalies", then case N34, then Submit; then the Resilience test matrix]**
 And you can test it yourself. Take a payout the bank returned: VENTHORA replaces it under the same invoice lock. Had the
 account details been wrong, it would call a person instead. Three hundred twenty-three checks like this, from lookalike
 emails to injected instructions, all pass, along with a hundred and thirty-six stress scenarios.
@@ -81,11 +85,12 @@ VENTHORA alpha: your rules, proven plans, and payments on Airwallex reconciled t
 ---
 
 **Timing.** About 585 spoken words, about 3:55 at 150 words a minute, plus about 45 seconds of clicks and waits on
-Airwallex. Total about 4:40. If a take runs long, drop the Reporting periods block first, then the Payees block.
+Airwallex. Total about 4:40. The optional procurement block adds about 10 seconds: record it only by dropping the Period close
+block. If a take runs long, drop the Period close block first, then the Payee lifecycle block.
 
 **What each claim rests on, all on screen.** The checks and the counterfactual figure are in the plan card's "Checks and
 alternatives" (paying every verified obligation now: USD 1,951.63 over the floor on 25 Oct 2026; it moves with live
 rates). The approval matrix is in the mandate form. Fees are in the result table's Detail column. The two engines, the
-production refusal and the audit chain are in the Platform panel. Case N34 returns REPLACE and matches its ground truth;
+production refusal and the audit chain are in the VENTHORA services tiles (System Setting → Airwallex webhooks). Case N34 returns REPLACE and matches its ground truth;
 N35 (wrong account details) returns ESCALATE. Lookalike emails and injected instructions are intake cases I02, I09 and
 I17.

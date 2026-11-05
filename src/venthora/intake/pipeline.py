@@ -42,6 +42,8 @@ AMOUNT_RE = re.compile(r"(?P<cur>USD|EUR|GBP|US\$|\$|€|£)\s?(?P<amt>\d{1,3}(?
                        r"|(?P<amt2>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s?(?P<cur2>USD|EUR|GBP)\b")
 INVOICE_RE = re.compile(r"\b(?:invoice|inv\.?|bill|statement|claim|timesheet)\s*(?:no\.?|number|#|ref\.?|:)?\s*"
                         r"(?P<no>[A-Z]{1,6}[-/]?(?:[A-Z]{1,3}\d{2,}|\d{2,}[A-Z]{0,3})(?:[-/][A-Z0-9]{1,8})*)", re.IGNORECASE)
+# A charge code is OFFICE.PROJECT.ACCOUNT (US-200.OPS.6400): its office part looks like an invoice number but is not one
+CHARGE_CODE_RE = re.compile(r"(?<![A-Za-z0-9])(?P<code>[A-Z]{2,4}-\d{2,4}\.[A-Z0-9]{2,12}\.\d{3,6})(?![A-Za-z0-9])(?!\.[A-Za-z0-9])")
 PO_BEFORE_RE = re.compile(r"(?:purchase order|\bp\.?o\.?)\s*(?:no\.?|number|#)?\s*[:#]?\s*$")
 # LD-4410, LD-F025811, INV/2026/X/017, INV-2026-A17: letters, then digits (a short letter run may sit on either side)
 INVOICE_BARE_RE = re.compile(r"(?<![-/A-Za-z0-9])(?P<no>[A-Z]{2,6}[-/](?:[A-Z]{1,3}\d{2,}|\d{2,}[A-Z]{0,3})(?:[-/][A-Z0-9]{1,8})?)\b")
@@ -213,6 +215,8 @@ def _invoice(text: str, subject: str) -> Quote | None:
             # which would make every later invoice on the same PO look like a duplicate)
             before = src[max(0, m.start() - 20):m.start()].lower()
             if m.group("no").upper().startswith("PO-") or PO_BEFORE_RE.search(before):
+                continue
+            if CHARGE_CODE_RE.match(src, m.start("no")):  # the office part of a charge code, not an invoice number
                 continue
             return Quote(field="invoice_no", value=m.group("no").upper(), quote=m.group(0),
                          start=m.start() if offset == 0 else -1, end=m.end() if offset == 0 else -1)
@@ -843,7 +847,9 @@ class Intake:
         chain = claims.unit_chain(self.org, staff["unit_id"])
         cat = claims.category(text, subject, std["expense_categories"])
         spent = claims.expense_date(text, received, ANY_DATE_RE, _parse_date)
-        for q in (cat, spent):
+        code_m = CHARGE_CODE_RE.search(text)
+        code = Quote(field="account_code", value=code_m.group("code"), quote=code_m.group(0), start=code_m.start(), end=code_m.end()) if code_m else None
+        for q in (cat, spent, code):
             if q:
                 quotes.append(q)
         if cat is None:
@@ -874,7 +880,7 @@ class Intake:
         if note:
             reasons.append(note)
         ref = inv.value if inv else f"{cur}{minor}-{spent.value if spent else received.isoformat()}"
-        return {"unit_id": staff["unit_id"], "category": cat.value if cat else None,
+        return {"unit_id": staff["unit_id"], "category": cat.value if cat else None, **({"account_code": code.value} if code else {}),
                 "expense_date": spent.value if spent else None, "approvers": [p["user_id"] for p in people],
                 "fingerprint": f"staff:{staff['user_id']}:{ref}"}
 

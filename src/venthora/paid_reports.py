@@ -75,10 +75,13 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
     by_name = {u["name"].lower(): u for u in users.values()}
     funds = {f["request_number"]: f for f in org.list("fund_request")}
     paid_by_ref: dict[str, dict] = {}
+    ledger_by_fp: dict[str, list[dict]] = {}
     for r in store.paid_rows():
         if r.get("invoice_fingerprint"):
-            p = paid_by_ref.setdefault(r["invoice_fingerprint"], {"amount_minor": 0, "paid_at": r["paid_at"]})
+            ledger_by_fp.setdefault(r["invoice_fingerprint"], []).append(r)
+            p = paid_by_ref.setdefault(r["invoice_fingerprint"], {"amount_minor": 0, "paid_at": r["paid_at"], "base_cost_minor": 0})
             p["amount_minor"] += r["amount_minor"]
+            p["base_cost_minor"] += r.get("base_cost_minor") or 0
             p["paid_at"] = max(p["paid_at"], r["paid_at"])
     live = [q for q in intake_rows if q.status not in ("REJECTED", "DUPLICATE")]
     intake_by_id = {q.intake_id: q for q in live}
@@ -93,6 +96,23 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
     def q_paid(q) -> tuple[int, str | None]:
         p = q.payment or paid_by_ref.get(q.invoice_fingerprint or "")
         return ((p or {}).get("amount_minor", 0), ((p or {}).get("paid_at") or "")[:10] or None)
+
+    def pay(paid_at, amount, ccy, base=None, ref=None) -> dict:
+        return {"paid_at": (paid_at or "")[:19], "amount_minor": amount, "currency": ccy, "base_minor": base, "transfer_id": ref}
+
+    def q_payments(q) -> list[dict]:
+        rows = ledger_by_fp.get(q.invoice_fingerprint or "") or []
+        if rows:
+            return [pay(r["paid_at"], r["amount_minor"], r["currency"], r.get("base_cost_minor"), r["transfer_id"]) for r in rows]
+        p = q.payment or {}
+        return [pay(p.get("paid_at"), p["amount_minor"], q.currency, p.get("base_cost_minor"))] if p.get("amount_minor") else []
+
+    def q_paid_base(q) -> int | None:
+        """The USD (base) the money really cost, as Airwallex converted it; None when no booked payment says so."""
+        p = q.payment or paid_by_ref.get(q.invoice_fingerprint or "")
+        if not p or not p.get("amount_minor"):
+            return None
+        return p.get("base_cost_minor") if p.get("base_cost_minor") is not None else (paid_by_ref.get(q.invoice_fingerprint or "") or {}).get("base_cost_minor")
 
     def q_category(q) -> str | None:
         flags, acct = set(q.flags), _account(q.account_code)
@@ -122,7 +142,8 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
             place = tree.place(q.unit_id or who["unit_id"])
         return _row(category=cat, type=typ, name=q.counterparty_name or q.display_name, request_date=q.received_at[:10],
                     reference=q.invoice_no or q.intake_id[:8], reference_kind="invoice", amount_minor=q.amount_minor or 0,
-                    currency=q.currency, paid_minor=paid, paid_date=day, source="pending payment" if not paid else "paid",
+                    currency=q.currency, paid_minor=paid, paid_date=day, source="pending payment" if not paid else "paid", paid_base_minor=q_paid_base(q),
+                    charge_code=q.account_code, payments=q_payments(q),
                     person=(who or {}).get("name") or (q.display_name if q.kind == "expense_claim" else None), **place)
 
     rows: list[dict] = []
@@ -137,7 +158,8 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
                 u = by_name.get(str(ln["employee"]).lower())
                 rows.append(_row(category=category, type="net pay", name=ln["employee"], request_date=f"{reg['period']}-01",
                                  reference=f"Payroll {reg['period']}", reference_kind="payroll register", amount_minor=ln["amount_minor"],
-                                 currency=ln["currency"], paid_minor=paid, paid_date=(run or {}).get("at", "")[:10] or None,
+                                 currency=ln["currency"], paid_minor=paid, paid_date=(run or {}).get("at", "")[:10] or None, charge_code=ln.get("charge_code"),
+                                 payments=[pay(run.get("at"), paid, ln["currency"])] if paid else [],
                                  **person_place((u or {}).get("user_id"), ln.get("charge_code"))))
     elif category == "fringe":
         for r in org.list("doa_run"):
@@ -147,7 +169,8 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
             paid = r["amount_minor"] if r["status"] in ("PAID", "IN_FLIGHT") else 0
             rows.append(_row(category=category, type="fringe benefit", name=r["employee"], request_date=f"{r['period']}-01",
                              reference=f"Fringe {r['period']}", reference_kind="DoA run", amount_minor=r["amount_minor"], currency=r["currency"],
-                             paid_minor=paid, paid_date=(r.get("at") or "")[:10] or None, **person_place((u or {}).get("user_id"))))
+                             paid_minor=paid, paid_date=(r.get("at") or "")[:10] or None, charge_code=r.get("charge_code"),
+                             payments=[pay(r.get("at"), paid, r["currency"])] if paid else [], **person_place((u or {}).get("user_id"))))
     elif category == "goods_services":
         eng = {e["engagement_id"]: e for e in org.list("engagement")}
         prs = {p["pr_number"]: p for p in org.list("pr")}
@@ -163,6 +186,8 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
                              request_date=(pr or {}).get("requested_date") or po.get("start_date") or po.get("issued_date"),
                              reference=po["po_id"] + (f" · {pr['pr_number']}" if pr else ""), reference_kind="engagement" if e else "PO",
                              amount_minor=po["total_minor"], currency=po["currency"], paid_minor=st["paid_minor"],
+                             paid_base_minor=sum(p.get("base_cost_minor") or 0 for p in pays) if pays else None, charge_code=po.get("account_code"),
+                             payments=[pay(p["paid_at"], p["amount_minor"], p["currency"], p.get("base_cost_minor"), p.get("transfer_id")) for p in pays],
                              paid_date=(max(p["paid_at"] for p in pays)[:10] if pays else None),
                              status="Cancelled" if po.get("status") == "CANCELLED" else None,
                              person=(e or {}).get("name"), **tree.of_code(po["account_code"])))
@@ -171,12 +196,12 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
                 continue
             rows.append(_row(category=category, type=ENGAGEMENT_ROLES[e["role"]].lower(), kind="services", name=e["name"], request_date=e["event_date"],
                              reference=e["engagement_id"], reference_kind="engagement", amount_minor=e["fee_minor"], currency=e["currency"],
-                             paid_minor=0, paid_date=None, person=e["name"], **tree.of_code(e["charge_code"])))
+                             paid_minor=0, paid_date=None, person=e["name"], charge_code=e["charge_code"], payments=[], **tree.of_code(e["charge_code"])))
         for p in prs.values():
             if p["status"] in ("SUBMITTED", "APPROVED", "DRAFT"):
                 rows.append(_row(category=category, type="purchase request", kind="request", name=(payees.get(p.get("supplier_id") or "") or {}).get("name") or p["title"],
                                  request_date=p.get("requested_date"), reference=p["pr_number"], reference_kind="PR", amount_minor=p["estimated_minor"],
-                                 currency=p["currency"], paid_minor=0, paid_date=None, note=p["title"],
+                                 currency=p["currency"], paid_minor=0, paid_date=None, note=p["title"], charge_code=p.get("charge_code"), payments=[],
                                  **person_place((by_name.get(p["requested_by"].lower()) or {}).get("user_id"), p["charge_code"])))
         rows = [r | {"status": r["status"] or _status(r["amount_minor"], r["paid_minor"])} for r in rows]
     elif category in ("cash_advance", "odc"):
@@ -190,7 +215,7 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
             rows.append(_row(category=category, type=FUND_KINDS[f["kind"]][1].lower(), kind=f["kind"], name=(u or {}).get("name", f["requested_by"]) if f["kind"] != "odc"
                              else (payees.get(f.get("payee_id") or "") or {}).get("name") or (u or {}).get("name"), request_date=f.get("request_date"),
                              reference=f["request_number"], reference_kind="request", amount_minor=f["amount_minor"], currency=f["currency"],
-                             paid_minor=paid, paid_date=day, settled_minor=f.get("settled_minor"),
+                             paid_minor=paid, paid_date=day, settled_minor=f.get("settled_minor"), paid_base_minor=q_paid_base(q) if q else None, charge_code=f.get("charge_code"), payments=q_payments(q) if q else [],
                              status="Done" if f["status"] == "SETTLED" else None, note=f["purpose"],
                              **person_place(f["requested_by"], f["charge_code"])))
         rows = [r | {"status": r["status"] or _status(r["amount_minor"], r["paid_minor"])} for r in rows]
@@ -201,7 +226,7 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
             u = users.get(t["traveller"])
             rows.append(_row(category=category, type="travel authorisation", kind="authorisation", name=(u or {}).get("name", t["traveller"]),
                              request_date=t["start"], reference=t["ta_number"], reference_kind="TA", amount_minor=t.get("estimated_minor") or 0,
-                             currency=t["currency"], paid_minor=0, paid_date=None, note=f"{t['origin']} → {t['destination']}",
+                             currency=t["currency"], paid_minor=0, paid_date=None, note=f"{t['origin']} → {t['destination']}", charge_code=t.get("charge_code"), payments=[],
                              status="Done" if t["status"] == "CLAIMED" else "New", **person_place(t["traveller"], t.get("charge_code"))))
     for q in live:
         if q_category(q) == category and category not in ("payroll", "fringe"):

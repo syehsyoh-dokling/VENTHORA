@@ -175,7 +175,7 @@ its derivation ([GROUND_TRUTH.md](GROUND_TRUTH.md)):
   below the floor, and everything at once.
 
 All 100 are reproduced in-process (CI); the 84 that do not move money also through the HTTP endpoints
-(`scripts/groundtruth_bench.py`) and through the dashboard's `Submit a case` form in a browser, with latency on every path.
+(`scripts/groundtruth_bench.py`) and through the dashboard's Ground-truth checks form (System Setting → Checks & resilience) in a browser, with latency on every path.
 **Both suites were then run against the real sandbox** (`scripts/groundtruth_real.py`, SANDBOX_RESULTS.md cycle 7): 84 / 84
 through the live service with live balances read for every plan, and the 7 execution anomalies a real rail can reproduce
 (stale rate, three approval refusals, the same invoices twice, stale state, Kit 03 end to end) 7 / 7; the other 9 are
@@ -195,7 +195,7 @@ counts only when a person signed it. Obligations name their line (intake-created
 | Above the auto share, above the mandate, an alert that demands a person, an unsigned bypass, an unbudgeted obligation → `REQUIRES_APPROVAL` with the reason code | `proofcore/policy.py::budget_reasons` mirrored in `policy/treasury.rego`; proven on a real OPA 0.70.0: 2,688 budget inputs around every threshold (auto share, alert, mandate, signed/unsigned bypass, unbudgeted) inside the 7,638-input grid, 0 disagreements |
 | An alert is raised at the threshold even when the plan stays autonomous (a notification, in the plan, the CLI and the dashboard) | stage `Budget · mandate`, `PlanResult.budget.alerts` |
 | Realized spend per line comes from money that actually left (recorded at reconciliation), granted mandate from a role-checked, audited grant; both feed the next plan | `execution/store.py` (`budget_spend`, `budget_grants`), `execution/facts.py`, `POST /v1/budgets/{period}/{line}/grant` |
-| Pipeline per line: plan · granted · realized · paying now · still owed · available · minus · utilisation · status | dashboard section `Budget · mandate`, `GET /api/budget` |
+| Pipeline per line: plan · granted · realized · paying now · still owed · available · minus · utilisation · status | dashboard: Reporting → Total Spending (Against budget), `GET /api/budget` |
 
 Ground truth: 20 hand-derived cases (`scripts/make_budget_groundtruth.py`), 20/20 in-process, through the endpoints and
 through the form; real sandbox cycle 8 ran the mandate end to end (pay inside the line, stop at it with a request, grant,
@@ -345,7 +345,7 @@ default tenant unless the registry is `strict`) and `facts.py` attaches the resu
 | a book never spends another book's money | the book ledger (§12), reconciliation cases, the spend ledger per book |
 
 Stage `Tenancy · book`; endpoints `/v1/tenants` (the tenant view: registry rows with the books seen, their executions and
-ledger cash) and `/v1/tenants/eval`; dashboard section "Tenants · books". Ground truth suite 12: 24 cases (9 plans,
+ledger cash) and `/v1/tenants/eval`; dashboard: Reporting → Books & ledger (Segregation · who each book may pay). Ground truth suite 12: 24 cases (9 plans,
 10 resolutions, 5 approver checks), 24/24 on three paths; real sandbox cycle 18 (SANDBOX_RESULTS.md).
 
 ## Not applicable to this build

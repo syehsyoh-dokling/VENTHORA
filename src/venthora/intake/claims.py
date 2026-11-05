@@ -44,6 +44,16 @@ def unit_chain(org, unit_id: str | None) -> list[dict]:
     return out
 
 
+# Words that name a category without saying it (a taxi is travel). Only categories in the finance standards are used,
+# and the word itself is quoted, so the category stays grounded in the text.
+CATEGORY_WORDS = {"travel": ("taxi", "cab", "uber", "grab", "flight", "airfare", "air ticket", "hotel", "lodging", "train", "airport",
+                             "mileage", "parking", "toll", "per diem", "visa fee"),
+                  "office": ("stationery", "printer", "toner", "office supplies", "paper"),
+                  "software": ("subscription", "licence", "license", "saas"),
+                  "marketing": ("advertising", "ads", "sponsorship", "booth"),
+                  "logistics": ("courier", "shipping", "freight", "postage")}
+
+
 def category(text: str, subject: str, categories: list[str]) -> Quote | None:
     for src, offset in ((subject, False), (text, True)):
         low = src.lower()
@@ -51,6 +61,17 @@ def category(text: str, subject: str, categories: list[str]) -> Quote | None:
         if hits:
             i, c = min(hits)
             return Quote(field="category", value=c, quote=src[i:i + len(c)], start=i if offset else -1, end=i + len(c) if offset else -1)
+    for src, offset in ((subject, False), (text, True)):
+        low = src.lower()
+        hits = []
+        for c in categories:
+            for w in CATEGORY_WORDS.get(c.lower(), ()):
+                m = re.search(rf"\b{re.escape(w)}\b", low)
+                if m:
+                    hits.append((m.start(), len(w), c))
+        if hits:
+            i, n, c = min(hits)
+            return Quote(field="category", value=c, quote=src[i:i + n], start=i if offset else -1, end=i + n if offset else -1)
     return None
 
 

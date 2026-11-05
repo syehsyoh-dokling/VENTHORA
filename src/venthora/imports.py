@@ -146,6 +146,10 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
         "needed_by": ("date", ("needed by", "required by", "need date", "delivery date")),
         "requested_date": ("date", ("request date", "requested date", "date requested", "date", "created")),
         "justification": ("text", ("justification", "reason", "why", "notes")),
+        "quantity": ("text", ("quantity", "qty")),
+        "unit": ("text", ("unit", "uom", "unit of measure")),
+        "brand": ("text", ("brand", "make", "merk")),
+        "specs": ("text", ("specification", "specifications", "specs", "spec")),
         "status": ("upper", ("status", "state", "approval status")),
         "decided_by": ("text", ("approved by", "approver", "decided by")),
     },
@@ -249,7 +253,7 @@ ENTITIES: dict[str, tuple[str, str, str]] = {
     "account": ("Chart of accounts", "the GL account every payment is booked to", "#/codes"),
     "price": ("Unit prices", "agreed prices invoice lines are checked against", "#/prices"),
     "travel_rate": ("Travel rates", "lodging and per diem per destination city, for travel and transport", "#/mandate"),
-    "vendor": ("Vendors and bank details", "who can be paid, to which account", "#/payees"),
+    "vendor": ("Vendors and bank details", "who can be paid, to which account", "#/payee-lifecycle"),
     "customer": ("Customers", "who pays the company, to match money that arrives", "#/sources-sync"),
     "po": ("Purchase orders and contracts", "supplier invoices are paid only against an open PO; active and expiry dates, Multi Payment, a consultant's LoE and rate", "#/intake?po"),
     "pr": ("Purchase requests", "what people ask to buy before there is a PO, with the estimate and the charge code", "#/intake?pr"),
@@ -258,7 +262,7 @@ ENTITIES: dict[str, tuple[str, str, str]] = {
     "engagement": ("One-off engagements", "consultants for a single task, legal specialists, resource persons and keynote speakers, with the fee and the event", "#/intake?con"),
     "bill": ("Open bills (AP)", "supplier invoices due; they enter the payment queue", "#/pending"),
     "receivable": ("Receivables (AR)", "customer invoices still open, for the cash forecast", "#/sources-sync"),
-    "budget_line": ("Budget lines", "the plan per budget line and period", "#/budget"),
+    "budget_line": ("Budget lines", "the plan per budget line and period", "#/payment-reports?budget"),
     "allocation": ("Budget allocations", "budget given to an office, branch or project for a period", "#/allocation"),
     "tenant_book": ("Tenant books", "which entity a payment belongs to, its payees and approvers", "#/mandate"),
 }
@@ -561,5 +565,41 @@ def clean(entity: str, rows: list[dict], mapping: dict[str, str]) -> list[dict]:
                 cur[parts[-1]] = v
         except (ValueError, TypeError) as exc:
             rec = {"_error": str(exc)}
+        if "_error" not in rec:
+            _fill_gaps(entity, rec)
         out.append(rec)
     return out
+
+
+# A job title from an HR file is not a VENTHORA role: the nearest role, else the least one (requester, who can
+# only ask); an admin role is never given from a file.
+ROLE_WORDS = (("cfo", "cfo"), ("chief financial", "cfo"), ("finance manager", "finance_manager"), ("finance lead", "country_finance_lead"),
+              ("treasury", "treasury_analyst"), ("accountant", "project_accountant"), ("audit", "auditor"))
+
+
+def _fill_gaps(entity: str, rec: dict) -> None:
+    """Fill what a file usually leaves out, the way a person would: the bank account of a company is in its own name;
+    an unknown role becomes the nearest one (or requester), the title kept as the job title."""
+    from typing import get_args
+
+    from .organisation import Role
+
+    bank = rec.get("bank")
+    if isinstance(bank, dict):
+        if not bank.get("account_name") and rec.get("name"):
+            bank["account_name"] = rec["name"]
+        if not bank.get("account_currency") and rec.get("currency"):
+            bank["account_currency"] = rec["currency"]
+        country = (rec.get("address") or {}).get("country_code") if isinstance(rec.get("address"), dict) else None
+        if not bank.get("bank_country_code") and country:
+            bank["bank_country_code"] = country
+    if entity == "user" and rec.get("role"):
+        title = str(rec["role"]).strip()
+        valid = set(get_args(Role))
+        key = title.lower().replace(" ", "_")
+        if key in valid and key not in {"super_admin", "hq_admin", "admin"}:
+            rec["role"] = key
+        else:
+            low = title.lower()
+            rec["role"] = next((r for w, r in ROLE_WORDS if w in low), "requester")
+            rec.setdefault("job_title", title[:120])

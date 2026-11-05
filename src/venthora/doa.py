@@ -743,7 +743,7 @@ def _fix(reason: str) -> tuple[str, str]:
     if "no own bank account" in r:
         return "Register the employee's own bank account in People and roles (Bank account)", "#/users"
     if "not verified" in r or "not onboarded" in r or "not a registered payee" in r:
-        return "Verify the bank account in Payees (call-back on the registered number)", "#/payees"
+        return "Verify the bank account in Payee lifecycle (call-back on the registered number)", "#/payee-lifecycle"
     if "receives" in r or "currency" in r:
         return "Allow the currency in this category's policy, or register an account in the line's currency", "#/mandate"
     if "contract ended" in r or "not a person in people" in r:

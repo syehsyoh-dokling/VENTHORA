@@ -22,9 +22,9 @@ Every figure below is on screen in this take. Figures that follow live sandbox r
 | 1:06 | Waiting for Airwallex, then SETTLED and the re-plan | Now the customer's payment arrives. VENTHORA counts it only when Airwallex confirms it settled, then re-reads the balance and recalculates only what it affects. The subscription is paid, with a budget alert. |
 | 1:22 | Execution on Airwallex (waiting for the rail) | Then VENTHORA pays through Airwallex: two currency conversions and four payments, each sent exactly once. |
 | 1:33 | Result, then the wallet against the book's ledger | All four payments come back paid, with Airwallex references and the real fees. The wallet moved about twenty-one thousand dollars, matching the ledger to the cent, and the reserve held. |
-| 1:46 | Control center: Platform | In the Control center, two policy engines must agree, every event is hash-chained, and production is refused. |
-| 1:53 | Budget against plan, books and tenants | Budgets are tracked against plan, here with an alert at eighty-three percent. Each book keeps its own ledger, owner, payees and approvers. |
-| 2:04 | Ground-truth checks: case N34, a payout the bank returned | If the bank returns a payout, VENTHORA replaces it under the same invoice lock, without paying twice. Check it yourself. |
+| 1:46 | Control center: VENTHORA services (System Setting → Airwallex webhooks) | In the Control center, two policy engines must agree, every event is hash-chained, and production is refused. |
+| 1:53 | Reporting → Total Spending (Against budget), then Books & ledger and its Segregation panel | Budgets are tracked against plan, here with an alert at eighty-three percent. Each book keeps its own ledger, owner, payees and approvers. |
+| 2:04 | System Setting → Checks & resilience, Ground-truth checks: case N34, a payout the bank returned | If the bank returns a payout, VENTHORA replaces it under the same invoice lock, without paying twice. Check it yourself. |
 | 2:14 | Resilience test matrix, 136 of 136 | Every one of the hundred thirty-six stress scenarios passes. |
 | 2:19 | Back to the top | VENTHORA: your rules, proven plans, payments reconciled to the cent. |
 
@@ -72,9 +72,9 @@ Every figure below is on screen in this take. Figures that follow live sandbox r
 | Four payments paid, real fees | result table: four transfers PAID, fees 3.00, 2.25, 13.43, 3.00 |
 | About twenty-one thousand dollars, to the cent | wallet change USD -20,957.90 against the book ledger; reconciliation PASS |
 | Reserve held | reserve floor PASS; book USD cash 19,042.10 against a floor of 10,000 |
-| Budget alert at 83 % | Budget · mandate, line "saas" |
+| Budget alert at 83 % | Reporting → Total Spending (Against budget), line "saas" |
 | Returned payout replaced, ground truth matches | case N34: REPLACE, ground truth PASS |
-| 136 of 136 | Resilience test matrix |
+| 136 of 136 | System Setting → Checks & resilience, Resilience test matrix |
 
 ## Recording again
 
@@ -87,4 +87,5 @@ python scripts/demo_server.py --reset
 python scripts/record_demo.py
 ```
 
-When the timing of a new take differs, update the time codes from its `demo_video/cues.md`.
+When the timing of a new take differs, update the time codes from its `demo_video/cues.md`. The cue log above is the
+25 Oct take's own record and keeps the page names of that day; the "On screen" column uses the current menu.

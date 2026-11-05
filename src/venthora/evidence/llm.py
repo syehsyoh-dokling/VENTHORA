@@ -65,6 +65,46 @@ class ChatModel:
             raise LLMUnavailable(f"{type(exc).__name__}: {exc}") from exc
 
 
+class BedrockModel:
+    """A model on Amazon Bedrock through the Converse API, authenticated with a Bedrock API key (sent as a bearer
+    token; no AWS SDK needed). The base URL names the region: https://bedrock-runtime.<region>.amazonaws.com."""
+
+    def __init__(self, api_key: str, model: str, endpoint: str, timeout_s: float = 60.0, client: httpx.AsyncClient | None = None):
+        self.api_key, self.model, self.endpoint = api_key, model, endpoint.rstrip("/")
+        self.timeout_s, self._client = timeout_s, client
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.api_key and self.model and self.endpoint)
+
+    async def complete(self, messages: list[dict], max_tokens: int = 300) -> str:
+        if not self.configured:
+            raise LLMUnavailable("Bedrock API key, region or model not set")
+        from urllib.parse import quote
+
+        messages = framed(messages)
+        body = {"messages": [{"role": m["role"], "content": [{"text": m["content"]}]} for m in messages if m["role"] != "system"],
+                "inferenceConfig": {"maxTokens": max_tokens, "temperature": 0}}
+        system = [{"text": m["content"]} for m in messages if m["role"] == "system"]
+        if system:
+            body["system"] = system
+        url = f"{self.endpoint}/model/{quote(self.model, safe='')}/converse"
+        headers = {"Authorization": f"Bearer {self.api_key}", "content-type": "application/json"}
+        try:
+            if self._client is not None:
+                res = await self._client.post(url, json=body, headers=headers, timeout=self.timeout_s)
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout_s) as client:
+                    res = await client.post(url, json=body, headers=headers)
+            if res.status_code in (401, 403):
+                raise LLMUnavailable("Bedrock refused the API key (or the model is not enabled for this account and region)")
+            res.raise_for_status()
+            parts = res.json()["output"]["message"]["content"]
+            return "".join(p.get("text", "") for p in parts)
+        except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
+            raise LLMUnavailable(f"{type(exc).__name__}: {exc}") from exc
+
+
 class AnthropicModel:
     """Claude through the official Anthropic SDK (optional dependency: pip install "anthropic>=1,<2").
     Same surface as ChatModel: `configured` and `complete(messages)`, so every reader works with either."""
@@ -112,6 +152,36 @@ class AnthropicModel:
                 raise LLMUnavailable("this Anthropic API key belongs to no workspace: enter the workspace ID (Claude "
                                      "Console → Settings → Workspaces, it starts with wrkspc_), or create the key inside a "
                                      "workspace") from exc
+            raise LLMUnavailable(f"Anthropic HTTP {exc.status_code}: {exc.message}") from exc
+        except anthropic.APIConnectionError as exc:
+            raise LLMUnavailable(f"cannot reach Anthropic: {type(exc).__name__}") from exc
+        finally:
+            await client.close()
+        if res.stop_reason == "refusal":
+            raise LLMUnavailable("the model declined the request")
+        return "".join(b.text for b in res.content if b.type == "text")
+
+    async def web_search(self, prompt: str, max_uses: int = 5) -> str:
+        """One question answered with Anthropic's server-side web search (the procurement agent's vendor search).
+        A long search may pause (stop_reason pause_turn); the turn is resumed up to three times."""
+        if not self.configured:
+            raise LLMUnavailable("Anthropic API key or model not set")
+        try:
+            import anthropic
+        except ImportError as exc:
+            raise LLMUnavailable('the Anthropic SDK is not installed: pip install "anthropic>=1,<2"') from exc
+        headers = {"anthropic-workspace-id": self.workspace_id} if self.workspace_id else None
+        client = anthropic.AsyncAnthropic(api_key=self.api_key, timeout=max(self.timeout_s, 240), max_retries=1,
+                                          default_headers=headers)
+        messages: list[dict] = [{"role": "user", "content": prompt}]
+        tool = {"type": "web_search_20260209", "name": "web_search", "max_uses": max_uses}
+        try:
+            for _ in range(4):
+                res = await client.messages.create(model=self.model, max_tokens=8000, messages=messages, tools=[tool])
+                if res.stop_reason != "pause_turn":
+                    break
+                messages = [messages[0], {"role": "assistant", "content": res.content}]
+        except anthropic.APIStatusError as exc:
             raise LLMUnavailable(f"Anthropic HTTP {exc.status_code}: {exc.message}") from exc
         except anthropic.APIConnectionError as exc:
             raise LLMUnavailable(f"cannot reach Anthropic: {type(exc).__name__}") from exc

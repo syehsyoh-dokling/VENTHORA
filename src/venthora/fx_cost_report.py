@@ -80,6 +80,72 @@ def backfill(store) -> int:
     return added
 
 
+def _obligation(op_key: str) -> str | None:
+    for tag in (":transfer:", ":replacement:"):
+        if tag in op_key:
+            return op_key.split(tag, 1)[1].split(":")[0]
+    return None
+
+
+def lines(report: dict, store, *, intake_rows: list, org) -> dict:
+    """Every cost line with what the FCO reads it by: the Airwallex transaction code and its value date, the payment and
+    the vendor it belongs to, the invoice and PO, the budget line, the charge code and the office, the payout rail. A
+    conversion is tied to the payments it funded (the transfers of the same execution in the currency it bought)."""
+    from .paid_reports import _Tree
+
+    tree = _Tree(org)
+    unit_name = {u: v["name"] for u, v in tree.units.items()}
+    ops = store.operations_by_ref(r["ref"] for r in report["rows"])
+    funded: dict[tuple, list] = {}
+    for t in store.transfers_in(o["execution_id"] for o in ops.values() if o["kind"] == "conversion"):
+        b = t["response"] or {}
+        funded.setdefault((t["execution_id"], b.get("transfer_currency")), []).append(
+            {"obligation_id": _obligation(t["op_key"]), "txn_code": b.get("short_reference_id") or t["airwallex_id"], "ref": t["airwallex_id"]})
+    ledger = {r["transfer_id"]: r for r in store.paid_rows()}
+    by_fp = {q.invoice_fingerprint: q for q in intake_rows if q.invoice_fingerprint}
+    for row in report["rows"]:
+        op = ops.get(row["ref"]) or {}
+        body = op.get("response") or {}
+        row["execution_id"] = op.get("execution_id")
+        row["pair"] = f"{row['sold_currency']}→{row['currency']}" if row.get("sold_currency") and row["sold_currency"] != row["currency"] else None
+        row["spread_status"] = "n/a" if row["kind"] == "payout_fee" else "not measured" if row.get("spread_base_minor") is None else "measured"
+        refs = [row["ref"]]
+        if row["kind"] == "conversion":
+            conv = body.get("conversion") or {}
+            fund = funded.get((op.get("execution_id"), row["currency"]), [])
+            row |= {"txn_type": "Conversion", "txn_code": conv.get("short_reference_id") or row["ref"], "txn_status": conv.get("status"),
+                    "value_date": (conv.get("conversion_date") or conv.get("settlement_date") or row["at"])[:10], "rail": None, "funds": fund}
+            if not row.get("obligation_id") and fund:
+                row["obligation_id"] = ", ".join(f["obligation_id"] for f in fund if f["obligation_id"])
+            refs = [f["ref"] for f in fund]
+        else:
+            bank = (body.get("beneficiary") or {}).get("bank_details") or {}
+            row |= {"txn_type": "Transfer", "txn_code": body.get("short_reference_id") or row["ref"], "txn_status": body.get("status"),
+                    "value_date": (body.get("transfer_date") or row["at"])[:10], "funds": [],
+                    "rail": " · ".join(x for x in (body.get("transfer_method"), bank.get("local_clearing_system")) if x) or None,
+                    "swift_charges": body.get("swift_charge_option") if body.get("transfer_method") == "SWIFT" else None,
+                    "fee_paid_by": body.get("fee_paid_by"), "payee": bank.get("account_name"), "bank_country": bank.get("bank_country_code"),
+                    "paid": {"currency": body.get("transfer_currency"), "amount": body.get("transfer_amount")} if body.get("transfer_currency") else None}
+        led = [ledger[r] for r in refs if r in ledger]
+        row["paid_base_minor"] = sum(x["base_cost_minor"] for x in led) if led and row["kind"] != "conversion" else None
+        if row["paid_base_minor"] is None and row["kind"] != "conversion" and body.get("source_currency") == report["base_currency"] and body.get("source_amount") is not None:
+            from decimal import Decimal  # not booked in the ledger yet (still scheduled): what Airwallex debits for it
+
+            row["paid_base_minor"] = int((Decimal(str(body["source_amount"])) * 100).to_integral_value())
+        row["paid_at"] = max((x["paid_at"] for x in led), default=None)
+        row["budget_line"] = next((x["line"] for x in led if x.get("line")), None)
+        q = next((by_fp[x["invoice_fingerprint"]] for x in led if x.get("invoice_fingerprint") in by_fp), None)
+        place = tree.of_code(q.account_code) if q and q.account_code else {"unit_id": None, "country_office_id": None, "branch_id": None}
+        if q and place["unit_id"] is None and q.unit_id:
+            place = tree.place(q.unit_id)
+        row |= {"payee": (q.counterparty_name if q else None) or row.get("payee"), "invoice_no": q.invoice_no if q else None,
+                "po_number": q.po_number if q else None, "charge_code": q.account_code if q else None,
+                "country_office": unit_name.get(place["country_office_id"]), "unit": unit_name.get(place["unit_id"])}
+        if row["kind"] == "conversion" and not row.get("payee") and len(row["funds"]) > 1:
+            row["payee"] = f"{len(row['funds'])} payments"
+    return report
+
+
 def build(store, period: str | None = None) -> dict:
     backfill(store)
     all_rows = store.fx_costs()

@@ -21,6 +21,8 @@ dependencies = [
   "openpyxl>=3.1,<4",
   "pillow>=10,<13",
   "rapidocr_onnxruntime>=1.2,<2",
+  "cryptography>=43,<47",  # Visa Trusted Agent Protocol: Ed25519 request signatures
+  "eth-account>=0.13,<0.14",  # Metal testnet: sign the anchoring transaction (secp256k1, keccak)
 ]
 
 [project.scripts]

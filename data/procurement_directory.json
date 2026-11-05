@@ -1,0 +1,15 @@
+{
+  "_note": "Demo vendor directory for Procurement Process -> Vendor Sourcing, used when the AI model cannot search the web. Every address is on .example: nothing here is a real company.",
+  "vendors": [
+    {"name": "OfficeHub Supplies", "email": "quotes@officehub.example", "website": "https://officehub.example", "country": "US", "accounts": ["6700"],
+     "tags": ["office", "toner", "printer", "paper", "chair", "chairs", "desk", "stationery", "laptop", "monitor", "hp", "canon"], "about": "office supplies distributor: toner, paper, furniture, IT accessories"},
+    {"name": "Metro Office Direct", "email": "sales@metrooffice.example", "website": "https://metrooffice.example", "country": "US", "accounts": ["6700"],
+     "tags": ["office", "toner", "printer", "paper", "chair", "chairs", "desk", "stationery", "hp", "brother", "ergonomic"], "about": "online office superstore with next-day delivery"},
+    {"name": "PrintPoint Wholesale", "email": "rfq@printpoint.example", "website": "https://printpoint.example", "country": "US", "accounts": ["6700"],
+     "tags": ["toner", "printer", "cartridge", "ink", "paper", "hp", "canon", "brother", "office"], "about": "printer consumables wholesaler, authorised HP and Canon reseller"},
+    {"name": "Ergo Workspace Co", "email": "hello@ergoworkspace.example", "website": "https://ergoworkspace.example", "country": "US", "accounts": ["6700", "7100"],
+     "tags": ["chair", "chairs", "desk", "ergonomic", "furniture", "office", "mesh", "lumbar"], "about": "ergonomic office furniture maker"},
+    {"name": "TechDepot Business", "email": "b2b@techdepot.example", "website": "https://techdepot.example", "country": "US", "accounts": ["6700", "7100"],
+     "tags": ["laptop", "monitor", "keyboard", "mouse", "printer", "toner", "office", "dell", "lenovo", "hp"], "about": "IT equipment reseller for businesses"}
+  ]
+}

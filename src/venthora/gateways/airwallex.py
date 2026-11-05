@@ -401,6 +401,60 @@ class Airwallex:
             "transfer_method": transfer_method, "reference": reference[:140], "reason": reason,
             "fee_paid_by": "PAYER"}))
 
+    # -- Issuing: cardholders, virtual cards, remote authorization, card transactions ------------------------
+
+    async def issuing_config(self) -> dict:
+        return await self._request("GET", "/api/v1/issuing/config")
+
+    async def update_issuing_config(self, body: dict) -> dict:
+        """POST /issuing/config/update (remote_auth: url, enabled, default_action, version; the shared secret is
+        returned only here, once)."""
+        return await self._request("POST", "/api/v1/issuing/config/update", json=body, once=True)
+
+    async def list_cardholders(self) -> list[dict]:
+        body = await self._request("GET", "/api/v1/issuing/cardholders", params={"page_num": 0, "page_size": 100})
+        return body.get("items", []) if isinstance(body, dict) else body
+
+    async def create_cardholder(self, body: dict) -> dict:
+        return await self._request("POST", "/api/v1/issuing/cardholders/create", json=body, once=True)
+
+    async def list_cards(self) -> list[dict]:
+        body = await self._request("GET", "/api/v1/issuing/cards", params={"page_num": 0, "page_size": 100})
+        return body.get("items", []) if isinstance(body, dict) else body
+
+    async def create_card(self, body: dict) -> dict:
+        """POST /issuing/cards/create; the body carries its own request_id, so a retry never issues a second card."""
+        return await self._request("POST", "/api/v1/issuing/cards/create", json=body)
+
+    async def get_card(self, card_id: str) -> dict:
+        return await self._request("GET", f"/api/v1/issuing/cards/{card_id}")
+
+    async def card_limits(self, card_id: str) -> dict:
+        """GET /issuing/cards/{id}/limits: the card's spending limits as Airwallex enforces them, with what remains
+        (currency, limits: [{amount, interval, remaining}])."""
+        return await self._request("GET", f"/api/v1/issuing/cards/{card_id}/limits")
+
+    async def set_card_status(self, card_id: str, status: str) -> dict:
+        """Freeze (INACTIVE), unfreeze (ACTIVE) or close (CLOSED) a card on Airwallex (guide: POST
+        /issuing/cards/{id}/update with card_status, to show an agent revoking its own authority mid-run)."""
+        if status not in ("ACTIVE", "INACTIVE", "CLOSED"):
+            raise ValueError("card_status is ACTIVE, INACTIVE or CLOSED")
+        return await self._request("POST", f"/api/v1/issuing/cards/{card_id}/update", json={"card_status": status})
+
+    async def card_transactions(self, card_id: str | None = None) -> list[dict]:
+        params = {"page_num": 0, "page_size": 100} | ({"card_id": card_id} if card_id else {})
+        body = await self._request("GET", "/api/v1/issuing/transactions", params=params)
+        return body.get("items", []) if isinstance(body, dict) else body
+
+    async def simulate_card_authorization(self, body: dict) -> dict:
+        """Sandbox: a merchant charges an issued card (card_id, transaction_amount, transaction_currency,
+        merchant_category_code, merchant_info; single_phase to capture at once)."""
+        return await self._request("POST", "/api/v1/simulation/issuing/create", json=body, once=True)
+
+    async def simulate_card_capture(self, transaction_id: str, amount_major: str) -> dict:
+        return await self._request("POST", f"/api/v1/simulation/issuing/card_transaction_lifecycles/{transaction_id}/capture",
+                                   json={"transaction_amount": amount_major}, once=True)
+
     # -- sandbox simulation --------------------------------------------------
 
     # -- webhook subscriptions (API-created ones are not listed in the web app) -----------------------

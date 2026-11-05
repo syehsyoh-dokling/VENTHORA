@@ -65,14 +65,29 @@ def test_the_log_tells_the_whole_story_and_the_vendor_can_be_notified(client):
     assert d["events"] and "contacts" in d["vendor"]
 
 
-def test_the_balance_is_set_against_everything_due_in_the_next_three_weeks(client):
-    _orders(client)  # due 1 Dec: outside the 72 hours, inside or after the three weeks depending on today
-    c = client.get("/v1/agent-plan").json()["today"]["coverage"]
-    assert c["days"] >= 21 and len(c["weeks"]) == -(-c["days"] // 7)  # three weeks at least, and up to the pay day
-    if c["pay_date"]:
-        assert c["until"] >= c["pay_date"][:10]
+def test_the_balance_is_set_against_everything_due_inside_the_policy_horizon(client):
+    _orders(client)
+    t = client.get("/v1/agent-plan").json()["today"]
+    c = t["coverage"]
+    assert c["hours"] == t["horizon_hours"] and len(c["days"]) == -(-c["hours"] // 24)  # the policy's horizon, never more
     assert c["spendable_minor"] == max(0, c["available_minor"] - c["reserve_floor_minor"])
-    assert c["total_minor"] == sum(w["due_minor"] for w in c["weeks"]) and c["weeks"][-1]["cumulative_minor"] == c["total_minor"]
-    assert c["enough"] == (c["total_minor"] <= c["spendable_minor"]) and c["short_minor"] == max(0, c["total_minor"] - c["spendable_minor"])
-    assert (c["short_from"] is None) == c["enough"]
+    assert c["total_minor"] == sum(d["due_minor"] for d in c["days"]) == (c["days"][-1]["cumulative_minor"] if c["days"] else 0)
+    assert c["enough"] == (c["total_minor"] <= c["spendable_minor"]) and (c["short_from"] is None) == c["enough"]
     assert sum(c["by_group"].values()) == c["total_minor"]
+    x = t["executive"]  # the summary's figures: groups, the largest categories (three and the rest), the reasons counted
+    assert sum(x[g]["count"] for g in ("ready", "approval", "blocked")) == t["count"] and len(x["categories"]) <= 4
+
+
+def test_a_longer_horizon_in_the_policy_widens_the_view():
+    from venthora.agent_today import coverage, reason_kind
+
+    assert reason_kind("reject: evidence intake:1234 is pending") == "the documents are not verified yet"
+    assert reason_kind("instalment 'partial' would take the invoice past its contract total") == "the amount goes above its purchase order or contract"
+    assert reason_kind("something new") == "another check"
+
+    class S:
+        base_currency, receivables = "USD", []
+    rows = [{"base_minor": 100, "due_in_hours": h, "ready": True} for h in (10, 50, 100)]
+    assert coverage(S(), rows, 1_000, 0, 72)["count"] == 2 and coverage(S(), rows, 1_000, 0, 120)["count"] == 3
+    edge = coverage(S(), [{"base_minor": 100, "due_in_hours": 0, "ready": True}, {"base_minor": 50, "due_in_hours": 72, "ready": True}], 1_000, 0, 72)
+    assert edge["count"] == 2 and sum(d["due_minor"] for d in edge["days"]) == edge["total_minor"] == 150  # due exactly at the end counts
