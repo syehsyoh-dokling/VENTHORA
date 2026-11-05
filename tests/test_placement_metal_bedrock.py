@@ -56,7 +56,7 @@ def test_an_anchor_is_a_signed_testnet_transaction_carrying_the_digest(monkeypat
     from eth_account import Account
 
     acct = Account.create()
-    store = {metal.PRIVATE: acct.key.hex(), metal.ADDRESS: acct.address}
+    store = {metal.PRIVATE: acct.key.hex(), metal.ADDRESS: acct.address, metal.ENDPOINT: metal.RPC_BASE + "/ep-test"}
     monkeypatch.setattr(secret_values, "get", lambda k: store.get(k, ""))
     sent = []
 
@@ -83,7 +83,7 @@ def test_no_anchor_without_gas(monkeypatch):
     from eth_account import Account
 
     acct = Account.create()
-    monkeypatch.setattr(secret_values, "get", lambda k: {metal.PRIVATE: acct.key.hex(), metal.ADDRESS: acct.address}.get(k, ""))
+    monkeypatch.setattr(secret_values, "get", lambda k: {metal.PRIVATE: acct.key.hex(), metal.ADDRESS: acct.address, metal.ENDPOINT: metal.RPC_BASE + "/ep-test"}.get(k, ""))
 
     def handler(req):
         m = json.loads(req.content)["method"]

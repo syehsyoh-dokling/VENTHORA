@@ -1,23 +1,34 @@
-# Sponsor follow-ups (updated 5 Nov 2026, after the draft v1 test)
+# Sponsor follow-ups (updated 6 Nov 2026, after the Metal Testnet test)
 
-Checked before writing:
-- Metal Tahoe RPC `https://tahoe.metalblockchain.org/ext/bc/C/rpc` answers: chain id `0x5d3ec` = 381932, but the latest
-  block is **2,014 from 29 Oct 2026**; nothing new since.
-- VENTHORA's testnet address `0xd64E00faEBe7B1cC519F0A41e05de29B3A0E5Fa6`: balance 0 on the RPC and on
-  `tahoe.metalscan.io`, no transactions, after the faucet claim on 5 Nov.
-- The builder guide says Kits 11 and 12 pay in *USDZ "which also pays gas", funded from the faucet in Metal's agent
-  guides or the **Metal console's** Faucet page: probably a different network from Tahoe (where METAL pays gas).
+Tested on Metal Testnet before writing (6 Nov 2026; test tokens only):
+- The earlier integration used **Metal Blockchain's Tahoe** (metalblockchain.org, chain 381932), a different project.
+  Metal said "wrong chain"; VENTHORA now runs on **Metal Testnet** (docs.metalntwx.com, chain 63825).
+- Faucet API `POST faucet.metalntwx.com/api/fund`: 100 USDZ to `0xd64E00faEBe7B1cC519F0A41e05de29B3A0E5Fa6` (no captcha).
+- **x402**: the bare RPC answers 402; VENTHORA signed an EIP-3009 transfer of 1 USDZ with its own key and received
+  its own RPC endpoint (`rpc-aas-endpoint` header) in 1.4 s, with no console sign-up. The endpoint URL is kept as a secret.
+- Chain: about 15 blocks a second; gas price 1 base unit; an anchor uses 23,000 gas (a negligible fraction of a USDZ).
+- **Anchor sent from the app**: one EIP-1559 transaction, to self, value 0, data = `VENTHORA-ANCHOR-1:` + SHA-256 of
+  the audit-log head (212 events) and 10 contract heads. Status 1, final in about a second, visible on
+  testnet.metalntwx.com: `0xb57d7e0d7bc8641e4238877793e4a532c97571f6764cf3893682e1028e03a4f6`.
 
 ## 1. Metal team (Metal Award, USD 15,000): paste into the Metal Slack channel
 
-Hi Metal team :wave: VENTHORA here, an autonomous treasury agent on Airwallex (Kits 01 and 03). We've built a Metal integration and hit a wall on the testnet. Four quick questions:
+Thanks for the pointer! :raised_hands: We've moved VENTHORA to **Metal Testnet (chain 63825)**, and it works end to end:
+- VENTHORA funds its address from the faucet API.
+- It **buys its own RPC endpoint over x402**: 1 USDZ, EIP-3009, signed by the agent.
+- It **anchors its audit trail**: one EIP-1559 transaction, value 0, carrying the SHA-256 digest of our audit-log head and every contract's hash-chain head.
 
-1. **Faucet: nothing arrived.** We claimed test METAL at faucet.metalblockchain.org for `0xd64E00faEBe7B1cC519F0A41e05de29B3A0E5Fa6` today. Both the RPC and tahoe.metalscan.io show a balance of 0 and no transactions. Could you check, or fund that address?
-2. **Which network?** The Tahoe C-Chain RPC answers (chain id 381932), but its latest block is 2,014 from 29 Oct, with no new blocks since. The builder guide says Kits 11/12 pay in *USDZ, "which also pays gas", from the Metal console's faucet. Is that a different testnet? Could you share the RPC URL and chain id we should use, and console access for our registered email?
-3. **Award eligibility:** after each payment run, VENTHORA anchors its proof on chain. One transaction carries the SHA-256 digest of our audit-log head and of every contract's hash-chain head, and anyone can recompute it on the explorer. The money itself moves on Airwallex. Does that count for the Metal Award, or do you need value moving on Metal (e.g. Kit 11 mandates paying in *USDZ)?
-4. **Kit 11 tooling:** the guide refers to `metal-agent` and `@metalntwx/metal-pay`, but we can't find them on npm. Where can we get them and the agent guides?
+The first one is on the explorer: `0xb57d7e0d7bc8641e4238877793e4a532c97571f6764cf3893682e1028e03a4f6`.
 
-We can switch networks the same day once you point us to the right one. Thanks! :pray:
+A few questions so we build the right thing for the Award:
+
+1. **Anchoring pattern:** is a zero-value self-transaction with the digest in calldata the way you'd like it done? Or should we use `MetalAssertions` (`0x…018c`, a Merkle-root claim) or an event from a small contract?
+2. **What counts for the Metal Award:** is anchoring plus the agent paying for its own RPC over x402 enough? Or do you want value moving on Metal? We could add a **USDZ / EURZ / GBPZ payout rail** beside Airwallex: VENTHORA would pay a vendor in a Metal stablecoin under the same approvals.
+3. **Mandates (Kit 11):** VENTHORA already enforces a Delegation of Authority: who approves, per-payment and monthly limits, allowed payees. Should we mirror it as a **Metal mandate**, so the limits are enforced on chain when the agent pays? Is there a testnet example of `@metalntwx/metal-pay` mandates from Python, or only TypeScript?
+4. **The x402-bought endpoint:** does it expire, and does its credit last until Demo Day (19 Nov)? Can its owner address see or manage it in the console, or is the console needed at all?
+5. **Testnet stability:** will the testnet, faucet and explorer stay up, with no reset, until judging ends? Is there an explorer API (or a verify page) we can link judges to, so they can check the digest in a transaction's input themselves?
+
+Thanks! :pray:
 
 ## 2. AWS team (credits USD 50,000): paste into the AWS Slack channel
 
@@ -37,5 +48,5 @@ Thanks a lot! :pray:
 Hi :wave: How do we claim the hackathon **Claude API credits**? Our agent uses Claude to read invoices and emails and to draft plans. Thanks!
 
 ## Done since the first drafts
-- Anchoring is built (Platform Setup → Metal); only the testnet gas is missing.
+- Metal: moved to Metal Testnet (chain 63825); x402 RPC purchase and the first anchor done on 6 Nov.
 - Bedrock is a model provider (Platform Setup → Agent (AI & Model)); only the API key is missing.

@@ -105,6 +105,8 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("PUT", "/v1/metal/settings"): ("Metal network", "The RPC address, chain id and explorer."),
     ("POST", "/v1/metal/key"): ("Create the Metal testnet key", "Kept write-only; only the address is returned."),
     ("POST", "/v1/metal/anchor"): ("Anchor on Metal", "Writes the digest of the audit head and every contract head in one transaction."),
+    ("POST", "/v1/metal/fund"): ("Fund the Metal address", "Tops VENTHORA's testnet address up to 100 test USDZ (Metal's gas token) from the faucet."),
+    ("POST", "/v1/metal/endpoint"): ("Buy a Metal RPC endpoint", "VENTHORA pays 1 test USDZ over x402 (EIP-3009, signed with its key) for its own RPC endpoint; the URL is kept as a secret."),
     ("GET", "/v1/reports/spending-recap"): ("Spending recap", "Every report line in one list: place, charge code, the payments actually made (in USD as converted) and what is still committed and unpaid."),
     ("GET", "/v1/reports/virtual-cards"): ("Virtual card (Visa) report", "Every Visa virtual card VENTHORA issued, its limits and spend, and every charge: VENTHORA's decision and rule, joined with what Airwallex recorded."),
     ("GET", "/v1/reports/contract-chain"): ("Contract blockchain", "Every PO and consultant contract as a SHA-256 hash chain of its terms, invoices and payments, sealed and checked: value, payee, currency, period, duplicate, terms, charge code."),

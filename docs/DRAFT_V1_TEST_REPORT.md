@@ -41,7 +41,7 @@ Airwallex calls went to the real sandbox.
 | A2 | Airwallex | Connected accounts and platform payments for Kit 05/06; Airi CLI for Kit 09 (drafts in ACCESS_REQUESTS.md) |
 | A3 | Airwallex | The developer MCP server needs an interactive OAuth sign-in. Is there a server-to-server login, or is REST the expected path for an app? |
 | A4 | Visa | VIC access (onboarding, about 10 business days) and the award criteria: do TAP + Airwallex virtual cards count? (VISA_QUESTIONS.md) |
-| A5 | Metal | **The faucet's test METAL never arrived**: VENTHORA's address `0xd64E00faEBe7B1cC519F0A41e05de29B3A0E5Fa6` shows 0 on the RPC and on the explorer, and the Tahoe C-Chain's last block is from **29 Oct** (block 2,014, nothing since). Is Tahoe the right network, is the faucet working, and could they fund the address? Also: does anchoring count for the Metal Award, and where are Kit 11's `@metalntwx/metal-pay` docs? |
+| A5 | Metal | **The faucet's test METAL never arrived**: VENTHORA's address `0xd64E00faEBe7B1cC519F0A41e05de29B3A0E5Fa6` shows 0 on the RPC and on the explorer, and the Tahoe C-Chain's last block is from **29 Oct** (block 2,014, nothing since). Is Tahoe the right network, is the faucet working, and could they fund the address? Also: does anchoring count for the Metal Award, and where are Kit 11's `@metalntwx/metal-pay` docs? | **Resolved 6 Nov:** wrong network (Tahoe is Metal Blockchain, a different project); moved to Metal Testnet, chain 63825; x402 RPC purchase and the first anchor succeeded.
 | A6 | AWS | Does Bedrock as a model provider count, or do they expect AgentCore? |
 | A7 | AI accounting partner | Which import format and chart of accounts? (the journal export is ready) |
 

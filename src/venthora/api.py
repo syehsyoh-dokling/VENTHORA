@@ -3934,6 +3934,34 @@ async def metal_key(role: str = "super_admin", by: str = "dashboard"):
     return rec
 
 
+@app.post("/v1/metal/fund")
+async def metal_fund(role: str = "super_admin", by: str = "dashboard"):
+    """Top VENTHORA's testnet address up to 100 test USDZ (Metal's gas token) from the faucet."""
+    from . import metal
+
+    who = _connector(role, by)
+    try:
+        out = await metal.fund()
+    except metal.MetalError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "metal_funded", out | {"by": who})
+    return out
+
+
+@app.post("/v1/metal/endpoint")
+async def metal_endpoint(role: str = "super_admin", by: str = "dashboard"):
+    """VENTHORA buys its own Metal RPC endpoint over x402 (1 test USDZ, signed with its key); the URL is kept as a secret."""
+    from . import metal
+
+    who = _connector(role, by)
+    try:
+        out = await metal.buy_endpoint(who)
+    except metal.MetalError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "metal_endpoint_bought", {k: out[k] for k in ("paid", "token", "payment_tx")} | {"by": who})
+    return out
+
+
 @app.post("/v1/metal/anchor")
 async def metal_anchor(role: str = "finance_manager", by: str = "dashboard"):
     """Write the digest of the audit head and every contract head on Metal, in one transaction."""
