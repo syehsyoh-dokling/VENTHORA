@@ -488,6 +488,31 @@ class ExecutionStore:
         with self._lock, self._connect() as c:
             return [dict(r) for r in c.execute(q + " ORDER BY paid_at", args).fetchall()]
 
+    def operations_for(self, obligation_id: str) -> list[dict]:
+        """The Airwallex operations of one payment: its transfer(s), and the conversion into its currency booked in the
+        same execution."""
+        with self._lock, self._connect() as c:
+            ts = c.execute("SELECT execution_id, kind, status, airwallex_id, response_json, updated_at FROM operations WHERE kind IN ('transfer', 'replacement')"
+                           " AND (op_key LIKE ? OR op_key LIKE ?)", (f"%transfer:{obligation_id}", f"%replacement:{obligation_id}:%")).fetchall()
+            out = [dict(r) | {"response": json.loads(r["response_json"]) if r["response_json"] else None} for r in ts]
+            for t in list(out):
+                ccy = (t["response"] or {}).get("transfer_currency")
+                if not ccy:
+                    continue
+                for r in c.execute("SELECT execution_id, kind, status, airwallex_id, response_json, updated_at FROM operations WHERE kind = 'conversion'"
+                                   " AND execution_id = ? AND status = 'SUCCEEDED'", (t["execution_id"],)).fetchall():
+                    resp = json.loads(r["response_json"]) if r["response_json"] else {}
+                    if (resp.get("conversion") or {}).get("buy_currency") == ccy:
+                        out.append(dict(r) | {"response": resp})
+        for o in out:
+            o.pop("response_json", None)
+        return out
+
+    def payments_for(self, obligation_id: str) -> list[dict]:
+        with self._lock, self._connect() as c:
+            return [dict(r) for r in c.execute("SELECT transfer_id, currency, amount_minor, base_cost_minor, paid_at, reporting_period FROM spend_ledger"
+                                               " WHERE obligation_id = ? ORDER BY paid_at", (obligation_id,)).fetchall()]
+
     def paid_totals(self, period: str | None = None) -> dict:
         """Every booked payment of a reporting period (or all): how many, and their base-currency cost."""
         q, args = "SELECT COUNT(*), COALESCE(SUM(base_cost_minor), 0) FROM spend_ledger", ()

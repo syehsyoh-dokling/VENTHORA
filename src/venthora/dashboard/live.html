@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VENTHORA Autopilot Console</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>
+// Opened on its own: the page lives inside the dashboard, with its menu and top bar (one layout for every page).
+(function(){const inFrame=window.self!==window.top;
+ if(!inFrame){location.replace("/#/autopilot"+(location.hash&&location.hash.length>1?"?run="+encodeURIComponent(location.hash.slice(1)):""));return}
+ document.documentElement.classList.add("embed");
+ const b=document.createElement("base");b.target="_top";document.head.prepend(b);  // links to the dashboard open the dashboard, not a page in the frame
+ })();
+</script>
 <style>
 :root{--bg:#f3f5f9;--surface:#ffffff;--surface2:#f8fafc;--ink:#0f1b2d;--ink2:#46536a;--muted:#8792a6;--line:#e4e8ef;
  --brand:#1d3f8f;--brand2:#2f6fe4;--brandlt:#eaf1fe;--accent:#2f6fe4;--accentlt:#eaf1fe;
@@ -30,26 +38,16 @@ header .right{margin-left:auto;display:flex;gap:12px;align-items:center}
 header .right a{color:var(--heroInk);opacity:.85;font-size:13px}
 header #book{color:var(--heroInk);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px 12px;font-size:12px}
 header #book:empty{display:none}
-header #newBtn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
-header #newBtn:hover{background:rgba(255,255,255,.2)}
+header .who{display:flex;flex-direction:column;line-height:1.2;padding:6px 12px;border-radius:10px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:13px;font-weight:600}
+header .who small{font-weight:500;opacity:.8;font-size:11px}header .who:empty{display:none}
 .badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;border-radius:999px;padding:3px 11px;color:#bff0d6;background:rgba(19,128,79,.22);border:1px solid rgba(110,231,170,.35)}
 .badge::before{content:"";width:7px;height:7px;border-radius:50%;background:#43d68b;box-shadow:0 0 0 3px rgba(67,214,139,.25);animation:pulse 1.6s infinite}
 
 /* stepper */
-.steps{display:grid;grid-template-columns:repeat(6,1fr);gap:0;padding:0 28px;margin:-1px 0 18px;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--shadow);position:relative}
-.step{position:relative;display:flex;gap:10px;align-items:center;border:0;background:transparent;padding:14px 12px 14px 0;min-width:0;cursor:pointer;text-align:left;font:inherit;color:var(--muted)}
-.step::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:transparent;border-radius:3px 3px 0 0}
-.step .ic{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;border:2px solid var(--line);background:var(--surface);color:var(--muted);transition:all .25s}
-.step .n{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}.step .t{font-weight:600;font-size:13px;color:var(--ink2);line-height:1.25}
-.step.done .ic{background:var(--good);border-color:var(--good);color:#fff}
-.step.done .t{color:var(--ink)}
-.step.next .ic{border-color:var(--brand2);color:var(--brand2);box-shadow:0 0 0 4px var(--brandlt)}
-.step.next .t{color:var(--brand2)}.step.next::after{background:var(--brand2)}
-.step:hover .t{color:var(--ink)}
 
-main{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;padding:0 28px 40px}
-@media (max-width:1100px){main{grid-template-columns:1fr}.steps{grid-template-columns:repeat(3,1fr)}}
-@media (max-width:600px){.steps{grid-template-columns:repeat(2,1fr);padding:0 16px}header,main{padding-left:16px;padding-right:16px}}
+main{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;padding:20px 28px 40px}
+@media (max-width:1100px){main{grid-template-columns:1fr}}
+@media (max-width:600px){header,main{padding-left:16px;padding-right:16px}}
 
 /* cards */
 section{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:18px;min-width:0;box-shadow:var(--shadow)}
@@ -108,11 +106,12 @@ button.primary:hover{filter:brightness(1.07)}button:disabled{opacity:.55;cursor:
 
 /* side panel: only once a run has opened a book */
 aside .sticky{position:sticky;top:12px}
-body.setup aside{display:none}body.setup main{grid-template-columns:minmax(0,1fr)}
+body.setup aside{display:none}
+html.embed header{display:none}html.embed body{background:transparent}html.embed main{padding:0 0 20px}
+.dd{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}.ddh{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.8px;border-radius:7px;padding:3px 10px;margin-bottom:6px}
+.ddh.do{background:var(--goodlt,#e7f8ef);color:var(--good,#15803d)}.ddh.dont{background:#fde8e8;color:var(--critical,#b91c1c)}body.setup main{grid-template-columns:minmax(0,1fr)}
 .promptbox{margin-top:18px;padding:16px 18px;border-radius:14px;border:1px solid #f3c98b;background:linear-gradient(135deg,#fff8ec,#fdf0ff);box-shadow:0 6px 18px rgba(219,39,119,.08)}
 .promptbox h3{margin-top:0;color:#9a3412}.promptbox textarea{background:#fffdf8}
-.elsewhere{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}.elsewhere a{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:inherit}
-.elsewhere a:hover{border-color:var(--brand2)}.elsewhere b{display:block}
 @media (prefers-color-scheme:dark){.promptbox{background:linear-gradient(135deg,#2a2112,#2a1830);border-color:#7c5a2a}.promptbox h3{color:#fdba74}.promptbox textarea{background:#1d1a14}}
 section.wallet{background:linear-gradient(160deg,var(--hero1),var(--hero2));color:var(--heroInk);border-color:transparent}
 section.wallet h2{color:var(--heroInk)}section.wallet .muted,section.wallet #wAt{color:var(--heroMuted)}
@@ -141,8 +140,7 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600;margin-top:4p
 <header><span class="brand"><span class="logo" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span>
  <span><h1>VENTHORA <span>Autopilot Console</span></h1><span class="sub">The AI proposes · the engines verify · Airwallex executes</span></span></span>
  <span class="badge">Airwallex · live</span>
- <span class="right"><span id="book"></span><a href="/">Control center</a><button id="newBtn">New run</button></span></header>
-<div class="steps" id="steps"></div>
+ <span class="right"><span id="book"></span><a href="/">Dashboard</a><span id="who" class="who" title="Acting as (chosen on the dashboard)"></span></span></header>
 <main>
  <div>
   <div class="nextbar" id="nextbar"></div>
@@ -184,8 +182,9 @@ function mandateRows(kind){return D.mandates.map((m,i)=>({...m,i})).filter(m=>m.
 function mrow(m){const locked=m.kind==="locked";return `<tr class="${m.enabled||locked?"":"off"}"><td style="width:30px">${locked?pill("always"):`<input type="checkbox" data-m="${m.i}" ${m.enabled?"checked":""}>`}</td>
  <td>${esc(m.label)}<div class="help">${esc(m.help||"")}</div></td>
  <td class="num" style="white-space:nowrap">${m.unit?`<input class="n" data-mv="${m.i}" value="${esc(toInput(m.unit,m.value))}"> <span class="small muted">${UNIT[m.unit]}</span>`:""}</td></tr>`}
-let PS=null;const DASH=h=>`/#/${h}`;
+let PS=null,WHO={name:"FCO (Autopilot Console)",role:"super_admin"};const DASH=h=>`/#/${h}`;
 const FX_KEYS=["convert_fx","convert_daily","fx_open","hedge"];
+function srow(m){return mrow({...m,label:m.say||m.label})}
 function rowsOf(pred){return D.mandates.map((m,i)=>({...m,i})).filter(pred)}
 function renderForm(){const d=D;const per=d.periods;
  if(!PS){api("/v1/prompt-system").then(x=>{PS=x;renderForm()}).catch(()=>{PS={prompt:d.goal,notes:"",sections:{},when:[],sent:{},model:{name:"unknown"},compiled:""};renderForm()});
@@ -197,14 +196,9 @@ function renderForm(){const d=D;const per=d.periods;
  <p class="say">Tell VENTHORA, in your own words, how to handle your money, and set the rules it works within. The model reads this prompt and every rule below on each call; the engines enforce every limit, whatever the model says. Anything you uncheck always comes back to you for approval.</p>
  <h3>Generic prompt</h3><textarea id="f-goal" rows="9">${esc(PS.prompt)}</textarea>
  <div class="help">Plain English, for any model. Saved for the whole organisation; it is the system prompt of every model call.</div>
- <h3>Book and allocation</h3><div class="fields">
-  <label>Book<input id="f-book" value="${esc(d.book_name)}"></label><label>Organisation<input id="f-tenant" value="${esc(d.tenant_name)}"></label>
-  <label>Allocation (USD, ring-fenced from the wallet)<input id="f-alloc" class="n" value="${d.allocation_minor/100}"></label>
-  <label>Reserve floor (USD, never crossed)<input id="f-floor" class="n" value="${d.reserve_floor_minor/100}"></label>
-  <label>Planning horizon (hours)<input id="f-horizon" class="n" value="${d.horizon_hours}"></label>
-  <label>Budget period<select id="f-period">${["monthly","quarterly","annual"].map(k=>`<option value="${k}" ${k===d.period_type?"selected":""}>${k[0].toUpperCase()+k.slice(1)} · ${esc(per[k].label)}</option>`).join("")}</select></label></div>
- <h3>Strict rules (do and don't)</h3><div class="help" style="margin-bottom:6px">The safeguards VENTHORA keeps and the rules that are always enforced. A rule marked always cannot be switched off here.</div>
- <div class="scroll"><table><tbody>${strict.map(mrow).join("")}</tbody></table></div>
+ <h3>Strict rules (do and don't)</h3><div class="help" style="margin-bottom:6px"><b>DO</b>: what VENTHORA must always do. <b>DON'T</b>: what it must never do. A rule marked <i>always</i> cannot be switched off; one with a checkbox can be switched off by the mandate authority.</div>
+ <div class="dd"><div><div class="ddh do">DO</div><div class="scroll"><table><tbody>${strict.filter(m=>m.rule==="do").map(srow).join("")}</tbody></table></div></div>
+  <div><div class="ddh dont">DON'T</div><div class="scroll"><table><tbody>${strict.filter(m=>m.rule==="dont").map(srow).join("")}</tbody></table></div></div></div>
  <h3>DoA to VENTHORA (what VENTHORA may do on its own, independently)</h3><div class="help" style="margin-bottom:6px">Checked: VENTHORA does it alone up to the limit. Unchecked: a person approves every one. The Delegation of Authority by kind of payment is in <a href="${DASH("mandate")}">System Setting → Delegation of Authority</a>.</div>
  <div class="scroll"><table><tbody>${doa.map(mrow).join("")}</tbody></table></div>
  <h3>Approvers and the approval matrix</h3><div class="grid2"><div>${table([{h:"Approver",f:(r,i)=>`<input data-a="${i}" data-k="name" value="${esc(r.name)}" style="width:170px">`},
@@ -218,12 +212,6 @@ function renderForm(){const d=D;const per=d.periods;
   <label>No FX permission at receipt confidence ≤ (%)<input id="f-zero" class="n" value="${d.zero_limit_below_bp/100}"></label></div>
  <div class="scroll"><table><tbody>${fx.map(mrow).join("")}</tbody></table></div>
  <ul class="small" style="margin:8px 0 0;padding-left:18px;line-height:1.7">${((PS.sections||{})["Conversion policy"]||[]).slice(-5).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
- <h3>Set in other menus</h3><div class="help" style="margin-bottom:6px">These come from the menus that own them, so nothing is set twice. The run uses what is there now.</div>
- <div class="elsewhere">
-  <a href="${DASH("allocation")}"><b>Budget for the period</b><span class="small muted">${d.budget.length} line(s) from Payment → Budget allocation</span></a>
-  <a href="${DASH("payees")}"><b>Payees VENTHORA may pay</b><span class="small muted">${allowed} of ${d.payees.length} payee(s), verified in Users &amp; Beneficiaries</span></a>
-  <a href="${DASH("reporting")}"><b>Reporting</b><span class="small muted">cut-off day ${esc(d.reporting.cutoff_day)} at ${esc(d.reporting.cutoff_time)} ${esc(d.reporting.timezone)}, in ${esc(d.reporting.reporting_currency)} (Reporting periods)</span></a>
-  <a href="${DASH("intake")}"><b>Requests received</b><span class="small muted">${d.incoming.length} in this run's inbox (shown in step 2); every request lives in Payment → Intake and Pending payment</span></a></div>
  <div class="promptbox"><h3>What the model reads, and when</h3>
   <p class="small" style="margin:0 0 8px">This prompt and every setting above are read by the model in use, <b>${esc(PS.model.name)}</b>${PS.model.configured?"":" (no model is connected: VENTHORA works on its rules alone)"}. If the model reads something the wrong way, change the prompt above. If an item in another menu does not fit, or two settings look in conflict, explain it here: the model reads your note before it answers, and the engines still enforce the rules as they are set.</p>
   <textarea id="f-notes" rows="4" placeholder="e.g. The budget line 'logistics' also covers courier costs; a payee in its cooling period may still be listed as ACTIVE in Users &amp; Beneficiaries.">${esc(PS.notes||"")}</textarea>
@@ -237,8 +225,7 @@ function renderForm(){const d=D;const per=d.periods;
 function incomingTable(rows){return table([{h:"Channel",f:r=>`<span class="chan">${esc(r.channel)}</span>`},{h:"From",f:r=>esc(r.from)},{h:"Request",f:r=>`${esc(r.subject)}${r.text?`<div class="help">${esc(r.text.slice(0,160))}${r.text.length>160?"…":""}</div>`:""}`},
  {h:"Amount",num:1,f:r=>r.amount_minor!=null?fmt(r.amount_minor,r.currency):""},{h:"Received",f:r=>esc(r.date||"on file")}],rows)}
 function collect(){const d=D;const v=id=>$(id)?$(id).value:null;if(PS){PS.prompt=v("#f-goal");PS.notes=v("#f-notes")||""}
- d.goal=v("#f-goal");d.book_name=v("#f-book");d.tenant_name=v("#f-tenant");d.allocation_minor=Math.round(Number(v("#f-alloc"))*100);d.reserve_floor_minor=Math.round(Number(v("#f-floor"))*100);
- d.horizon_hours=Number(v("#f-horizon"));d.period_type=v("#f-period");d.full_confidence_bp=Math.round(Number(v("#f-full"))*100);d.zero_limit_below_bp=Math.round(Number(v("#f-zero"))*100);
+ d.goal=v("#f-goal");if($("#f-full"))d.full_confidence_bp=Math.round(Number(v("#f-full"))*100);if($("#f-zero"))d.zero_limit_below_bp=Math.round(Number(v("#f-zero"))*100);
  document.querySelectorAll("input[data-m]").forEach(cb=>d.mandates[cb.dataset.m].enabled=cb.checked);
  document.querySelectorAll("input[data-mv]").forEach(x=>{const m=d.mandates[x.dataset.mv];m.value=fromInput(m.unit,x.value)});
  document.querySelectorAll("input[data-b]").forEach(x=>{const k=x.dataset.k;d.budget[x.dataset.b][k]=Math.round(Number(x.value)*100)});
@@ -252,16 +239,12 @@ function collect(){const d=D;const v=id=>$(id)?$(id).value:null;if(PS){PS.prompt
  d.approvers=d.approvers.filter(a=>a.name.trim());return d}
 async function grant(){const b=$("#grantBtn");b.disabled=true;$("#formErr").textContent="opening the book on the live wallet…";
  try{const cfg=collect();
-  if(PS){PS=await api("/v1/prompt-system?role=super_admin&by=FCO%20(Autopilot%20Console)",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:PS.prompt,notes:PS.notes})})}
+  if(PS){PS=await api(`/v1/prompt-system?role=${encodeURIComponent(WHO.role)}&by=${encodeURIComponent(WHO.name)}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({prompt:PS.prompt,notes:PS.notes})})}
   S=await api("/api/live/start",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario:D.scenario,config:cfg})});
   editing=false;history.replaceState(null,"","#"+S.sid);render();pollWallet();clearInterval(timer);timer=setInterval(pollWallet,3000);window.scrollTo({top:0,behavior:"smooth"})}
  catch(e){$("#formErr").textContent=e.message;b.disabled=false}}
 
 // ---- the run ---------------------------------------------------------------------------------------------
-function renderSteps(){const names=["goal","plan","news","revise","deposit","execute"];const st=S?S.steps:names.map(n=>({name:n,title:"",done:false}));
- $("#steps").innerHTML=st.map(s=>{const [num,label]=GUIDE[s.name].split(" · ");const active=(S&&S.next===s.name)||(!S&&s.name==="goal");
-  return `<button class="step ${s.done?"done":""} ${active?"next":""}" data-step="${s.name}"><span class="ic">${s.done?"✓":esc(num)}</span><span><div class="n">${esc(label)}</div><div class="t">${esc(s.title||{goal:"Set your rules"}[s.name]||label)}</div></span></button>`}).join("");
- document.querySelectorAll(".step").forEach(b=>b.onclick=()=>{const el=$(`#c-${b.dataset.step}`)||(b.dataset.step==="goal"&&$("#c-form"));if(el)el.scrollIntoView({behavior:"smooth",block:"start"})})}
 function renderNext(){if(!S||editing){$("#nextbar").innerHTML="";return}const n=S.next;
  if(!n){$("#nextbar").innerHTML=`<span class="pill good">run complete</span><span class="small muted">every step is in the event log and the audit chain</span>`;return}
  const opts=(S.approvers||[]).map(a=>`<option value="${esc(a.name)}|${esc(a.role)}">${esc(a.name)} (${esc(a.role)})</option>`).join("");
@@ -322,7 +305,7 @@ function renderCards(){document.body.classList.toggle("setup",editing||!S);if(ed
   setTimeout(()=>first.classList.remove("fresh"),700)}  // never left half-drawn, even if the tab was in the background
  const ed=$("#editMandate");if(ed)ed.onclick=()=>{editing=true;clearInterval(timer);render()}}
 function renderLog(){$("#log").innerHTML=(S&&!editing?S.events:[]).map(e=>`<li><b>${esc(GUIDE[e.step])}</b> <span class="muted">${esc(e.at.slice(11,19))} · ${e.ms.toFixed(0)} ms</span><br>${esc(e.detail)}</li>`).join("")}
-function render(){renderSteps();renderNext();renderCards();renderLog();$("#book").textContent=S&&!editing?(S.book_name||S.book_id):""}
+function render(){renderNext();renderCards();renderLog();$("#book").textContent=S&&!editing?(S.book_name||S.book_id):""}
 async function pollWallet(){if(!S)return;try{const w=await api(`/api/live/${S.sid}/wallet`);$("#wAt").textContent=w.at.slice(11,19)+" UTC";
  const cur=["USD","EUR","GBP"];$("#wallet").innerHTML=table([{h:"",f:r=>`<b>${r}</b>`},{h:"Balance",num:1,f:r=>fmt(w.wallet[r],"")},{h:"Since the book opened",num:1,f:r=>{const d=w.wallet[r]-(w.start[r]||0);return `<span class="delta ${d<0?"neg":d>0?"pos":""}">${d?(d>0?"+":"")+fmt(d,""):"0.00"}</span>`}}],cur);
  const booked=w.ledger&&w.ledger.USD&&w.ledger.USD.cash!=null;const usd=booked?w.ledger.USD.cash:(w.managed.USD||0),floor=(S.views.goal||{}).mandate?.reserve_floor_minor||0,top=Math.max(usd,floor,w.managed.USD||0)*1.15||1;
@@ -334,7 +317,11 @@ async function next(){const b=$("#nextBtn");b.disabled=true;$("#busy").textConte
  try{S=await api(`/api/live/${S.sid}/step`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({approver:sel[0],role:sel[1]})});render();pollWallet();window.scrollTo({top:0,behavior:"smooth"})}
  catch(e){$("#busy").innerHTML=`<span class="err">${esc(e.message)}</span>`;b.disabled=false}}
 async function loadForm(){D=await api("/api/live/setup");}
-$("#newBtn").onclick=async()=>{clearInterval(timer);S=null;editing=false;history.replaceState(null,"","/live");await loadForm();render()};
+// who is signed in: the person chosen in "Acting as" on the dashboard, with the role People and roles gives them
+(async()=>{const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
+ let name=null;try{name=localStorage.getItem("venthora.actor.name")}catch(e){}
+ try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const rank=["super_admin","cfo","finance_manager"];const u=us.find(x=>x.name===name)||us.sort((a,b)=>((rank.indexOf(a.role)+1)||99)-((rank.indexOf(b.role)+1)||99))[0];
+  if(u){WHO={name:u.name,role:u.role};$("#who").innerHTML=`${esc(u.name)}<small>${esc(R[u.role]||u.role)}</small>`}}catch(e){}})();
 window.venthoraLive={grant,next:()=>next(),state:()=>S,form:()=>D,collect};
 (async()=>{try{await loadForm()}catch(e){$("#cards").innerHTML=`<section><div class="err">${esc(e.message)}</div></section>`;return}
  const sid=location.hash.slice(1);if(sid){try{S=await api(`/api/live/${encodeURIComponent(sid)}`);render();pollWallet();timer=setInterval(pollWallet,3000);return}catch(e){history.replaceState(null,"","/live")}}

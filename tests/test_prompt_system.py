@@ -32,7 +32,9 @@ def test_the_default_prompt_and_the_rules_in_force(client):
     assert d["saved"] is False and d["prompt"] == d["default_prompt"] and "never move money" in d["prompt"]
     assert list(d["sections"]) == ["Strict rules (do and don't)", "What VENTHORA may do on its own (Delegation of Authority to VENTHORA)",
                                    "Approvers and the approval matrix", "Conversion policy", "Payment order", "Set in other menus"]
-    assert any("Never pay the same invoice" in x for x in d["sections"]["Strict rules (do and don't)"])
+    strict = d["sections"]["Strict rules (do and don't)"]
+    assert "DON'T: pay the same invoice, or the same instalment, twice" in strict
+    assert any(x.startswith("DO: Call a person when an unpaid invoice is overdue by more than 30 days") for x in strict)
     assert any("paid from USD and converted inside the transfer" in x for x in d["sections"]["Conversion policy"])
     assert any("Payment → Budget allocation" in x for x in d["sections"]["Set in other menus"])
     assert len(d["when"]) == 6 and d["compiled"].startswith(d["prompt"])
@@ -50,7 +52,6 @@ def test_saving_the_prompt_and_the_notes(client):
 
 def test_every_model_call_carries_the_system_prompt_and_the_test_goes_bare(client):
     from conftest import scenario
-
     from venthora import prompt_system
     from venthora.domain.models import TreasuryState
     from venthora.engines.llm_planner import llm_proposal

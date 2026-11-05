@@ -251,7 +251,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <nav id="mainNav">
   <a href="#/overview" data-nav="overview" class="mtop"><i>◧</i>Dashboard</a>
   <a href="#/agent-plan" data-nav="agent-plan" data-also="plan" class="mtop"><i>✦</i>Agent plan</a>
-  <a href="/flow" class="mtop"><i>⇢</i>Workflow<span class="ext">↗</span></a>
+  <a href="#/workflow" data-nav="workflow" class="mtop"><i>⇢</i>Workflow</a>
 
   <div class="mg" data-g="payment"><button type="button" class="mh"><i>⇄</i><span>Payment</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/intake" data-nav="intake" data-also="pos travel"><i>✉</i>Intake</a>
@@ -309,15 +309,19 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/budget-policy" data-nav="budget-policy"><i>◷</i>Period, cut-off &amp; sync</a>
    <a href="#/integrations" data-nav="integrations"><i>↯</i>Airwallex webhooks</a>
    <a href="#/prices" data-nav="prices"><i>¤</i>Unit prices</a>
-   <a href="/live" title="The agent's own run: plan, prove, pay and reconcile a book end to end"><i>▶</i>Autopilot Console<span class="ext">↗</span></a>
+   <a href="#/autopilot" data-nav="autopilot" title="The agent's own run: plan, prove, pay and reconcile a book end to end"><i>▶</i>Autopilot Console</a>
   </div></div>
  </nav>
  <div class="actor"><label class="small muted" for="actor">Acting as</label><select id="actor"></select></div>
 </aside>
 <div class="content">
 <header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><h1 id="pageTitle">Dashboard</h1>
- <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><a class="go" href="/live">Autopilot Console ▸</a></span></header>
+ <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><a class="go" href="#/autopilot">Autopilot Console ▸</a></span></header>
 <main>
+ <section class="span12" data-view="payment"><h2><span id="payTitle">Payment</span><span class="row" style="gap:8px"><a href="#/agent-plan?today" class="small">‹ Today's plan</a></span></h2><div id="payBody" class="empty">loading…</div></section>
+ <!-- ===== pages of their own, inside the same menu and top bar ===== -->
+ <section class="span12 plain" data-view="autopilot"><iframe id="frameAutopilot" title="Autopilot Console" style="width:100%;border:0;display:block;min-height:70vh;background:transparent"></iframe></section>
+ <section class="span12 plain" data-view="workflow"><iframe id="frameWorkflow" title="Workflow" allow="fullscreen" style="width:100%;border:0;display:block;aspect-ratio:16/9;border-radius:14px;background:#0b1530"></iframe></section>
  <!-- ===== Overview: charts and notifications only ===== -->
  <section class="span12 plain" data-view="overview">
   <div id="bal" class="bal"><div class="empty">loading…</div></div>
@@ -337,18 +341,24 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="agent-plan">
   <style>#apTabs{gap:6px;background:transparent;border:0;padding:0;flex-wrap:wrap}#apTabs button{color:#fff;padding:8px 14px;border-radius:9px;opacity:.55}#apTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35)}
    #apTabs [data-aptab=today]{background:linear-gradient(135deg,#2f6fed,#7b5cff)}#apTabs [data-aptab=proof]{background:linear-gradient(135deg,#0ea5a4,#2f6fed)}#apTabs [data-aptab=console]{background:linear-gradient(135deg,#f59e0b,#db2777)}</style>
-  <h2><span>Agent plan</span><span class="tabs" id="apTabs"><button data-aptab="today" class="on">1 · Today's plan</button><button data-aptab="proof">2 · Proof &amp; what if</button><button data-aptab="console">3 · Autopilot Console</button></span></h2>
+  <h2><span>Agent plan</span><span class="tabs" id="apTabs"><button data-aptab="today" class="on">1 · Today's plan</button><button data-aptab="proof">2 · Transaction log</button><button data-aptab="console">3 · Autopilot Console</button></span></h2>
   <div class="small" id="apNote" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:10px"></div>
-  <div data-appane="today"><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><span class="small muted" id="apSource"></span><span style="flex:1"></span>
+  <div data-appane="today"><div id="apCover"></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><span class="small muted" id="apSource"></span><span style="flex:1"></span>
     <button id="apRefresh">Plan again now</button><button class="primary" id="apExec">Pay the agent's part now</button></div>
-   <div id="apNotices"></div><div id="apSplit"></div>
-   <h3 class="small muted" style="margin:14px 0 6px">The payments waiting now, in the order the plan takes them</h3>
-   <div class="small muted" style="margin-bottom:6px">Payments in Pending payment that passed their checks or wait for a person, ranked by the Standard Payment Priority Policy. The plan pays from the top while the money lasts above the reserve floor; the rest is deferred or escalated. <b>Hold</b> stops the policy from paying one (no deemed approval, no autonomous run) until you release it.</div>
-   <div id="apOrder"></div>
-   <h3 class="small muted" style="margin:14px 0 6px">The plan and its proof</h3><div id="apToday" class="empty">planning…</div></div>
-  <div data-appane="proof" hidden><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><select id="scenario"></select>
+   <div id="apNotices"></div>
+   <style>.apbox{border:1px solid var(--line);border-top:4px solid var(--tone,#94a3b8);border-radius:12px;padding:12px 14px 6px;margin-top:14px;background:var(--surface,#fff)}
+    .apbox .aph{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.apbox .aph h3{margin:0;font-size:14px}.apbox .aph .sub{flex:1;min-width:220px}
+    .apbox td.amt,.apbox th.amt{white-space:nowrap;text-align:right}.apbox .empty{padding:10px 0}.apbox td a.small{white-space:nowrap}
+    .apbox.ready{--tone:#16a34a}.apbox.wait{--tone:#d97706}.apbox.stop{--tone:#dc2626}</style>
+   <div id="apReady"></div><div id="apWait"></div><div id="apOthers"></div>
+   <div id="apRec"></div>
+   <details style="margin-top:16px"><summary>The plan and its proof (engines, simulation, alternatives)</summary><div id="apToday" class="empty" style="margin-top:8px">planning…</div></details></div>
+  <div data-appane="proof" hidden><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><input id="logQ" placeholder="search a payment, payee or invoice" style="min-width:260px">
+    <select id="logStatus"><option value="">every status</option><option value="Paid">paid</option><option value="Plan">planned</option><option value="Rejected">rejected</option><option value="pending">pending</option><option value="Needs">needs a person</option></select><span class="small muted" id="logCount"></span></div>
+   <div id="logRows" class="empty">loading…</div>
+   <details style="margin-top:16px"><summary>What if, on a stored book (Kit 01 scenarios)</summary><div class="row" style="gap:8px;flex-wrap:wrap;margin:8px 0"><select id="scenario"></select>
     <button id="plan" class="primary">Plan</button><button id="planIntake" title="add the intake queue to this book, then plan">Plan with intake queue</button></div>
-   <div id="planOut" class="empty">Choose a book and press Plan.</div></div>
+   <div id="planOut" class="empty">Choose a book and press Plan.</div></details></div>
   <div data-appane="console" hidden><div id="apConsole"></div></div>
  </section>
 
@@ -934,7 +944,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="dlgSave" value="save">Save</button></div></form></dialog>
 <script>
 const $=s=>document.querySelector(s);
-const fmt=(m,c)=>{if(m==null)return"-";const s=m<0?"-":"",a=Math.abs(m);return`${s}${c} ${Math.floor(a/100).toLocaleString()}.${String(a%100).padStart(2,"0")}`};
+const fmt=(m,c)=>{if(m==null)return"-";const s=m<0?"-":"",a=Math.abs(m);return`${s}${c} ${Math.floor(a/100).toLocaleString("en-US")}.${String(a%100).padStart(2,"0")}`};
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const tone={APPROVED:"good",COMPLETED:"good",RESOLVED:"good",VERIFIED:"good",PASS:"good",OK:"good",PAID:"good",PAY:"good",CONVERT_AND_PAY:"good",SETTLED:"good",ACTIVE:"good",
  DEFER:"warn",REJECT:"critical",CHANGED:"critical",SUSPENDED:"critical",NEW:"warn",
@@ -1091,7 +1101,7 @@ async function payees(){try{const recs=await api("/v1/payees");PAYEE_OPTS=recs.m
  catch(e){$("#payees").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
 // ---- reporting periods: monthly spend by payment instant, invoice statements, consolidation ----
-const fmtAny=(m,c)=>c==="IDR"||c==="JPY"||c==="KRW"?`${c} ${Number(m).toLocaleString()}`:fmt(m,c);
+const fmtAny=(m,c)=>c==="IDR"||c==="JPY"||c==="KRW"?`${c} ${Number(m).toLocaleString("en-US")}`:fmt(m,c);
 async function reporting(){try{const cfg=await api("/v1/reporting/config");if(!$("#repPeriod").value){const d=new Date();$("#repPeriod").value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
  const p=$("#repPeriod").value;const r=await api(`/v1/reporting/periods/${p}`);const s=r.spend;
  $("#repMeta").textContent=`cut-off day ${cfg.cutoff_day} ${cfg.cutoff_time} ${cfg.timezone} · reporting in ${cfg.reporting_currency} · rates: ${r.rates_source}`;
@@ -1143,10 +1153,10 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Standard Payment Priority Policy","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
+const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Reporting periods",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Standard Payment Priority Policy",autopilot:"Autopilot Console",workflow:"Workflow",payment:"Payment detail","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost",payees:"Payees",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
  standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Payment reports","rep-fx":"FX & transfer costs","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),autopilot:()=>openFrame("#frameAutopilot","/live"),payment:()=>payView(),workflow:()=>openFrame("#frameWorkflow","/flow"),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>reportsView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>spendingView(),codes:()=>codesView(),mandate:()=>doaView(),books:()=>tenants(),travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),integrations:()=>webhookView()};
 function route(){const MOVED={plan:"#/agent-plan?proof",pos:"#/intake?po",travel:"#/intake?travel",payroll:"#/executions"};const v0=(location.hash.match(/^#\/([\w-]+)/)||[])[1];if(MOVED[v0]){location.hash=MOVED[v0];return}
  const v=v0;const view=TITLES[v]?v:"overview";
@@ -1888,36 +1898,115 @@ async function orderForm(pre={}){const sup=await suppliers();let pos=[];try{pos=
 $("#newOrder").onclick=()=>orderForm();
 // ---- Agent plan: today's plan on the real payments; proof and what if on a book; the Autopilot Console
 let APTAB="today";const AP_OF=()=>{const m=location.hash.match(/^#\/agent-plan\?(\w+)/);return m&&["today","proof","console"].includes(m[1])?m[1]:APTAB};
-const AP_NOTE={today:`<b>What VENTHORA would do now with the organisation's real payments, and why.</b> Every request waiting in Pending payment and every salary ready for the pay day, on the live Airwallex balance and rates, ranked by the Payment Priority SOP, inside the planning horizon. Each payment gets a decision (pay, convert and pay, defer to a reliable receipt, escalate) with its reason, and the plan is proved before money moves: the reserve floor with an FX stress buffer, the chance of breaching it, the treasury limits, the budget and the Delegation of Authority. <b>Paid by VENTHORA on its own</b> is what the mandate allows; <b>waits for a person</b> goes to Executions &amp; incidents or Pending payment. Reading this page pays nothing.`,
- proof:`<b>Proof and what if, on a book.</b> Plan any stored book (the hackathon's Kit 01 scenarios, the live demo book) and see how the plan is proved: the engines that checked it, the simulation of the balance over the horizon, and each alternative the agent rejected with its chance of breaching the reserve ("what if we paid everything now?"). "Plan with intake queue" adds the payments waiting in Pending payment to that book.`,
+const AP_NOTE={today:`<b>What VENTHORA would do now with the organisation's real payments, and why.</b> Every request waiting in Pending payment and every salary ready for the pay day, on the live Airwallex balance and rates, ranked by the Standard Payment Priority Policy, inside the planning horizon. Each payment gets a decision (pay, convert and pay, defer to a reliable receipt, escalate) with its reason, and the plan is proved before money moves: the reserve floor with an FX stress buffer, the chance of breaching it, the treasury limits, the budget and the Delegation of Authority. <b>Paid by VENTHORA on its own</b> is what the mandate allows; <b>waits for a person</b> goes to Executions &amp; incidents or Pending payment. Reading this page pays nothing.`,
+ proof:`<b>Every payment's story, step by step, with the date and time of each step:</b> the request received, VENTHORA's checks and whether the documents are complete, valid and ready to pay, every decision of the plan (pay, defer, escalate, reject), every intervention by a person (a correction, an approval, a rejection, a hold, a new date, a notice to the vendor), the conversion and its rate, the transfer on Airwallex and the payment done. Click a payment to open its story. <span class="muted">Proof and what if on a stored book are at the bottom.</span>`,
+ proofOld:`<b>Proof and what if, on a book.</b> Plan any stored book (the hackathon's Kit 01 scenarios, the live demo book) and see how the plan is proved: the engines that checked it, the simulation of the balance over the horizon, and each alternative the agent rejected with its chance of breaching the reserve ("what if we paid everything now?"). "Plan with intake queue" adds the payments waiting in Pending payment to that book.`,
  console:`<b>The agent's whole cycle on the live wallet, step by step</b>, as the hackathon's demo asks: 1 · the goal and the mandate you give it; 2 · its initial plan for the next hours, proved; 3 · new information arrives (an email, quoted word for word); 4 · the revised decision, changing only what the news affects; 5 · the payments go out on Airwallex and the book is reconciled to the cent. Every step is on the audit chain.`};
-function apTab(t){APTAB=t;document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.classList.toggle("on",b.dataset.aptab===t));document.querySelectorAll("[data-appane]").forEach(x=>x.hidden=x.dataset.appane!==t);$("#apNote").innerHTML=AP_NOTE[t];
- if(t==="today")apToday();else if(t==="console")apConsole()}
+function apTab(t){APTAB=t;document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.classList.toggle("on",b.dataset.aptab===t));document.querySelectorAll("[data-appane]").forEach(x=>x.hidden=x.dataset.appane!==t);$("#apNote").innerHTML=t==="today"?"checking every obligation…":AP_NOTE[t];
+ if(t==="today")apToday();else if(t==="console")apConsole();else if(t==="proof")apLog()}
 document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.onclick=()=>{history.replaceState(null,"",`#/agent-plan?${b.dataset.aptab}`);apTab(b.dataset.aptab)});
-async function apToday(){apExtras();$("#apToday").innerHTML='<div class="empty">planning on the live balance…</div>';$("#apSplit").innerHTML="";
- try{const d=await api("/v1/agent-plan");const src=d.source;
-  $("#apSource").innerHTML=`${src.requests} request(s) waiting · ${src.payroll_lines} salary line(s)${src.pay_date?` for ${dmy(src.pay_date)}`:""} · balances: <b>${esc(src.balances)}</b>${src.balances_error?` <span class="muted">(${esc(src.balances_error)})</span>`:""} ${src.next_round?` · <b>${src.next_round} more in the next round</b> (one plan proves 12 at a time, the most urgent by the SOP first)`:""} · horizon ${d.horizon_hours} h · real time ${d.pay_on_arrival?'<span class="pill good">ON</span>':'<span class="pill warn">OFF</span>'}`;
-  if(!d.plan){$("#apToday").innerHTML='<div class="empty">Nothing waits for payment now: every request is paid or decided. New invoices, payment orders and the next payroll appear here as they arrive.</div>';$("#apExec").disabled=true;return}
-  const sp=d.split,mine=sp.autonomous||[];$("#apExec").disabled=!mine.length;
-  const seen=new Set((sp.held||[]).map(h=>h.obligation_id));
-  const held=[...(sp.held||[]),...d.plan.obligations.filter(o=>["ESCALATE","REJECT","DEFER"].includes(o.action)&&!seen.has(o.obligation_id)).map(o=>({obligation_id:o.obligation_id,reasons:[`${o.action.toLowerCase()}: ${o.reason}`]})),
-   ...(src.payroll_waiting||[]).map(w=>({obligation_id:`salary · ${w.employee}`,reasons:w.reasons}))];
-  $("#apSplit").innerHTML=`<div class="two" style="margin-bottom:10px"><div class="tile"><b>Paid by VENTHORA on its own now (${mine.length})</b>${mine.length?table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Action",f:x=>pill(x.action)},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)}],mine):'<div class="small muted">nothing is inside the mandate to pay alone right now</div>'}</div>
-   <div class="tile"><b>Waits for a person, deferred or not paid (${held.length})</b>${held.length?table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Why",f:x=>`<span class="small">${(x.reasons||[]).map(r=>esc(String(r).replaceAll("_"," "))).join("; ")}</span>`}],held)+'<div class="small" style="margin-top:6px"><a href="#/executions">Executions &amp; incidents ›</a> · <a href="#/pending">Pending payment ›</a></div>':'<div class="small muted">nothing: the whole plan is inside the mandate</div>'}${sp.stopped_for_cash?`<div class="small" style="margin-top:6px;color:var(--warn)">stopped for cash: ${esc(String(sp.stopped_for_cash))}</div>`:""}</div></div>`;
+const hm=iso=>{const d=new Date(iso);return `${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")} UTC`};
+const until=iso=>{const m=Math.max(0,Math.round((new Date(iso)-Date.now())/60000));return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`};
+async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on the live balance…</div>';
+ try{const d=await api("/v1/agent-plan");const src=d.source,t=d.today;
+  const when=t&&t.next_pay_at?` — ready to pay on <b>${dmy(t.next_pay_at)} ${hm(t.next_pay_at)}</b>`:t&&t.ready.length?" — paid when you press <b>Pay the agent's part now</b>":"";
+  $("#apSource").innerHTML=`${src.requests} request(s) waiting · ${src.payroll_lines} salary line(s)${src.pay_date?` for ${dmy(src.pay_date)}`:""} · balances: <b>${esc(src.balances)}</b>${src.balances_error?` <span class="muted">(${esc(src.balances_error)})</span>`:""} · horizon ${d.horizon_hours} h · real time ${d.pay_on_arrival?'<span class="pill good">ON</span>':'<span class="pill warn">OFF</span>'}${when}`;
+  apNotices(d.notices||[]);
+  if(!d.plan||!t){$("#apNote").innerHTML=`<b>Nothing waits for payment in the next ${d.horizon_hours} hours.</b> New invoices, payment orders and the next payroll appear here as they arrive.`;$("#apReady").innerHTML=$("#apWait").innerHTML=$("#apOthers").innerHTML=$("#apRec").innerHTML="";$("#apToday").innerHTML="";$("#apExec").disabled=true;return}
+  const b=t.base_currency,cats=t.categories.map(c=>`${esc(c.category.toLowerCase())} (${c.count}, ${fmt(c.base_minor,b)})`).join(", ");
+  apCover(t.coverage,b);
+  const G={ready:"ready to pay",approval:"waits for an approval",blocked:"stopped by a check"};
+  const list=t.due.map(x=>`${esc(x.payee)} ${fmt(x.amount_minor,x.currency)}${x.base_minor!=null&&(x.currency!==b||x.base_minor!==x.amount_minor)?` (${fmt(x.base_minor,b)}${x.currency===b?" with the transfer fee":" with conversion and fee"})`:""} <span class="muted">· ${G[x.group]}</span>`);
+  const grp=(n,amt,label,tone)=>n?`<span class="pill ${tone}">${n} ${label}: ${fmt(amt,b)}</span>`:"";
+  const blockedOnly=!t.ready_count&&!t.approval_count;
+  $("#apNote").innerHTML=!t.count?`<b>No obligation is due in the next ${t.horizon_hours} hours.</b>`:
+   `<b>${t.count} obligation(s) are due in the next ${t.horizon_hours} hours, worth ${fmt(t.total_minor,b)} in total</b> (foreign currencies at today's Airwallex rate, fees included):`
+   +`<ol style="margin:6px 0 6px;padding-left:20px;line-height:1.6">${list.map(x=>`<li>${x}</li>`).join("")}</ol>`
+   +`<div class="row" style="gap:6px;flex-wrap:wrap;margin:4px 0 6px">${grp(t.ready_count,t.ready_minor,"ready to pay","good")}${grp(t.approval_count,t.approval_minor,"wait for an approval","warn")}${grp(t.blocked_count,t.blocked_minor,"stopped by a check","critical")}</div>`
+   +(blockedOnly?`<b>Nothing can be paid now:</b> every one is stopped by a check (a document not verified, an amount above its purchase order, a missing PO). Each must be corrected or rejected first; the reason is in the table below. The balance (${fmt(t.available_minor,b)}) is not touched.`
+    :`The balance available now is <b>${fmt(t.available_minor,b)}</b>, ${fmt(t.spendable_minor,b)} above the reserve floor of ${fmt(t.reserve_floor_minor,b)}: `
+     +(t.enough?`<span class="pill good">enough</span> for the ${fmt(t.payable_minor,b)} that can be paid.`:`<span class="pill warn">not enough</span> for the ${fmt(t.payable_minor,b)} that can be paid; see the recommendation below.`)
+     +(t.ready.length?(t.next_pay_at?` What is ready is paid in <b>${until(t.next_pay_at)}</b> (at ${dmy(t.next_pay_at)} ${hm(t.next_pay_at)}); reject one, or put it pending to a new date, to stop it.`:` What is ready is paid when you press <b>Pay the agent's part now</b>; reject one, or put it pending to a new date, to stop it.`):" Nothing is ready to pay on its own yet."));
+  $("#apExec").disabled=!t.ready.length;
+  const num=rows=>rows.map((r,i)=>({...r,n:i+1}));
+  const amt={h:"Amount",num:1,f:x=>`<span style="white-space:nowrap">${fmt(x.amount_minor,x.currency)}</span>`+(x.currency!==b&&x.base_minor!=null?`<div class="small muted" style="white-space:nowrap">${fmt(x.base_minor,b)}</div>`:"")};
+  const pay={h:"VENTHORA payment",f:x=>`<span class="mono" style="white-space:nowrap">${esc(x.obligation_id)}</span>`},who_={h:"Payee",f:x=>`<b>${esc(x.payee)}</b><div class="small muted">${esc(x.category_label)}</div>`};
+  const due={h:"Due",f:x=>`<span style="white-space:nowrap">${x.due_date?dmy(x.due_date):x.due_in_hours!=null?`${x.due_in_hours} h`:"-"}</span>`};
+  const box=(id,cls,title,sub,rows,cols,empty)=>{const tot=rows.reduce((a,r)=>a+(r.base_minor||0),0);
+   $(id).innerHTML=`<div class="apbox ${cls}"><div class="aph"><h3>${title}</h3><span class="pill">${rows.length}</span>${rows.length?`<b>${fmt(tot,b)}</b>`:""}<span class="small muted sub">${sub}</span></div>${table(cols,num(rows),empty)}</div>`};
+  const wait=t.others.filter(x=>x.action!=="REJECT"),stop=t.others.filter(x=>x.action==="REJECT");
+  box("#apReady","ready","Ready to pay","validated: every check passed and the plan proved it inside the mandate; paid at the time above unless you reject it or put it pending",t.ready,
+   [{h:"No",num:1,f:x=>x.n},pay,who_,amt,{h:"Document check",f:x=>`<span class="pill good">${esc(x.document_check)}</span>`},
+    {h:"Smoke test run",f:x=>`<span class="pill good" title="the plan proved it on its own: limits, budget, reserve floor, payee and duplicate checks">${esc(x.smoke_test)}</span>`},
+    {h:"",f:x=>`<div class="acts"><button class="small" data-apreject="${esc(x.obligation_id)}">Reject</button><button class="small" data-appending="${esc(x.obligation_id)}">Pending</button></div>`}],"nothing is ready to pay on its own right now");
+  box("#apWait","wait","Waiting for an approval","passed the checks; a person approves it once (a first salary, above a limit), then VENTHORA pays it",wait,
+   [{h:"No",num:1,f:x=>x.n},pay,who_,amt,due,{h:"Why it waits",f:x=>`<span class="small">${esc(x.why)}</span>`},
+    {h:"",f:x=>x.payroll?`<a class="small" href="#/executions">Approve ›</a>`:`<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a>`}],"nothing waits for an approval");
+  box("#apOthers","stop","Stopped by a check","cannot be paid as it stands: correct it (in Pending payment) or reject it",stop,
+   [{h:"No",num:1,f:x=>x.n},pay,who_,amt,due,{h:"Why VENTHORA does not pay it",f:x=>`<span class="small">${esc(x.why)}</span>`},
+    {h:"",f:x=>`<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a>`}],"nothing is stopped by a check");
+  const rc=t.recommendation;
+  $("#apRec").innerHTML=rc?`<div class="tile" style="margin-top:16px;border-left:3px solid var(--warn)"><b>Recommendation: the balance covers ${fmt(rc.spendable_minor,b)} above the reserve floor</b>${rc.short_minor?` · short by <b>${fmt(rc.short_minor,b)}</b>`:""}
+    <div class="two" style="margin-top:8px"><div><div class="small muted" style="margin-bottom:4px">Pay now (fits the balance, in priority order)</div>${table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Payee",f:x=>esc(x.payee)},{h:"Priority",num:1,f:x=>x.priority},{h:"Cost",num:1,f:x=>fmt(x.base_minor,b)}],rc.pay_now,"nothing fits")}</div>
+    <div><div class="small muted" style="margin-bottom:4px">Pay when the balance allows</div>${table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Payee",f:x=>esc(x.payee)},{h:"Priority",num:1,f:x=>x.priority},{h:"Cost",num:1,f:x=>fmt(x.base_minor,b)}],rc.pay_later,"nothing waits for money")}</div></div></div>`:"";
+  document.querySelectorAll("[data-apreject]").forEach(x=>x.onclick=async()=>{const reason=prompt(`Why is ${x.dataset.apreject} rejected? (the reason goes on its log)`);if(!reason||reason.trim().length<3)return;
+   try{await api(`/v1/agent-plan/reject?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({obligation_id:x.dataset.apreject,reason:reason.trim()})});toast("Rejected: it will not be paid","good");apToday()}catch(e){toast(esc(e.message),"serious")}});
+  document.querySelectorAll("[data-appending]").forEach(x=>x.onclick=async()=>{const until=prompt(`New date for ${x.dataset.appending} (YYYY-MM-DD): it is not paid before it`);if(!until)return;const note=prompt("Why? (optional)")||"";
+   try{await api(`/v1/agent-plan/pending?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({obligation_id:x.dataset.appending,until:until.trim(),note})});toast(`Pending to ${until}`,"good");apToday()}catch(e){toast(esc(e.message),"serious")}});
   renderPlan(d.plan,"#apToday")}catch(e){$("#apToday").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-async function apExtras(){try{const sop=await api("/v1/priority-sop");
-  const holds=Object.fromEntries((sop.holds||[]).map(h=>[h._id,h]));
-  $("#apNotices").innerHTML=(sop.notices||[]).length?`<div class="tile" style="margin-bottom:10px;border-left:3px solid var(--warn)"><b>Notices for the FCO (${sop.notices.length})</b>${sop.notices.map(n=>`<div class="small" style="margin-top:6px"><b>${esc(n.subject)}</b> <span class="muted">${esc(String(n.at).slice(0,16).replace("T"," "))}</span><div>${esc(n.body)}</div><button class="small" data-apclose="${esc(n._id)}">Close</button></div>`).join("")}</div>`:"";
-  const rows=sop.preview;
-  $("#apOrder").innerHTML=table([{h:"Order",num:1,f:x=>rows.indexOf(x)+1},{h:"Payee",f:x=>`<b>${esc(x.payee)}</b><div class="small muted mono">${esc(x.obligation_id)}</div>`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency)},
-   {h:"Due in",num:1,f:x=>`${x.due_in_hours} h${x.late&&x.late.length?`<div class="small" style="color:var(--critical)">${x.late.map(esc).join(", ")}</div>`:""}`},{h:"Category",f:x=>esc(x.category_label)},{h:"Priority",num:1,f:x=>`<b>${x.priority}</b>`},
-   {h:"",f:x=>holds[x.obligation_id]?`<span class="pill warn">held by ${esc(holds[x.obligation_id].by)}</span> <button class="small" data-aprelease="${esc(x.obligation_id)}">Release</button>`:`<button class="small" data-aphold="${esc(x.obligation_id)}">Hold</button>`}],rows,"nothing waits for payment now");
-  document.querySelectorAll("[data-aphold]").forEach(b=>b.onclick=async()=>{const note=prompt("Why is this payment held? (optional)")??null;if(note===null)return;
-   try{await api(`/v1/agent-plan/hold?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({obligation_id:b.dataset.aphold,note})});toast("Held: the policy will not pay it","good");apExtras()}catch(e){toast(esc(e.message),"serious")}});
-  document.querySelectorAll("[data-aprelease]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/agent-plan/hold/${encodeURIComponent(b.dataset.aprelease)}?${who()}`,{method:"DELETE"});toast("Released","good");apExtras()}catch(e){toast(esc(e.message),"serious")}});
-  document.querySelectorAll("[data-apclose]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/notifications/${encodeURIComponent(b.dataset.apclose)}/close?${who()}`,{method:"POST"});apExtras()}catch(e){toast(esc(e.message),"serious")}});
- }catch(e){$("#apOrder").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+// the balance against everything known to be due in the next weeks: the first question of the FCO
+function apCover(c,b){if(!c||!c.count){$("#apCover").innerHTML="";return}
+ const pct=Math.min(100,c.total_minor?Math.round(c.spendable_minor*100/c.total_minor):100),tone=c.enough?"#16a34a":"#dc2626";
+ const verdict=c.enough?`<span class="pill good">enough</span> The balance covers everything due until <b>${dmy(c.until)}</b>, with <b>${fmt(c.spendable_minor-c.total_minor,b)}</b> left above the reserve floor.`
+  :`<span class="pill critical">not enough</span> The balance runs out on <b>${dmy(c.short_from)}</b>: <b>${fmt(c.short_minor,b)}</b> short for everything due until ${dmy(c.until)}.`;
+ const g=c.by_group,part=(v,l)=>v?`${fmt(v,b)} ${l}`:"";
+ $("#apCover").innerHTML=`<div class="tile" style="margin-bottom:12px;border-left:4px solid ${tone}">
+  <div class="row" style="gap:10px;flex-wrap:wrap;align-items:baseline"><b>Balance against everything due until ${dmy(c.until)}</b><span class="small muted">${c.count} obligation(s) in the next ${c.days} days${c.pay_date?`, up to the pay day ${dmy(c.pay_date)}`:""}, whatever their status today</span></div>
+  <div style="margin:8px 0 4px">${verdict}</div>
+  <div style="position:relative;height:12px;border-radius:7px;background:var(--line,#e5e7eb);overflow:hidden;margin:6px 0"><i style="position:absolute;left:0;top:0;bottom:0;width:${pct}%;background:${tone};border-radius:7px"></i></div>
+  <div class="small muted">${fmt(c.spendable_minor,b)} spendable (balance ${fmt(c.available_minor,b)} less the reserve floor ${fmt(c.reserve_floor_minor,b)}) against <b>${fmt(c.total_minor,b)}</b> due: ${[part(g.ready,"ready"),part(g.approval,"waiting for an approval"),part(g.blocked,"stopped by a check")].filter(Boolean).join(" · ")}.</div>
+  ${table([{h:"Week",f:w=>`<b>Week ${w.week}</b><div class="small muted">${dmy(w.from)} – ${dmy(w.to)}</div>`},{h:"Due",num:1,f:w=>w.count?`${fmt(w.due_minor,b)}<div class="small muted">${w.count} payment(s)</div>`:'<span class="muted">nothing</span>'},
+   {h:"Due so far",num:1,f:w=>fmt(w.cumulative_minor,b)},{h:"Balance left",num:1,f:w=>`<b style="color:${w.left_minor<0?"var(--critical,#dc2626)":"inherit"}">${fmt(w.left_minor,b)}</b>`}],c.weeks)}
+  <div class="small muted" style="margin-top:6px">${c.receipts.length?`Expected customer receipts in these weeks, not counted until Airwallex reports them settled: <b>${fmt(c.receipts_minor,b)}</b> (${c.receipts.map(r=>`${esc(r.payer)} ${fmt(r.amount_minor,r.currency)} on ${dmy(r.expected)}, ${(r.confidence_bp/100).toFixed(0)}% sure`).join("; ")}).`:"No customer receipt is expected in these weeks."}</div></div>`}
+function apNotices(ns){$("#apNotices").innerHTML=ns.length?`<div class="tile" style="margin-bottom:10px;border-left:3px solid var(--warn)"><b>Notices for the FCO (${ns.length})</b>${ns.map(n=>`<div class="small" style="margin-top:6px"><b>${esc(n.subject)}</b> <span class="muted">${esc(String(n.at).slice(0,16).replace("T"," "))}</span><div>${esc(n.body)}</div><button class="small" data-apclose="${esc(n._id)}">Close</button></div>`).join("")}</div>`:"";
+ document.querySelectorAll("[data-apclose]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/notifications/${encodeURIComponent(b.dataset.apclose)}/close?${who()}`,{method:"POST"});apToday()}catch(e){toast(esc(e.message),"serious")}})}
+// ---- Agent plan -> Transaction log: every payment's story with date and time
+let LOG=[];const LOGKIND={received:"↘",checked:"✓",status:"●",decision:"◆",transfer:"⇄",conversion:"¤",rate:"%",done:"✔",plan_rejected:"✕",plan_pending:"⏸",plan_hold:"⏸",vendor_notified:"✉",intake_review:"✎",intake_corrected:"✎"};
+const stamp=at=>at?`${dmy(at)} ${String(at).slice(11,19)||""}`:"-";
+function logTimeline(ev){return `<ol class="small" style="list-style:none;margin:8px 0 0;padding:0">${ev.map(e=>`<li style="display:grid;grid-template-columns:150px 22px 1fr;gap:6px;padding:5px 0;border-top:1px solid var(--line)"><span class="mono muted">${esc(stamp(e.at))}</span><span>${LOGKIND[e.kind]||"·"}</span><span><b>${esc(e.title)}</b>${e.by?` <span class="muted">· ${esc(e.by)}</span>`:""}${e.detail?`<div class="muted">${esc(e.detail)}</div>`:""}</span></li>`).join("")}</ol>`}
+async function apLog(){$("#logRows").innerHTML='<div class="empty">loading…</div>';try{LOG=await api("/v1/transaction-log");logRender()}catch(e){$("#logRows").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function logRender(){const q=($("#logQ").value||"").toLowerCase(),st=$("#logStatus").value;
+ const rows=LOG.filter(x=>(!q||[x.obligation_id,x.payee,x.intake_id].join(" ").toLowerCase().includes(q))&&(!st||String(x.status||"").includes(st)));
+ $("#logCount").textContent=`${rows.length} payment(s)`;
+ $("#logRows").classList.remove("empty");
+ $("#logRows").innerHTML=rows.length?rows.map(x=>`<details class="tile" style="margin-bottom:8px"><summary style="display:flex;gap:12px;flex-wrap:wrap;align-items:baseline"><span class="mono">${esc(x.obligation_id||x.intake_id)}</span><b>${esc(x.payee||"")}</b><span>${x.amount_minor!=null?fmt(x.amount_minor,x.currency):""}</span><span class="pill">${esc(x.status||"-")}</span><span class="small muted">${x.steps} step(s) · last ${esc(stamp(x.last_at))}</span>${x.obligation_id?`<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">detail ›</a>`:""}</summary>${logTimeline(x.events)}</details>`).join(""):'<div class="empty">no payment matches</div>'}
+$("#logQ").oninput=logRender;$("#logStatus").onchange=logRender;
+// ---- Payment detail: the request, the decision, its whole log, and a notice to the vendor
+async function payView(){const id=decodeURIComponent((location.hash.match(/[?&]id=([^&]+)/)||[])[1]||"");$("#payTitle").textContent=id?`Payment ${id}`:"Payment";$("#payBody").innerHTML='<div class="empty">loading…</div>';
+ try{const d=await api(`/v1/agent-plan/payment/${encodeURIComponent(id)}`);const r=d.request||{},o=d.obligation;
+  const last=[...d.events].reverse().find(e=>e.kind==="decision"||e.kind==="status");
+  const msg=`Dear ${d.vendor.name||"supplier"},\n\nAbout your request ${r.invoice_no?`(invoice ${r.invoice_no}) `:""}for ${r.amount_minor!=null?`${r.currency} ${(r.amount_minor/100).toFixed(2)}`:"payment"}: ${last?last.detail||last.title:"it is being reviewed"}.\n\nPlease reply with what is missing so we can pay it.\n\nKind regards`;
+  $("#payBody").classList.remove("empty");
+  $("#payBody").innerHTML=`<div class="tiles"><div class="tile"><div class="k">Payee</div><div class="v" style="font-size:15px">${esc(d.vendor.name||d.payee||"-")}</div><div class="d">${esc((d.vendor.contacts||[]).join(", ")||"no registered mailbox")}</div></div>
+    <div class="tile"><div class="k">Amount</div><div class="v">${r.amount_minor!=null?fmt(r.amount_minor,r.currency):o?fmt(o.amount_minor,o.currency):"-"}</div><div class="d">${r.invoice_no?`invoice ${esc(r.invoice_no)}`:""}${r.po_number?` · PO ${esc(r.po_number)}`:""}</div></div>
+    <div class="tile"><div class="k">Due</div><div class="v" style="font-size:15px">${r.due_date?dmy(r.due_date):o&&o.due_date?dmy(o.due_date):"-"}</div><div class="d">${esc(d.status||"")}</div></div>
+    <div class="tile"><div class="k">Request</div><div class="v" style="font-size:15px">${esc(r.status||"-")}</div><div class="d">${esc((r.reasons||[]).join("; ")||"")}</div></div></div>
+   ${(r.checks||[]).length?`<h3 class="small muted" style="margin:12px 0 6px">Document checks</h3>${table([{h:"Check",f:c=>esc(c.label)},{h:"Result",f:c=>`<span class="pill ${c.status==="pass"?"good":c.status==="fail"?"critical":"warn"}">${esc(c.status)}</span>`},{h:"Detail",f:c=>`<span class="small">${esc(c.detail)}</span>`}],r.checks)}`:""}
+   <h3 class="small muted" style="margin:16px 0 6px">Its story, step by step</h3>${logTimeline(d.events)}
+   <div class="tile" style="margin-top:16px"><b>Notify the vendor</b><div class="small muted" style="margin:4px 0 8px">VENTHORA records the notice on this payment's log and opens the email to the vendor's registered mailbox in your mail program; it never sends from here.</div>
+    <textarea id="payMsg" rows="6" style="width:100%">${esc(msg)}</textarea><div class="row" style="margin-top:8px;gap:8px"><button class="primary" id="payNotify" ${(d.vendor.contacts||[]).length?"":"disabled"}>Notify vendor</button><span class="small" id="payNotifyMsg"></span></div></div>`;
+  $("#payNotify").onclick=async()=>{try{const n=await api(`/v1/agent-plan/notify-vendor?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({obligation_id:id,message:$("#payMsg").value})});
+   $("#payNotifyMsg").innerHTML=`recorded · <a href="${esc(n.mailto)}">open the email to ${esc(n.to.join(", "))}</a>`;location.href=n.mailto}catch(e){$("#payNotifyMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+ }catch(e){$("#payBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#apRefresh").onclick=apToday;
+// ---- the Autopilot Console and the Workflow, inside the dashboard (same menu and top bar as every page)
+function openFrame(sel,base){const f=$(sel),run=(location.hash.match(/[?&]run=([\w-]+)/)||[])[1];const want=base+(run?`#${run}`:"");
+ if(f.dataset.src!==want){f.dataset.src=want;f.src=want}}
+// the console's height follows its content (same origin: read directly), so the page scrolls once, like every page
+(function(){const f=$("#frameAutopilot");let ro=null;const fit=()=>{try{const b=f.contentDocument&&f.contentDocument.body;if(!b)return;
+  const h=Math.max(400,Math.ceil(b.getBoundingClientRect().height)+24);if(Math.abs(parseInt(f.style.height||0)-h)>2)f.style.height=h+"px"}catch(e){}};
+ f.addEventListener("load",()=>{fit();try{ro&&ro.disconnect();ro=new ResizeObserver(fit);ro.observe(f.contentDocument.body)}catch(e){}});
+ setInterval(()=>{if(!f.closest("section").hidden)fit()},800)})();
 // ---- Reporting -> FX & transfer costs
 let FXDATA=null;
 async function fxView(){const sel=$("#fxPeriod"),cur=sel.value;$("#fxRows").innerHTML='<div class="empty">loading…</div>';
@@ -1943,7 +2032,7 @@ $("#apExec").onclick=async()=>{if(!confirm("Pay now the part of today's plan tha
  catch(e){toast(esc(e.message),"serious");$("#apExec").disabled=false}};
 async function apConsole(){let last=null;try{last=(await api("/api/live/latest")).sid}catch(e){}
  $("#apConsole").innerHTML=`<div class="tile"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b>Autopilot Console</b><div class="small muted">opens in its own page, on the live Airwallex sandbox wallet</div></div>
-   <div class="row" style="gap:8px"><a class="go" href="/live">Open the Autopilot Console ▸</a>${last?`<a class="small" href="/live#${esc(last)}">the latest run ›</a>`:""}</div></div>
+   <div class="row" style="gap:8px"><a class="go" href="#/autopilot">Open the Autopilot Console ▸</a>${last?`<a class="small" href="#/autopilot?run=${esc(last)}">the latest run ›</a>`:""}</div></div>
   <ol class="small" style="margin:10px 0 0;padding-left:18px;line-height:1.8"><li><b>Goal and mandate</b>: the book, the allocation ring-fenced from the wallet, the reserve floor, the horizon, every permission and safeguard, the budget, the approvers.</li>
    <li><b>Initial plan</b>: every obligation decided and proved, with the alternatives it rejected.</li><li><b>New information</b>: a new email, used only because it can be quoted word for word.</li>
    <li><b>Revised decision</b>: only the decisions the news affects change; the others stay locked.</li><li><b>Resulting state</b>: payments out on Airwallex, a deposit confirmed, the book reconciled to the cent.</li></ol></div>`}

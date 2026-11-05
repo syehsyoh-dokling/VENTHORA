@@ -197,12 +197,13 @@ def hours_left(o: dict, now) -> float:
     return (deadline(o, now) - now).total_seconds() / 3600
 
 
-def hold(org, obligation_id: str, by: str, note: str = "") -> dict:
+def hold(org, obligation_id: str, by: str, note: str = "", until: str | None = None, rejected: bool = False) -> dict:
     """A person's intervention: this payment is not paid by the policy (no deemed approval, no autonomous run) until
     the hold is released."""
     import datetime as dt
 
-    rec = {"_id": obligation_id, "by": by, "note": note[:300], "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds")}
+    rec = {"_id": obligation_id, "by": by, "note": note[:300], "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+           "until": until, "rejected": rejected}
     org._put("plan_hold", rec, by)
     return rec
 
@@ -214,7 +215,11 @@ def release(org, obligation_id: str, by: str) -> None:
 
 
 def holds(org) -> dict[str, dict]:
-    return {r["_id"]: r for r in org.list("plan_hold") if not r.get("released")}
+    """The payments a person holds now: released holds, and a pending one whose new date has come, no longer count."""
+    import datetime as dt
+
+    today = dt.datetime.now(dt.UTC).date().isoformat()
+    return {r["_id"]: r for r in org.list("plan_hold") if not r.get("released") and not (r.get("until") and r["until"] <= today)}
 
 
 def planned_rate(org, obligation_id: str, currency: str, rate: str | None) -> str | None:

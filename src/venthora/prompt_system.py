@@ -81,11 +81,16 @@ def sections(org) -> dict[str, list[str]]:
     from .live import DEFAULT_APPROVERS, DEFAULT_MATRIX
 
     ms = _mandates(org)
-    strict = [f"{m['label']} {_val(m['unit'], m['value'])}".strip() + ("" if m["enabled"] else " (switched off by the mandate authority)")
-              for m in ms if m["kind"] in ("locked", "guard") and m["key"] not in ("fx_open", "hedge")]
-    strict += ["Never pay a payee that is not verified by a call-back on its registered number.",
-               "Never pay outside the budget line, the purchase order or the Delegation of Authority.",
-               "Never let the reserve floor be crossed."]
+    from .live import DO_DONT
+
+    def said(m):
+        return f"{DO_DONT[m['key']][1]} {_val(m['unit'], m['value'])}".strip() + ("" if m["enabled"] else " (switched off by the mandate authority)")
+    rules = [m for m in ms if m["key"] in DO_DONT]
+    strict = [f"DO: {said(m)}" for m in rules if DO_DONT[m["key"]][0] == "do"]
+    strict += ["DON'T: " + said(m).removeprefix("Don't ") for m in rules if DO_DONT[m["key"]][0] == "dont"]
+    strict += ["DON'T: pay a payee that is not verified by a call-back on its registered number.",
+               "DON'T: pay outside the budget line, the purchase order or the Delegation of Authority.",
+               "DON'T: let the reserve floor be crossed."]
     doa = [f"{m['label']} {_val(m['unit'], m['value'])}".strip() if m["enabled"] else f"NOT on its own: {m['label'].replace(' on its own', '')} (a person approves every one)"
            for m in ms if m["kind"] == "grant" and m["key"] not in ("convert_fx", "convert_daily")]
     doa = [x.replace("(set per line below)", "(set per line in Payment → Budget allocation)") for x in doa]

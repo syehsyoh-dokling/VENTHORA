@@ -47,6 +47,21 @@ CHANNELS = {"ap:invoice": "Accounts payable system", "hris": "Payroll system", "
 # unit: usd (minor units in the payload), pct (basis points), days, hours, level.
 # critical rules without a value that the mandate authority may switch off (mandate.SWITCHABLE_CRITICAL says what then happens)
 SWITCHABLE_LOCKED = {"duplicates", "recon"}
+# Strict rules, as the FCO reads them: what VENTHORA must DO, and what it must never do (DON'T). The value of the rule
+# follows the sentence. (fx_open and hedge belong to the conversion policy.)
+DO_DONT = {
+    "overdue": ("do", "Call a person when an unpaid invoice is overdue by more than"),
+    "late_interest": ("do", "Call a person when the late-interest exposure is above"),
+    "dunning": ("do", "Call a person when a payee's reminder reaches level (1 reminder, 2 second, 3 final notice)"),
+    "incident_wait": ("do", "Open an incident and call a person when the bank has not confirmed a transfer after"),
+    "late_rate": ("do", "Charge late interest, when the contract states no rate, per year at"),
+    "recon": ("do", "Stop the book when a reconciliation does not add up, until a person closes the case"),
+    "three_way": ("dont", "Don't pay an invoice above its contract (three-way match) by more than"),
+    "tolerance_floor": ("dont", "Don't stop an invoice for a difference with its contract of at most"),
+    "cooling": ("dont", "Don't pay a payee whose bank details changed before a call-back on its registered number confirms them; after that, don't pay without a person for"),
+    "duplicates": ("dont", "Don't pay the same invoice, or the same instalment, twice"),
+    "evidence": ("dont", "Don't act on a claim that cannot be quoted word for word from a dated document"),
+}
 DEFAULT_APPROVERS = [{"name": "Dana Finch", "role": "finance_manager"}, {"name": "Omar Reyes", "role": "cfo"}]
 DEFAULT_MATRIX = [{"name": "standard", "min_total_minor": 0, "reasons": [], "approvals_required": 1, "roles": ["finance_manager", "cfo"]},
                   {"name": "four-eyes", "min_total_minor": 2_500_000, "reasons": ["payee_in_cooling_period", "payee_not_yet_active"],
@@ -201,6 +216,8 @@ def defaults(scenario: str, executor: Executor, standing: dict | None = None) ->
     for m in MANDATES:
         row = {k: v for k, v in m.items() if k not in ("policy", "revoked", "off")}
         row["enabled"] = True
+        if m["key"] in DO_DONT:
+            row["rule"], row["say"] = DO_DONT[m["key"]]
         if m.get("policy") and m["policy"] in pol and m["unit"] is not None:
             row["value"] = pol[m["policy"]]
         if m["key"] in (standing or {}).get("values", {}):

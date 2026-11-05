@@ -494,7 +494,46 @@ async def live_setup(scenario: str = "demo_live"):
     from . import mandate
 
     _scenario_file(scenario)
-    return live_session.defaults(scenario, app.state.executor, mandate.standing(app.state.org))
+    d = live_session.defaults(scenario, app.state.executor, mandate.standing(app.state.org))
+    return _owned_by_menus(d)
+
+
+def _owned_by_menus(d: dict) -> dict:
+    """The console takes these from the menus that own them (nothing is set twice): the allocation and the reserve
+    floor from Delegation of Authority -> Treasury limits, the horizon from the Standard Payment Priority Policy once
+    it is saved, the budget period from Budget period, cut-off & sync."""
+    from . import budget_allocation as ba
+    from . import priority_sop
+
+    org = app.state.org
+    src = {"allocation": "System Setting → Delegation of Authority → Treasury limits and controls",
+           "horizon": "System Setting → Delegation of Authority → Treasury limits and controls"}
+    if (priority_sop.saved(org) or {}).get("policy"):
+        d["horizon_hours"] = priority_sop.policy(org)["horizon_hours"]
+        src["horizon"] = "System Setting → Standard Payment Priority Policy"
+    try:
+        kind = org.budget_policy()["period_type"]
+    except Exception:  # noqa: BLE001 - no budget policy saved: monthly
+        kind = "monthly"
+    d["period_type"] = kind if kind in ("monthly", "quarterly", "annual") else ("quarterly" if kind == "half_year" else "annual")
+    d["budget_period_label"] = f"{ba.PERIOD_LABEL.get(kind, kind)} · {d['periods'][d['period_type']]['label']}"
+    src["period"] = "Payment → Budget allocation → Budget period, cut-off & sync"
+    from .masterdata import MasterStore, budget_for
+
+    try:  # the budget lines of that same period, as set in Payment -> Budget allocation
+        mine = budget_for(MasterStore(), d["periods"][d["period_type"]]["period"])
+    except Exception:  # noqa: BLE001 - no master data store
+        mine = None
+    if mine and mine.get("lines"):
+        d["budget"] = [{"line": ln["line"], "amount_minor": ln["amount_minor"], "auto_share_bp": ln.get("auto_share_bp", 10_000),
+                        "alert_share_bp": ln.get("alert_share_bp", 8_000), "require_approval_on_alert": ln.get("require_approval_on_alert", False),
+                        "bypass": ln.get("bypass", False), "bypass_approved_by": ln.get("bypass_approved_by")} for ln in mine["lines"]]
+        src["budget"] = f"Payment → Budget allocation, {d['periods'][d['period_type']]['label']}"
+    elif d["period_type"] != "monthly":
+        src["budget"] = (f"Payment → Budget allocation has no lines for {d['periods'][d['period_type']]['label']}; "
+                         f"the lines of {d['periods']['monthly']['label']} are used")
+    d["sources"] = src
+    return d
 
 
 @app.get("/v1/mandate")
@@ -900,6 +939,7 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
     from . import doa
 
     tick = 0
+    app.state.policy_clock = (datetime.now(UTC), every_s * 5)
     while True:
         await asyncio.sleep(every_s)
         tick += 1
@@ -3685,9 +3725,31 @@ async def agent_plan_today():
             "policy": pol, "holds": list(priority_sop.holds(app.state.org).values()), "notices": priority_sop.notices(app.state.org)}
     if state is None:
         return meta | {"plan": None, "split": None}
+    holds = priority_sop.holds(app.state.org)
+    if holds:  # a payment a person holds or put pending is out of today's plan until its date
+        left = [o for o in state.obligations if o.obligation_id not in holds]
+        if not left:
+            return meta | {"plan": None, "split": None, "today": None}
+        state = state.model_copy(update={"obligations": left})
     s = await autonomy.split(app.state.agent, state)
-    return meta | {"plan": s.full.model_dump(), "split": s.summary(),
+    from . import agent_today
+
+    today = await asyncio.to_thread(agent_today.summary, state, source, s, app.state.org, app.state.intake.registry.payees,
+                                    meta["horizon_hours"], _next_policy_run(pol))
+    return meta | {"plan": s.full.model_dump(), "split": s.summary(), "today": today,
                    "balances": {c: v for c, v in state.balances.items()}, "obligations": [o.model_dump() for o in state.obligations]}
+
+
+def _next_policy_run(pol: dict) -> str | None:
+    """When the ready part is paid: the policy's next run (high priority first, saved, bank connected); None = by hand."""
+    from . import priority_sop
+
+    if not (priority_sop.saved(app.state.org) or {}).get("policy") or pol["mode"] != "priority" or not app.state.agent.proof.airwallex.configured:
+        return None
+    t0, period = getattr(app.state, "policy_clock", (datetime.now(UTC), 300.0))
+    now = datetime.now(UTC)
+    n = int((now - t0).total_seconds() // period) + 1
+    return (t0 + timedelta(seconds=n * period)).isoformat(timespec="seconds")
 
 
 @app.post("/v1/agent-plan/execute")
@@ -3742,6 +3804,104 @@ async def agent_plan_release(obligation_id: str, role: str = "finance_manager", 
     await asyncio.to_thread(priority_sop.release, app.state.org, obligation_id, f"{by} ({role})")
     await asyncio.to_thread(app.state.audit.append, "plan_hold_released", {"obligation_id": obligation_id, "by": by})
     return {"released": obligation_id}
+
+
+class PlanRejectIn(BaseModel):
+    obligation_id: str = Field(min_length=1, max_length=80)
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class PlanPendingIn(BaseModel):
+    obligation_id: str = Field(min_length=1, max_length=80)
+    until: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$", description="the new date: the payment is not paid before it")
+    note: str = Field("", max_length=300)
+
+
+async def _obligation(oid: str):
+    state, _ = await _todays_state()
+    o = next((x for x in (state.obligations if state else []) if x.obligation_id == oid), None)
+    if o is None:
+        raise HTTPException(404, f"{oid} is not in today's plan")
+    return o
+
+
+@app.post("/v1/agent-plan/reject")
+async def agent_plan_reject(body: PlanRejectIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Cancel one payment of the plan, with the reason: its request is rejected (a salary line is held as rejected)."""
+    from . import agent_today, priority_sop
+
+    who = _writer(role, by)
+    o = await _obligation(body.obligation_id)
+    ref = agent_today.intake_ref(o)
+    if ref:
+        req = next((r for r in await asyncio.to_thread(app.state.intake.store.list, 1000) if r.intake_id.startswith(ref)), None)
+        if req is None:
+            raise HTTPException(404, "the request behind this payment is not found")
+        await review_intake(req.intake_id, ReviewRequest(decision="reject", reviewer=by, role=role, note=body.reason))
+    else:
+        await asyncio.to_thread(priority_sop.hold, app.state.org, body.obligation_id, who, f"rejected: {body.reason}", None, True)
+    await asyncio.to_thread(app.state.audit.append, "plan_rejected", {"obligation_id": body.obligation_id, "reason": body.reason, "by": who})
+    return {"rejected": body.obligation_id}
+
+
+@app.post("/v1/agent-plan/pending")
+async def agent_plan_pending(body: PlanPendingIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Put one payment pending to a new date: it is not paid before that date, then it comes back into the plan."""
+    from . import priority_sop
+
+    who = _writer(role, by)
+    if body.until <= datetime.now(UTC).date().isoformat():
+        raise HTTPException(422, "the new date must be after today")
+    await _obligation(body.obligation_id)
+    rec = await asyncio.to_thread(priority_sop.hold, app.state.org, body.obligation_id, who, body.note or f"pending to {body.until}", body.until)
+    await asyncio.to_thread(app.state.audit.append, "plan_pending", {"obligation_id": body.obligation_id, "until": body.until, "note": body.note, "by": who})
+    return rec
+
+
+class VendorNoticeIn(BaseModel):
+    obligation_id: str = Field(min_length=1, max_length=80)
+    message: str = Field(min_length=3, max_length=2000)
+
+
+@app.get("/v1/agent-plan/payment/{obligation_id}")
+async def agent_plan_payment(obligation_id: str):
+    """One payment in full: the request, today's decision and why, the vendor's registered mailbox, and its whole log."""
+    from . import agent_today
+
+    log = await asyncio.to_thread(agent_today.log_for, app.state, obligation_id=obligation_id)
+    state, _ = await _todays_state()
+    o = next((x for x in (state.obligations if state else []) if x.obligation_id == obligation_id), None)
+    payee = (app.state.intake.registry.payees.get(o.beneficiary_id) if o else None) or {}
+    req = log.get("request") or {}
+    contacts = payee.get("contacts") or ([req["sender"]] if req.get("sender") else [])
+    return log | {"obligation": o.model_dump() if o else None, "vendor": {"name": payee.get("name") or log.get("payee"), "contacts": contacts}}
+
+
+@app.post("/v1/agent-plan/notify-vendor")
+async def agent_plan_notify_vendor(body: VendorNoticeIn, role: str = "finance_manager", by: str = "dashboard"):
+    """A notice to the vendor about its payment, written by a person: recorded on the payment's log; VENTHORA prepares
+    the email to the vendor's registered mailbox, the person sends it from their own mail program."""
+    who = _writer(role, by)
+    d = await agent_plan_payment(body.obligation_id)
+    to = d["vendor"]["contacts"]
+    if not to:
+        raise HTTPException(409, "the vendor has no registered mailbox")
+    from urllib.parse import quote
+
+    subject = f"Your payment {body.obligation_id}" + (f" (invoice {d['request']['invoice_no']})" if (d.get("request") or {}).get("invoice_no") else "")
+    await asyncio.to_thread(app.state.audit.append, "vendor_notified", {"obligation_id": body.obligation_id, "to": to, "message": body.message, "by": who})
+    return {"to": to, "subject": subject, "mailto": f"mailto:{','.join(to)}?subject={quote(subject)}&body={quote(body.message)}"}
+
+
+@app.get("/v1/transaction-log")
+async def transaction_log(obligation_id: str | None = None, intake_id: str | None = None):
+    """Every payment's story, step by step with date and time: received, checked, valid, every plan decision, every
+    person's intervention, the conversion and its rate, the transfer, done. One payment when an id is given."""
+    from . import agent_today
+
+    if obligation_id or intake_id:
+        return await asyncio.to_thread(agent_today.log_for, app.state, obligation_id=obligation_id, intake_id=intake_id)
+    return await asyncio.to_thread(agent_today.log_index, app.state)
 
 
 @app.get("/v1/notifications")

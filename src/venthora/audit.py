@@ -43,6 +43,14 @@ class AuditStore:
                       " VALUES (?, ?, ?, ?, ?, ?)", (event_id, at, kind, raw, prev, digest))
         return {"event_id": event_id, "hash": digest, "created_at": at}
 
+    def search(self, needle: str, limit: int = 300) -> list[dict]:
+        """Events whose payload mentions `needle` (an intake id, an obligation id), oldest first."""
+        with self._lock, self._connect() as c:
+            rows = c.execute("SELECT * FROM events WHERE payload_json LIKE ? ORDER BY seq LIMIT ?",
+                             (f"%{needle}%", max(1, min(limit, 2000)))).fetchall()
+        return [{k: r[k] for k in r.keys() if k != "payload_json"} | {"payload": json.loads(r["payload_json"])}  # noqa: SIM118
+                for r in rows]
+
     def list(self, limit: int = 20) -> list[dict]:
         with self._lock, self._connect() as c:
             rows = c.execute("SELECT * FROM events ORDER BY seq DESC LIMIT ?", (max(1, min(limit, 500)),)).fetchall()
