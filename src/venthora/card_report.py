@@ -46,7 +46,8 @@ def build(*, org, airwallex: list[dict] | None, to_base, program: dict, tap: dic
         if not ts:
             return None
         last = sorted(ts, key=lambda t: str(t.get("posted_date") or t.get("transaction_date") or ""))[-1]
-        return {"status": last.get("status"), "type": last.get("transaction_type"), "billed_minor": _minor(last.get("billing_amount")),
+        billed = _minor(last.get("billing_amount"))
+        return {"status": last.get("status"), "type": last.get("transaction_type"), "billed_minor": abs(billed) if billed is not None else None,
                 "billed_currency": last.get("billing_currency"), "posted_date": last.get("posted_date") or last.get("transaction_date"),
                 "auth_code": last.get("auth_code"), "steps": [f"{t.get('transaction_type') or ''} {t.get('status') or ''}".strip() for t in ts]}
 
@@ -67,7 +68,15 @@ def build(*, org, airwallex: list[dict] | None, to_base, program: dict, tap: dic
         card = cards.get(t.get("card_id") or "") or {}
         ok = str(t.get("status") or "").upper() in ("APPROVED", "AUTHORIZED", "CLEARED", "SETTLED", "PENDING")
         amount = _minor(t.get("transaction_amount"))
+        amount = abs(amount) if amount is not None else None  # Airwallex signs spend negative; the report shows what was spent
+        billed = _minor(t.get("billing_amount"))
+        billed = abs(billed) if billed is not None else None
+        conv = None
+        if amount and billed and t.get("billing_currency") and t.get("billing_currency") != t.get("transaction_currency"):
+            conv = {"billed_minor": billed, "billed_currency": t.get("billing_currency"), "rate": f"{billed / amount:.6f}",
+                    "pair": f"{t.get('transaction_currency')}{t.get('billing_currency')}"}
         rows.append({"at": t.get("transaction_date") or t.get("created_at"), "card_id": t.get("card_id"), "masked": t.get("masked_card_number") or card.get("masked"),
+                     "fund_request": card.get("fund_request"), "conversion": conv,
                      "payee": card.get("payee"), "merchant": (t.get("merchant") or {}).get("name"), "mcc": (t.get("merchant") or {}).get("category_code"),
                      "amount_minor": amount, "currency": t.get("transaction_currency"), "base_minor": to_base(amount, t.get("transaction_currency")),
                      "decision": "AUTHORIZED" if ok else "DECLINED", "reason": t.get("failure_reason") or "decided by the card's controls on Airwallex",

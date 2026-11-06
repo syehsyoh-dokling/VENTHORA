@@ -66,17 +66,19 @@ def cardholder_body(f: dict) -> dict:
 
 
 def card_body(*, cardholder_id: str, payee: dict, per_tx_minor: int, monthly_minor: int, currency: str, by: str,
-              purpose: str = "SUBSCRIPTIONS", mcc: list[str] | None = None, active_to: str | None = None) -> dict:
-    controls = {"allowed_transaction_count": "MULTIPLE",
-                "transaction_limits": {"currency": currency, "limits": [{"amount": float(major(per_tx_minor)), "interval": "PER_TRANSACTION"},
-                                                                        {"amount": float(major(monthly_minor)), "interval": "MONTHLY"}]}}
+              purpose: str = "SUBSCRIPTIONS", mcc: list[str] | None = None, active_to: str | None = None,
+              all_time_minor: int | None = None, nick_name: str | None = None) -> dict:
+    limits = [{"amount": float(major(per_tx_minor)), "interval": "PER_TRANSACTION"}, {"amount": float(major(monthly_minor)), "interval": "MONTHLY"}]
+    if all_time_minor:  # an advance: never more than the advance over the card's whole life
+        limits.append({"amount": float(major(all_time_minor)), "interval": "ALL_TIME"})
+    controls = {"allowed_transaction_count": "MULTIPLE", "transaction_limits": {"currency": currency, "limits": limits}}
     if mcc:
         controls["allowed_merchant_categories"] = mcc
     if active_to:
         controls["active_to"] = active_to
     return {"request_id": str(uuid.uuid4()), "cardholder_id": cardholder_id, "created_by": by[:60], "form_factor": "VIRTUAL",
             "is_personalized": False, "program": {"purpose": "COMMERCIAL"}, "purpose": purpose if purpose in PURPOSES else "OTHER",
-            "brand": "VISA", "nick_name": f"VENTHORA · {payee['name']}"[:40], "authorization_controls": controls,
+            "brand": "VISA", "nick_name": (nick_name or f"VENTHORA · {payee['name']}")[:40], "authorization_controls": controls,
             "metadata": {"payee_id": payee["_id"], "issued_by": "VENTHORA"}}
 
 

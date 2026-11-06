@@ -26,6 +26,9 @@ TERMINAL_TRANSFER_STATUSES = {"PAID", "CANCELLED", "FAILED"}
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
+ISSUING_PATHS = ("/api/v1/issuing/", "/api/v1/simulation/issuing/")
+
+
 class AirwallexError(RuntimeError):
     def __init__(self, message: str, *, status: int | None = None, code: str | None = None):
         super().__init__(message)
@@ -226,6 +229,10 @@ class Airwallex:
         (the platform's own credentials, no key of the account's); own=True is a call about the platform's own accounts."""
         last: Exception | None = None
         obo = None if own else self._acting()
+        if not own and self._fixed is None and path.startswith(ISSUING_PATHS):
+            from ..airwallex_settings import card_account_for
+
+            obo = card_account_for() or obo  # cards live on the card-issuing account (Platform Setup → Airwallex Cards)
         for attempt in range(self._max_attempts):
             try:
                 res = await self._client.request(method, path, json=json, params=params,
@@ -439,6 +446,11 @@ class Airwallex:
 
     async def get_card(self, card_id: str) -> dict:
         return await self._request("GET", f"/api/v1/issuing/cards/{card_id}")
+
+    async def card_details(self, card_id: str) -> dict:
+        """GET /issuing/cards/{id}/details: the card number, CVV and expiry (sensitive: never stored or shown by VENTHORA;
+        used only to simulate a charge typed in by card number on the sandbox)."""
+        return await self._request("GET", f"/api/v1/issuing/cards/{card_id}/details")
 
     async def card_limits(self, card_id: str) -> dict:
         """GET /issuing/cards/{id}/limits: the card's spending limits as Airwallex enforces them, with what remains

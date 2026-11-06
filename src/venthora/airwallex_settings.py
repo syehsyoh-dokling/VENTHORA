@@ -35,6 +35,8 @@ class AirwallexStore:
                       " updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)")
             c.execute("CREATE TABLE IF NOT EXISTS acting (id INTEGER PRIMARY KEY CHECK (id = 1), account_id TEXT NOT NULL, name TEXT NOT NULL,"
                       " updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)")
+            c.execute("CREATE TABLE IF NOT EXISTS card_account (id INTEGER PRIMARY KEY CHECK (id = 1), account_id TEXT NOT NULL, name TEXT NOT NULL,"
+                      " updated_at TEXT NOT NULL, updated_by TEXT NOT NULL)")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)
@@ -77,11 +79,35 @@ class AirwallexStore:
         with self._lock, self._connect() as c:
             c.execute("DELETE FROM acting")
 
+    # -- the account cards are issued on (Airwallex Issuing is enabled per account and per country) --
+    def card_account(self) -> dict | None:
+        with self._connect() as c:
+            r = c.execute("SELECT account_id, name, updated_at, updated_by FROM card_account WHERE id = 1").fetchone()
+        return dict(r) if r else None
+
+    def set_card_account(self, account_id: str | None, name: str, by: str) -> None:
+        with self._lock, self._connect() as c:
+            if not account_id:
+                c.execute("DELETE FROM card_account")
+                return
+            c.execute("INSERT INTO card_account VALUES (1, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET account_id = excluded.account_id,"
+                      " name = excluded.name, updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+                      (account_id, name, datetime.now(UTC).isoformat(timespec="seconds"), by))
+
 
 def acting_for() -> str | None:
     """The connected account VENTHORA works for (sent as x-on-behalf-of), or None for the platform's own account."""
     try:
         a = AirwallexStore().acting()
+    except sqlite3.Error:
+        return None
+    return a["account_id"] if a else None
+
+
+def card_account_for() -> str | None:
+    """The connected account cards are issued on (sent as x-on-behalf-of on Issuing calls only), or None."""
+    try:
+        a = AirwallexStore().card_account()
     except sqlite3.Error:
         return None
     return a["account_id"] if a else None

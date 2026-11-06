@@ -1645,11 +1645,13 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
     # a request forwarded by someone the delegation of authority names is governed by the delegation, not by the
     # payment-order-by-email rule (the FCO's naming is the authorisation)
     if req.trust == "staff" and not dry_run:
-        from . import pr_email
+        from . import fund_email, pr_email
 
-        if pr_email.looks_like(req.subject or "", req.text or ""):
+        if fund_email.looks_like(req.subject or "", req.text or ""):
+            req = await _fund_from_email(req, model)
+        elif pr_email.looks_like(req.subject or "", req.text or ""):
             req = await _pr_from_email(req, model)
-    if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags and not any(f.startswith("purchase_request") for f in req.flags):
+    if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags and not any(f.startswith(("purchase_request", "fund_request")) for f in req.flags):
         order, req = await _email_order(req, raw)
         if order is not None:
             return order
@@ -1859,6 +1861,38 @@ async def _pr_from_email(req: IntakeRequest, model) -> IntakeRequest:
     await asyncio.to_thread(app.state.audit.append, "pr_from_email", {"pr": num, "sender": req.sender, "status": saved["status"]} | steps)
     app.state.hub.publish("intake", {"channel": "email", "kind": "purchase_request", "pr_number": num})
     return _flagged(req, f"purchase_request:{num}")
+
+
+async def _fund_from_email(req: IntakeRequest, model) -> IntakeRequest:
+    """A staff email asking for a cash advance, petty cash or an ODC (fund_email.py): the fund request, approved when the
+    FCO sent it for someone else, and then paid as a virtual card on the card-issuing account."""
+    from . import fund_email
+    from .intake.claims import employee
+
+    org = app.state.org
+    sender = employee(org, req.sender)
+    if sender is None:
+        return req
+    fields, basis = await fund_email.read(model, req.subject or "", req.text or "")
+    person = fund_email.person_of(org, fields.get("person"), sender)
+    if person is None:
+        await asyncio.to_thread(app.state.audit.append, "fund_from_email_refused", {"sender": req.sender, "reason": f"no person {fields.get('person')!r}"})
+        return _flagged(req, f"fund_request_refused: no person named {str(fields.get('person'))[:60]!r} in People & roles")
+    try:
+        saved = await asyncio.to_thread(org.save, "fund_request", FundRequest.model_validate(fund_email.to_request(fields, person, sender)), f"email:{req.sender}")
+    except (OrgError, ValueError) as exc:
+        await asyncio.to_thread(app.state.audit.append, "fund_from_email_refused", {"sender": req.sender, "reason": str(exc)[:300]})
+        return _flagged(req, f"fund_request_refused: {str(exc)[:160]}")
+    num, steps = saved["request_number"], {"read_by": basis, "status": saved["status"]}
+    if saved["status"] == "APPROVED":
+        try:
+            paid = await _issue_advance_card(num, f"VENTHORA agent (email from {sender['name']})")
+            steps["card"] = (paid.get("card") or {}).get("masked")
+        except HTTPException as exc:
+            steps["card_error"] = str(exc.detail)[:200]
+    await asyncio.to_thread(app.state.audit.append, "fund_from_email", {"request": num, "sender": req.sender, "for": person["user_id"]} | steps)
+    app.state.hub.publish("intake", {"channel": "email", "kind": "fund_request", "request_number": num})
+    return _flagged(req, f"fund_request:{num}")
 
 
 def _flagged(req: IntakeRequest, flag: str) -> IntakeRequest:
@@ -4485,7 +4519,57 @@ async def reports_fx_costs(period: str | None = Query(None, max_length=20)):
 
     rep = await asyncio.to_thread(fx_cost_report.build, app.state.executor.store, period or None)
     reqs = await asyncio.to_thread(app.state.intake.store.list, 2000)
-    return await asyncio.to_thread(fx_cost_report.lines, rep, app.state.executor.store, intake_rows=reqs, org=app.state.org)
+    rep = await asyncio.to_thread(fx_cost_report.lines, rep, app.state.executor.store, intake_rows=reqs, org=app.state.org)
+    card_rows, note = await _card_fx_rows(rep.get("base_currency") or "USD", period)
+    rep["rows"] = card_rows + rep.get("rows", [])
+    rep["card_conversions"] = {"rows": len(card_rows), "cost_base_minor": sum(r["total_base_minor"] or 0 for r in card_rows), "note": note}
+    tot = rep.setdefault("totals", {})
+    tot["card_fx_base_minor"] = rep["card_conversions"]["cost_base_minor"]
+    tot["total_base_minor"] = (tot.get("total_base_minor") or 0) + tot["card_fx_base_minor"]
+    return rep
+
+
+async def _card_fx_rows(base: str, period: str | None) -> tuple[list[dict], str]:
+    """Every card payment Airwallex converted (spent in one currency, billed to the wallet in another): the rate it
+    used against the indicative mid rate, and the difference in the base currency = the conversion cost."""
+    try:
+        bank = _bank()
+        txs = await bank.card_transactions()
+    except (HTTPException, AirwallexError) as exc:
+        return [], f"card transactions not read: {getattr(exc, 'detail', exc)}"
+    cards = {c["_id"]: c for c in app.state.org.list("card")}
+    rates: dict[str, float] = {}
+
+    async def to_base(ccy: str) -> float:
+        if ccy == base:
+            return 1.0
+        if ccy not in rates:
+            rates[ccy] = float(await bank.rate_to_base(ccy, base))
+        return rates[ccy]
+    out = []
+    for t in txs:
+        tc, bc = t.get("transaction_currency"), t.get("billing_currency")
+        if str(t.get("status", "")).upper() not in ("APPROVED", "CLEARED", "SETTLED", "COMPLETED", "POSTED") or not bc or tc == bc:
+            continue
+        at = str(t.get("transaction_date") or t.get("posted_date") or "")
+        if period and not at.startswith(period):
+            continue
+        spent, billed = abs(float(t.get("transaction_amount") or 0)), abs(float(t.get("billing_amount") or 0))
+        if not spent or not billed:
+            continue
+        try:
+            spent_base, billed_base = spent * await to_base(tc), billed * await to_base(bc)
+        except AirwallexError:
+            spent_base = billed_base = None
+        cost = round((billed_base - spent_base) * 100) if spent_base is not None else None
+        card = cards.get(t.get("card_id") or "") or {}
+        out.append({"at": at, "period": at[:7], "kind": "card", "kind_label": "Card payment converted by Airwallex", "ref": t.get("transaction_id"),
+                    "obligation_id": card.get("fund_request") or card.get("payee"), "currency": tc, "bought_minor": round(spent * 100),
+                    "sold_minor": round(billed * 100), "sold_currency": bc, "client_rate": f"{billed / spent:.6f}",
+                    "mid_rate": f"{(await to_base(tc)) / (await to_base(bc)):.6f}" if spent_base is not None else None, "currency_pair": f"{tc}{bc}",
+                    "spread_base_minor": cost, "spread_bp": round((billed_base - spent_base) * 10_000 / spent_base) if spent_base else None,
+                    "fee_base_minor": 0, "fee": None, "total_base_minor": cost, "merchant": (t.get("merchant") or {}).get("name"), "card": card.get("masked")})
+    return out, f"{len(out)} card payment(s) converted"
 
 
 @app.get("/v1/exceptions")
@@ -5076,6 +5160,8 @@ class CardChargeIn(BaseModel):
     merchant: str = Field("", max_length=120)
     merchant_category_code: str = Field("5734", max_length=4, description="5734: computer software stores")
     capture: bool = True
+    channel: str = Field("online", pattern="^(online|card_number|contactless|qr)$",
+                         description="how the person pays: online, the card number typed in, a tap at a terminal, a QR scan")
 
 
 class RemoteAuthIn(BaseModel):
@@ -5216,8 +5302,20 @@ async def cards_simulate(card_id: str, body: CardChargeIn, role: str = "finance_
     bank = _bank()
     if not bank.sandbox:
         raise HTTPException(409, "card charges are simulated on the sandbox only")
+    label = {"online": "", "card_number": "[CARD NUMBER] ", "contactless": "[TAP] ", "qr": "[QR] "}[body.channel]
     req = {"card_id": card_id, "transaction_amount": float(cards.major(body.amount_minor)), "transaction_currency": body.currency.upper(),
-           "merchant_category_code": body.merchant_category_code, "merchant_info": (body.merchant or rec.get("merchant") or rec["payee"])[:60]}
+           "merchant_category_code": body.merchant_category_code, "merchant_info": (label + (body.merchant or rec.get("merchant") or rec["payee"]))[:60]}
+    if body.channel == "card_number":
+        # the merchant has only the number the person typed in: Airwallex finds the card by it (the number is read
+        # from Airwallex for this call only; it is never kept or shown)
+        try:
+            pan = (await bank.card_details(card_id)).get("card_number")
+        except AirwallexError:
+            # Airwallex never shows a connected account's card number through the API (the person reads it in the card
+            # app); the sandbox charge then goes by the card's id, labelled as typed in
+            pan = None
+        if pan:
+            req = {k: v for k, v in req.items() if k != "card_id"} | {"card_number": str(pan).replace(" ", "")}
     if body.capture:
         req["single_phase"] = True
     try:
@@ -5225,8 +5323,138 @@ async def cards_simulate(card_id: str, body: CardChargeIn, role: str = "finance_
     except AirwallexError as exc:
         raise HTTPException(502, f"Airwallex refused the simulated charge: {exc}") from exc
     await asyncio.to_thread(app.state.audit.append, "card_charge_simulated", {"card_id": card_id, "amount_minor": body.amount_minor, "currency": body.currency,
-                                                                              "status": res.get("status"), "by": who})
-    return res
+                                                                              "status": res.get("status"), "channel": body.channel, "by": who})
+    return res | {"channel": body.channel}
+
+
+# ---- the card-issuing account: Airwallex Issuing is enabled per account and country, so cards may live on a
+# connected account the platform opened (e.g. a Malaysia account) while transfers and balances stay where they are ----
+@app.get("/v1/cards/issuing-account")
+async def cards_issuing_account_get():
+    from .airwallex_settings import AirwallexStore
+
+    return {"issuing_account": await asyncio.to_thread(AirwallexStore().card_account)}
+
+
+class IssuingAccountIn(BaseModel):
+    account_id: str | None = Field(None, max_length=80, description="an ACTIVE account this platform opened; empty: cards on the main account")
+
+
+@app.put("/v1/cards/issuing-account")
+async def cards_issuing_account_put(body: IssuingAccountIn, role: str = "super_admin", by: str = "dashboard"):
+    from .airwallex_settings import AirwallexStore
+
+    who = _connector(role, by)
+    name = ""
+    if body.account_id:
+        try:
+            acct = next((_account_row(a) for a in await _bank().list_accounts() if a.get("id") == body.account_id), None)
+        except AirwallexError as exc:
+            raise HTTPException(502, f"Airwallex: {exc}") from exc
+        if acct is None or acct["status"] != "ACTIVE":
+            raise HTTPException(422, "choose an ACTIVE account this platform opened (Platform Setup → Airwallex Account)")
+        name = f"{acct['name']} ({acct['country']})"
+    await asyncio.to_thread(AirwallexStore().set_card_account, body.account_id, name, who)
+    await asyncio.to_thread(app.state.audit.append, "card_issuing_account", {"account_id": body.account_id, "name": name, "by": who})
+    return {"issuing_account": await asyncio.to_thread(AirwallexStore().card_account)}
+
+
+ADVANCE_PURPOSE = {"cash_advance": "TRAVEL_EXPENSES", "petty_cash": "OFFICE_SUPPLIES", "odc": "BUSINESS_EXPENSES"}
+
+
+async def _issue_advance_card(number: str, who: str) -> dict:
+    """An approved cash advance, petty cash float or other direct cost paid as a virtual Visa card: the card can spend
+    the advance once (whole-life limit), until the settle-by date, and is the person's to use; no money moves until
+    they pay with it, and what they do not spend never leaves the wallet."""
+    from . import cards
+    from .organisation import FUND_KINDS
+
+    org = app.state.org
+    fr = org.get("fund_request", number)
+    if fr is None:
+        raise HTTPException(404, "no such request")
+    if fr["status"] != "APPROVED":
+        raise HTTPException(409, f"{number} is {fr['status'].lower()}; only an approved request is paid")
+    holder = org.get("issuing", "cardholder")
+    if not holder or not holder.get("cardholder_id"):
+        raise HTTPException(409, "no cardholder yet: create it in Platform Setup → Airwallex Cards")
+    try:
+        cards.check_limits(org, fr["amount_minor"], fr["amount_minor"])
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    person = org.get("user", fr["requested_by"]) or {}
+    label = f"{person.get('name') or fr['requested_by']} · {number}"
+    payee = {"_id": f"fr:{number}", "name": label}
+    is_travel = fr["kind"] == "cash_advance" and any(w in (fr.get("purpose", "") + fr.get("activity", "")).lower() for w in ("travel", "trip", "flight", "hotel", "transport"))
+    purpose = "TRAVEL_EXPENSES" if is_travel else ADVANCE_PURPOSE.get(fr["kind"], "BUSINESS_EXPENSES")
+    req = cards.card_body(cardholder_id=holder["cardholder_id"], payee=payee, per_tx_minor=fr["amount_minor"], monthly_minor=fr["amount_minor"],
+                          currency=fr["currency"], by=who, purpose=purpose, active_to=fr.get("settle_by"), all_time_minor=fr["amount_minor"],
+                          nick_name=f"{FUND_KINDS[fr['kind']][0]} {label}")
+    try:
+        resp = await _bank().create_card(req)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex refused the card: {exc}") from exc
+    rec = await asyncio.to_thread(cards.record_card, org, resp, payee=payee, per_tx_minor=fr["amount_minor"], monthly_minor=fr["amount_minor"],
+                                  currency=fr["currency"], merchant="", mcc=[], by=who)
+    rec = rec | {"fund_request": number, "all_time_minor": fr["amount_minor"], "active_to": fr.get("settle_by"), "purpose": purpose}
+    await asyncio.to_thread(org._put, "card", rec, who)
+    paid = fr | {"status": "IN_PAYMENT", "paid_by": "virtual_card", "card_id": rec["_id"], "card_masked": rec.get("masked"), "paid_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    await asyncio.to_thread(org._put, "fund_request", paid, who)
+    if person.get("email"):
+        from . import outbox
+
+        await asyncio.to_thread(outbox.queue, org, to=[person["email"]], subject=f"{FUND_KINDS[fr['kind']][1]} {number}: your virtual card", ref=number, by=who,
+                                kind="advance_card",
+                                body=(f"Dear {person.get('name', '')},\n\nYour {FUND_KINDS[fr['kind']][1].lower()} {number} ({fr['purpose']}) is ready as a virtual Visa card "
+                                      f"ending {str(rec.get('masked') or '')[-4:]}.\n\nIt can spend {fr['currency']} {fr['amount_minor'] / 100:,.2f} in total"
+                                      + (f", until {fr['settle_by']}" if fr.get("settle_by") else "") + ". Use it online by its number, or add it to your phone's wallet to "
+                                      "tap at a terminal. Keep every receipt: what you do not spend is never taken from the company.\n\n"
+                                      "The card number is never sent by email: open it in the card app.\n\nFinance team"))
+    await asyncio.to_thread(app.state.audit.append, "advance_card_issued", {"request": number, "card_id": rec["_id"], "amount_minor": fr["amount_minor"],
+                                                                          "currency": fr["currency"], "by": who})
+    return paid | {"card": {k: rec.get(k) for k in ("_id", "masked", "brand", "status", "purpose", "active_to", "all_time_minor")}}
+
+
+@app.post("/v1/fund-requests/{number}/card")
+async def fund_request_card(number: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Pay an approved advance, float or ODC as a virtual card (instead of a transfer to the person's account)."""
+    return await _issue_advance_card(number, _writer(role, by))
+
+
+@app.post("/v1/fund-requests/{number}/settle-card")
+async def fund_request_settle_card(number: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Settle an advance paid by card from what the card actually spent on Airwallex (in the card's currency, after
+    any conversion), and freeze the card: what was not spent never left the wallet."""
+    who = _writer(role, by)
+    org = app.state.org
+    fr = org.get("fund_request", number)
+    if fr is None or not fr.get("card_id"):
+        raise HTTPException(404, "no advance paid by card with this number")
+    if fr["status"] != "IN_PAYMENT":
+        raise HTTPException(409, f"{number} is {fr['status'].lower()}")
+    try:
+        txs = await _bank().card_transactions(fr["card_id"])
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
+    ok = [t for t in txs if str(t.get("status", "")).upper() in ("APPROVED", "CLEARED", "SETTLED", "COMPLETED", "POSTED")]
+
+    async def in_advance_ccy(t) -> int:
+        """What a charge spent of the advance, in the advance's currency (Airwallex signs spend negative)."""
+        for amt, ccy in ((t.get("transaction_amount"), t.get("transaction_currency")), (t.get("billing_amount"), t.get("billing_currency"))):
+            if ccy == fr["currency"] and amt is not None:
+                return abs(round(float(amt) * 100))
+        rate = await _bank().rate_to_base(t.get("transaction_currency"), fr["currency"])
+        return abs(round(float(t.get("transaction_amount") or 0) * float(rate) * 100))
+    spent = sum([await in_advance_ccy(t) for t in ok])
+    with contextlib.suppress(Exception):
+        await _bank().set_card_status(fr["card_id"], "INACTIVE")
+    card = org.get("card", fr["card_id"]) or {}
+    org._put("card", card | {"frozen": True, "settled_for": number}, who)
+    rec = fr | {"status": "SETTLED", "settled_minor": spent, "settlement_note": f"from the card's spend: {len(ok)} charge(s); card frozen", "settled_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    await asyncio.to_thread(org._put, "fund_request", rec, who)
+    await asyncio.to_thread(app.state.audit.append, "fund_request_settled", {"request": number, "settled_minor": spent, "by": who, "from": "card"})
+    return rec | {"charges": len(ok), "unspent_minor": max(fr["amount_minor"] - spent, 0),
+                  "lines": [{k: t.get(k) for k in ("transaction_amount", "transaction_currency", "billing_amount", "billing_currency", "merchant", "status", "transaction_date")} for t in ok]}
 
 
 @app.get("/v1/cards/{card_id}/limits")

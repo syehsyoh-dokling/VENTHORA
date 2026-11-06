@@ -211,13 +211,18 @@ def build(category: str, *, org, store, intake_rows: list, payees: dict) -> list
                 continue
             q = intake_by_id.get(f.get("intake_id") or "")
             paid, day = q_paid(q) if q else (0, None)
+            card = {}
+            if f.get("paid_by") == "virtual_card":  # paid as a card: what it spent (at settlement); the unspent never left the wallet
+                paid, day = (f.get("settled_minor") or 0), (str(f.get("settled_at") or f.get("paid_at") or "")[:10] or None)
+                card = {"paid_by": "virtual card", "card": f.get("card_masked"),
+                        "remaining_minor": 0 if f["status"] == "SETTLED" else max(f["amount_minor"] - paid, 0)}
             u = users.get(f["requested_by"])
             rows.append(_row(category=category, type=FUND_KINDS[f["kind"]][1].lower(), kind=f["kind"], name=(u or {}).get("name", f["requested_by"]) if f["kind"] != "odc"
                              else (payees.get(f.get("payee_id") or "") or {}).get("name") or (u or {}).get("name"), request_date=f.get("request_date"),
                              reference=f["request_number"], reference_kind="request", amount_minor=f["amount_minor"], currency=f["currency"],
                              paid_minor=paid, paid_date=day, settled_minor=f.get("settled_minor"), paid_base_minor=q_paid_base(q) if q else None, charge_code=f.get("charge_code"), payments=q_payments(q) if q else [],
                              status="Done" if f["status"] == "SETTLED" else None, note=f["purpose"],
-                             **person_place(f["requested_by"], f["charge_code"])))
+                             **card, **person_place(f["requested_by"], f["charge_code"])))
         rows = [r | {"status": r["status"] or _status(r["amount_minor"], r["paid_minor"])} for r in rows]
     elif category == "travel":
         for t in org.list("ta"):
