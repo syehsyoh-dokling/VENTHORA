@@ -537,12 +537,12 @@ class LiveStep(BaseModel):
 
 @app.get("/live", include_in_schema=False)
 async def live_page():
-    return FileResponse(DASHBOARD.parent / "live.html", media_type="text/html")
+    return FileResponse(DASHBOARD.parent / "live.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/flow", include_in_schema=False)
 async def flow_page():
-    return FileResponse(DASHBOARD.parent / "flow.html", media_type="text/html")
+    return FileResponse(DASHBOARD.parent / "flow.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/live/setup")
@@ -3616,7 +3616,7 @@ async def procurement_file(pr_number: str, cand_id: str):
 @app.get("/rfq/{token}", include_in_schema=False)
 async def rfq_form(token: str):
     """The vendor's quotation form (public, reached through the gateway; the token is the only key)."""
-    return FileResponse(DASHBOARD.parent / "rfq.html", media_type="text/html")
+    return FileResponse(DASHBOARD.parent / "rfq.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/rfq/{token}/data", include_in_schema=False)
