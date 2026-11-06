@@ -31,6 +31,14 @@ def smtp(org) -> dict:
 
 
 def save_smtp(org, body: dict, by: str) -> dict:
+    """Outgoing email. With `provider` (a preset of email_settings.PRESETS other than "other") and `sender` the address,
+    VENTHORA fills the server, port, security and user itself: the person types only the address and the app password."""
+    from .email_settings import PRESETS
+
+    p = PRESETS.get(body.get("provider") or "")
+    if p and p.get("smtp_host"):
+        addr = (body.get("sender") or "").strip()
+        body = body | {"host": p["smtp_host"], "port": p["smtp_port"], "security": p["smtp_security"], "user": addr, "sender": addr}
     sec = body.get("security") or "starttls"
     if sec not in ("starttls", "ssl", "none"):
         raise ValueError("security is starttls, ssl or none")

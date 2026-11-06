@@ -1644,7 +1644,12 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
                                   channel="dashboard" if channel == "dashboard" else "email")
     # a request forwarded by someone the delegation of authority names is governed by the delegation, not by the
     # payment-order-by-email rule (the FCO's naming is the authorisation)
-    if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags:
+    if req.trust == "staff" and not dry_run:
+        from . import pr_email
+
+        if pr_email.looks_like(req.subject or "", req.text or ""):
+            req = await _pr_from_email(req, model)
+    if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags and not any(f.startswith("purchase_request") for f in req.flags):
         order, req = await _email_order(req, raw)
         if order is not None:
             return order
@@ -1821,6 +1826,48 @@ async def _payment_order_core(body: PaymentOrderIn, person: dict, msg, *, channe
     return req
 
 
+async def _pr_from_email(req: IntakeRequest, model) -> IntakeRequest:
+    """A staff email asking to buy something (pr_email.py): the PR, its RFQ draft, the candidate vendors and the RFQ
+    queued to them. The email's own intake record says which PR it became."""
+    from . import pr_email, sourcing
+    from .intake.claims import employee
+
+    org = app.state.org
+    person = employee(org, req.sender)
+    if person is None:
+        return req
+    fields, basis = await pr_email.read(model, req.subject or "", req.text or "")
+    try:
+        saved = await asyncio.to_thread(org.save, "pr", PurchaseRequest.model_validate(pr_email.to_pr(fields, person, org)), f"email:{req.sender}")
+    except (OrgError, ValueError) as exc:
+        note = f"purchase_request_refused: {str(exc)[:160]}"
+        await asyncio.to_thread(app.state.audit.append, "pr_from_email_refused", {"sender": req.sender, "reason": str(exc)[:300]})
+        return _flagged(req, note)
+    num, steps = saved["pr_number"], {"read_by": basis}
+    who = f"VENTHORA agent (email from {person['name']})"
+    await asyncio.to_thread(sourcing.draft_letter, org, num, who)
+    if saved["status"] == "SUBMITTED":
+        try:
+            rec = await sourcing.find_vendors(org, num, payees=app.state.intake.registry.payees, model=model, by=who)
+            cands = [c["cand_id"] for c in rec["candidates"] if c.get("email")][:10]
+            steps["candidates"] = len(rec["candidates"])
+            if cands:
+                sent = await asyncio.to_thread(sourcing.invite, org, num, cands, by=who)
+                steps["rfq_queued"] = len(sent["sent"])
+        except (sourcing.SourcingError, OrgError) as exc:
+            steps["sourcing"] = str(exc)[:200]
+    await asyncio.to_thread(app.state.audit.append, "pr_from_email", {"pr": num, "sender": req.sender, "status": saved["status"]} | steps)
+    app.state.hub.publish("intake", {"channel": "email", "kind": "purchase_request", "pr_number": num})
+    return _flagged(req, f"purchase_request:{num}")
+
+
+def _flagged(req: IntakeRequest, flag: str) -> IntakeRequest:
+    req = req.model_copy(update={"flags": [*req.flags, flag]})
+    with contextlib.suppress(Exception):
+        app.state.intake.store.save(req)
+    return req
+
+
 async def _email_order(req: IntakeRequest, raw: bytes) -> tuple[IntakeRequest | None, IntakeRequest]:
     """An email from a person of the organisation that asks to pay a registered vendor (it names the vendor, an
     invoice and an amount) becomes a payment order, when Settings → Email allows it and the person is ticked
@@ -1980,7 +2027,41 @@ async def email_settings_get():
     return {"policy": await asyncio.to_thread(store.policy), "inboxes": await asyncio.to_thread(store.inboxes),
             "presets": [{"key": k} | v for k, v in PRESETS.items()], "push_providers": [{"key": k} | v for k, v in PUSH_PROVIDERS.items()],
             "push": {"path": "/webhooks/email", "secret_configured": bool(env("VENTHORA_INBOUND_EMAIL_SECRET"))},
-            "senders": {"staff": users, "vendors_with_mailboxes": vendors}}
+            "senders": {"staff": users, "vendors_with_mailboxes": vendors},
+            "addresses": app.state.org.get("email_addresses", "addresses") or {"invoices": None, "payments": None, "same_for_both": False}}
+
+
+class MailAddressIn(BaseModel):
+    address: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=200)
+    receive: str = Field(pattern="^(imap|forwarded)$", description="imap: VENTHORA signs in to the mailbox; forwarded: the mail service posts each email to /webhooks/email")
+    provider: str = Field("gmail", max_length=20)
+
+
+class MailAddressesIn(BaseModel):
+    """Settings → Email → Company email addresses: the invoices address and the payments address (one generic address
+    may serve both; it is still entered for both roles)."""
+    invoices: MailAddressIn
+    payments: MailAddressIn
+    same_for_both: bool = False
+    send_from_payments: bool = Field(True, description="VENTHORA's own emails (RFQ, PO, notices) are sent from the payments address")
+
+
+@app.put("/v1/settings/email/addresses")
+async def email_addresses_put(body: MailAddressesIn, role: str = "super_admin", by: str = "dashboard"):
+    """Keep the two company addresses (the inbox sign-in and the outgoing email are saved by their own calls)."""
+    from .email_settings import PRESETS
+
+    who = _setup_writer(role, by)
+    for slot in (body.invoices, body.payments):
+        if slot.provider not in PRESETS:
+            raise HTTPException(422, f"unknown provider {slot.provider}")
+    if body.same_for_both and body.invoices.address.lower() != body.payments.address.lower():
+        raise HTTPException(422, "one generic address for both: the invoices and payments addresses must be the same")
+    rec = {"_id": "addresses", **body.model_dump(), "updated_by": who, "updated_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    rec["invoices"]["address"], rec["payments"]["address"] = body.invoices.address.lower(), body.payments.address.lower()
+    await asyncio.to_thread(app.state.org._put, "email_addresses", rec, who)
+    await asyncio.to_thread(app.state.audit.append, "email_addresses", {"invoices": rec["invoices"]["address"], "payments": rec["payments"]["address"], "by": who})
+    return rec
 
 
 @app.put("/v1/settings/email/policy")
@@ -2215,6 +2296,14 @@ async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_ma
 @app.post("/v1/intake/{intake_id}/review", response_model=IntakeRequest)
 async def review_intake(intake_id: str, review: ReviewRequest):
     if review.decision == "verify":
+        # a request that failed a check when it arrived (above what was left on its PO, an unknown PO, a duplicate...)
+        # has the checks run again now: verifying never makes a refused draw on a PO count, and never lets two
+        # invoices together pass the PO total
+        cur = app.state.intake.store.get(intake_id)
+        if cur is not None and set(cur.flags) & app.state.intake.RECHECKED:
+            _, problems = await asyncio.to_thread(app.state.intake.recheck, intake_id, {}, by=f"{review.reviewer} ({review.role})")
+            if problems:
+                raise HTTPException(409, "not verified: the checks run again still fail: " + "; ".join(problems))
         await _balance_covers(intake_id)
     try:
         req = await asyncio.to_thread(app.state.intake.review, intake_id, review)
@@ -3789,7 +3878,95 @@ async def procurement_award(pr_number: str, body: ProcAwardIn, role: str = "fina
     out = await asyncio.to_thread(_proc, sourcing.award, app.state.org, pr_number, body.cand_id, role=role, by=by, note=body.note,
                                   master=MasterStore(), payees_store=app.state.executor.store, registry_payees=app.state.intake.registry.payees)
     await asyncio.to_thread(app.state.audit.append, "procurement_awarded", {k: v for k, v in out.items() if k not in ("po", "vendor_followed")})
+    out["chain"] = await _register_contract(out["po_id"], f"{by} ({role})")
     return out
+
+
+async def _register_contract(po_id: str, who: str) -> dict:
+    """A new PO goes on the contract blockchain at once: its block 0 (what was agreed) is hashed and sealed, the seal
+    is written to the audit log, and the heads are anchored on Metal when Metal is set up (Developer Console)."""
+    from . import metal
+
+    rep = await reports_contract_chain()
+    row = next((c for c in rep.get("rows", []) if c.get("contract") == po_id), None)
+    seal = app.state.org.get("contract_seal", po_id) or {}
+    out = {"contract": po_id, "sealed": bool(seal), "head": seal.get("head"), "blocks": len((row or {}).get("blocks") or []),
+           "state": (row or {}).get("chain_state"), "verdict": (row or {}).get("verdict")}
+    try:
+        rec = await metal.anchor(app.state.org, await asyncio.to_thread(_anchor_heads), who)
+        out["anchored"] = {"tx_hash": rec.get("tx_hash"), "chain_id": rec.get("chain_id")}
+        await asyncio.to_thread(app.state.audit.append, "metal_anchor", {"tx_hash": rec.get("tx_hash"), "digest": rec.get("digest"), "by": who, "for": po_id})
+    except metal.MetalError as exc:
+        out["anchored"] = None
+        out["anchor_note"] = f"not anchored on Metal: {str(exc)[:160]}"
+    return out
+
+
+@app.get("/vendor-details/{token}", include_in_schema=False)
+async def vendor_details_form(token: str):
+    """The awarded vendor's own form for the details a payment needs (public; the token is the only key)."""
+    return FileResponse(DASHBOARD.parent / "vendor_details.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/vendor-details/{token}/data", include_in_schema=False)
+async def vendor_details_data(token: str):
+    from . import sourcing
+    from .masterdata import MasterStore
+
+    f = sourcing.details_form(app.state.org, token)
+    if f is None:
+        raise HTTPException(404, "this link is not valid")
+    v = MasterStore().get("vendor", f["vendor_id"]) or {}
+    return {"vendor": f["vendor"], "po_id": f["po_id"], "pr_number": f["pr_number"], "submitted_at": f.get("submitted_at"),
+            "known": {"name": v.get("name"), "tax_id": v.get("tax_id", ""), "registered_phone": v.get("registered_phone", ""),
+                      "address": v.get("address") or {}, "has_bank": bool(v.get("bank"))}}
+
+
+class VendorDetailsIn(BaseModel):
+    tax_id: str = Field("", max_length=40)
+    registered_phone: str = Field(min_length=6, max_length=40, description="the number VENTHORA calls back to confirm the bank account")
+    street_address: str = Field(min_length=3, max_length=200)
+    city: str = Field(min_length=1, max_length=100)
+    state: str = Field("", max_length=100)
+    postcode: str = Field("", max_length=20)
+    country_code: str = Field(min_length=2, max_length=2)
+    account_name: str = Field(min_length=2, max_length=140)
+    bank_name: str = Field(min_length=2, max_length=140)
+    bank_country_code: str = Field(min_length=2, max_length=2)
+    account_number: str = Field("", max_length=40)
+    iban: str = Field("", max_length=40)
+    swift_code: str = Field("", max_length=11)
+    routing_type: str = Field("", max_length=30)
+    routing_value: str = Field("", max_length=30)
+    bank_account_category: str = Field("", max_length=20)
+
+
+@app.post("/vendor-details/{token}", include_in_schema=False)
+async def vendor_details_submit(token: str, body: VendorDetailsIn):
+    """The awarded vendor's details: saved through the same path as the dashboard, so the bank check refuses wrong
+    bank details at once and the payee stays NEW (no payment) until the call-back on the registered number."""
+    from . import sourcing
+    from .masterdata import MasterStore
+
+    f = sourcing.details_form(app.state.org, token)
+    if f is None:
+        raise HTTPException(404, "this link is not valid")
+    if not (body.account_number or body.iban):
+        raise HTTPException(422, "enter the account number or the IBAN")
+    v = MasterStore().get("vendor", f["vendor_id"]) or {}
+    po = app.state.org.get("po", f["po_id"]) or {}
+    rec = {k: x for k, x in v.items() if not k.startswith("_")} | {
+        "vendor_id": f["vendor_id"], "tax_id": body.tax_id or v.get("tax_id", ""), "registered_phone": body.registered_phone,
+        "address": {"street_address": body.street_address, "city": body.city, "state": body.state, "postcode": body.postcode, "country_code": body.country_code.upper()},
+        "bank": {"account_name": body.account_name, "account_currency": po.get("currency") or v.get("currency") or "USD", "bank_name": body.bank_name,
+                 "bank_country_code": body.bank_country_code.upper(), "account_number": body.account_number, "iban": body.iban, "swift_code": body.swift_code.upper(),
+                 "routing_type": body.routing_type, "routing_value": body.routing_value, "bank_account_category": body.bank_account_category}}
+    rec["payout_method"] = "SWIFT" if body.iban or (body.swift_code and not body.routing_value) else "LOCAL"
+    rep = await beneficiaries_save(BeneficiaryIn(record=rec), kind="vendor", role="finance_manager", by=f"vendor form ({f['vendor']})")
+    app.state.org._put("vendor_details", f | {"submitted_at": datetime.now(UTC).isoformat(timespec="seconds")}, f"vendor form ({f['vendor']})")
+    chk = next(iter((rep.get("airwallex_check") or {}).values()), {})
+    return {"ok": True, "bank_check": chk.get("verdict"), "detail": chk.get("detail"),
+            "next": "VENTHORA will call you back on the registered number to confirm the account before the first payment."}
 
 
 @app.get("/v1/procurement/{pr_number}/file/{cand_id}")
@@ -4483,7 +4660,7 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     """The organisation's book as it stands now: the payment requests waiting (verified or held for a person), the
     payroll lines ready for the pay day, the customer receipts expected, the budget; on the live Airwallex balance and
     rates when the bank is connected (the scenario's balances otherwise), with the Standard Payment Priority Policy applied."""
-    from . import doa
+    from . import doa, mandate
 
     org = app.state.org
     today = datetime.now(UTC).date()
@@ -4533,6 +4710,12 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     if len(data["obligations"]) > 12:  # one plan proves at most 12 obligations: the most urgent by the SOP now, the rest next round
         source["next_round"] = len(data["obligations"]) - 12
         data["obligations"] = sorted(data["obligations"], key=lambda o: (-o["priority"], o["due_in_hours"], o["obligation_id"]))[:12]
+    # the ring fence is the FCO's "Allocation ring-fenced from the wallet" (Delegation of Authority) when it is set;
+    # the scenario's balance only when it is not (a blank company starts with none, so the agent could pay nothing)
+    alloc = (mandate.standing(app.state.org).get("book") or {}).get("allocation_minor")
+    if alloc is not None:
+        data["balances"] = {**data.get("balances", {}), data.get("base_currency", "USD"): int(alloc)}
+        source["allocation_minor"] = int(alloc)
     state = TreasuryState.model_validate(data)
     try:
         state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
@@ -4745,7 +4928,8 @@ async def agent_plan_notify_vendor(body: VendorNoticeIn, role: str = "finance_ma
 
 
 class SmtpIn(BaseModel):
-    host: str = Field(min_length=3, max_length=200)
+    provider: str = Field("", max_length=20, description="a mail provider preset (gmail, outlook, yahoo, ...): VENTHORA then fills host, port, security and user")
+    host: str = Field("", max_length=200, description="needed only for provider 'other' or none")
     port: int = Field(587, ge=1, le=65535)
     user: str = Field("", max_length=200)
     password: str | None = Field(None, max_length=300, description="write-only; empty keeps the stored one")

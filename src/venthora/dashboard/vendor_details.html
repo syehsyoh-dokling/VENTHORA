@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Supplier details</title>
+<style>
+:root{--ink:#1d2433;--muted:#5d6779;--line:#dde3ec;--bg:#f4f6fa;--accent:#2f6fed;--good:#13795b;--bad:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",Arial,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:14px}
+h1{font-size:21px;margin:0 0 4px}h2{font-size:15px;margin:0 0 10px}.muted{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}.full{grid-column:1/-1}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--muted);gap:4px}
+input,select{font:inherit;color:var(--ink);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:9px;padding:10px 18px;cursor:pointer}
+.msg{margin-top:12px;font-size:14px}.ok{color:var(--good)}.err{color:var(--bad)}
+@media(max-width:620px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body><main>
+<div class="card"><h1>Supplier details</h1><div class="muted" id="lead">loading…</div></div>
+<form id="f" hidden>
+ <div class="card"><h2>Company</h2><div class="grid">
+  <label>Tax ID<input id="tax_id"></label>
+  <label>Phone we call you back on<input id="registered_phone" required placeholder="+65 6123 4567"></label>
+  <label class="full">Street address<input id="street_address" required></label>
+  <label>City<input id="city" required></label><label>State / region<input id="state"></label>
+  <label>Postcode<input id="postcode"></label><label>Country (2 letters)<input id="country_code" required maxlength="2" placeholder="SG"></label>
+ </div></div>
+ <div class="card"><h2>Bank account for payment</h2><div class="muted" style="margin-bottom:10px">The account must be in the company's own name. It is checked with the bank before it is kept, and we call you back on the number above before the first payment.</div><div class="grid">
+  <label class="full">Account holder name<input id="account_name" required></label>
+  <label>Bank name<input id="bank_name" required></label><label>Bank country (2 letters)<input id="bank_country_code" required maxlength="2"></label>
+  <label>Account number<input id="account_number"></label><label>IBAN (Europe, UK)<input id="iban"></label>
+  <label>SWIFT / BIC<input id="swift_code" maxlength="11"></label>
+  <label>Local bank code<select id="routing_type"><option value="">none</option><option value="aba">ABA routing (US)</option><option value="sort_code">Sort code (UK)</option><option value="bsb">BSB (Australia)</option><option value="bank_code">Bank code / IFSC</option></select></label>
+  <label>Local bank code value<input id="routing_value"></label>
+  <label>Account type (US)<select id="bank_account_category"><option value="">-</option><option>Checking</option><option>Savings</option></select></label>
+ </div></div>
+ <button type="submit">Send details</button><div class="msg" id="msg"></div>
+</form>
+</main>
+<script>
+const T=location.pathname.split("/").filter(Boolean)[1];const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const F=["tax_id","registered_phone","street_address","city","state","postcode","country_code","account_name","bank_name","bank_country_code","account_number","iban","swift_code","routing_type","routing_value","bank_account_category"];
+(async()=>{try{const r=await fetch(`/vendor-details/${T}/data`);if(!r.ok)throw new Error((await r.json()).detail||r.statusText);const d=await r.json();
+ $("lead").innerHTML=`<b>${esc(d.vendor)}</b> · purchase order <b>${esc(d.po_id)}</b> (${esc(d.pr_number)}). Please complete the details a payment needs.${d.submitted_at?` <br><span class="ok">Received on ${esc(d.submitted_at.slice(0,10))}; sending again replaces them.</span>`:""}`;
+ const k=d.known||{};$("tax_id").value=k.tax_id||"";$("registered_phone").value=k.registered_phone||"";const a=k.address||{};
+ ["street_address","city","state","postcode","country_code"].forEach(x=>$(x).value=a[x]||"");$("account_name").value=k.name||"";$("f").hidden=false}
+ catch(e){$("lead").innerHTML=`<span class="err">${esc(e.message)}</span>`}})();
+$("f").onsubmit=async ev=>{ev.preventDefault();const b={};F.forEach(x=>b[x]=$(x).value.trim());$("msg").className="msg";$("msg").textContent="checking the account with the bank…";
+ try{const r=await fetch(`/vendor-details/${T}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});const j=await r.json();
+  if(!r.ok){const d=j.detail;throw new Error((d&&d.message)||(typeof d==="string"?d:JSON.stringify(d)))}
+  $("msg").className="msg ok";$("msg").textContent=`Thank you: details received (bank check: ${j.bank_check||"-"}). ${j.next}`}
+ catch(e){$("msg").className="msg err";$("msg").textContent=e.message}};
+</script></body></html>

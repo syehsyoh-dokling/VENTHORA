@@ -199,6 +199,27 @@ def _spec_lines(pr: dict) -> str:
     return "\n".join(f"  {i}. {s}" for i, s in enumerate(pr.get("specs") or [], 1)) or "  (see the item description)"
 
 
+def rfq_letter(pr: dict, deadline: str, vendor: str = "[Vendor name]", link: str = "[the vendor's own quotation form link]") -> str:
+    """The Request for Quotation letter: the draft kept on the PR, and the body every invited vendor receives."""
+    brand = f"Brand: {pr['brand']} (only this brand is accepted)\n" if pr.get("brand") else ""
+    return (f"Dear {vendor},\n\nWe invite you to quote for the following purchase request.\n\n"
+            f"Reference: {pr['pr_number']}\nItem: {pr['title']}\nQuantity: {pr.get('quantity') or '-'} {pr.get('unit') or ''}\n{brand}"
+            f"Specifications:\n{_spec_lines(pr)}\nCurrency: {pr['currency']}\nNeeded by: {pr.get('needed_by') or '-'}\n"
+            f"Quotation deadline: {deadline}\n\nPlease submit your quotation through this form (it is yours only):\n{link}\n\n"
+            "The form asks for your company details, a check of every specification, the price, delivery time, validity and your "
+            "quotation document. Quotations sent any other way are not considered.\n\nProcurement team")
+
+
+def draft_letter(org, pr_number: str, by: str) -> dict:
+    """Keep the RFQ draft on the PR (Procurement → Vendor Sourcing shows it before anything is sent)."""
+    pr = _pr(org, pr_number)
+    deadline = ((rfq(org, pr_number) or {}).get("deadline") or (date.today() + timedelta(days=5)).isoformat())
+    rec = {"_id": pr_number, "pr_number": pr_number, "subject": f"Request for quotation {pr_number}: {pr['title']}",
+           "text": rfq_letter(pr, deadline), "deadline": deadline, "at": _now(), "by": by}
+    org._put("rfq_draft", rec, by)
+    return rec
+
+
 def invite(org, pr_number: str, cand_ids: list[str], *, by: str, deadline: str | None = None) -> dict:
     """Queue one RFQ email per chosen vendor, each with its own form link."""
     pr = _pr(org, pr_number)
@@ -217,13 +238,7 @@ def invite(org, pr_number: str, cand_ids: list[str], *, by: str, deadline: str |
             raise SourcingError(f"{c['name']} has no email address; add one by hand")
         c["token"] = c.get("token") or secrets.token_urlsafe(18)
         link = f"{public_url()}/rfq/{c['token']}"
-        brand = f"Brand: {pr['brand']} (only this brand is accepted)\n" if pr.get("brand") else ""
-        body = (f"Dear {c['name']},\n\nWe invite you to quote for the following purchase request.\n\n"
-                f"Reference: {pr_number}\nItem: {pr['title']}\nQuantity: {pr.get('quantity') or '-'} {pr.get('unit') or ''}\n{brand}"
-                f"Specifications:\n{_spec_lines(pr)}\nCurrency: {pr['currency']}\nNeeded by: {pr.get('needed_by') or '-'}\n"
-                f"Quotation deadline: {r['deadline']}\n\nPlease submit your quotation through this form (it is yours only):\n{link}\n\n"
-                "The form asks for your company details, a check of every specification, the price, delivery time, validity and your "
-                "quotation document. Quotations sent any other way are not considered.\n\nProcurement team")
+        body = rfq_letter(pr, r["deadline"], vendor=c["name"], link=link)
         outbox.queue(org, to=[c["email"]], subject=f"Request for quotation {pr_number}: {pr['title']}", body=body, ref=pr_number, by=by, kind="rfq_invite")
         c["invited_at"] = c.get("invited_at") or _now()
         sent.append(c["cand_id"])
@@ -340,12 +355,43 @@ def assess(pr: dict, qs: list[dict], today: str | None = None) -> dict:
     best = ok[0] if ok else None
     if best:
         others = [r for r in ok[1:]]
+        gap = (others[0]["total_minor"] - best["total_minor"]) if others else None
         reason = (f"meets every specification{' and the ' + pr['brand'] + ' brand' if brand else ''}, and is the cheapest of "
-                  f"{len(ok)} eligible quotation(s)" + (f", {(others[0]['total_minor'] - best['total_minor']) / 100:,.2f} {pr['currency']} below the next" if others else ""))
+                  f"{len(ok)} eligible quotation(s)" + ("" if gap is None else f", {gap / 100:,.2f} {pr['currency']} below the next" if gap
+                                                         else f"; tied on price with {others[0]['cand_id']}, ranked first by vendor id: a person may choose either"))
     else:
         reason = "no quotation meets every condition yet"
     return {"rows": rows, "recommended": best["cand_id"] if best else None, "reason": reason, "locked_on": "brand and specifications" if brand else "specifications",
             "count": len(qs), "minimum": 3}
+
+
+def shortlist(pr: dict, qs: list[dict], a: dict, size: int = 3) -> list[dict]:
+    """Procurement → Shortlist: at most three vendors per PR, best first, each with its justification. Eligible
+    quotations (every specification, brand, currency, quantity, validity) rank by total price; when fewer than three
+    are eligible the best of the others fill the list, marked not eligible with the reason."""
+    by_id = {q["cand_id"]: q for q in qs}
+    ok = sorted((r for r in a["rows"] if r["eligible"]), key=lambda r: (r["total_minor"], r["cand_id"]))
+    rest = sorted((r for r in a["rows"] if not r["eligible"]), key=lambda r: (len(r["why_not"]), r["total_minor"]))
+    pick = (ok + rest)[:size]
+    cheapest = ok[0]["total_minor"] if ok else None
+    out = []
+    for n, r in enumerate(pick, 1):
+        q = by_id[r["cand_id"]]
+        met = sum(1 for s in q["specs"] if s["ok"])
+        why = [f"meets {met} of {len(q['specs'])} specification(s)" + (f", brand {q.get('brand')}" if q.get("brand") else "")]
+        why.append(f"total {pr['currency']} {q['total_minor'] / 100:,.2f}" + ("" if cheapest is None or q["total_minor"] == cheapest
+                                                                              else f", {(q['total_minor'] - cheapest) / 100:,.2f} above the cheapest eligible"))
+        if q.get("delivery_days") is not None:
+            why.append(f"delivers in {q['delivery_days']} day(s)")
+        why.append(f"valid until {q['valid_until']}")
+        if r["over_estimate"]:
+            why.append("above the approved estimate: cannot be awarded without a new request")
+        if not r["eligible"]:
+            why.append("not eligible: " + "; ".join(r["why_not"]))
+        out.append({"rank": n, "cand_id": r["cand_id"], "vendor": q["vendor"]["name"], "total_minor": q["total_minor"], "currency": q["currency"],
+                    "eligible": r["eligible"], "recommended": r["cand_id"] == a["recommended"], "justification": why,
+                    "model_note": (q.get("model_review") or {}).get("note") or ""})
+    return out
 
 
 REVIEW_PROMPT = """You check vendor quotations against a purchase request. For every quotation, look at each
@@ -398,9 +444,11 @@ def board(org, *, payees: dict | None = None) -> list[dict]:
         qs = quotes(org, r["pr_number"])
         cands = {c["cand_id"]: c for c in r["candidates"]}
         rows = [q | {"candidate": {k: v for k, v in (cands.get(q["cand_id"]) or {}).items() if k != "token"}} for q in qs]
+        a = assess(pr, qs)
         out.append({"pr": pr, "rfq": {k: v for k, v in r.items() if k != "candidates"} | {
             "candidates": [{k: v for k, v in c.items() if k != "token"} | {"form": bool(c.get("token"))} for c in r["candidates"]]},
-            "quotes": sorted(rows, key=lambda q: q["total_minor"]), "assessment": assess(pr, qs)})
+            "quotes": sorted(rows, key=lambda q: q["total_minor"]), "assessment": a, "shortlist": shortlist(pr, qs, a),
+            "draft": org.get("rfq_draft", r["pr_number"])})
     return sorted(out, key=lambda x: x["pr"]["pr_number"], reverse=True)
 
 
@@ -468,17 +516,31 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
     award_rec = {"cand_id": cand_id, "vendor": v["name"], "vendor_id": vendor_id, "po_id": po_id, "total_minor": q["total_minor"], "currency": q["currency"],
                  "by": f"{by} ({role})", "at": _now(), "note": note, "outside_recommendation": outside, "recommended": a["recommended"],
                  "quotes": len(quotes(org, pr_number)), "vendor_followed": followed}
+    # the winner completes what the quotation did not ask (bank account, address, tax id) on its own form
+    token = secrets.token_urlsafe(18)
+    org._put("vendor_details", {"_id": token, "vendor_id": vendor_id, "pr_number": pr_number, "po_id": po_id, "vendor": v["name"],
+                                "email": v["email"], "created_at": _now(), "submitted_at": None}, by)
+    award_rec["details_form"] = f"/vendor-details/{token}"
     org._put("rfq", r | {"status": "AWARDED", "award": award_rec, "updated_at": _now()}, by)
     outbox.queue(org, to=[v["email"]], subject=f"Purchase order {po_id} for {pr_number}", ref=po_id, by=by, kind="po_issued",
                  body=(f"Dear {v.get('contact_person') or v['name']},\n\nYour quotation for {pr_number} ({pr['title']}) is accepted.\n\n"
                        f"Purchase order: {po_id}\nAmount: {q['currency']} {q['total_minor'] / 100:,.2f}\nQuantity: {q['quantity']:g} {pr.get('unit') or ''}\n"
-                       f"Deliver by: {pr.get('needed_by') or '-'}\nCharge code: {pr['charge_code']}\n\nPlease quote {po_id} on your invoice. Before the first "
-                       "payment we call you back on the phone number in your quotation to confirm your bank details.\n\nProcurement team"))
+                       f"Deliver by: {pr.get('needed_by') or '-'}\nCharge code: {pr['charge_code']}\n\n"
+                       f"Please complete your company and bank details on this form (it is yours only), so we can pay you:\n{public_url()}/vendor-details/{token}\n\n"
+                       f"Quote {po_id} on your invoice. Before the first payment your bank account is checked with the bank and we call you "
+                       "back on your registered phone number to confirm it.\n\nProcurement team"))
     for other in quotes(org, pr_number):
         if other["cand_id"] != cand_id:
             outbox.queue(org, to=[other["vendor"]["email"]], subject=f"Request for quotation {pr_number}: result", ref=pr_number, by=by, kind="rfq_regret",
-                         body=f"Dear {other['vendor']['name']},\n\nThank you for your quotation for {pr_number}. It was not selected this time.\n\nProcurement team")
+                         body=(f"Dear {other['vendor'].get('contact_person') or other['vendor']['name']},\n\nThank you for the time and care you put into "
+                               f"your quotation for {pr_number} ({pr['title']}). After comparing every quotation against the specifications and price, "
+                               "we have awarded this request to another supplier.\n\nWe value your offer and will keep you on our list for future "
+                               "requests.\n\nWith thanks,\nProcurement team"))
     return award_rec | {"po": po.model_dump()}
+
+
+def details_form(org, token: str) -> dict | None:
+    return org.get("vendor_details", token) if token else None
 
 
 DEMO_REPLIES = [  # filled forms of the demo directory vendors: one compliant and cheapest, one cheaper but off-spec, one dearer

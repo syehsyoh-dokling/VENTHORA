@@ -56,8 +56,12 @@ def has_key(headers) -> bool:
     return auth.lower().startswith("bearer vth_") or bool((headers.get("x-api-key") or "").strip())
 
 
-def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClient | None = None, api: bool = False) -> Starlette:
+def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClient | None = None, api: bool = False,
+               email_upstream: str | None = None) -> Starlette:
+    """`email_upstream`: inbound email (/webhooks/email) goes to another VENTHORA than the rest (one company's mail
+    moved to a new installation while the Airwallex webhooks still reach the old one)."""
     http = client or httpx.AsyncClient(base_url=upstream, timeout=60.0)
+    mail_http = httpx.AsyncClient(base_url=email_upstream, timeout=60.0) if email_upstream else http
 
     async def forward(request: Request) -> Response:
         path = request.url.path
@@ -70,7 +74,7 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
             return JSONResponse({"detail": "body too large"}, status_code=413)
         headers = {k: request.headers[k] for k in headers_allowed if k in request.headers}
         try:
-            res = await http.post(path, content=body, headers=headers)
+            res = await (mail_http if path == EMAIL_PATH else http).post(path, content=body, headers=headers)
         except httpx.HTTPError:
             # both senders retry anything but 2xx, so an API that is down loses nothing
             return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)

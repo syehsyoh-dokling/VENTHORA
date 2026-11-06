@@ -40,14 +40,17 @@ FREEMAIL = {"gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "yahoo.co
 CURRENCIES = {"USD": "USD", "US$": "USD", "$": "USD", "EUR": "EUR", "€": "EUR", "GBP": "GBP", "£": "GBP"}
 AMOUNT_RE = re.compile(r"(?P<cur>USD|EUR|GBP|US\$|\$|€|£)\s?(?P<amt>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)"
                        r"|(?P<amt2>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s?(?P<cur2>USD|EUR|GBP)\b")
-INVOICE_RE = re.compile(r"\b(?:invoice|inv\.?|bill|statement|claim|timesheet)\s*(?:no\.?|number|#|ref\.?|:)?\s*"
-                        r"(?P<no>[A-Z]{1,6}[-/]?(?:[A-Z]{1,3}\d{2,}|\d{2,}[A-Z]{0,3})(?:[-/][A-Z0-9]{1,8})*)", re.IGNORECASE)
+# "Invoice ERGO-INV-1001", "Invoice number: INV-2026-0042", "Inv # LD-4410": the label may carry "number" and a colon
+# together, and the number may have more than one letter part before its digits (ERGO-INV-1001)
+INVOICE_RE = re.compile(r"\b(?:invoice|inv\.?|bill|statement|claim|timesheet)\s*(?:no\.?|number|#|ref\.?)?\s*[:#]?\s*"
+                        r"(?P<no>[A-Z]{1,6}(?:[-/][A-Z]{1,6}){0,2}[-/]?(?:[A-Z]{1,3}\d{2,}|\d{2,}[A-Z]{0,3})(?:[-/][A-Z0-9]{1,8})*)", re.IGNORECASE)
 # A charge code is OFFICE.PROJECT.ACCOUNT (US-200.OPS.6400): its office part looks like an invoice number but is not one
 CHARGE_CODE_RE = re.compile(r"(?<![A-Za-z0-9])(?P<code>[A-Z]{2,4}-\d{2,4}\.[A-Z0-9]{2,12}\.\d{3,6})(?![A-Za-z0-9])(?!\.[A-Za-z0-9])")
 PO_BEFORE_RE = re.compile(r"(?:purchase order|\bp\.?o\.?)\s*(?:no\.?|number|#)?\s*[:#]?\s*$")
 # LD-4410, LD-F025811, INV/2026/X/017, INV-2026-A17: letters, then digits (a short letter run may sit on either side)
 INVOICE_BARE_RE = re.compile(r"(?<![-/A-Za-z0-9])(?P<no>[A-Z]{2,6}[-/](?:[A-Z]{1,3}\d{2,}|\d{2,}[A-Z]{0,3})(?:[-/][A-Z0-9]{1,8})?)\b")
-DUE_RE = re.compile(r"\b(?:due|payable|pay(?:ment)?\s+(?:by|before|on)|by)\s+(?:on\s+|by\s+)?(?P<date>"
+# "due 8 Nov", "payable by 2026-11-08", and the labelled "Due date: 2026-11-08" / "Payment due: 8 November 2026"
+DUE_RE = re.compile(r"\b(?:(?:payment\s+)?due(?:\s+date)?|payable|pay(?:ment)?\s+(?:by|before|on)|by)\s*[:\-]?\s*(?:on\s+|by\s+)?(?P<date>"
                     r"\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?:\s+\d{4})?"
                     r"|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?"
                     r"|\d{4}-\d{2}-\d{2})", re.IGNORECASE)

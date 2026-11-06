@@ -38,22 +38,31 @@ from .config import data_path
 # provider -> (label, host, port, security, auth, how to get the secret)
 PRESETS: dict[str, dict] = {
     "gmail": {"label": "Gmail / Google Workspace", "host": "imap.gmail.com", "port": 993, "security": "ssl", "auth": "password",
+              "smtp_host": "smtp.gmail.com", "smtp_port": 587, "smtp_security": "starttls",
               "help": "Turn on 2-Step Verification, then Google Account → Security → App passwords; IMAP must be on in Gmail settings."},
     "outlook": {"label": "Microsoft 365 / Outlook.com", "host": "outlook.office365.com", "port": 993, "security": "ssl", "auth": "oauth2",
-                "help": "Microsoft turned off passwords for IMAP: register an app in Entra ID with IMAP.AccessAsUser.All and paste its OAuth 2.0 access token."},
+              "smtp_host": "smtp.office365.com", "smtp_port": 587, "smtp_security": "starttls",
+                "help": "Microsoft turned off passwords for IMAP: register an app in Entra ID with IMAP.AccessAsUser.All and paste its OAuth 2.0 access token. Sending (SMTP) with an app password works only where the admin left SMTP AUTH on for the mailbox."},
     "yahoo": {"label": "Yahoo Mail", "host": "imap.mail.yahoo.com", "port": 993, "security": "ssl", "auth": "password",
+              "smtp_host": "smtp.mail.yahoo.com", "smtp_port": 465, "smtp_security": "ssl",
               "help": "Yahoo Account Security → Generate app password."},
     "icloud": {"label": "iCloud Mail", "host": "imap.mail.me.com", "port": 993, "security": "ssl", "auth": "password",
-               "help": "appleid.apple.com → Sign-In and Security → App-Specific Passwords; the username is the address before @icloud.com."},
+              "smtp_host": "smtp.mail.me.com", "smtp_port": 587, "smtp_security": "starttls",
+               "imap_user": "local", "help": "appleid.apple.com → Sign-In and Security → App-Specific Passwords; VENTHORA signs in to IMAP with the part before @icloud.com and to SMTP with the full address."},
     "zoho": {"label": "Zoho Mail", "host": "imap.zoho.com", "port": 993, "security": "ssl", "auth": "password",
+              "smtp_host": "smtp.zoho.com", "smtp_port": 465, "smtp_security": "ssl",
              "help": "Zoho Mail → Settings → Mail Accounts → IMAP access on; use an application-specific password if 2FA is on."},
     "fastmail": {"label": "Fastmail", "host": "imap.fastmail.com", "port": 993, "security": "ssl", "auth": "password",
+              "smtp_host": "smtp.fastmail.com", "smtp_port": 465, "smtp_security": "ssl",
                  "help": "Settings → Privacy & Security → Integrations → New app password (IMAP)."},
     "yandex": {"label": "Yandex Mail", "host": "imap.yandex.com", "port": 993, "security": "ssl", "auth": "password",
+              "smtp_host": "smtp.yandex.com", "smtp_port": 465, "smtp_security": "ssl",
                "help": "Yandex ID → Security → App passwords → Mail."},
     "aol": {"label": "AOL Mail", "host": "imap.aol.com", "port": 993, "security": "ssl", "auth": "password",
+              "smtp_host": "smtp.aol.com", "smtp_port": 465, "smtp_security": "ssl",
             "help": "AOL Account Security → Generate app password."},
     "other": {"label": "Other IMAP server", "host": "", "port": 993, "security": "ssl", "auth": "password",
+              "smtp_host": "", "smtp_port": 587, "smtp_security": "starttls",
               "help": "The host, port and security your mail provider documents for IMAP."},
 }
 
@@ -124,7 +133,7 @@ class Inbox(BaseModel):
         """The connection with the preset filled in where the person left a field empty."""
         p = PRESETS[self.provider]
         return {"host": self.host.strip() or p["host"], "port": self.port or p["port"], "security": self.security,
-                "username": self.username.strip() or self.address, "auth": self.auth}
+                "username": self.username.strip() or (self.address.split("@")[0] if p.get("imap_user") == "local" else self.address), "auth": self.auth}
 
 
 SCHEMA = """
