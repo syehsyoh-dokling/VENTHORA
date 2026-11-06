@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acme Finance ERP (demo)</title>
+<style>
+/* deliberately not VENTHORA's look: this is the OTHER application, the company's finance system */
+:root{--ink:#1f2933;--muted:#616e7c;--line:#d9e2ec;--bg:#f0f4f8;--bar:#334e68;--accent:#2f855a;--warn:#b7791f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",Arial,sans-serif}
+header{background:var(--bar);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header b{font-size:17px}header .tag{font-size:12px;background:#486581;border-radius:4px;padding:2px 8px}
+header .right{margin-left:auto;font-size:12px;opacity:.85}
+main{max-width:1200px;margin:0 auto;padding:16px}
+.grid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px}
+nav{background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px}
+nav button{display:flex;justify-content:space-between;width:100%;text-align:left;border:0;background:none;padding:7px 10px;border-radius:4px;cursor:pointer;font:inherit;color:var(--ink)}
+nav button.on,nav button:hover{background:#e6f0fa}nav .n{color:var(--muted);font-size:12px}
+nav h4{margin:10px 10px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;min-width:0}
+.panel h2{margin:0 0 4px;font-size:16px}.sub{color:var(--muted);font-size:12.5px;margin-bottom:10px}
+.wrap{overflow:auto;max-height:65vh}
+table{border-collapse:collapse;width:100%;font-size:12.5px}th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;white-space:nowrap}
+th{background:#f7fafc;position:sticky;top:0;color:var(--muted);font-weight:600}
+td.j{white-space:normal;font-family:Consolas,monospace;font-size:11.5px;color:#334e68;max-width:520px}
+.pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:11.5px;background:#e3f9e5;color:var(--accent)}
+.flow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.flow div{flex:1 1 260px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:13px}
+.flow b{display:block;margin-bottom:2px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+</style></head>
+<body>
+<header><b>Acme Finance ERP</b><span class="tag">demo · stand-in for the company's finance system</span><span class="right" id="meta">loading…</span></header>
+<main>
+ <div class="flow">
+  <div><b>⇠ VENTHORA reads from here</b>Vendors, consultants, offices, people, POs, bills, budgets… VENTHORA pulls them with its connector (Platform Setup → App Integration → Sync API), in this system's own field names.</div>
+  <div><b>⇢ VENTHORA writes back here</b>Payments made, journal entries, PO balances, payee and request statuses arrive in the <b>Inbox</b>, each once (idempotency key).</div>
+ </div>
+ <div class="grid"><nav id="nav"></nav><div class="panel" id="panel">loading…</div></div>
+</main>
+<script>
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let D=null,CUR="inbox";
+const LABEL={units:"Offices & branches",people:"People",projects:"Projects",accounts:"Chart of accounts",prices:"Unit prices",vendors:"Vendors & consultants",
+ customers:"Customers",purchase_orders:"Purchase orders",open_bills:"Open bills (AP)",receivables:"Receivables (AR)",budget:"Budget",books:"Books",
+ purchase_requests:"Purchase requests",engagements:"Engagements",travel_authorisations:"Travel authorisations",fund_requests:"Fund requests"};
+const flat=(o,p="")=>Object.entries(o||{}).reduce((a,[k,v])=>v&&typeof v==="object"&&!Array.isArray(v)?{...a,...flat(v,p+k+".")}:{...a,[p+k]:Array.isArray(v)?JSON.stringify(v):v},{});
+async function load(){D=await (await fetch("/demo/finance-app/data")).json();
+ document.getElementById("meta").textContent=`${Object.values(D.counts).reduce((a,b)=>a+b,0)} records · ${D.inbox.length} received from VENTHORA`;nav();show()}
+function nav(){document.getElementById("nav").innerHTML='<h4>Received</h4>'+`<button data-k="inbox" class="${CUR==="inbox"?"on":""}">Inbox from VENTHORA <span class="n">${D.inbox.length}</span></button>`
+ +'<h4>Records</h4>'+Object.keys(D.entities).map(k=>`<button data-k="${k}" class="${CUR===k?"on":""}">${esc(LABEL[k]||k)} <span class="n">${D.counts[k]}</span></button>`).join("");
+ document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{CUR=b.dataset.k;nav();show()})}
+function show(){const el=document.getElementById("panel");
+ if(CUR==="inbox"){el.innerHTML=`<h2>Inbox from VENTHORA</h2><div class="sub">What VENTHORA sent back (Sync API → Send back now), newest first. A resend with the same idempotency key is counted once.</div>`+
+  (D.inbox.length?`<div class="wrap"><table><tr><th>Received</th><th>Item</th><th>Idempotency key</th><th>Body</th></tr>${D.inbox.map(x=>`<tr><td>${esc(String(x.at).replace("T"," ").slice(0,19))}</td><td><span class="pill">${esc(x.item)}</span></td><td class="j">${esc(x.idempotency_key||"-")}</td><td class="j">${esc(JSON.stringify(x.body.data||x.body))}</td></tr>`).join("")}</table></div>`:'<div class="sub">Nothing received yet: in VENTHORA, open Platform Setup → App Integration → Sync API and press <b>Send back now</b>.</div>');return}
+ const rows=D.entities[CUR].map(r=>flat(r)),cols=[...new Set(rows.flatMap(r=>Object.keys(r)))];
+ el.innerHTML=`<h2>${esc(LABEL[CUR]||CUR)}</h2><div class="sub">${rows.length} record(s), in this system's own field names (GET /demo/legacy-erp/${esc(CUR)}).</div>
+  <div class="wrap"><table><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c]??"")}</td>`).join("")}</tr>`).join("")}</table></div>`}
+load();setInterval(()=>fetch("/demo/finance-app/data").then(r=>r.json()).then(d=>{if(d.inbox.length!==D.inbox.length){D=d;document.getElementById("meta").textContent=`${Object.values(D.counts).reduce((a,b)=>a+b,0)} records · ${D.inbox.length} received from VENTHORA`;nav();if(CUR==="inbox")show()}}).catch(()=>{}),5000);
+</script></body></html>

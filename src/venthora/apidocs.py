@@ -173,6 +173,7 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("GET", "/v1/procurement/board"): ("Procurement board", "Every purchase request in procurement: candidate vendors, RFQ invitations, quotations (one row per vendor) and the recommendation."),
     ("GET", "/v1/visa/supplier-match"): ("Visa Supplier Matching", "Whether a supplier accepts Visa cards, with Visa's confidence and merchant category code, and the payment rail VENTHORA would use."),
     ("GET", "/v1/visa/supplier-match/vendors"): ("Visa Supplier Matching for every vendor", "Every registered vendor and consultant checked with Visa (kept 30 days): card or bank transfer."),
+    ("POST", "/v1/beneficiaries/bank-check"): ("Check payee bank details", "Whether the bank would accept each vendor's and consultant's bank details (validation only); the fields to fix are named."),
     ("GET", "/v1/edition"): ("Edition", "Demo mode on (alpha-sandbox) or off (the real version), and whether the server locks it off."),
     ("PUT", "/v1/edition"): ("Switch demo mode", "A Super admin turns the demo menus, buttons and endpoints on or off; recorded in the audit chain."),
     ("GET", "/v1/evidence"): ("Hackathon evidence", "Every organiser item with its status (done, partial, blocked on a sponsor), the screen that proves it and a live probe."),

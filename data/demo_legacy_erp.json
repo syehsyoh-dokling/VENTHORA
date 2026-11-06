@@ -1,5 +1,5 @@
 {
-  "_note": "A stand-in for the company's old ERP, served at /demo/legacy-erp/<entity> for the Sync API demo. Its field names are the old system's (CompanyName, Bank.IBAN, Amount ...), not VENTHORA's, so the connector's mapping is exercised. All data is fictional; the bank details are sandbox test values.",
+  "_note": "A stand-in for the company's finance application (ERP), served at /demo/legacy-erp/<entity> for the Sync API demo: VENTHORA reads its records and writes back what it did (/demo/legacy-erp/inbox/<item>). Its field names are the old system's (CompanyName, Bank.IBAN, Amount ...), not VENTHORA's, so the connector's mapping is exercised. All data is fictional; the bank details are sandbox test values.",
   "units": [
     {
       "Code": "co-sg",
@@ -33,6 +33,28 @@
       "TimeZone": "Europe/Berlin",
       "CostCentre": "DE-400",
       "PayLimit": "25000.00"
+    },
+    {
+      "Code": "co-au",
+      "Name": "Australia Country Office",
+      "Type": "Country office",
+      "Parent": "hq",
+      "Country": "AU",
+      "Currency": "AUD",
+      "TimeZone": "Australia/Sydney",
+      "CostCentre": "AU-600",
+      "PayLimit": "20000.00"
+    },
+    {
+      "Code": "br-de-munich",
+      "Name": "Munich Branch",
+      "Type": "Branch",
+      "Parent": "co-de",
+      "Country": "DE",
+      "Currency": "EUR",
+      "TimeZone": "Europe/Berlin",
+      "CostCentre": "DE-410",
+      "PayLimit": "6000.00"
     }
   ],
   "people": [
@@ -56,6 +78,27 @@
       "Role": "Finance manager",
       "Unit": "co-us",
       "ApprovalLimit": "60000.00"
+    },
+    {
+      "FullName": "Tom Becker",
+      "Email": "tom.becker@acme.example",
+      "Role": "Project accountant",
+      "Unit": "co-de",
+      "ApprovalLimit": "5000.00"
+    },
+    {
+      "FullName": "Aisha Rahman",
+      "Email": "aisha.rahman@acme.example",
+      "Role": "Requester",
+      "Unit": "co-sg",
+      "ApprovalLimit": "0"
+    },
+    {
+      "FullName": "Liam O'Connor",
+      "Email": "liam.oconnor@acme.example",
+      "Role": "Country finance lead",
+      "Unit": "co-au",
+      "ApprovalLimit": "15000.00"
     }
   ],
   "projects": [
@@ -68,6 +111,21 @@
       "Code": "PRJ900",
       "Name": "EU Warehouse Roll-out",
       "Unit": "pf-eu-rollout"
+    },
+    {
+      "Code": "AUOPS27",
+      "Name": "Australia operations 2027",
+      "Unit": "co-au"
+    },
+    {
+      "Code": "DEMUC26",
+      "Name": "Munich branch fit-out",
+      "Unit": "br-de-munich"
+    },
+    {
+      "Code": "SGCRM26",
+      "Name": "Singapore CRM roll-out",
+      "Unit": "co-sg"
     }
   ],
   "accounts": [
@@ -80,6 +138,21 @@
       "GL": "6100",
       "Name": "Freight and logistics",
       "Category": "Logistics"
+    },
+    {
+      "GL": "6150",
+      "Name": "Couriers and postage",
+      "Category": "Logistics"
+    },
+    {
+      "GL": "6250",
+      "Name": "Legal and advisory",
+      "Category": "Contractors"
+    },
+    {
+      "GL": "6350",
+      "Name": "Cloud hosting",
+      "Category": "Software"
     }
   ],
   "prices": [
@@ -104,6 +177,22 @@
       "Category": "Software",
       "Per": "seat / month",
       "Price": "45.00",
+      "Currency": "USD",
+      "Office": ""
+    },
+    {
+      "Item": "Courier envelope",
+      "Category": "Logistics",
+      "Per": "item",
+      "Price": "12.00",
+      "Currency": "SGD",
+      "Office": "co-sg"
+    },
+    {
+      "Item": "Desk chair",
+      "Category": "Office",
+      "Per": "chair",
+      "Price": "180.00",
       "Currency": "USD",
       "Office": ""
     }
@@ -151,7 +240,8 @@
         "Routing": "026009593",
         "BankName": "Bank of America",
         "Country": "US",
-        "Currency": "USD"
+        "Currency": "USD",
+        "AccountType": "Checking"
       },
       "Address": {
         "Street": "88 Mission Street",
@@ -175,7 +265,7 @@
         "Holder": "Harbor Analytics Ltd",
         "Number": "41926819",
         "RoutingType": "sort_code",
-        "Routing": "400515",
+        "Routing": "040004",
         "BankName": "HSBC UK",
         "Country": "GB",
         "Currency": "GBP"
@@ -204,7 +294,8 @@
         "Routing": "026009593",
         "BankName": "Bank of America",
         "Country": "US",
-        "Currency": "USD"
+        "Currency": "USD",
+        "AccountType": "Checking"
       },
       "Address": {
         "Street": "500 Howard Street",
@@ -212,6 +303,84 @@
         "State": "CA",
         "Zip": "94105",
         "Country": "US"
+      }
+    },
+    {
+      "Id": "V-2004",
+      "Code": "southern-cross-freight",
+      "CompanyName": "Southern Cross Freight Pty Ltd",
+      "Currency": "AUD",
+      "PayMethod": "LOCAL",
+      "Emails": "accounts@southerncross-freight.example",
+      "Phone": "+61 2 5550 1188",
+      "Category": "logistics",
+      "Priority": "7",
+      "Bank": {
+        "Holder": "Southern Cross Freight Pty Ltd",
+        "Number": "123456789",
+        "RoutingType": "bsb",
+        "Routing": "062000",
+        "BankName": "Commonwealth Bank",
+        "Country": "AU",
+        "Currency": "AUD"
+      },
+      "Address": {
+        "Street": "200 George Street",
+        "City": "Sydney",
+        "State": "NSW",
+        "Zip": "2000",
+        "Country": "AU"
+      }
+    },
+    {
+      "Id": "V-2005",
+      "Code": "okoro-advisory",
+      "CompanyName": "Okoro Advisory Ltd",
+      "Currency": "GBP",
+      "PayMethod": "LOCAL",
+      "Emails": "invoices@okoro-advisory.example",
+      "Phone": "+44 161 555 0177",
+      "Category": "contractors",
+      "Priority": "4",
+      "Bank": {
+        "Holder": "Okoro Advisory Ltd",
+        "Number": "31926819",
+        "RoutingType": "sort_code",
+        "Routing": "040004",
+        "BankName": "HSBC UK",
+        "Country": "GB",
+        "Currency": "GBP"
+      },
+      "Address": {
+        "Street": "3 Piccadilly Place",
+        "City": "Manchester",
+        "Zip": "M1 3BN",
+        "Country": "GB"
+      }
+    },
+    {
+      "Id": "V-2006",
+      "Code": "brandt-consulting",
+      "CompanyName": "Brandt Consulting GmbH",
+      "Currency": "EUR",
+      "PayMethod": "SWIFT",
+      "Emails": "office@brandt-consulting.example",
+      "Phone": "+49 89 555 0142",
+      "Category": "contractors",
+      "Priority": "5",
+      "Bank": {
+        "Holder": "Brandt Consulting GmbH",
+        "IBAN": "DE02 1203 0000 0000 2020 51",
+        "SWIFT": "BYLADEM1001",
+        "BankName": "DKB",
+        "Country": "DE",
+        "Currency": "EUR"
+      },
+      "Address": {
+        "Street": "Leopoldstrasse 50",
+        "City": "Munich",
+        "Zip": "80802",
+        "Country": "DE"
       }
     }
   ],
@@ -233,6 +402,33 @@
       "Emails": "ar@acme-retail.example; acme.retail.ar@outlook.com",
       "Kept": 14,
       "Missed": 2
+    },
+    {
+      "Id": "C-503",
+      "Code": "kopi-corner",
+      "CompanyName": "Kopi Corner Pte Ltd",
+      "Currency": "SGD",
+      "Emails": "finance@kopi-corner.example",
+      "Kept": 6,
+      "Missed": 0
+    },
+    {
+      "Id": "C-504",
+      "Code": "helvetia-trading",
+      "CompanyName": "Helvetia Trading AG",
+      "Currency": "EUR",
+      "Emails": "ap@helvetia-trading.example",
+      "Kept": 11,
+      "Missed": 3
+    },
+    {
+      "Id": "C-505",
+      "Code": "riverside-clinics",
+      "CompanyName": "Riverside Clinics Inc",
+      "Currency": "USD",
+      "Emails": "payables@riverside-clinics.example",
+      "Kept": 4,
+      "Missed": 1
     }
   ],
   "purchase_orders": [
@@ -302,6 +498,20 @@
       "LoE": 20,
       "LoEUnit": "day",
       "Rate": "650.00"
+    },
+    {
+      "Id": "P-81",
+      "Number": "PO-2026-0205",
+      "Vendor": "southern-cross-freight",
+      "Currency": "AUD",
+      "Total": "8000.00",
+      "CostCode": "AU-600.AUOPS27.6100",
+      "Memo": "Freight forwarding, Sydney warehouse, Q4",
+      "PartialAllowed": true,
+      "Terms": [],
+      "Issued": "2026-11-01",
+      "Start": "2026-11-01",
+      "Expiry": "2027-01-31"
     }
   ],
   "open_bills": [
@@ -334,6 +544,26 @@
       "DueDate": "2026-11-15",
       "PO": "",
       "Memo": "October analytics retainer"
+    },
+    {
+      "Id": "B-9004",
+      "Vendor": "southern-cross-freight",
+      "InvoiceNo": "SCF-118",
+      "Amount": "2500.00",
+      "Currency": "AUD",
+      "DueDate": "2026-11-20",
+      "PO": "PO-2026-0205",
+      "Memo": "November freight"
+    },
+    {
+      "Id": "B-9005",
+      "Vendor": "okoro-advisory",
+      "InvoiceNo": "OA-14",
+      "Amount": "1800.00",
+      "Currency": "GBP",
+      "DueDate": "2026-11-18",
+      "PO": "",
+      "Memo": "Tax advisory, October"
     }
   ],
   "receivables": [
@@ -352,6 +582,30 @@
       "Amount": "4000.00",
       "Currency": "USD",
       "DueDate": "2026-11-05"
+    },
+    {
+      "Id": "R-3003",
+      "Customer": "kopi-corner",
+      "InvoiceNo": "KC-2210",
+      "Amount": "3200.00",
+      "Currency": "SGD",
+      "DueDate": "2026-11-21"
+    },
+    {
+      "Id": "R-3004",
+      "Customer": "helvetia-trading",
+      "InvoiceNo": "HT-880",
+      "Amount": "9000.00",
+      "Currency": "EUR",
+      "DueDate": "2026-11-28"
+    },
+    {
+      "Id": "R-3005",
+      "Customer": "riverside-clinics",
+      "InvoiceNo": "RC-415",
+      "Amount": "5600.00",
+      "Currency": "USD",
+      "DueDate": "2026-12-02"
     }
   ],
   "budget": [
@@ -373,6 +627,20 @@
       "Period": "CURRENT",
       "Line": "office",
       "Amount": "4000.00",
+      "Auto": "10000",
+      "Alert": "9000"
+    },
+    {
+      "Period": "CURRENT",
+      "Line": "contractors",
+      "Amount": "20000.00",
+      "Auto": "8000",
+      "Alert": "8000"
+    },
+    {
+      "Period": "CURRENT",
+      "Line": "saas",
+      "Amount": "6000.00",
       "Auto": "10000",
       "Alert": "9000"
     }
@@ -421,6 +689,51 @@
       "Reason": "quarterly stock",
       "Status": "Submitted",
       "ApprovedBy": ""
+    },
+    {
+      "Id": "R-13",
+      "Number": "PR-2026-0103",
+      "Title": "Courier envelopes, Q1",
+      "RequestedBy": "Aisha Rahman",
+      "Vendor": "",
+      "Currency": "SGD",
+      "Estimate": "480.00",
+      "CostCode": "SG-500.SGCRM26.6150",
+      "NeededBy": "2026-12-10",
+      "Requested": "2026-11-04",
+      "Reason": "client mailings",
+      "Status": "Submitted",
+      "ApprovedBy": ""
+    },
+    {
+      "Id": "R-14",
+      "Number": "PR-2026-0104",
+      "Title": "Freight forwarding, Sydney warehouse",
+      "RequestedBy": "Liam O'Connor",
+      "Vendor": "southern-cross-freight",
+      "Currency": "AUD",
+      "Estimate": "8000.00",
+      "CostCode": "AU-600.AUOPS27.6100",
+      "NeededBy": "2026-11-30",
+      "Requested": "2026-10-30",
+      "Reason": "Q4 shipments",
+      "Status": "Approved",
+      "ApprovedBy": "Omar Reyes (CFO)"
+    },
+    {
+      "Id": "R-15",
+      "Number": "PR-2026-0105",
+      "Title": "Office chairs, Munich branch",
+      "RequestedBy": "Tom Becker",
+      "Vendor": "",
+      "Currency": "EUR",
+      "Estimate": "2200.00",
+      "CostCode": "DE-410.DEMUC26.6700",
+      "NeededBy": "2026-12-15",
+      "Requested": "2026-11-05",
+      "Reason": "new desks",
+      "Status": "Submitted",
+      "ApprovedBy": ""
     }
   ],
   "engagements": [
@@ -436,6 +749,62 @@
       "Fee": "900.00",
       "Currency": "EUR",
       "CostCode": "DE-400.PRJ900.6200",
+      "Payee": ""
+    },
+    {
+      "Id": "E-6",
+      "Number": "ENG-2026-102",
+      "Name": "Adv. Sarah Lim",
+      "Type": "legal specialist",
+      "Organisation": "Lim & Partners",
+      "Email": "sarah.lim@limpartners.example",
+      "Event": "Contract review, Singapore CRM",
+      "Date": "2026-11-27",
+      "Fee": "1500.00",
+      "Currency": "SGD",
+      "CostCode": "SG-500.SGCRM26.6250",
+      "Payee": ""
+    },
+    {
+      "Id": "E-7",
+      "Number": "ENG-2026-103",
+      "Name": "Dr. Kofi Mensah",
+      "Type": "keynote speaker",
+      "Organisation": "Accra Business School",
+      "Email": "k.mensah@abs.example",
+      "Event": "Partner summit keynote",
+      "Date": "2026-12-03",
+      "Fee": "2500.00",
+      "Currency": "USD",
+      "CostCode": "US-200.OPS.6600",
+      "Payee": ""
+    },
+    {
+      "Id": "E-8",
+      "Number": "ENG-2026-104",
+      "Name": "Julia Novak",
+      "Type": "resource person",
+      "Organisation": "Novak Translations",
+      "Email": "julia@novak-translations.example",
+      "Event": "German translation, EU roll-out manuals",
+      "Date": "2026-12-08",
+      "Fee": "700.00",
+      "Currency": "EUR",
+      "CostCode": "DE-400.PRJ900.6200",
+      "Payee": ""
+    },
+    {
+      "Id": "E-9",
+      "Number": "ENG-2026-105",
+      "Name": "Mark Ellis",
+      "Type": "resource person",
+      "Organisation": "Ellis Facilitation",
+      "Email": "mark@ellis-facilitation.example",
+      "Event": "Strategy workshop facilitation",
+      "Date": "2026-12-10",
+      "Fee": "1200.00",
+      "Currency": "GBP",
+      "CostCode": "UK-300.OPS.6200",
       "Payee": ""
     }
   ],
@@ -467,6 +836,51 @@
       "Estimate": "1100.00",
       "Currency": "GBP",
       "CostCode": "UK-300.OPS.6400",
+      "Status": "Approved",
+      "ApprovedBy": "Omar Reyes (CFO)"
+    },
+    {
+      "Id": "T-3",
+      "Number": "TA-2026-0103",
+      "Traveller": "jonas.weber@acme.example",
+      "From": "Germany/Berlin",
+      "To": "Germany/Munich",
+      "Start": "2026-11-23",
+      "End": "2026-11-25",
+      "Purpose": "Munich branch fit-out inspection",
+      "Estimate": "650.00",
+      "Currency": "EUR",
+      "CostCode": "DE-400.PRJ900.6400",
+      "Status": "Approved",
+      "ApprovedBy": "Lena Vogel (country admin)"
+    },
+    {
+      "Id": "T-4",
+      "Number": "TA-2026-0104",
+      "Traveller": "omar.reyes@acme.example",
+      "From": "United States/New York",
+      "To": "Singapore/Singapore",
+      "Start": "2026-12-01",
+      "End": "2026-12-05",
+      "Purpose": "Singapore CRM steering committee",
+      "Estimate": "4200.00",
+      "Currency": "USD",
+      "CostCode": "US-200.OPS.6400",
+      "Status": "Approved",
+      "ApprovedBy": "Dana Finch (finance manager)"
+    },
+    {
+      "Id": "T-5",
+      "Number": "TA-2026-0105",
+      "Traveller": "lee.park@acme.example",
+      "From": "United States/San Francisco",
+      "To": "United States/New York",
+      "Start": "2026-11-30",
+      "End": "2026-12-02",
+      "Purpose": "Quarterly treasury review",
+      "Estimate": "1300.00",
+      "Currency": "USD",
+      "CostCode": "US-200.OPS.6400",
       "Status": "Approved",
       "ApprovedBy": "Omar Reyes (CFO)"
     }
@@ -516,6 +930,38 @@
       "Activity": "Partner workshop, Q4",
       "Requested": "2026-11-03",
       "NeededBy": "2026-11-20",
+      "SettleBy": "",
+      "Status": "Submitted",
+      "ApprovedBy": ""
+    },
+    {
+      "Id": "F-4",
+      "Number": "CA-2026-0102",
+      "Kind": "cash_advance",
+      "RequestedBy": "lee.park@acme.example",
+      "Amount": "600.00",
+      "Currency": "USD",
+      "CostCode": "US-200.OPS.1400",
+      "Purpose": "Travel advance, New York review",
+      "Activity": "",
+      "Requested": "2026-11-05",
+      "NeededBy": "2026-11-28",
+      "SettleBy": "2026-12-12",
+      "Status": "Submitted",
+      "ApprovedBy": ""
+    },
+    {
+      "Id": "F-5",
+      "Number": "ODC-2026-0102",
+      "Kind": "odc",
+      "RequestedBy": "dana.finch@acme.example",
+      "Amount": "900.00",
+      "Currency": "USD",
+      "CostCode": "US-200.OPS.6900",
+      "Purpose": "Printing and materials, partner summit",
+      "Activity": "Partner summit, Q4",
+      "Requested": "2026-11-05",
+      "NeededBy": "2026-12-01",
       "SettleBy": "",
       "Status": "Submitted",
       "ApprovedBy": ""

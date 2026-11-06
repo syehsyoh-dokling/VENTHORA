@@ -1017,6 +1017,24 @@ class Intake:
             data["evidence"].append({"ref": ref, "subject_id": rid, "source": ar["_source"], "status": "verified",
                                      "summary": f"open customer invoice {ar['invoice_no']} in the company's system, due {ar['due_date']}"})
         data["obligations"] = data["obligations"][:12]
+        # a payee in a currency the plan has no rate for (a synced AUD or INR bill): use the dashboard's rate snapshot
+        # (00:01 / 11:59 UTC, same direction: base per unit); with none, the bill waits outside the plan instead of
+        # failing the whole state
+        base, fx = data.get("base_currency", "USD"), data.setdefault("fx_to_base", {})
+        snap = (self.org.get("rate_snapshot", "dashboard") or {}) if self.org is not None else {}
+        srates = snap.get("rates") or {} if snap.get("base") == base else {}
+        held = set()
+        for o in data["obligations"]:
+            c = o["currency"]
+            if c == base or c in fx:
+                continue
+            if srates.get(c):
+                fx[c] = str(srates[c])
+            else:
+                held.add(o["obligation_id"])
+        if held:
+            data["obligations"] = [o for o in data["obligations"] if o["obligation_id"] not in held]
+            data["evidence"] = [e for e in data["evidence"] if e.get("subject_id") not in held]
         from .. import priority_sop
 
         # the FCO's Standard Payment Priority Policy gives each obligation its priority (once saved)

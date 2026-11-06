@@ -31,6 +31,7 @@ class AirwallexError(RuntimeError):
         super().__init__(message)
         self.status = status
         self.code = code
+        self.fields: list[str] = []  # the fields a schema refusal names (details.errors[].source)
 
 
 def to_major(amount_minor: int) -> str:
@@ -246,8 +247,13 @@ class Airwallex:
                         err = res.json()
                     except ValueError:
                         err = {}
-                    raise AirwallexError(err.get("message", f"HTTP {res.status_code}"),
-                                         status=res.status_code, code=err.get("code"))
+                    msg = err.get("message", f"HTTP {res.status_code}")
+                    fields = [f"{e.get('source')} ({e.get('code')})" for e in ((err.get("details") or {}).get("errors") or []) if e.get("source")]
+                    if fields:  # a schema refusal names the fields; the message alone only says "refer to the errors object"
+                        msg = f"{msg} Fields: {', '.join(fields[:12])}"
+                    exc = AirwallexError(msg, status=res.status_code, code=err.get("code"))
+                    exc.fields = [e.get("source") for e in ((err.get("details") or {}).get("errors") or []) if e.get("source")]
+                    raise exc
                 else:
                     return res.json()
             await asyncio.sleep(self._backoff_s * (2 ** attempt))

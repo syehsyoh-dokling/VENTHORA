@@ -30,7 +30,7 @@ PULL: dict[str, tuple[str, str, str, tuple[str, ...]]] = {
               ("item", "category", "unit", "price_minor", "currency", "unit_id")),
     "vendor": ("Vendors and their bank details", "who can be paid, to which account; a change of bank details is held for a call-back", "vendors",
                ("vendor_id", "name", "currency", "payout_method", "contacts", "registered_phone", "budget_line", "default_priority",
-                "bank.account_name", "bank.account_number", "bank.iban", "bank.swift_code", "bank.routing_type", "bank.routing_value",
+                "bank.account_name", "bank.account_number", "bank.iban", "bank.swift_code", "bank.routing_type", "bank.routing_value", "bank.bank_account_category",
                 "bank.bank_name", "bank.bank_country_code", "bank.account_currency", "address.street_address", "address.city",
                 "address.state", "address.postcode", "address.country_code")),
     "customer": ("Customers", "matching money that arrives to who sent it", "customers",

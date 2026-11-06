@@ -38,11 +38,12 @@ def test_sync_fills_every_table_and_bank_details_start_untrusted(client):
     assert [c["connector_id"] for c in client.get("/v1/sources/connectors").json()] == ["legacy-erp-demo"]
     assert client.get("/v1/sources/connectors").json()[0]["auth"]["secret_set"] is True
     dry = client.post("/v1/sources/connectors/legacy-erp-demo/sync?dry_run=true").json()["reports"]
-    assert len(dry["vendor"]["created"]) == 4 and client.get("/v1/sources/master/vendor").json() == []
+    assert len(dry["vendor"]["created"]) == 7 and client.get("/v1/sources/master/vendor").json() == []
     rep = client.post("/v1/sources/connectors/legacy-erp-demo/sync").json()["reports"]
-    assert {e: len(r["created"]) for e, r in rep.items()} == {"unit": 2, "user": 2, "project": 1, "account": 1, "price": 2,
-                                                             "vendor": 4, "customer": 2, "po": 4, "bill": 3, "receivable": 2,
-                                                             "budget_line": 3, "tenant_book": 1, "pr": 2, "engagement": 1, "ta": 2, "fund_request": 3}
+    # the stand-in finance app holds 5+ records per kind (with the matched ones below), as another app would
+    assert {e: len(r["created"]) for e, r in rep.items()} == {"unit": 4, "user": 5, "project": 4, "account": 4, "price": 4,
+                                                             "vendor": 7, "customer": 5, "po": 5, "bill": 5, "receivable": 5,
+                                                             "budget_line": 5, "tenant_book": 1, "pr": 5, "engagement": 5, "ta": 5, "fund_request": 5}
     # records the organisation already had are matched by their key (cost centre, email, code, item), not copied
     assert {e: rep[e]["updated"] for e in ("unit", "user")} == {"unit": ["co-de"], "user": ["u-dana"]} and rep["price"]["unchanged"] == ["p-saas"]
     units = {u["unit_id"]: u for u in client.get("/v1/org/units").json()}
@@ -80,7 +81,7 @@ def test_the_rest_of_venthora_reads_the_synced_data(client):
     assert reg.payers["acme-retail"]["history"] == {"kept": 14, "missed": 2}
     bens = Executor.beneficiaries.fget(type("E", (), {"_beneficiaries": None})())
     assert bens["nordlicht-logistik"]["payload"]["beneficiary"]["bank_details"]["iban"] == "DE89370400440532013000"
-    assert {ln.line for ln in load_budget(dt.datetime.now(dt.UTC).strftime("%Y-%m")).lines} == {"logistics", "suppliers", "office"}
+    assert {ln.line for ln in load_budget(dt.datetime.now(dt.UTC).strftime("%Y-%m")).lines} == {"logistics", "suppliers", "office", "saas", "contractors"}
     assert "eu-warehouse-*" in load_registry()["tenants"]["acme-group"]["books"]
     state = client.get("/v1/intake/state/intake_only?as_of=2026-11-01").json()
     ar = {r["receivable_id"]: r for r in state["receivables"]}

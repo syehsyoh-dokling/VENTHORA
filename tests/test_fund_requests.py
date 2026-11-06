@@ -62,11 +62,11 @@ def test_an_odc_needs_its_payee_and_is_not_settled(client):
 def test_each_tab_imports_only_its_own_kind(client):
     body = {"via": "api", "connector_id": "legacy-erp-demo"}
     d = client.post(f"/v1/intake/import?{FM}", json=body | {"kind": "petty_cash"}).json()
-    assert d["matched"] == 1 and d["created"] == ["PC-2026-0101"] and d["left_out"] == {"other kind": 2}
+    assert d["matched"] == 1 and d["created"] == ["PC-2026-0101"] and d["left_out"] == {"other kind": 4}
     d = client.post(f"/v1/intake/import?{FM}", json=body | {"kind": "cash_advance", "number": "CA-2026-0101", "dry_run": False}).json()
     assert d["created"] == ["CA-2026-0101"]
     ca = client.app.state.org.get("fund_request", "CA-2026-0101")
     assert ca["requested_by"] == "u-jonas" and ca["status"] == "APPROVED"  # the source system's decision
     rows = client.get("/v1/fund-requests?kind=cash_advance").json()
     assert rows[0]["request_number"] == "CA-2026-0101" and rows[0]["synced_from"]["connector_id"] == "legacy-erp-demo"
-    assert client.post(f"/v1/intake/import?{FM}", json=body | {"kind": "odc", "date_from": "2026-11-01", "date_to": "2026-11-30"}).json()["matched"] == 1
+    assert client.post(f"/v1/intake/import?{FM}", json=body | {"kind": "odc", "date_from": "2026-11-01", "date_to": "2026-11-30"}).json()["matched"] == 2

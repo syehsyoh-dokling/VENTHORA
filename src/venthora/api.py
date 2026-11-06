@@ -9,10 +9,12 @@ import json
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode
 
 from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request
+from fastapi import Path as PathParam
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
 from . import __version__
@@ -145,6 +147,10 @@ def _bank():
     if not bank.configured:
         raise HTTPException(503, "Airwallex sandbox credentials are not configured")
     return bank
+
+
+# a month in a URL path (2026-11); anything else is refused with 422 instead of failing inside the handler
+PeriodPath = Annotated[str, PathParam(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 
 
 app = FastAPI(title="VENTHORA", version=__version__, lifespan=lifespan,
@@ -400,7 +406,7 @@ class PeriodCloseRequest(BaseModel):
 
 
 @app.post("/v1/budgets/{period}/close")
-async def close_period(period: str, req: PeriodCloseRequest):
+async def close_period(period: PeriodPath, req: PeriodCloseRequest):
     """Period cut-off: issue the period's statement (plan, realized to the cut-off, open commitments, carry-forward,
     late-posted) and close it; later spend against it needs a person. Role-checked and audited."""
     if req.role != "finance_manager":
@@ -419,7 +425,7 @@ async def close_period(period: str, req: PeriodCloseRequest):
 
 
 @app.get("/v1/budgets/{period}/cutoff")
-async def period_cutoff(period: str):
+async def period_cutoff(period: PeriodPath):
     closed = app.state.executor.store.closed_period(period)
     if closed is None:
         raise HTTPException(404, "period not closed")
@@ -769,7 +775,7 @@ async def doa_registers():
 
 
 @app.get("/v1/doa/registers/{period}")
-async def doa_register_get(period: str):
+async def doa_register_get(period: PeriodPath):
     from . import doa
 
     rec = doa.register(app.state.org, period)
@@ -779,7 +785,7 @@ async def doa_register_get(period: str):
 
 
 @app.post("/v1/doa/registers/{period}/approve")
-async def doa_register_approve(period: str, step: str = Query(pattern="^(hr|fco)$"), role: str = "super_admin", by: str = "dashboard"):
+async def doa_register_approve(period: PeriodPath, step: str = Query(pattern="^(hr|fco)$"), role: str = "super_admin", by: str = "dashboard"):
     from . import doa
 
     try:
@@ -1197,6 +1203,11 @@ async def tenants():
 @app.post("/v1/tenants/eval")
 async def tenants_eval(inp: Annotated[dict, Body()]):
     """Pure resolution of a book id against a registry (ground truth / the form)."""
+    missing = [k for k in ("registry", "book_id") if k not in inp]
+    if missing:
+        raise HTTPException(422, f"missing field(s): {', '.join(missing)}")
+    if not isinstance(inp["registry"], dict) or not isinstance(inp["book_id"], str):
+        raise HTTPException(422, "registry must be an object and book_id a string")
     return tenancy_evaluate(inp)
 
 
@@ -1325,7 +1336,7 @@ async def reporting_eval(inp: Annotated[dict, Body()]):
 
 
 @app.get("/v1/reporting/periods/{period}")
-async def reporting_period_report(period: str):
+async def reporting_period_report(period: PeriodPath):
     """Layer 1 (monthly spend by payment instant), layer 2 (invoice statements as of the period's end), layer 3
     (consolidation in the reporting currency at the period's closing rates)."""
     cfg = load_reporting_config()
@@ -1336,7 +1347,7 @@ async def reporting_period_report(period: str):
 
 
 @app.post("/v1/reporting/periods/{period}/rates")
-async def snapshot_closing_rates(period: str, rates: Annotated[dict[str, str] | None, Body()] = None, role: str = "admin"):
+async def snapshot_closing_rates(period: PeriodPath, rates: Annotated[dict[str, str] | None, Body()] = None, role: str = "admin"):
     """Record the period's closing rates: from Airwallex's indicative rates now, or the admin's own figures."""
     if role != "admin":
         raise HTTPException(403, "only an admin may set closing rates")
@@ -1374,7 +1385,7 @@ class GrantRequest(BaseModel):
 
 
 @app.post("/v1/budgets/{period}/{line}/grant")
-async def grant_budget(period: str, line: str, req: GrantRequest):
+async def grant_budget(period: PeriodPath, line: str, req: GrantRequest):
     """A person answers a budget request by raising a line's mandate. Role-checked, audited; the agent never grants."""
     budget = load_budget(period)
     if budget is None or budget.line(line) is None:
@@ -2863,19 +2874,50 @@ async def demo_legacy_erp_inbox(item: str, request: Request):
 
     if request.headers.get("x-legacy-key") != DEMO_KEY:
         raise HTTPException(401, "bad API key")
-    inbox = getattr(app.state, "demo_inbox", None)
-    if inbox is None:
-        inbox = app.state.demo_inbox = []
     body = await request.json()
-    inbox.append({"item": item, "at": datetime.now(UTC).isoformat(timespec="seconds"), "idempotency_key": request.headers.get("idempotency-key"),
-                  "body": body})
-    del inbox[:-500]
+    key = request.headers.get("idempotency-key")
+    inbox = _erp_inbox()
+    if key and any(x.get("idempotency_key") == key for x in inbox):  # the finance app counts a resend once, as a real one would
+        return {"received": body.get("id"), "duplicate": True}
+    inbox.append({"item": item, "at": datetime.now(UTC).isoformat(timespec="seconds"), "idempotency_key": key, "body": body})
+    _erp_inbox_save(inbox[-500:])
     return {"received": body.get("id")}
+
+
+def _erp_inbox_path() -> Path:
+    """The stand-in finance app keeps what it received beside the org store (data/demo/ for the demo server, a temp
+    folder in tests), so it survives a restart and the demo can show it."""
+    return Path(app.state.org.path).with_name("legacy_erp_inbox.json")
+
+
+def _erp_inbox() -> list[dict]:
+    try:
+        return json.loads(_erp_inbox_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+
+
+def _erp_inbox_save(items: list[dict]) -> None:
+    _erp_inbox_path().write_text(json.dumps(items, separators=(",", ":")), encoding="utf-8")
 
 
 @app.get("/demo/legacy-erp-inbox", include_in_schema=False)
 async def demo_legacy_erp_inbox_list(limit: int = Query(50, ge=1, le=500)):
-    return list(reversed(getattr(app.state, "demo_inbox", [])[-limit:]))
+    return list(reversed(_erp_inbox()[-limit:]))
+
+
+@app.get("/demo/finance-app", include_in_schema=False)
+async def demo_finance_app_page():
+    """The stand-in finance application's own screen: the records VENTHORA reads, and what VENTHORA sent back."""
+    return FileResponse(DASHBOARD.parent / "finance_app.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/demo/finance-app/data", include_in_schema=False)
+async def demo_finance_app_data():
+    data = json.loads((ROOT / "data" / "demo_legacy_erp.json").read_text(encoding="utf-8"))
+    ents = {k: v for k, v in data.items() if not k.startswith("_")}
+    return {"name": "Acme Finance ERP (demo)", "note": data.get("_note", ""), "entities": ents,
+            "counts": {k: len(v) for k, v in ents.items()}, "inbox": list(reversed(_erp_inbox()[-200:]))}
 
 
 # ---- Users & Beneficiaries: vendors, consultants and customers, every field a payment or a receipt reads ----------
@@ -2987,7 +3029,51 @@ async def beneficiaries_save(body: BeneficiaryIn, kind: str = Query("vendor", pa
     if report["rejected"]:
         raise HTTPException(422, report["rejected"][0]["error"])
     await asyncio.to_thread(app.state.audit.append, f"beneficiary_{kind}", {"by": who, "report": {k: v for k, v in report.items() if k != "changes"}})
+    if entity == "vendor":  # will Airwallex accept the bank details? asked now, not first at payment time
+        report["airwallex_check"] = await _airwallex_check([*report["created"], *report["updated"]])
     return report
+
+
+class AirwallexCheckIn(BaseModel):
+    ids: list[str] | None = Field(None, description="the vendors to check; every vendor when empty")
+
+
+@app.post("/v1/beneficiaries/bank-check")
+async def beneficiaries_airwallex_check(body: AirwallexCheckIn | None = None):
+    """Ask Airwallex whether it would accept each vendor's and consultant's bank details (validation only, nothing is
+    created): every vendor in the master data, or the ids given. The answer names the fields to fix."""
+    from .masterdata import MasterStore
+
+    all_ids = [v["vendor_id"] for v in MasterStore().list("vendor") if v.get("kind") != "employee"]
+    ids = (body.ids if body else None) or []
+    want = [i for i in all_ids if not ids or i in ids]
+    res = await _airwallex_check(want)
+    return {"checked": len(res), "accepted": sum(1 for r in res.values() if r.get("ok")), "results": res}
+
+
+async def _airwallex_check(vendor_ids: list[str]) -> dict:
+    """POST /beneficiaries/validate for each saved vendor (validation only; nothing is created on Airwallex). The
+    save is never refused for it: the payee stays NEW until its call-back anyway, and the fields to fix are named."""
+    from .masterdata import MasterStore, beneficiary_payload
+
+    out = {}
+    try:
+        bank = _bank()
+    except HTTPException:
+        return {v: {"ok": None, "detail": "no Airwallex account connected: checked at payment time"} for v in vendor_ids}
+    store = MasterStore()
+    for vid in vendor_ids:
+        rec = store.get("vendor", vid)
+        p = beneficiary_payload(rec) if rec else None
+        if p is None:
+            out[vid] = {"ok": False, "detail": "no bank details: the payee cannot be paid until they are added"}
+            continue
+        try:
+            await bank.validate_beneficiary(p["payload"])
+            out[vid] = {"ok": True, "detail": "Airwallex accepts these bank details"}
+        except AirwallexError as exc:
+            out[vid] = {"ok": False, "detail": str(exc)[:400], "fields": exc.fields}
+    return out
 
 
 @app.get("/v1/sources/master/{entity}")
@@ -3323,7 +3409,7 @@ async def budget_lines_get(period: str | None = Query(None, pattern=r"^\d{4}-(0[
 
 
 @app.put("/v1/budget-lines/{period}")
-async def budget_lines_put(period: str, body: BudgetLinesIn, role: str = "finance_manager", by: str = "dashboard"):
+async def budget_lines_put(period: PeriodPath, body: BudgetLinesIn, role: str = "finance_manager", by: str = "dashboard"):
     """Replace the budget lines of a month. A bypass (unlimited line) needs the person who signed it. Lines synced
     through Auto Connect (API) are changed in the source system instead."""
     import re

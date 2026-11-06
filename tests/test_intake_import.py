@@ -36,7 +36,7 @@ def test_one_po_number_is_previewed_then_imported(client):
     r = imp(client, kind="po", number="po-2026-0202")
     assert r.status_code == 200, r.text
     d = r.json()
-    assert d["dry_run"] and d["matched"] == 1 and d["created"] == ["PO-2026-0202"] and d["left_out"] == {"other kind": 1, "another number": 2}
+    assert d["dry_run"] and d["matched"] == 1 and d["created"] == ["PO-2026-0202"] and d["left_out"] == {"other kind": 1, "another number": 3}
     assert client.app.state.org.get("po", "PO-2026-0202") is None  # a preview writes nothing
     d = imp(client, kind="po", number="PO-2026-0202", dry_run=False).json()
     assert d["created"] == ["PO-2026-0202"] and client.app.state.org.get("po", "PO-2026-0202")["total_minor"] == 300_000
@@ -45,7 +45,7 @@ def test_one_po_number_is_previewed_then_imported(client):
 
 def test_a_date_range_and_the_consultant_contracts_apart(client):
     d = imp(client, kind="po", date_from="2026-10-01", date_to="2026-10-31").json()
-    assert d["matched"] == 3 and d["left_out"] == {"other kind": 1}  # the contract with an LoE is not a purchase order
+    assert d["matched"] == 3 and d["left_out"] == {"other kind": 1, "outside the dates": 1}  # the contract with an LoE is not a purchase order
     c = imp(client, kind="contract", dry_run=False).json()
     assert c["created"] == ["PO-2026-0204"]
     po = client.app.state.org.get("po", "PO-2026-0204")
@@ -57,13 +57,15 @@ def test_a_date_range_and_the_consultant_contracts_apart(client):
 def test_purchase_requests_engagements_and_travel_authorisations(client):
     d = imp(client, kind="pr", dry_run=False).json()
     assert sorted(d["created"]) == ["PR-2026-0101", "PR-2026-0102"]
+    # the offices of the other three are not in VENTHORA until the organisation is synced: refused, with the reason
+    assert [r["error"] for r in d["rejected"]] == [f"no active unit has cost centre {cc}" for cc in ("SG-500", "AU-600", "DE-410")]
     org = client.app.state.org
     assert org.get("pr", "PR-2026-0101")["status"] == "APPROVED"  # the source system's decision, synced
     assert org.get("pr", "PR-2026-0102")["status"] == "SUBMITTED"
-    assert imp(client, kind="engagement", dry_run=False).json()["created"] == ["ENG-2026-101"]
+    assert imp(client, kind="engagement", dry_run=False).json()["created"][0] == "ENG-2026-101"
     assert org.get("engagement", "ENG-2026-101")["role"] == "resource_person"
     t = imp(client, kind="ta", date_from="2026-11-01", date_to="2026-11-30", dry_run=False).json()
-    assert t["created"] == ["TA-2026-0101"] and t["left_out"] == {"outside the dates": 1}
+    assert t["created"] == ["TA-2026-0101", "TA-2026-0103", "TA-2026-0105"] and t["left_out"] == {"outside the dates": 2}
     assert org.get("ta", "TA-2026-0101")["traveller"] == "u-dana"
 
 
@@ -93,7 +95,7 @@ def test_a_connection_is_tested_before_it_is_used(client, monkeypatch):
     raw = connectors.ConnectorStore().get_raw("legacy-erp-demo")
     monkeypatch.setattr(connectors.ConnectorStore, "get_raw", lambda self, cid: raw | {"base_url": "http://testserver/demo/legacy-erp"} if cid == "legacy-erp-demo" else None)
     r = client.post(f"/v1/sources/test-connection?{FM}", json={"connector_id": "legacy-erp-demo", "kind": "pr"}).json()
-    assert r["ok"] and r["items"] == 2 and "2 purchase requests available" in r["message"]
+    assert r["ok"] and r["items"] == 5 and "5 purchase requests available" in r["message"]
     bad = client.post(f"/v1/sources/test-connection?{FM}", json={"connection": "http://testserver/demo/legacy-erp/purchase_requests X-Legacy-Key: wrong"}).json()
     assert not bad["ok"] and "refused" in bad["message"]
     assert client.post(f"/v1/sources/test-connection?{FM}", json={"connection": "not a url"}).status_code == 422

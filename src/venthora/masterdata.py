@@ -349,6 +349,16 @@ def registry_entries(store: MasterStore) -> tuple[dict, dict]:
     return payees, payers
 
 
+ROUTING_ALIASES = {("IN", "ifsc"): "bank_code", ("IN", "ifsc code"): "bank_code", ("*", "sort code"): "sort_code", ("*", "sortcode"): "sort_code",
+                   ("*", "routing number"): "aba", ("*", "aba routing"): "aba", ("*", "bsb number"): "bsb"}
+
+
+AU_STATES = {k: f"AU-{c}" for c, names in {"ACT": ("act", "australian capital territory"), "NSW": ("nsw", "new south wales"), "NT": ("nt", "northern territory"),
+                                             "QLD": ("qld", "queensland"), "SA": ("sa", "south australia"), "TAS": ("tas", "tasmania"),
+                                             "VIC": ("vic", "victoria"), "WA": ("wa", "western australia")}.items()
+             for k in (c, *names, f"AU-{c}")}
+
+
 def beneficiary_payload(v: dict) -> dict | None:
     """Airwallex's beneficiary payload for a vendor (the shape data/beneficiaries.json holds)."""
     b = v.get("bank")
@@ -359,10 +369,17 @@ def beneficiary_payload(v: dict) -> dict | None:
         if b.get(k_in):
             bank[k_out] = b[k_in]
     if b.get("routing_type") and b.get("routing_value"):
-        bank["account_routing_type1"], bank["account_routing_value1"] = b["routing_type"], b["routing_value"]
+        rt = str(b["routing_type"]).strip().lower()
+        # the names a finance system uses for a routing code, in Airwallex's own terms (its form schema, 6 Nov 2026):
+        # India's IFSC goes as bank_code; "sort code" and "routing number" spelled out are the same codes
+        rt = ROUTING_ALIASES.get((b["bank_country_code"], rt), ROUTING_ALIASES.get(("*", rt), rt))
+        bank["account_routing_type1"], bank["account_routing_value1"] = rt, b["routing_value"]
     if b.get("bank_account_category"):
         bank["bank_account_category"] = b["bank_account_category"]
     addr = {k: x for k, x in (v.get("address") or {}).items() if x}
+    if addr.get("country_code") == "AU" and addr.get("state"):  # Airwallex wants ISO 3166-2 (AU-NSW), a finance system sends NSW
+        st = str(addr["state"]).strip()
+        addr["state"] = AU_STATES.get(st.upper(), AU_STATES.get(st.lower(), st))
     who = {"company_name": v["name"]} if v["entity_type"] == "COMPANY" else {"first_name": v["name"].split()[0], "last_name": " ".join(v["name"].split()[1:]) or v["name"]}
     return {"transfer_reason": v.get("transfer_reason") or "business_expenses",
             "payload": {"nickname": v["name"][:50], "transfer_methods": [v["payout_method"]], "payment_methods": [v["payout_method"]],

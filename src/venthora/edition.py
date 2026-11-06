@@ -16,7 +16,8 @@ from .config import env
 
 SWITCH_ROLES = ("super_admin",)
 # the endpoints that exist only for the demo; they answer 404 when demo mode is off
-DEMO_PATHS = ("/v1/evidence", "/v1/procurement/demo-requests", "/api/sandbox/deposits", "/live")
+DEMO_PATHS = ("/v1/evidence", "/v1/procurement/demo-requests", "/api/sandbox/deposits", "/live",
+              "/demo/finance-app", "/demo/finance-app/data")  # the stand-in finance application's own screen
 DEMO_SUFFIXES = ("/demo-replies", "/simulate")
 DEMO_PREFIXES = ("/v1/procurement/",)  # .../form-link/... is the demo vendor's form
 

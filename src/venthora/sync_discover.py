@@ -138,6 +138,7 @@ SYN: dict[str, tuple[str, ...]] = {
     "bank.swift_code": ("swift", "swiftcode", "bic"),
     "bank.routing_type": ("routingtype",),
     "bank.routing_value": ("routing", "routingnumber", "sortcode", "bsb", "routingvalue"),
+    "bank.bank_account_category": ("accounttype", "accountcategory", "checkingorsavings"),
     "bank.bank_name": ("bankname", "bank", "institution"),
     "bank.bank_country_code": ("country", "bankcountry", "countrycode"),
     "bank.account_currency": ("currency", "accountcurrency"),

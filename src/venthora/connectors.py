@@ -111,6 +111,7 @@ def demo_connector(base_url: str) -> Connector:
             "bank.account_name": "Bank.Holder", "bank.account_number": "Bank.Number", "bank.iban": "Bank.IBAN|nospace|upper",
             "bank.swift_code": "Bank.SWIFT", "bank.routing_type": "Bank.RoutingType", "bank.routing_value": "Bank.Routing",
             "bank.bank_name": "Bank.BankName", "bank.bank_country_code": "Bank.Country|upper", "bank.account_currency": "Bank.Currency|upper",
+            "bank.bank_account_category": "Bank.AccountType",
             "address.street_address": "Address.Street", "address.city": "Address.City", "address.state": "Address.State",
             "address.postcode": "Address.Zip", "address.country_code": "Address.Country|upper"}),
         "unit": EntityMap(path="units", items_path="items", mapping={
