@@ -80,7 +80,7 @@ account details been wrong, it would call a person instead. Three hundred twenty
 emails to injected instructions, all pass, along with a hundred and thirty-six stress scenarios.
 
 **[4:38 – 4:45 · Scroll back to the top]**
-VENTHORA alpha: your rules, proven plans, and payments on Airwallex reconciled to the cent.
+VENTHORA: You set the mandate. Your agent manages the money, planned, proved, paid on Airwallex and reconciled to the cent.
 
 ---
 
