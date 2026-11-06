@@ -18,7 +18,7 @@ SWITCH_ROLES = ("super_admin",)
 # the endpoints that exist only for the demo; they answer 404 when demo mode is off
 DEMO_PATHS = ("/v1/evidence", "/v1/procurement/demo-requests", "/api/sandbox/deposits", "/live",
               "/demo/finance-app", "/demo/finance-app/data")  # the stand-in finance application's own screen
-DEMO_SUFFIXES = ("/demo-replies", "/simulate")
+DEMO_SUFFIXES = ("/demo-replies", "/simulate", "/sandbox-approve")
 DEMO_PREFIXES = ("/v1/procurement/",)  # .../form-link/... is the demo vendor's form
 
 
@@ -27,6 +27,12 @@ def locked() -> bool:
 
 
 def state(org) -> dict:
+    from .access import deployment
+
+    return _state(org) | {"deployment": deployment()}
+
+
+def _state(org) -> dict:
     if locked():
         return {"demo": False, "locked": True, "source": "server: VENTHORA_EDITION=production",
                 "changed_by": None, "changed_at": None}

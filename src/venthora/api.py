@@ -25,7 +25,7 @@ load_env()
 
 from pydantic import BaseModel, Field  # noqa: E402
 
-from . import ai_settings, apiaccess, apidocs, webhooks  # noqa: E402
+from . import ai_settings, apiaccess, apidocs, bankcheck, webhooks  # noqa: E402
 from . import live as live_session  # noqa: E402
 from .aging import evaluate as aging_evaluate  # noqa: E402
 from .ai_settings import active_model  # noqa: E402
@@ -91,6 +91,7 @@ async def lifespan(app: FastAPI):
     app.state.agent = Orchestrator()
     app.state.audit = AuditStore()
     app.state.executor = Executor(app.state.agent, ExecutionStore(), app.state.audit)
+    app.state.executor.bank_gate = lambda pid, payload: bankcheck.passed(app.state.org, pid, payload)
     app.state.org = OrgStore()
     app.state.executor.org = app.state.org  # payments with a charge code are held to their budget allocation
     from . import prompt_system
@@ -208,6 +209,19 @@ async def idempotency(request: Request, call_next):
 
 
 @app.middleware("http")
+async def menu_access(request: Request, call_next):
+    """FCO Authorize, Platform Setup and the Developer Console by role (access.py). Declared before api_keys, so it
+    runs inside it: an API key's role is already the request's role."""
+    from . import access
+
+    role = request.query_params.get("role") or request.headers.get("x-venthora-role") or None
+    refused = access.check(role, request.method, request.url.path)
+    if refused:
+        return JSONResponse({"detail": refused[1]}, status_code=refused[0])
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def api_keys(request: Request, call_next):
     """Requests carrying an API key (Platform Setup → App Integration) are held to its scopes and act with its role.
 
@@ -298,6 +312,22 @@ async def list_scenarios():
 @app.get("/api/scenarios/{scenario_id}")
 async def get_scenario(scenario_id: str):
     return json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
+
+
+def _live_base() -> TreasuryState:
+    """The live book's base (balances, rates, policy) from data/scenarios/demo_live.json. A blank company has no
+    obligation and no budget line there yet: the base is read all the same, its obligations empty; what is due comes
+    from Intake and the requests of the day."""
+    raw = json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"]
+    if raw.get("budget") and not raw["budget"].get("lines"):
+        raw = raw | {"budget": None}
+    if raw.get("obligations"):
+        return TreasuryState.model_validate(raw)
+    hold = {"obligation_id": "BASE-PLACEHOLDER", "amount_minor": 1, "currency": raw.get("base_currency", "USD"), "priority": 1,
+            "due_in_hours": 720, "beneficiary_id": "base-placeholder", "evidence_ref": "base-placeholder"}
+    ev = {"ref": "base-placeholder", "subject_id": "BASE-PLACEHOLDER", "source": "base", "status": "verified", "summary": "placeholder"}
+    st = TreasuryState.model_validate(raw | {"obligations": [hold], "evidence": [*raw.get("evidence", []), ev]})
+    return st.model_copy(update={"obligations": [], "evidence": [e for e in st.evidence if e.ref != "base-placeholder"]})
 
 
 def _with_budget(state: TreasuryState, period: str | None = None) -> TreasuryState:
@@ -817,7 +847,7 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
     payees = app.state.intake.registry.payees
     done = {r["_id"] for r in org.list("doa_run") if r["status"] in ("PAID", "IN_FLIGHT", "IN_REVIEW")}
     out = {"paid": [], "held": [], "skipped": [], "executions": []}
-    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    base = _live_base()
     rows = doa.evaluate(org, _payee_status, payees, today)
     mine = (approver or "").split(" (")[0].strip().lower()
     own = [ln for row in rows for ln in row["lines"] if ln["verdict"] == "approve" and approver and ln.get("ref") in refs and mine
@@ -966,7 +996,7 @@ async def _pay_on_arrival(intake_id: str, by: str = "VENTHORA (on arrival)") -> 
         req = app.state.intake.store.get(intake_id)
         if req is None or req.status != "VERIFIED" or req.payment or req.kind not in PAYABLE_KINDS:
             return {"paid": False, "reason": "not a verified payable request"}
-        base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+        base = _live_base()
         base = base.model_copy(update={"obligations": [], "receivables": []})
         state = app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req])
         if not state.obligations:
@@ -1349,8 +1379,8 @@ async def reporting_period_report(period: PeriodPath):
 @app.post("/v1/reporting/periods/{period}/rates")
 async def snapshot_closing_rates(period: PeriodPath, rates: Annotated[dict[str, str] | None, Body()] = None, role: str = "admin"):
     """Record the period's closing rates: from Airwallex's indicative rates now, or the admin's own figures."""
-    if role != "admin":
-        raise HTTPException(403, "only an admin may set closing rates")
+    if role not in ("admin", "super_admin"):
+        raise HTTPException(403, "only an admin or the FCO (Super admin) may set closing rates")
     cfg = load_reporting_config()
     store = app.state.executor.store
     if rates:
@@ -1957,7 +1987,7 @@ async def email_settings_get():
 async def email_policy_put(body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
     from .email_settings import EmailPolicy, EmailStore
 
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     try:
         pol = EmailPolicy.model_validate(body)
     except ValueError as exc:
@@ -1972,7 +2002,7 @@ async def email_inbox_put(inbox_id: str, body: Annotated[dict, Body()], role: st
     """Connect or change an inbox VENTHORA reads; the password or token is write-only (blank keeps the saved one)."""
     from .email_settings import EmailStore, Inbox
 
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     try:
         ib = Inbox.model_validate(body | {"inbox_id": inbox_id})
     except ValueError as exc:
@@ -1987,7 +2017,7 @@ async def email_inbox_put(inbox_id: str, body: Annotated[dict, Body()], role: st
 async def email_inbox_delete(inbox_id: str, role: str = "finance_manager", by: str = "dashboard"):
     from .email_settings import EmailStore
 
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     if not await asyncio.to_thread(EmailStore().delete_inbox, inbox_id):
         raise HTTPException(404, "no such inbox")
     await asyncio.to_thread(app.state.audit.append, "email_inbox_deleted", {"by": who, "inbox": inbox_id})
@@ -2159,7 +2189,7 @@ async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_ma
         req = app.state.intake.store.get(intake_id)
     if req.status != "VERIFIED":
         raise HTTPException(409, f"it could not be approved: {'; '.join(req.reasons[:2])}")
-    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    base = _live_base()
     state = app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req])
     try:
         state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
@@ -2412,6 +2442,46 @@ async def webhook_status():
                               "model_reader": active_model().configured, "reader": ai_settings.describe(active_model())}}
 
 
+WEBHOOK_EVENTS = ["deposit.pending", "deposit.settled", "deposit.rejected", "deposit.reversed",
+                  "payout.transfer.processing", "payout.transfer.sent", "payout.transfer.paid", "payout.transfer.failed",
+                  "conversion.settled", "conversion.cancelled"]
+
+
+class WebhookRegisterIn(BaseModel):
+    public_url: str = Field(pattern=r"^https://[^\s/]+(/[^\s]*)?$", max_length=300,
+                            description="the https address Airwallex can reach (the tunnel or host in front of VENTHORA)")
+
+
+@app.post("/v1/webhooks/register")
+async def webhook_register(body: WebhookRegisterIn, role: str = "super_admin", by: str = "dashboard"):
+    """Platform Setup → Airwallex webhooks → Create webhooks: subscribe VENTHORA on Airwallex (POST /webhooks/create), or
+    move the existing subscription to a new address. The signing secret Airwallex returns is kept write-only; it is
+    never shown."""
+    import uuid
+
+    from . import secret_values
+    from .webhook_gateway import PATH
+
+    who = _setup_writer(role, by)
+    url = body.public_url.rstrip("/") + PATH
+    try:
+        bank = _bank()
+        ours = [h for h in await bank.list_webhooks() if str(h.get("url", "")).endswith(PATH)]
+        if ours and ours[0].get("url") == url:
+            hook, action = ours[0], "already subscribed"
+        elif ours:
+            hook, action = await bank.update_webhook(ours[0]["id"], url), "moved to the new address"
+        else:
+            hook, action = await bank.create_webhook(request_id=str(uuid.uuid4()), url=url, events=WEBHOOK_EVENTS, version="2025-02-14"), "created"
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+    if hook.get("secret"):
+        await asyncio.to_thread(secret_values.put, webhooks.SECRET_NAME, hook["secret"], who)
+    await asyncio.to_thread(app.state.audit.append, "webhook_registered", {"by": who, "url": url, "action": action})
+    return {"action": action, "url": hook.get("url") or url, "events": hook.get("events") or WEBHOOK_EVENTS,
+            "secret_kept": bool(hook.get("secret")) or bool(webhooks.secret())}
+
+
 @app.get("/v1/webhooks/events")
 async def webhook_events(limit: int = Query(30, ge=1, le=200)):
     return app.state.webhooks.list(limit)
@@ -2451,6 +2521,14 @@ def _org_kind(collection: str):
     return ORG_KINDS[collection]
 
 
+def _setup_writer(role: str, by: str) -> str:
+    """Platform Setup (technical part) and the Developer Console: a Developer (IT) may change them as well as the FCO;
+    access.py narrows each route to its roles."""
+    if role in ("super_admin", "developer"):
+        return f"{by} ({role})"
+    return _writer(role, by)
+
+
 def _writer(role: str, by: str) -> str:
     if role not in WRITE_ROLES:
         raise HTTPException(403, f"role '{role}' may read the organisation but not change it")
@@ -2467,7 +2545,7 @@ async def ai_settings_get():
 
 @app.put("/v1/settings/ai")
 async def ai_settings_put(s: ai_settings.AISettings, role: str = "finance_manager", by: str = "dashboard"):
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     try:
         out = await asyncio.to_thread(ai_settings.AIStore().save, s, who)
     except ValueError as exc:
@@ -2538,7 +2616,7 @@ class AIKeyIn(BaseModel):
 @app.put("/v1/settings/ai/keys/{provider}")
 async def ai_key_save(provider: str, body: AIKeyIn, role: str = "finance_manager", by: str = "dashboard"):
     """Keep a provider's API key (and preferred model) in the vault, without switching the model in use."""
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     if provider not in ai_settings.PROVIDERS:
         raise HTTPException(404, "unknown provider")
     try:
@@ -2551,7 +2629,7 @@ async def ai_key_save(provider: str, body: AIKeyIn, role: str = "finance_manager
 
 @app.delete("/v1/settings/ai/keys/{provider}")
 async def ai_key_delete(provider: str, role: str = "finance_manager", by: str = "dashboard"):
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     try:
         out = await asyncio.to_thread(ai_settings.AIStore().delete_key, provider, who)
     except ValueError as exc:
@@ -2665,7 +2743,7 @@ async def connectors_create(body: ConnectIn, role: str = "finance_manager", by: 
     from .connectors import Auth, Connector, ConnectorStore, EntityMap, PushMap
     from .sync_catalog import PULL, PUSH, default_mapping, parse_connection
 
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     try:
         base_url, auth = parse_connection(body.connection)
     except ValueError as exc:
@@ -2693,7 +2771,7 @@ async def connectors_create(body: ConnectIn, role: str = "finance_manager", by: 
 async def connectors_save(connector_id: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
     from .connectors import Connector, ConnectorStore
 
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     try:
         c = Connector.model_validate(body | {"connector_id": connector_id})
     except ValueError as exc:
@@ -2707,7 +2785,7 @@ async def connectors_save(connector_id: str, body: Annotated[dict, Body()], role
 async def connectors_delete(connector_id: str, role: str = "finance_manager", by: str = "dashboard"):
     from .connectors import ConnectorStore
 
-    _writer(role, by)
+    _setup_writer(role, by)
     if not ConnectorStore().delete(connector_id):
         raise HTTPException(404, "no such connector")
     return {"deleted": connector_id}
@@ -2760,7 +2838,7 @@ async def connectors_discover(connector_id: str, ai: bool = True, role: str = "f
     from . import sync_discover
     from .connectors import ConnectorStore
 
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     raw = ConnectorStore().get_raw(connector_id)
     if raw is None:
         raise HTTPException(404, "no such connector")
@@ -2983,10 +3061,20 @@ async def beneficiaries_list(kind: str = Query("vendor", pattern="^(vendor|consu
                     "transfer_reason": ben.get("transfer_reason", "business_expenses"), "address": b.get("address") or m.get("address") or {},
                     "bank": _masked(bank_from_payload(ben) or m.get("bank")), "status": life.get("status") or (v.get("lifecycle") or {}).get("status"),
                     "verified_by": life.get("verified_by"), "cooling_until": life.get("cooling_until"),
+                    "bank_check": _bank_check_row(k, ben),
                     "source": m.get("_source") or "data/payees.json", "synced_from": _synced_from(m.get("_source")),
                     "purchase_orders": [{"po_id": p["po_id"], "total_minor": p["total_minor"], "currency": p["currency"], "status": p.get("status", "OPEN"),
                                          "description": p.get("description", "")} for p in pos if p.get("supplier_id") == k]})
     return out
+
+
+def _bank_check_row(payee_id: str, ben: dict | None) -> dict:
+    """The payee's bank check as a list shows it: the verdict, whether a payment may go, and what the bank said."""
+    rec = app.state.org.get(bankcheck.KIND, payee_id) or {}
+    ok, why = bankcheck.passed(app.state.org, payee_id, ben)
+    return {"verdict": rec.get("verdict") if rec.get("fingerprint") == bankcheck.fingerprint(ben) else ("STALE" if rec else "NOT_CHECKED"),
+            "payable": ok, "detail": rec.get("detail") if ok else why, "at": rec.get("at"),
+            "resolved_account_name": rec.get("resolved_account_name"), "resolved_bank_name": rec.get("resolved_bank_name")}
 
 
 class BeneficiaryIn(BaseModel):
@@ -3025,13 +3113,36 @@ async def beneficiaries_save(body: BeneficiaryIn, kind: str = Query("vendor", pa
         rec.setdefault("customer_id", rec.pop("id", None))
         if not rec.get("customer_id"):
             rec.pop("customer_id", None)
+    pre = None
+    if entity == "vendor" and rec.get("bank"):
+        # wrong bank details are refused here, before VENTHORA keeps them (bankcheck.py): Airwallex is never asked to pay them
+        pre = await _bank_check_payload(rec)
+        if pre and pre["verdict"] in bankcheck.REFUSED:
+            await asyncio.to_thread(app.state.audit.append, "beneficiary_bank_refused", {"by": who, "name": rec.get("name"), "verdict": pre["verdict"]})
+            raise HTTPException(422, {"message": f"bank details refused ({pre['verdict']}): {pre['detail']}", "bank_check": pre})
     report = await asyncio.to_thread(ingestion.apply, entity, [rec], [None], source=f"dashboard:{who}", **_ingest_ctx())
     if report["rejected"]:
         raise HTTPException(422, report["rejected"][0]["error"])
     await asyncio.to_thread(app.state.audit.append, f"beneficiary_{kind}", {"by": who, "report": {k: v for k, v in report.items() if k != "changes"}})
-    if entity == "vendor":  # will Airwallex accept the bank details? asked now, not first at payment time
-        report["airwallex_check"] = await _airwallex_check([*report["created"], *report["updated"]])
+    if entity == "vendor":  # the check is kept with the payee, for exactly these bank details
+        report["airwallex_check"] = await _airwallex_check([*report["created"], *report["updated"]], reuse=pre, by=who)
     return report
+
+
+async def _bank_check_payload(rec: dict) -> dict | None:
+    """Run the bank check on a vendor record before it is saved; None when the record is not complete enough to build
+    a payment payload (the ingestion then names what is missing)."""
+    from .masterdata import Vendor, beneficiary_payload
+
+    try:  # a new vendor has no id yet: a placeholder lets the model fill its defaults for the check
+        payload = beneficiary_payload(Vendor.model_validate(rec | {"vendor_id": rec.get("vendor_id") or "new-vendor"}).model_dump())
+    except (ValueError, KeyError, TypeError):
+        return None
+    try:
+        bank = _bank()
+    except HTTPException:
+        bank = None
+    return await bankcheck.run(bank, payload)
 
 
 class AirwallexCheckIn(BaseModel):
@@ -3044,35 +3155,29 @@ async def beneficiaries_airwallex_check(body: AirwallexCheckIn | None = None):
     created): every vendor in the master data, or the ids given. The answer names the fields to fix."""
     from .masterdata import MasterStore
 
-    all_ids = [v["vendor_id"] for v in MasterStore().list("vendor") if v.get("kind") != "employee"]
+    all_ids = [v["vendor_id"] for v in MasterStore().list("vendor")]  # vendors, consultants and staff paid by transfer
     ids = (body.ids if body else None) or []
     want = [i for i in all_ids if not ids or i in ids]
     res = await _airwallex_check(want)
     return {"checked": len(res), "accepted": sum(1 for r in res.values() if r.get("ok")), "results": res}
 
 
-async def _airwallex_check(vendor_ids: list[str]) -> dict:
-    """POST /beneficiaries/validate for each saved vendor (validation only; nothing is created on Airwallex). The
-    save is never refused for it: the payee stays NEW until its call-back anyway, and the fields to fix are named."""
+async def _airwallex_check(vendor_ids: list[str], reuse: dict | None = None, by: str = "dashboard") -> dict:
+    """The bank check (bankcheck.py) for each saved vendor, kept with it for exactly its current bank details. Nothing
+    is created on Airwallex. `reuse`: a check just made on the same details (the save), not asked twice."""
     from .masterdata import MasterStore, beneficiary_payload
 
-    out = {}
     try:
         bank = _bank()
     except HTTPException:
-        return {v: {"ok": None, "detail": "no Airwallex account connected: checked at payment time"} for v in vendor_ids}
-    store = MasterStore()
+        bank = None
+    store, out = MasterStore(), {}
     for vid in vendor_ids:
         rec = store.get("vendor", vid)
         p = beneficiary_payload(rec) if rec else None
-        if p is None:
-            out[vid] = {"ok": False, "detail": "no bank details: the payee cannot be paid until they are added"}
-            continue
-        try:
-            await bank.validate_beneficiary(p["payload"])
-            out[vid] = {"ok": True, "detail": "Airwallex accepts these bank details"}
-        except AirwallexError as exc:
-            out[vid] = {"ok": False, "detail": str(exc)[:400], "fields": exc.fields}
+        res = reuse if reuse and p is not None and reuse.get("fingerprint") == bankcheck.fingerprint(p) else await bankcheck.run(bank, p)
+        await asyncio.to_thread(bankcheck.save, app.state.org, vid, res, by)
+        out[vid] = res | {"ok": None if res["verdict"] == "UNCHECKED" else res["passed"]}
     return out
 
 
@@ -3910,7 +4015,7 @@ async def _placement_basis() -> dict:
     from . import cash_placement
 
     org = app.state.org
-    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    base = _live_base()
     recap = await reports_spending_recap()
     commitments = sum(line.get("left_base_minor") or 0 for line in recap["lines"])
     out = {"base_currency": recap["base_currency"], "wallet": [], "error": None}
@@ -4024,7 +4129,7 @@ async def metal_view():
 async def metal_settings(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
     from . import metal
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     try:
         return await asyncio.to_thread(metal.save_settings, app.state.org, body, who)
     except ValueError as exc:
@@ -4036,7 +4141,7 @@ async def metal_key(role: str = "super_admin", by: str = "dashboard"):
     """Create VENTHORA's testnet key (a new one replaces the old; only the address is returned)."""
     from . import metal
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     rec = await asyncio.to_thread(metal.generate, who)
     await asyncio.to_thread(app.state.audit.append, "metal_key_created", {"address": rec["address"], "by": who})
     return rec
@@ -4047,7 +4152,7 @@ async def metal_fund(role: str = "super_admin", by: str = "dashboard"):
     """Top VENTHORA's testnet address up to 100 test USDZ (Metal's gas token) from the faucet."""
     from . import metal
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     try:
         out = await metal.fund()
     except metal.MetalError as exc:
@@ -4061,7 +4166,7 @@ async def metal_endpoint(role: str = "super_admin", by: str = "dashboard"):
     """VENTHORA buys its own Metal RPC endpoint over x402 (1 test USDZ, signed with its key); the URL is kept as a secret."""
     from . import metal
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     try:
         out = await metal.buy_endpoint(who)
     except metal.MetalError as exc:
@@ -4383,7 +4488,7 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     org = app.state.org
     today = datetime.now(UTC).date()
     payees = app.state.intake.registry.payees
-    base = TreasuryState.model_validate(json.loads(_scenario_file("demo_live").read_text(encoding="utf-8"))["state"])
+    base = _live_base()
     base = base.model_copy(update={"obligations": [], "receivables": [], "evidence": []})
     queue = [q for q in await asyncio.to_thread(app.state.intake.store.list, 1000)
              if not q.payment and q.status in ("VERIFIED", "NEEDS_REVIEW", "QUARANTINED")]
@@ -4661,7 +4766,7 @@ async def outbox_list():
 async def outbox_smtp(body: SmtpIn, role: str = "super_admin", by: str = "dashboard"):
     from . import outbox
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     try:
         s = await asyncio.to_thread(outbox.save_smtp, app.state.org, body.model_dump(), who)
     except ValueError as exc:
@@ -5100,7 +5205,7 @@ async def visa_tap_generate(role: str = "finance_manager", by: str = "dashboard"
     """A new Ed25519 signing key for the agent (rotates: the previous key stops signing at once)."""
     from . import visa_tap
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     info = await asyncio.to_thread(visa_tap.generate, who)
     await asyncio.to_thread(app.state.audit.append, "visa_tap_key", {"key_id": info["keys"][0]["key_id"] if info["keys"] else None, "by": who})
     return info
@@ -5111,7 +5216,7 @@ async def visa_tap_sign_test(body: TapSignIn, role: str = "finance_manager", by:
     """Sign a request to a merchant URL as the agent, then check it as the merchant would with the published key."""
     from . import visa_tap
 
-    _writer(role, by)
+    _setup_writer(role, by)
     try:
         headers = visa_tap.sign(body.url, body.tag)
     except ValueError as exc:
@@ -5552,9 +5657,21 @@ def _org_writer(role: str, by: str, kind: str, rec: dict | None) -> str:
     return f"{by} ({role})"
 
 
+ADMIN_TEAM_ROLES = {"super_admin", "developer", "hq_admin", "country_admin", "branch_admin", "project_admin", "admin"}
+
+
+def _admin_team_guard(kind: str, role: str, new: dict | None, old: dict | None) -> None:
+    """FCO Authorize → Admin team: only the FCO adds, changes or removes a person with an admin role (Developer included)."""
+    if kind != "user" or role == "super_admin":
+        return
+    if (new or {}).get("role") in ADMIN_TEAM_ROLES or (old or {}).get("role") in ADMIN_TEAM_ROLES:
+        raise HTTPException(403, "Admin team (FCO Authorize): only the FCO (Super admin) adds or changes an admin or a Developer")
+
+
 @app.post("/v1/org/{collection}")
 async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
     kind, model = _org_kind(collection)
+    _admin_team_guard(kind, role, body, app.state.org.get(kind, body.get(ID_FIELD[kind])) if isinstance(body, dict) and body.get(ID_FIELD[kind]) else None)
     who = _org_writer(role, by, kind, body)
     rid = body.get(ID_FIELD[kind]) if isinstance(body, dict) else None
     if rid:
@@ -5582,6 +5699,7 @@ async def org_save(collection: str, body: Annotated[dict, Body()], role: str = "
 @app.delete("/v1/org/{collection}/{record_id}")
 async def org_delete(collection: str, record_id: str, role: str = "finance_manager", by: str = "dashboard"):
     kind, _ = _org_kind(collection)
+    _admin_team_guard(kind, role, None, app.state.org.get(kind, record_id))
     who = _org_writer(role, by, kind, app.state.org.get(kind, record_id))
     _refuse_synced(record_id, app.state.org.source(kind, record_id))
     if kind in ("po", "engagement") and app.state.executor.store.po_payments(record_id):
@@ -5661,7 +5779,7 @@ async def developer_keys():
 @app.post("/v1/developer/keys")
 async def developer_key_create(req: apiaccess.KeyRequest, role: str = "finance_manager", by: str = "dashboard"):
     """Create a key. The key is in this response only; VENTHORA keeps its hash."""
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     rec, token = await asyncio.to_thread(app.state.keys.create, req, who)
     await asyncio.to_thread(app.state.audit.append, "api_key_created", {"key_id": rec["key_id"], "name": rec["name"], "scopes": rec["scopes"], "role": rec["role"], "by": who})
     return rec | {"key": token}
@@ -5669,7 +5787,7 @@ async def developer_key_create(req: apiaccess.KeyRequest, role: str = "finance_m
 
 @app.post("/v1/developer/keys/{key_id}/revoke")
 async def developer_key_revoke(key_id: str, role: str = "finance_manager", by: str = "dashboard"):
-    who = _writer(role, by)
+    who = _setup_writer(role, by)
     rec = await asyncio.to_thread(app.state.keys.revoke, key_id)
     if rec is None:
         raise HTTPException(404, "no such key")
@@ -6050,7 +6168,7 @@ async def treasury_overview(span: str = Query("month", pattern="^(day|week|month
 
 
 # ---- User management → Airwallex account: connect it (sandbox), open Global Accounts ----
-CONNECT_ROLES = {"super_admin", "admin", "cfo", "finance_manager"}
+CONNECT_ROLES = {"super_admin"}  # Platform Setup: the FCO connects or changes the account that holds the money
 GLOBAL_ACCOUNT_OPTIONS = [  # the receiving accounts Airwallex offers by currency and the country the account is held in
     {"currency": "USD", "country_code": "US", "label": "USD · United States (ACH, Fedwire)"},
     {"currency": "GBP", "country_code": "GB", "label": "GBP · United Kingdom (Faster Payments)"},
@@ -6071,12 +6189,26 @@ def _connector(role: str, by: str) -> str:
     return f"{by} ({role})"
 
 
+def _ga_routing(g: dict) -> list[dict]:
+    """The routing codes a payer needs (ACH routing number, sort code, BSB…): Airwallex gives them per supported
+    feature (supported_features[].routing_codes), older answers as account_routing. Each once."""
+    seen, out = set(), []
+    rows = [(r, None) for r in (g.get("account_routing") or [])]
+    rows += [(r, f.get("local_clearing_system")) for f in (g.get("supported_features") or []) for r in (f.get("routing_codes") or [])]
+    for r, system in rows:
+        key = (r.get("type"), r.get("value"))
+        if r.get("value") and key not in seen:
+            seen.add(key)
+            out.append({"type": r.get("type"), "value": r.get("value"), "system": system})
+    return out
+
+
 def _ga_row(g: dict) -> dict:
     feats = g.get("supported_features") or g.get("required_features") or []
     return {"id": g.get("id"), "nick_name": g.get("nick_name") or "", "status": g.get("status"), "country_code": g.get("country_code"),
             "currencies": sorted({f.get("currency") for f in feats if f.get("currency")}) or ([g["currency"]] if g.get("currency") else []),
             "account_name": g.get("account_name"), "account_number": g.get("account_number"), "iban": g.get("iban"),
-            "routing": [{"type": r.get("type"), "value": r.get("value")} for r in (g.get("account_routing") or [])],
+            "routing": _ga_routing(g),
             "swift_code": g.get("swift_code"), "institution": (g.get("institution") or {}).get("name"),
             "methods": sorted({f.get("transfer_method") for f in feats if f.get("transfer_method")})}
 

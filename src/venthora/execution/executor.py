@@ -76,6 +76,7 @@ class Executor:
         self.store = store
         self.audit = audit
         self._beneficiaries = beneficiaries  # None: data/beneficiaries.json with the master data's vendors on top
+        self.bank_gate = None  # (payee_id, payload) -> (ok, why): the bank check (bankcheck.py) a payment needs; set by the API
         # Payee lifecycle: the registry's onboarding records seed the store once; live records are never overwritten.
         with contextlib.suppress(OSError, KeyError, ValueError):
             self.store.seed_payees(onboarding_records())
@@ -613,10 +614,15 @@ class Executor:
             raise Halt("FAILED", f"transfer {o.obligation_id} failed: {exc}") from exc
 
     async def _beneficiary(self, internal_id: str, steps: list[Step]) -> str:
+        entry = self.beneficiaries.get(internal_id)
+        if self.bank_gate is not None:  # bank details that failed (or never passed) the bank check are never paid
+            ok, why = self.bank_gate(internal_id, entry)
+            if not ok:
+                steps.append(Step(kind="beneficiary", key=internal_id, status="FAILED", detail={"reason": "bank check", "why": why}))
+                raise Halt("FAILED", f"beneficiary {internal_id} is not paid: {why}")
         existing = self.store.beneficiary(internal_id)
         if existing:
             return existing
-        entry = self.beneficiaries.get(internal_id)
         if entry is None:
             steps.append(Step(kind="beneficiary", key=internal_id, status="FAILED", detail={"reason": "not registered"}))
             raise Halt("FAILED", f"beneficiary {internal_id} is not in the approved payee registry")

@@ -392,6 +392,11 @@ class Airwallex:
         await self._request("POST", "/api/v1/beneficiaries/validate", json={
             "beneficiary": payload["beneficiary"], "transfer_methods": payload["transfer_methods"]})
 
+    async def verify_account(self, body: dict) -> dict:
+        """POST /beneficiaries/verify_account: does the account exist, and does its holder's name match (bank-side
+        Confirmation / Verification of Payee; UK, SEPA countries and Viet Nam). Answers {code, message, details}."""
+        return await self._request("POST", "/api/v1/beneficiaries/verify_account", json=body)
+
     async def create_beneficiary(self, payload: dict) -> str:
         """`payload` = {"beneficiary": {...}, "transfer_methods": [...], "nickname": ...}. Returns id."""
         body = await self._request("POST", "/api/v1/beneficiaries/create", json=payload)

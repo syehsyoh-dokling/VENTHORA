@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field, field_validator
 from .config import data_path
 
 UnitKind = Literal["HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE", "PROJECT_FINANCE"]
-Role = Literal["super_admin", "hq_admin", "country_admin", "branch_admin", "project_admin", "admin", "cfo", "finance_manager",
+Role = Literal["super_admin", "developer", "hq_admin", "country_admin", "branch_admin", "project_admin", "admin", "cfo", "finance_manager",
                "treasury_analyst", "country_finance_lead", "project_accountant", "requester", "auditor"]
 # company-wide writers; the scoped admins below write only inside their own unit and the units under it
 WRITE_ROLES = {"super_admin", "hq_admin", "admin", "cfo", "finance_manager"}
@@ -552,6 +552,12 @@ def _seed_v2() -> dict[str, list[dict]]:
     return {"project": projects, "account": accounts, "po": pos}
 
 
+BLANK_SEED = [
+    ("unit", {"unit_id": "hq", "name": "Head office", "kind": "HQ", "country": "SG", "currency": "USD", "timezone": "Asia/Singapore", "cost_centre": "HQ-100"}),
+    ("user", {"user_id": "u-admin", "name": "Super Admin", "email": "admin@venthora.example", "role": "super_admin", "unit_id": "hq"}),
+]
+
+
 class OrgStore:
     def __init__(self, path: str | None = None, *, seed: bool = True):
         self.path = Path(path) if path else data_path("VENTHORA_ORG_DB", "data/venthora_org.db")
@@ -561,13 +567,13 @@ class OrgStore:
             c.executescript(SCHEMA)
             empty = c.execute("SELECT COUNT(*) FROM records").fetchone()[0] == 0
         if seed and empty:
-            for kind, rows in _seed().items():
-                for row in rows:
-                    self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
-            self._seed_v3()
+            # Venthora-demo starts blank: one head office to rename and one Super admin, so a person can sign in and
+            # enter everything else from the UI (no offices, people, budgets, prices, POs, accounts or engagements)
+            for kind, row in BLANK_SEED:
+                self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
             self._put("standards", Standards().model_dump() | {"_id": "standards"}, "seed")
             self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
-        elif seed and (self.get("meta", "seed") or {}).get("version", 1) < SEED_VERSION:
+        elif False:  # the old upgrade path would add the demo reference data back
             # a store made before purchase orders: add the new reference data, change nothing a person entered
             for kind, rows in _seed_v2().items():
                 if not self.list(kind):

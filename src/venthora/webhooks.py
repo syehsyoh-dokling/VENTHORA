@@ -26,7 +26,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .config import data_path, env
+from .config import data_path
 
 TOLERANCE_S = 300
 
@@ -42,8 +42,13 @@ def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+SECRET_NAME = "awx_webhook_secret"  # kept by Platform Setup → Airwallex webhooks → Create webhooks (write-only)
+
+
 def secret() -> str:
-    return env("AWX_WEBHOOK_SECRET")
+    from . import secret_values
+
+    return secret_values.get(SECRET_NAME, "AWX_WEBHOOK_SECRET")
 
 
 def sign(secret_key: str, timestamp: str, body: bytes) -> str:

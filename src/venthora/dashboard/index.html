@@ -106,6 +106,9 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600}
 .nav .ms .msh{color:var(--heroMuted);font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:8px 10px 3px;opacity:.85}
 .nav .ms .msh:first-child{padding-top:4px}
 body.prod .dev{display:none!important}
+.rolehide,body.saas #mainNav [data-g="devcon"]{display:none!important}
+body.ro main section:not([hidden]) :is(button,input,select,textarea){pointer-events:none;opacity:.55}
+.ro-note{margin:0 0 12px;padding:9px 12px;border-radius:10px;border-left:3px solid var(--warn);background:rgba(240,160,40,.10);font-size:13px}
 .edcard{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);margin-bottom:14px}
 .edcard .sw{position:relative;width:52px;height:28px;border-radius:999px;background:var(--line);border:0;cursor:pointer;flex:0 0 auto;transition:background .15s}
 .edcard .sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
@@ -265,10 +268,9 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 <aside class="nav" id="nav">
  <a class="brand" href="#/overview"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>VENTHORA</b><small>Treasury on Airwallex</small></span></a>
  <nav id="mainNav">
-  <a href="#/overview" data-nav="overview" class="mtop"><i>◧</i>Dashboard</a>
-  <a href="#/workflow" data-nav="workflow" class="mtop dev" title="Developer view: how the agent works, end to end"><i>⇢</i>Workflow</a>
+  <a href="#/overview" data-nav="overview" class="mtop" data-deny="developer"><i>◧</i>Dashboard</a>
 
-  <div class="mg" data-g="payment"><button type="button" class="mh"><i>⇄</i><span>Payment</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+  <div class="mg" data-g="payment" data-deny="developer"><button type="button" class="mh"><i>⇄</i><span>Payment</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/agent-plan" data-nav="agent-plan" data-also="plan"><i>✦</i>Agent plan</a>
    <a href="#/intake" data-nav="intake" data-also="pos travel"><i>✉</i>Intake</a>
    <a href="#/commitments" data-nav="commitments"><i>◫</i>Commitment</a>
@@ -278,12 +280,12 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/executions" data-nav="executions" data-also="payroll"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
   </div></div>
 
-  <div class="mg" data-g="procurement"><button type="button" class="mh"><i>⚑</i><span>Procurement Process</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+  <div class="mg" data-g="procurement" data-deny="developer"><button type="button" class="mh"><i>⚑</i><span>Procurement Process</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/proc-sourcing" data-nav="proc-sourcing"><i>⌕</i>Vendor Sourcing</a>
    <a href="#/proc-quotes" data-nav="proc-quotes"><i>≡</i>Quotation</a>
   </div></div>
 
-  <div class="mg" data-g="mandate"><button type="button" class="mh"><i>⚖</i><span>Reporting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+  <div class="mg" data-g="mandate" data-deny="developer"><button type="button" class="mh"><i>⚖</i><span>Reporting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/rep-payroll" data-nav="rep-payroll"><i>☰</i>1 · Payroll</a>
    <a href="#/rep-fringe" data-nav="rep-fringe"><i>✚</i>2 · Fringe benefit</a>
    <a href="#/rep-goods" data-nav="rep-goods"><i>▣</i>3 · Goods and services</a>
@@ -299,7 +301,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/reporting" data-nav="reporting"><i>◷</i>Period close</a>
   </div></div>
 
-  <div class="mg" data-g="users"><button type="button" class="mh"><i>⌂</i><span>Users &amp; Beneficiaries</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+  <div class="mg" data-g="users" data-deny="developer"><button type="button" class="mh"><i>⌂</i><span>Users &amp; Beneficiaries</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <a href="#/offices" data-nav="offices"><i>⌂</i>Branches, units &amp; country offices</a>
    <a href="#/users" data-nav="users"><i>☺</i>People &amp; roles</a>
    <a href="#/consultants" data-nav="consultants"><i>✎</i>Consultants</a>
@@ -307,50 +309,66 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/customers" data-nav="customers"><i>⇩</i>Customers</a>
    <a href="#/payee-lifecycle" data-nav="payee-lifecycle"><i>☺</i>Payee lifecycle</a>
    <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
-   <a href="#/admins" data-nav="admins"><i>♛</i>Admin team</a>
   </div></div>
 
-  <div class="mg" data-g="platform"><button type="button" class="mh"><i>⚙</i><span>Platform Setup</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+  <div class="mg" data-g="platform" data-roles="super_admin developer"><button type="button" class="mh"><i>⚙</i><span>Platform Setup</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <div class="msh" title="Without these the agent cannot run">Required</div>
-   <a href="#/airwallex" data-nav="airwallex" title="Connect the Airwallex account and its Global Account: where deposits arrive and payments leave"><i>1</i>Airwallex Global Account</a>
+   <a href="#/airwallex" data-nav="airwallex" data-ro="developer" title="Connect the Airwallex account and its Global Account: where deposits arrive and payments leave"><i>1</i>Airwallex Global Account</a>
    <a href="#/integrations" data-nav="integrations" title="Airwallex tells VENTHORA at once when a deposit settles or a transfer changes status"><i>2</i>Airwallex webhooks</a>
-   <a href="#/ai" data-nav="ai" data-also="ai-local ai-keys" title="The model that reads invoices, plans and explains; the rules work without it"><i>3</i>Agent (AI &amp; Model)</a>
+   <a href="#/ai" data-nav="ai" data-also="ai-keys" title="The model that reads invoices, plans and explains; the rules work without it"><i>3</i>Agent (AI &amp; Model)</a>
    <a href="#/sources-email" data-nav="sources-email" title="The mailboxes invoices, claims and payment orders arrive in, and the outgoing mail"><i>4</i>Email Sync</a>
    <a href="#/readiness" data-nav="readiness" title="Check that everything above is set and what is still a placeholder"><i>5</i>Setup Checklist<span class="cnt" id="cnt-ready"></span></a>
    <div class="msh" title="Turn on when the company needs it">Optional</div>
    <a href="#/api-access" data-nav="api-access" data-also="sources-sync" title="Sync people, vendors, POs and bills from your ERP; API keys for other apps"><i>⇅</i>App Integration</a>
-   <a href="#/api-catalog" data-nav="api-catalog" title="The endpoints other applications may call, and a public link to share with their developers"><i>⌘</i>API Catalog</a>
-   <a href="#/cards" data-nav="cards" title="Visa virtual cards for card-billed vendors"><i>▭</i>Airwallex Cards</a>
-   <a href="#/card-auth" data-nav="card-auth" title="VENTHORA approves or declines every card charge (after Airwallex Cards)"><i>✓</i>Card Authorization</a>
-   <div class="msh dev" title="Technical setup, shown in demo mode only">Developer · demo mode</div>
-   <a href="#/visa-tap" data-nav="visa-tap" class="dev" title="The agent signs its requests so merchants know it is VENTHORA"><i>⚿</i>Visa Agent Identity (TAP)</a>
-   <a href="#/visa-vic" data-nav="visa-vic" class="dev" title="Agent payments through Visa, and Visa's daily FX rate"><i>◆</i>Visa Intelligent Commerce</a>
-   <a href="#/mcp" data-nav="mcp" class="dev" title="Airwallex documentation and developer tools for the agent"><i>⧉</i>Airwallex MCP</a>
-   <a href="#/metal" data-nav="metal" class="dev" title="Anchor the audit chain on a public testnet"><i>⬡</i>Metal (testnet anchoring)</a>
+   <a href="#/cards" data-nav="cards" data-ro="developer" title="Visa virtual cards for card-billed vendors"><i>▭</i>Airwallex Cards</a>
+   <a href="#/card-auth" data-nav="card-auth" data-ro="developer" title="VENTHORA approves or declines every card charge (after Airwallex Cards)"><i>✓</i>Card Authorization</a>
+   <a href="#/visa-vic" data-nav="visa-vic" data-ro="developer" title="Agent payments through Visa, and Visa's daily FX rate"><i>◆</i>Visa Intelligent Commerce</a>
   </div></div>
 
-  <div class="mg" data-g="system"><button type="button" class="mh"><i>☷</i><span>System Setting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+  <div class="mg" data-g="fco" data-roles="super_admin"><button type="button" class="mh"><i>♛</i><span>FCO Authorize</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <div class="msh" title="Who may approve what and how money is ranked: the FCO (Super admin) only">FCO only</div>
+   <a href="#/mandate" data-nav="mandate" title="Who may approve what, up to which amount, and what the agent may pay alone"><i>1</i>Delegation of Authority</a>
+   <a href="#/priority-sop" data-nav="priority-sop" title="What is paid first when cash cannot cover everything"><i>2</i>Standard Payment Priority Policy</a>
+   <a href="#/standards" data-nav="standards" title="Base currency, fiscal year, company name and the expense categories every report uses"><i>3</i>Finance standards</a>
+   <a href="#/admins" data-nav="admins"><i>4</i>Admin team</a>
+  </div></div>
+
+  <div class="mg" data-g="system" data-deny="developer"><button type="button" class="mh"><i>☷</i><span>System Setting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <div class="msh" title="The rules the agent works under: set these before the first payment">Required</div>
-   <a href="#/standards" data-nav="standards" title="Base currency, fiscal year, company name and the expense categories every report uses"><i>1</i>Finance standards</a>
-   <a href="#/mandate" data-nav="mandate" title="Who may approve what, up to which amount, and what the agent may pay alone"><i>2</i>Delegation of Authority</a>
-   <a href="#/budget-policy" data-nav="budget-policy" title="The reporting period, its cut-off and when budgets sync"><i>3</i>Period, cut-off &amp; sync</a>
-   <a href="#/doc-rules" data-nav="doc-rules" title="Which documents an invoice or claim needs before it may be paid"><i>4</i>Document validation</a>
-   <a href="#/priority-sop" data-nav="priority-sop" title="What is paid first when cash cannot cover everything"><i>5</i>Standard Payment Priority Policy</a>
+   <a href="#/budget-policy" data-nav="budget-policy" title="The reporting period, its cut-off and when budgets sync"><i>1</i>Period, cut-off &amp; sync</a>
+   <a href="#/doc-rules" data-nav="doc-rules" title="Which documents an invoice or claim needs before it may be paid"><i>2</i>Document validation</a>
    <div class="msh" title="Use when the company needs it">Optional</div>
    <a href="#/sources-upload" data-nav="sources-upload" title="Load people, vendors, POs or bills from a CSV, Excel or PDF when there is no ERP connection"><i>⇪</i>Dataset upload</a>
    <a href="#/prices" data-nav="prices" title="Standard prices per item and unit that expense claims are checked against"><i>¤</i>Unit prices</a>
-   <div class="msh dev" title="Developer view only: hidden when demo mode is off">Tools &amp; evidence · demo mode</div>
-   <a href="#/autopilot" data-nav="autopilot" class="dev" title="The agent's own run: plan, prove, pay and reconcile a book end to end"><i>▶</i>Autopilot Console</a>
-   <a href="#/assurance" data-nav="assurance" class="dev" title="Ground-truth checks, the scenario matrix and resilience tests"><i>✓</i>Checks &amp; resilience</a>
-   <a href="#/evidence" data-nav="evidence" class="dev" title="Every organiser item and the screen that proves it"><i>★</i>Hackathon evidence</a>
+  </div></div>
+
+  <div class="mg" data-g="devcon" data-roles="super_admin developer"><button type="button" class="mh"><i>⌨</i><span>Developer Console</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <div class="msh" title="IT only; on SaaS this is done by the VENTHORA operator">One-time technical setup</div>
+   <a href="#/api-catalog" data-nav="api-catalog" title="The endpoints other applications may call, and a public link to share with their developers"><i>⌘</i>API Catalog</a>
+   <a href="#/visa-tap" data-nav="visa-tap" data-ro="super_admin" title="The agent signs its requests so merchants know it is VENTHORA"><i>⚿</i>Visa Agent Identity (TAP)</a>
+   <a href="#/metal" data-nav="metal" data-ro="super_admin" title="Anchor the audit chain on a public testnet"><i>⬡</i>Metal (testnet anchoring)</a>
+   <a href="#/mcp" data-nav="mcp" title="Airwallex documentation and developer tools for the agent"><i>⧉</i>Airwallex MCP</a>
+   <a href="#/ai-local" data-nav="ai-local" title="A model server the company runs itself (vLLM)"><i>◉</i>Local model (vLLM)</a>
+   <a href="#/server-health" data-nav="server-health" title="Engines, versions and connections of this server"><i>♥</i>Server health</a>
+  </div></div>
+
+  <div class="mg dev" data-g="demo" data-roles="super_admin developer"><button type="button" class="mh"><i>★</i><span>Demo-Only</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <div class="msh" title="Shown in demo mode only; gone when demo mode is off">Until Demo Day</div>
+   <a href="#/workflow" data-nav="workflow" title="Developer view: how the agent works, end to end"><i>⇢</i>Workflow</a>
+   <a href="#/autopilot" data-nav="autopilot" title="The agent's own run: plan, prove, pay and reconcile a book end to end"><i>▶</i>Autopilot Console</a>
+   <a href="#/assurance" data-nav="assurance" title="Ground-truth checks, the scenario matrix and resilience tests"><i>✓</i>Checks &amp; resilience</a>
+   <a href="#/evidence" data-nav="evidence" title="Every organiser item and the screen that proves it"><i>★</i>Hackathon evidence</a>
+   <a href="#/sandbox" data-nav="sandbox" title="Sandbox simulations in one place: a deposit, an account approval, demo requests"><i>⚗</i>Sandbox simulator</a>
+   <a href="/demo/finance-app" target="_blank" rel="noopener" title="The stand-in company finance system VENTHORA reads from and writes back to"><i>⧉</i>Acme Finance ERP ↗</a>
   </div></div>
  </nav>
  <div class="actor"><label class="small muted" for="actor">Acting as</label><div class="actbox"><div class="an" id="actorName"></div><div class="ar" id="actorRole"></div><span class="chev" aria-hidden="true">▾</span><select id="actor" aria-label="Acting as"></select></div></div>
 </aside>
 <div class="content">
 <header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><h1 id="pageTitle">Dashboard</h1>
- <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><span class="pill warn dev" id="demoBadge" title="Demo mode is on: the developer view (Platform Setup → Setup Checklist)">DEMO MODE</span><a class="go dev" href="#/autopilot">Autopilot Console ▸</a></span></header>
+ <span class="right"><span class="live" id="streamState" title="Airwallex webhook stream">connecting…</span><span id="status" class="small muted"></span><div class="seg" id="kspan"><button data-s="day">Today</button><button data-s="week">Week</button><button data-s="month">Month</button><button data-s="quarter">Quarter</button><button data-s="year">Year</button></div><span class="pill warn dev" id="demoBadge" title="Demo mode is on: the developer view (Platform Setup → Setup Checklist)">DEMO MODE</span><a class="go dev" data-roles="super_admin developer" href="#/autopilot">Autopilot Console ▸</a></span></header>
 <main>
+ <div id="roNote" class="ro-note span12" hidden></div>
  <section class="span12" data-view="cards"><h2><span>Airwallex Cards</span><span class="small muted" id="cdMeta"></span></h2>
   <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"><b>Vendors paid by card, under the same mandate as transfers.</b> A software subscription or any vendor that only takes a card gets its own <b>Visa virtual card</b> from Airwallex Issuing. Its limits per transaction and per month come from the mandate and never go above the mandate's single payout limit; the card can be locked to the vendor's merchant name and category. VENTHORA keeps the card id and the masked number, never the full number. Every charge is decided in <a href="#/card-auth">Card Authorization</a>.</div>
   <div id="cdBody" class="empty">loading…</div></section>
@@ -360,6 +378,22 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="visa-tap"><h2><span>Visa Agent Identity (TAP)</span><span class="small muted" id="vtMeta"></span></h2>
   <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"><b>VENTHORA proves to a merchant that a request comes from it</b> (Visa's Trusted Agent Protocol). Each request to a merchant is signed with the agent's Ed25519 key (RFC 9421 HTTP Message Signatures, as Visa's sample agent does): <i>agent-browser-auth</i> to browse, <i>agent-payer-auth</i> to pay. The merchant checks the signature with the agent's public key, published at <span class="mono">/.well-known/venthora-agent.json</span> on the gateway. The private key stays on this machine.</div>
   <div id="vtBody" class="empty">loading…</div></section>
+ <section class="span12" data-view="server-health"><h2><span>Server health</span><span class="small muted" id="shMeta"></span></h2>
+  <div class="small rp-note"><b>This server, for IT.</b> The engines VENTHORA runs on, how it is deployed, and whether its connections answer. No company money or data is shown here.</div>
+  <div id="shBody" class="empty">loading…</div></section>
+ <section class="span12" data-view="sandbox"><h2><span>Sandbox simulator</span><span class="small muted">demo mode only</span></h2>
+  <div class="small rp-note"><b>Sandbox simulations in one place.</b> What happens outside VENTHORA in real life (a customer paying, Airwallex approving an account), made to happen on the Airwallex sandbox. Gone when demo mode is off.</div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+   <div class="tile"><b>Simulate a deposit</b><div class="small muted" style="margin:4px 0 8px">A customer pays into the Airwallex Global Account (USD).</div>
+    <label class="small">Amount (USD)<input id="sbAmt" type="number" min="1" step="0.01" value="1000"></label>
+    <label class="small">Payer<input id="sbPayer" value="Sandbox payer"></label>
+    <button id="sbDeposit" class="cta" style="margin-top:8px">Simulate deposit</button></div>
+   <div class="tile"><b>Approve a submitted account</b><div class="small muted" style="margin:4px 0 8px">Airwallex's verification of an account opened from Platform Setup, decided at once.</div>
+    <div id="sbAccts" class="small">loading…</div></div>
+   <div class="tile"><b>Demo purchase requests</b><div class="small muted" style="margin:4px 0 8px">Two purchase requests in Intake: one approved with a locked brand, one waiting.</div>
+    <button id="sbPrs" class="cta">Add demo requests</button></div>
+  </div>
+  <div id="sbOut" class="small muted" style="margin-top:10px"></div></section>
  <section class="span12" data-view="mcp"><h2><span>Airwallex MCP servers</span><span class="small muted">guide: Get running, step 2</span></h2>
   <div class="small rp-note"><b>Airwallex's hosted MCP servers.</b> The <b>docs</b> server needs no account: VENTHORA connects to it and can ask it a question, such as the exact fields of a payload. The <b>developer</b> server needs the sandbox login, an OAuth sign-in done in an MCP client such as Claude Code. VENTHORA makes every Airwallex call over REST, one typed function per endpoint, as the guide allows, so it only shows that server's state.</div>
   <div id="mcpBody" class="empty">loading…</div></section>
@@ -367,6 +401,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
   <div class="small rp-note"><b>VENTHORA's records, provable on a public chain.</b> VENTHORA keeps two kinds of hash chain: the audit log of every decision and execution, and one chain per contract (Reporting → Contract blockchain). <b>Anchor now</b> writes the SHA-256 digest of their latest hashes on Metal Testnet (chain 63825) in one transaction, from VENTHORA's own testnet address; gas is a fraction of a cent in test USDZ and the transaction is final in about a second. Anyone can open it on the explorer and recompute the digest from VENTHORA's records: a decision, invoice or payment changed after the anchor no longer matches. Money still moves on Airwallex; Metal only holds the proof.</div>
   <div id="mtBody" class="empty">loading…</div></section>
  <section class="span12" data-view="visa-vic"><h2><span>Visa Intelligent Commerce</span><span class="small muted" id="vvMeta"></span></h2>
+  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · Visa's credentials are issued by Visa, not by an API</summary><div class="small" style="margin-top:8px"><ol style="margin:6px 0 0 18px;padding:0"><li>Create a project on the <a href="https://developer.visa.com/" target="_blank" rel="noopener">Visa Developer Center</a> and add the Visa Intelligent Commerce and X-Pay APIs.</li><li>In the project's <b>Credentials</b>, copy the API key and the shared secret (X-Pay token); download the encryption key if the project uses one.</li><li>Enter them below and press <b>Test</b>. For agent card payments through Airwallex, VIC comes with Airwallex's Airi: ask the Airwallex team to allowlist the account for airi-cli.</li></ol></div></details>
   <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"><b>The Visa Developer project VENTHORA calls.</b> The sandbox project's API key and shared secret (X-Pay token) test the connection; Visa's Intelligent Commerce onboarding adds the consumer and the enrolled card token. With them, VENTHORA turns its mandate for a card-billed vendor into Visa's <b>purchase instruction</b> (a decline threshold, the preferred merchant, the category, an end date), so Visa itself holds the agent to it. Credentials are kept write-only.</div>
   <div id="vvBody" class="empty">loading…</div></section>
  <section class="span12" data-view="fund"><h2><span>Top up the balance</span><span class="row" style="gap:8px"><a href="#/agent-plan?today" class="small">‹ Today's plan</a></span></h2><div id="fundBody" class="empty">loading…</div></section>
@@ -852,6 +887,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span12" data-view="sources-email">
   <h2><span>How email reaches VENTHORA</span><span class="small muted">three ways; use one or all of them</span></h2>
+  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · the mailbox password VENTHORA signs in with</summary><div class="small" style="margin-top:8px">VENTHORA reads the invoice mailbox over IMAP and sends notices over SMTP. Use a mailbox made for this (for example invoices@yourcompany.com), not a person's own.<ol style="margin:6px 0 0 18px;padding:0"><li><b>Gmail / Google Workspace:</b> turn on 2-Step Verification for the mailbox, then create an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App password</a>. Server <span class="mono">imap.gmail.com</span> port 993, SMTP <span class="mono">smtp.gmail.com</span> port 587. In Workspace the admin may have to allow IMAP.</li><li><b>Microsoft 365 / Outlook:</b> IMAP must be allowed for the mailbox by the admin (<a href="https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/pop3-and-imap4/enable-or-disable-pop3-or-imap4-access" target="_blank" rel="noopener">how</a>); server <span class="mono">outlook.office365.com</span> port 993, SMTP <span class="mono">smtp.office365.com</span> port 587, with an app password where basic sign-in is still on.</li><li><b>Any other host (cPanel, Zoho, your own server):</b> the hosting panel shows the IMAP and SMTP server, port and password of the mailbox.</li><li>Fill them in below, press <b>Test</b>, then <b>Save</b>. The password is kept write-only.</li></ol></div></details>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px" class="small">
    <div class="tile"><b>1 · A mail service pushes it</b><div class="muted" style="margin-top:4px">Suppliers write to, or copy, an address the company sets for VENTHORA. The mail service (Postmark, Mailgun, SendGrid, Cloudflare, …) posts each email the moment it arrives. Realtime.</div></div>
    <div class="tile"><b>2 · VENTHORA reads an inbox</b><div class="muted" style="margin-top:4px">Connect an existing mailbox (Gmail, Microsoft 365, Yahoo, iCloud, Zoho, any IMAP). VENTHORA reads new mail on a schedule, every minute by default, and marks or moves what it read.</div></div>
@@ -942,6 +978,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
   </div>
   <div class="row" style="margin-top:12px"><button class="primary" id="awxConnect">Test and connect</button><button id="awxDrop">Disconnect (use .env)</button><span class="small" id="awxMsg"></span>
    <button id="awxNew" class="cta" style="margin-left:auto">✨ Don't have an account yet? Open one here</button></div>
+  <div id="awxSelf" class="small rp-note" hidden style="margin-top:14px"><b>Open your Airwallex account first.</b> This server has no Airwallex platform account to open one for you, so the company registers with Airwallex directly:<ol style="margin:6px 0 0 18px;padding:0"><li>Sign up at <a href="https://www.sandbox.airwallex.com/global/signup" target="_blank" rel="noopener">sandbox.airwallex.com/global/signup</a> (sandbox) or <a href="https://www.airwallex.com/signup" target="_blank" rel="noopener">airwallex.com/signup</a> (live), choosing the country the company is registered in.</li><li>In Airwallex, open <b>Account → Developer → API keys</b> and create a Client ID and an API key.</li><li>Come back here, enter them above and press <b>Test and connect</b>.</li></ol></div>
   <div id="awxSignup" hidden style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
    <h3 style="margin:0 0 10px;font-size:15px">Open an Airwallex account</h3>
    <div class="form">
@@ -958,6 +995,13 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
    <div class="row" style="margin-top:12px"><button class="primary" id="suGo">Create account</button><span class="small" id="suMsg"></span></div>
    <div id="suList" style="margin-top:12px"></div>
   </div>
+  <div id="awxGaBox" hidden style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+   <h3 style="margin:0 0 4px">Deposit into this account · account numbers</h3>
+   <div class="small muted" style="margin-bottom:10px">Each Global Account is a bank account in the company's name at Airwallex, one per currency. To top up the balance, the FCO sends a
+    <b>bank transfer from the company's bank</b> to these details. The balance counts the money only once Airwallex reports the deposit <b>SETTLED</b>.</div>
+   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><select id="awxGaOpt"></select><input id="awxGaNick" placeholder="nickname" value="Top-up account">
+    <button class="cta" id="awxGaOpen">Create Global Account</button><span class="small" id="awxGaMsg"></span></div>
+   <div id="awxGaList" class="empty">loading…</div></div>
  </section>
  <section class="span12" data-view="receiving">
   <style>#brTabs{gap:6px;background:transparent;border:0;padding:0}#brTabs button{color:#fff;padding:8px 14px;border-radius:9px;opacity:.55}#brTabs button.on{opacity:1;box-shadow:0 4px 14px rgba(47,111,237,.35)}
@@ -1005,6 +1049,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span8" data-view="ai-keys">
   <h2><span>AI API keys</span><span class="small muted" id="keyActive"></span></h2>
+  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · an AI provider key cannot be created from VENTHORA</summary><div class="small" style="margin-top:8px">Each provider issues its own key in its console; VENTHORA cannot create one for you.<ol style="margin:6px 0 0 18px;padding:0"><li>Open the provider's key page: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic</a> · <a href="https://build.nvidia.com/" target="_blank" rel="noopener">NVIDIA NIM</a> · <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> · <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google Gemini</a> · <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> · <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">OpenRouter</a>.</li><li>Sign in with the company's account and create a key (some ask for billing first).</li><li>Paste it in <b>AI API keys</b> for that provider and press <b>Save</b>, then <b>Test</b>. The key is kept write-only: VENTHORA shows only its last 4 characters.</li></ol>VENTHORA's rules work without a model; the model only reads documents and explains.</div></details>
   <div class="form">
    <label>Provider<select id="k-prov"></select></label>
    <label>Model<span class="mpick"><select id="k-model-sel"></select><input id="k-model" placeholder="model id" autocomplete="off" hidden></span></label>
@@ -1022,6 +1067,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span8" data-view="ai">
   <h2><span>AI model</span><span class="small muted" id="aiActive"></span></h2>
+  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · an AI provider key cannot be created from VENTHORA</summary><div class="small" style="margin-top:8px">Each provider issues its own key in its console; VENTHORA cannot create one for you.<ol style="margin:6px 0 0 18px;padding:0"><li>Open the provider's key page: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic</a> · <a href="https://build.nvidia.com/" target="_blank" rel="noopener">NVIDIA NIM</a> · <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> · <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google Gemini</a> · <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> · <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">OpenRouter</a>.</li><li>Sign in with the company's account and create a key (some ask for billing first).</li><li>Paste it in <b>AI API keys</b> for that provider and press <b>Save</b>, then <b>Test</b>. The key is kept write-only: VENTHORA shows only its last 4 characters.</li></ol>VENTHORA's rules work without a model; the model only reads documents and explains.</div></details>
   <div class="modes" id="aiModes">
    <label class="mode"><input type="radio" name="aiMode" value="rules"><span><b>Rules only</b><small>No model. The deterministic readers decide alone.</small></span></label>
    <label class="mode"><input type="radio" name="aiMode" value="self_hosted"><span><b>Self-hosted model</b><small>Qwen or any OpenAI-compatible server: this laptop, a GPU machine, vLLM, Ollama, LM Studio.</small></span></label>
@@ -1078,6 +1124,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
    <span class="tabs" id="whTabs"><button data-wtab="setup" class="on">Setup</button><button data-wtab="events">Received events <span class="cnt" id="whCount"></span></button></span></h2>
   <div class="small muted" id="whLead">Airwallex tells VENTHORA the moment a deposit, transfer or conversion changes status. Set up once; after that it works on its own.</div>
   <div data-wpane="setup" style="margin-top:14px">
+   <div class="tile" style="margin-bottom:12px"><b>Create webhooks</b><div class="small muted" style="margin:4px 0 8px">Subscribes VENTHORA on Airwallex for deposit, transfer and conversion events. Enter the public <b>https</b> address that reaches this VENTHORA (your domain or tunnel); Airwallex calls it at <span class="mono">/webhooks/airwallex</span>. The signing secret it returns is kept by VENTHORA and never shown.</div><div class="row" style="gap:8px;flex-wrap:wrap"><input id="whUrl" placeholder="https://treasury.yourcompany.com" style="min-width:300px"><button class="cta" id="whCreate">Create webhooks</button><span class="small" id="whMsg"></span></div></div>
    <div id="whStatus" class="small"></div>
    <h3 class="small muted" style="margin:18px 0 8px">VENTHORA services</h3><div id="platform" class="tiles"></div>
   </div>
@@ -1128,7 +1175,9 @@ const tone={APPROVED:"good",COMPLETED:"good",RESOLVED:"good",VERIFIED:"good",PAS
  ESCALATED:"serious",QUARANTINED:"serious",REFUSED:"serious",ESCALATE:"serious",
  BLOCKED:"critical",FAILED:"critical",REJECTED:"critical",DUPLICATE:"critical",RECONCILIATION_MISMATCH:"critical",FAIL:"critical"};
 const pill=s=>`<span class="pill ${tone[s]||""}">${esc(s??"-")}</span>`;
-const api=async(u,o)=>{const r=await fetch(u,o);if(!r.ok){let m=r.statusText;try{m=(await r.json()).detail||m}catch{}throw new Error(`${r.status} ${m}`)}return r.json()};
+// every call says who is acting, so the server can hold each menu to its roles (access.py)
+const roleNow=()=>{try{return actor().role}catch(e){return null}};
+const api=async(u,o)=>{const rl=roleNow();o=o||{};if(rl)o={...o,headers:{...(o.headers||{}),"x-venthora-role":rl}};const r=await fetch(u,o);if(!r.ok){let m=r.statusText;try{const d=(await r.json()).detail;m=(d&&d.message)||(typeof d==="string"?d:JSON.stringify(d))||m}catch{}throw new Error(`${r.status} ${m}`)}return r.json()};
 const table=(cols,rows,empty="nothing yet")=>rows.length?`<table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${
  rows.map(r=>`<tr>${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<div class="empty">${empty}</div>`;
 
@@ -1329,13 +1378,31 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Dashboard",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Period close",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Standard Payment Priority Policy",autopilot:"Autopilot Console",workflow:"Workflow",payment:"Payment detail",fund:"Top up the balance",cards:"Airwallex Cards","card-auth":"Card Authorization","visa-tap":"Visa Agent Identity (TAP)","visa-vic":"Visa Intelligent Commerce",metal:"Metal · testnet anchoring",mcp:"Airwallex MCP servers","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost","payee-lifecycle":"Payee lifecycle","rep-chain":"Report · Contract blockchain","rep-card":"Report · Virtual card (Visa)","proc-sourcing":"Procurement · Vendor Sourcing","api-catalog":"API Catalog",evidence:"Hackathon evidence","proc-quotes":"Procurement · Quotation",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
+const TITLES={overview:"Dashboard","server-health":"Server health",sandbox:"Sandbox simulator",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Period close",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Standard Payment Priority Policy",autopilot:"Autopilot Console",workflow:"Workflow",payment:"Payment detail",fund:"Top up the balance",cards:"Airwallex Cards","card-auth":"Card Authorization","visa-tap":"Visa Agent Identity (TAP)","visa-vic":"Visa Intelligent Commerce",metal:"Metal · testnet anchoring",mcp:"Airwallex MCP servers","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost","payee-lifecycle":"Payee lifecycle","rep-chain":"Report · Contract blockchain","rep-card":"Report · Virtual card (Visa)","proc-sourcing":"Procurement · Vendor Sourcing","api-catalog":"API Catalog",evidence:"Hackathon evidence","proc-quotes":"Procurement · Quotation",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
  standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Total Spending","rep-fx":"FX & transfer costs","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const FRAME_V="20261106e";  // bump when flow.html or live.html changes: the frame then loads the new page, never a cached copy
-const ON_VIEW={overview:()=>overview(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),"rep-chain":()=>chView(),"rep-card":()=>vcView(),"proc-sourcing":()=>psView(),"api-catalog":()=>acView(),evidence:()=>evView(),"proc-quotes":()=>pqView(),autopilot:()=>openFrame("#frameAutopilot","/live?v="+FRAME_V),payment:()=>payView(),fund:()=>fundView(),cards:()=>cdView(),"card-auth":()=>caView(),"visa-tap":()=>vtView(),"visa-vic":()=>vvView(),metal:()=>mtView(),mcp:()=>mcpView(),workflow:()=>openFrame("#frameWorkflow","/flow?v="+FRAME_V),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>rcView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+const ON_VIEW={overview:()=>overview(),"server-health":()=>shView(),sandbox:()=>sbView(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),"rep-chain":()=>chView(),"rep-card":()=>vcView(),"proc-sourcing":()=>psView(),"api-catalog":()=>acView(),evidence:()=>evView(),"proc-quotes":()=>pqView(),autopilot:()=>openFrame("#frameAutopilot","/live?v="+FRAME_V),payment:()=>payView(),fund:()=>fundView(),cards:()=>cdView(),"card-auth":()=>caView(),"visa-tap":()=>vtView(),"visa-vic":()=>vvView(),metal:()=>mtView(),mcp:()=>mcpView(),workflow:()=>openFrame("#frameWorkflow","/flow?v="+FRAME_V),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>rcView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>{location.hash="#/payment-reports"},codes:()=>codesView(),mandate:()=>doaView(),ledger:()=>{tenants();lgOpts()},travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),integrations:()=>webhookView()};
-function route(){if(document.body.classList.contains("prod")){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1],a=v&&document.querySelector(`#mainNav a[data-nav="${v}"]`);if(a&&a.classList.contains("dev")){location.hash="#/overview";return}}
+// Menus by role: Platform Setup (FCO + Developer), FCO Authorize (FCO only), Developer Console (Developer + FCO, not
+// on SaaS), Demo-Only (demo mode). data-roles lists who sees an item, data-deny who does not, data-ro who only reads it.
+const ROLE_HOME={developer:"#/readiness"};
+const DEV_EXTRA=new Set(["ai-keys","sources-sync"]);  // reached from Platform Setup pages, not from the menu
+function roleOK(el,rl){const r=el.dataset.roles;if(r!==undefined&&r!=="")return r.split(" ").includes(rl);const d=el.dataset.deny;return !(d&&d.split(" ").includes(rl))}
+function navFor(v){return document.querySelector(`#mainNav a[data-nav="${v}"]`)||[...document.querySelectorAll("#mainNav a[data-also]")].find(a=>a.dataset.also.split(" ").includes(v))}
+function applyRoles(){const rl=roleNow();let dep="self_hosted";try{dep=ED.deployment||dep}catch(e){}
+ document.body.classList.toggle("saas",dep==="saas");
+ document.querySelectorAll("[data-roles],[data-deny]").forEach(el=>el.classList.toggle("rolehide",!roleOK(el,rl)))}
+function viewAllowed(v){const rl=roleNow(),a=navFor(v);
+ if(!a)return rl!=="developer"||DEV_EXTRA.has(v);
+ const g=a.closest(".mg");if(a.classList.contains("rolehide")||(g&&g.classList.contains("rolehide")))return false;
+ if(g&&g.dataset.g==="devcon"&&document.body.classList.contains("saas"))return false;return true}
+function roRender(v){const rl=roleNow(),a=navFor(v),ro=!!(a&&(a.dataset.ro||"").split(" ").includes(rl));
+ document.body.classList.toggle("ro",ro);const n=$("#roNote");n.hidden=!ro;
+ if(ro)n.innerHTML=rl==="developer"?"<b>View only for Developer.</b> The Airwallex account and the cards hold the company's money: only the FCO (Super admin) changes them."
+  :"<b>View only for the FCO.</b> This is the Developer's one-time technical setup: a Developer (IT) changes it."}
+function route(){applyRoles();{const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1]||"overview";if(!viewAllowed(v)){const home=ROLE_HOME[roleNow()]||"#/overview";if(location.hash!==home){location.hash=home;return}}}
+if(document.body.classList.contains("prod")){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1],a=v&&document.querySelector(`#mainNav a[data-nav="${v}"]`);if(a&&a.classList.contains("dev")){location.hash="#/overview";return}}
  const MOVED={budget:"#/payment-reports?budget",runs:"#/executions?runs",spending:"#/payment-reports",books:"#/ledger",payees:"#/rep-chain",plan:"#/agent-plan?proof",pos:"#/intake?po",travel:"#/intake?travel",payroll:"#/executions"};const v0=(location.hash.match(/^#\/([\w-]+)/)||[])[1];if(MOVED[v0]){location.hash=MOVED[v0];return}
  const v=v0;const view=TITLES[v]?v:"overview";
  document.querySelectorAll("section[data-view]").forEach(s=>s.hidden=!s.dataset.view.split(" ").includes(view));
@@ -1344,7 +1411,7 @@ function route(){if(document.body.classList.contains("prod")){const v=(location.
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",lit(a)));
  document.querySelectorAll("#mainNav .mg").forEach(g=>{g.classList.toggle("cur",[...g.querySelectorAll("[data-nav]")].some(lit));g.classList.remove("open")});
  $("#pageTitle").textContent=TITLES[view];$("#kspan").hidden=view!=="overview";document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
- if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
+ roRender(view);if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);
 document.querySelectorAll("#mainNav .mh").forEach(h=>h.onclick=()=>{const g=h.parentElement,was=g.classList.contains("open");
  document.querySelectorAll("#mainNav .mg").forEach(x=>x.classList.remove("open"));if(!was)g.classList.add("open")});
@@ -1358,12 +1425,12 @@ function actorShow(){const a=ACTORS[+$("#actor").value]||ACTORS[0];$("#actorName
 function actorsFill(){const keep=(()=>{try{return localStorage.getItem("venthora.actor.name")}catch(e){return null}})();
  $("#actor").innerHTML=ACTORS.map((a,i)=>`<option value="${i}">${esc(a.label)}</option>`).join("");
  const i=ACTORS.findIndex(a=>a.name===keep);if(i>=0)$("#actor").value=String(i);actorShow()}
-async function loadActors(){try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
- const rank=["super_admin","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
+async function loadActors(){try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",developer:"Developer (IT)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
+ const rank=["super_admin","developer","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
  ACTORS=us.sort((a,b)=>rank.indexOf(a.role)-rank.indexOf(b.role)||a.name.localeCompare(b.name)).map(u=>({role:u.role,name:u.name,rl:R[u.role]||u.role,label:`${u.name} · ${R[u.role]||u.role}`}));
- if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()}catch(e){actorsFill()}}
+ if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();route();if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()}catch(e){actorsFill()}}
 actorsFill();loadActors();
-$("#actor").onchange=()=>{actorShow();try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()};
+$("#actor").onchange=()=>{actorShow();route();try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()};
 const actor=()=>ACTORS[+$("#actor").value]||ACTORS[0];
 const who=()=>`role=${encodeURIComponent(actor().role)}&by=${encodeURIComponent(actor().name)}`;
 
@@ -1527,7 +1594,7 @@ function stream(){if(!window.EventSource){$("#streamState").textContent="polling
 
 // =============================== organisation: units and people ===============================
 const KIND={HQ:"Head Quarter",COUNTRY_OFFICE:"Country office",BRANCH_OFFICE:"Branch office",PROJECT_FINANCE:"Project finance"};
-const ROLES={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",
+const ROLES={super_admin:"Super admin (FCO)",developer:"Developer (IT)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",
  admin:"Admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor"};
 let ORG={units:[],users:[],prices:[],allocations:[],standards:null};
 async function loadOrg(){const [u,p,pr,al,st]=await Promise.all([api("/v1/org/units"),api("/v1/org/users"),api("/v1/org/prices"),api("/v1/org/allocations"),api("/v1/org/standards")]);
@@ -2454,6 +2521,25 @@ async function cpView(){const el=$("#cpBody");try{const d=await api("/v1/cash-pl
 async function lgOpts(){try{const bs=await api("/v1/ledger"),el=$("#lgBook"),v=el.value;el.innerHTML='<option value="">All books</option>'+bs.map(b=>`<option>${esc(b.book_id)}</option>`).join("");el.value=v}catch(e){}}
 $("#lgCsv").onclick=()=>{const q=new URLSearchParams();if($("#lgBook").value)q.set("book",$("#lgBook").value);if($("#lgFrom").value)q.set("from",$("#lgFrom").value);if($("#lgTo").value)q.set("to",$("#lgTo").value);location.href=`/v1/ledger/export.csv${q.toString()?"?"+q:""}`};
 // ---- Platform Setup -> Airwallex MCP
+// Developer Console -> Server health: engines, deployment and connections (no company money or data)
+async function shView(){const el=$("#shBody");try{const [st,ed,cx]=await Promise.all([api("/api/status"),api("/v1/edition"),api("/v1/airwallex/connection").catch(()=>({}))]);
+ const yes=b=>b?'<span class="pill good">connected</span>':'<span class="pill">not set</span>';
+ const row=(k,v)=>`<tr><td class="muted">${esc(k)}</td><td>${v}</td></tr>`;
+ $("#shMeta").textContent=`version ${st.version}`;
+ el.className="";el.innerHTML=`<table class="tbl"><tbody>${row("Version",esc(st.version))}${row("Deployment",ed.deployment==="saas"?"SaaS (operator runs the technical setup)":"Self-hosted (this company's IT)")}
+  ${row("Demo mode",ed.demo?"on":"off")}${row("Plan solver",esc(st.solver||"-"))}${row("Airwallex API",`${yes(st.authorities&&st.authorities.airwallex)} <span class="small muted">${esc(cx.base_url||"")}</span>`)}
+  ${row("Policy engine (OPA)",yes(st.authorities&&st.authorities.opa))}${row("Ledger (TigerBeetle)",yes(st.authorities&&st.authorities.tigerbeetle))}
+  ${row("Audit chain",st.audit&&st.audit.verified?`verified · ${st.audit.checked} entries`:"<b>check failed</b>")}</tbody></table>`}
+ catch(e){el.className="empty";el.textContent=e.message}}
+// Demo-Only -> Sandbox simulator
+async function sbView(){const box=$("#sbAccts");try{const d=await api("/v1/airwallex/accounts");const sub=(d.items||[]).filter(a=>a.status==="SUBMITTED");
+ box.innerHTML=sub.length?sub.map(a=>`<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span>${esc(a.name)} · ${esc(a.country||"")}</span><button class="sbOk" data-id="${esc(a.id)}">Approve</button></div>`).join(""):"No submitted account waiting.";
+ box.querySelectorAll(".sbOk").forEach(b=>b.onclick=async()=>{try{const r=await api(`/v1/airwallex/accounts/${encodeURIComponent(b.dataset.id)}/sandbox-approve?${who()}`,{method:"POST"});toast(`${esc(r.name)} is ${esc(r.status)}`,"good");sbView()}catch(e){toast(esc(e.message),"serious")}})}
+ catch(e){box.textContent=e.message}}
+$("#sbDeposit").onclick=async()=>{const amt=Math.round(parseFloat($("#sbAmt").value)*100);if(!(amt>0)){toast("Enter an amount","serious");return}
+ try{await api("/api/sandbox/deposits",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({amount_minor:amt,payer_name:$("#sbPayer").value.trim()||"Sandbox payer"})});
+  $("#sbOut").textContent=`Deposit of USD ${(amt/100).toFixed(2)} simulated: it counts once Airwallex reports it SETTLED.`;toast("Deposit simulated","good")}catch(e){toast(esc(e.message),"serious")}};
+$("#sbPrs").onclick=async()=>{try{await api(`/v1/procurement/demo-requests?${who()}`,{method:"POST"});$("#sbOut").textContent="Two demo purchase requests are in Intake.";toast("Demo requests added","good")}catch(e){toast(esc(e.message),"serious")}};
 async function mcpView(){const el=$("#mcpBody");try{const d=await api("/v1/mcp");
  const card=(k,x)=>`<div class="vc-step"><b>${k==="docs"?"Docs server":"Developer server"}</b><span class="st ${x.connected?"ok":"no"}">${x.connected?"✓ connected":x.needs_sign_in?"… sign-in needed":"✗ not reachable"}</span>
   <div class="small mono muted">${esc(x.url)}</div><div class="small muted">${x.connected?`${esc(x.server||"")} · protocol ${esc(x.protocol||"")} · ${x.tools.length} tool(s)`:esc(x.needs_sign_in?"OAuth sign-in with the sandbox account, from an MCP client (claude mcp add-json airwallex-dev …)":x.detail||"")}</div></div>`;
@@ -2661,7 +2747,7 @@ $("#apExec").onclick=async()=>{if(!confirm("Pay all valid payments now? Only wha
  catch(e){toast(esc(e.message),"serious");$("#apExec").disabled=false}};
 async function apConsole(){let last=null;try{last=(await api("/api/live/latest")).sid}catch(e){}
  $("#apConsole").innerHTML=`<div class="tile"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b>Autopilot Console</b><div class="small muted">opens in its own page, on the live Airwallex sandbox wallet</div></div>
-   <div class="row" style="gap:8px"><a class="go dev" href="#/autopilot">Open the Autopilot Console ▸</a>${last?`<a class="small" href="#/autopilot?run=${esc(last)}">the latest run ›</a>`:""}</div></div>
+   <div class="row" style="gap:8px"><a class="go dev" data-roles="super_admin developer" href="#/autopilot">Open the Autopilot Console ▸</a>${last?`<a class="small" href="#/autopilot?run=${esc(last)}">the latest run ›</a>`:""}</div></div>
   <ol class="small" style="margin:10px 0 0;padding-left:18px;line-height:1.8"><li><b>Goal and mandate</b>: the book, the allocation ring-fenced from the wallet, the reserve floor, the horizon, every permission and safeguard, the budget, the approvers.</li>
    <li><b>Initial plan</b>: every obligation decided and proved, with the alternatives it rejected.</li><li><b>New information</b>: a new email, used only because it can be quoted word for word.</li>
    <li><b>Revised decision</b>: only the decisions the news affects change; the others stay locked.</li><li><b>Resulting state</b>: payments out on Airwallex, a deposit confirmed, the book reconciled to the cent.</li></ol></div>`}
@@ -2888,14 +2974,14 @@ function inTab(t){INTAB=t;document.querySelectorAll("#inTabs [data-itab]").forEa
 document.querySelectorAll("#inTabs [data-itab]").forEach(b=>b.onclick=()=>{history.replaceState(null,"",`#/intake?${b.dataset.itab}`);inTab(b.dataset.itab)});
 // =============================== Edition: demo mode (developer view) or off (end-user view) ===============================
 let ED={demo:true,locked:false};
-async function edLoad(){try{ED=await api("/v1/edition")}catch(e){}document.body.classList.toggle("prod",!ED.demo);edRender();
+async function edLoad(){try{ED=await api("/v1/edition")}catch(e){}document.body.classList.toggle("prod",!ED.demo);edRender();route();
  if(!ED.demo){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1],a=v&&document.querySelector(`#mainNav a[data-nav="${v}"]`);if(a&&a.classList.contains("dev"))location.hash="#/overview"}}
 function edRender(){const sw=$("#edSwitch");if(!sw)return;sw.classList.toggle("on",ED.demo);sw.setAttribute("aria-checked",String(ED.demo));
  $("#edState").className=`pill ${ED.demo?"warn":"good"}`;$("#edState").textContent=ED.demo?"ON · developer view":"OFF · end-user view";
  sw.disabled=ED.locked||actor().role!=="super_admin";sw.title=ED.locked?"locked by the server (VENTHORA_EDITION=production)":actor().role!=="super_admin"?"only a Super admin switches demo mode":"";
  $("#edWho").textContent=ED.locked?"Locked off by the server.":ED.changed_by?`Last switched by ${ED.changed_by}, ${String(ED.changed_at||"").replace("T"," ").slice(0,16)} UTC`:"Default for the alpha-sandbox: on."}
 $("#edSwitch").onclick=async()=>{const to=!ED.demo;if(!confirm(to?"Turn demo mode ON? The developer view and the demo buttons and data come back.":"Turn demo mode OFF? Only the end-user view stays; the developer pages and demo endpoints are closed."))return;
- try{ED=await api(`/v1/edition?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({demo:to})});document.body.classList.toggle("prod",!ED.demo);edRender();toast(`Demo mode ${ED.demo?"on":"off"}`,"good")}catch(e){toast(esc(e.message),"serious")}};
+ try{ED=await api(`/v1/edition?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({demo:to})});document.body.classList.toggle("prod",!ED.demo);edRender();route();toast(`Demo mode ${ED.demo?"on":"off"}`,"good")}catch(e){toast(esc(e.message),"serious")}};
 async function acView(){try{const [pub,cat]=await Promise.all([api("/developers/catalog.json"),CAT?Promise.resolve(CAT):api("/v1/developer/catalog")]);CAT=cat;
  const link=`${pub.base_url}/developers`;
  $("#acShare").classList.remove("empty");
@@ -3589,7 +3675,7 @@ $("#drSave").onclick=async()=>{const req={};Object.keys(DR.kinds).forEach(k=>req
  catch(e){$("#drMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 // ---- User management → Airwallex account -------------------------------------------------------------------------------
-async function awxView(){try{const c=await api("/v1/airwallex/connection");
+async function awxView(){try{const c=await api("/v1/airwallex/connection");window.AWX_PLATFORM=!!c.connected;if(c.connected)awxGa();else $("#awxGaBox").hidden=true;
  $("#awxState").innerHTML=c.connected?`<span class="pill good">CONNECTED · ${c.sandbox?"SANDBOX":"LIVE"}</span>`:'<span class="pill critical">NOT CONNECTED</span>';
  $("#awxNow").innerHTML=`<dl class="kv"><dt>Credentials</dt><dd>${c.source==="settings"?`connected here${c.updated_by?` by ${esc(c.updated_by)}`:""}`:c.source==="env"?"from .env on this machine":"none"}${c.client_id_hint?` · client ID ${esc(c.client_id_hint)}`:""}${c.key_set?" · key set":""}</dd>
   ${c.account_name?`<dt>Account</dt><dd>${esc(c.account_name)}</dd>`:""}<dt>Wallet</dt><dd>${c.connected?`${c.currencies.length} currenc${c.currencies.length===1?"y":"ies"} held (${esc(c.currencies.join(", ")||"none")}) · ${c.global_accounts} Global Account(s)`:esc(c.error||"")}</dd>
@@ -3599,7 +3685,7 @@ async function awxView(){try{const c=await api("/v1/airwallex/connection");
  catch(e){$("#awxNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 const SU_COUNTRIES=[["SG","Singapore"],["ID","Indonesia"],["MY","Malaysia"],["HK","Hong Kong"],["AU","Australia"],["NZ","New Zealand"],["GB","United Kingdom"],["US","United States"],["DE","Germany"],["NL","Netherlands"],["FR","France"],["JP","Japan"],["CN","China"],["CA","Canada"],["AE","United Arab Emirates"]];
 $("#su-country").innerHTML=SU_COUNTRIES.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
-$("#awxNew").onclick=()=>{const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"✨ Don't have an account yet? Open one here":"Close";
+$("#awxNew").onclick=()=>{if(!window.AWX_PLATFORM){const n=$("#awxSelf");n.hidden=!n.hidden;return}const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"✨ Don't have an account yet? Open one here":"Close";
  $("#awxNew").classList.toggle("open",!box.hidden);if(!box.hidden){suList();$("#su-biz").focus()}};
 $("#su-type").onchange=()=>{const biz=$("#su-type").value==="BUSINESS";document.querySelectorAll(".su-biz").forEach(e=>e.hidden=!biz);document.querySelectorAll(".su-ind").forEach(e=>e.hidden=biz)};
 let INDUSTRIES=null;
@@ -3651,6 +3737,22 @@ $("#awxConnect").onclick=async()=>{$("#awxMsg").textContent="logging in to Airwa
  catch(e){$("#awxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#awxDrop").onclick=async()=>{if(!confirm("Disconnect this Airwallex account? VENTHORA goes back to the credentials in .env, if any."))return;
  try{await api(`/v1/airwallex/connection?${who()}`,{method:"DELETE"});toast("Disconnected","good");awxView()}catch(e){$("#awxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+// Airwallex Account → Deposit into this account: the Global Accounts and their numbers, for a manual top-up
+async function awxGa(){const box=$("#awxGaBox");try{const r=await api("/v1/airwallex/global-accounts");box.hidden=false;
+ $("#awxGaOpt").innerHTML=(r.options||[]).map(o=>`<option value="${o.currency}|${o.country_code}">${esc(o.label)}</option>`).join("");
+ const live=(r.items||[]).filter(g=>g.status!=="CLOSED");
+ const row=(k,v)=>v?`<div class="row" style="gap:8px;padding:3px 0;border-top:1px solid var(--line)"><span class="small muted" style="width:130px">${esc(k)}</span><span class="mono">${esc(v)}</span></div>`:"";
+ $("#awxGaList").className="";$("#awxGaList").innerHTML=live.length?`<div class="k4" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${live.map((g,i)=>`<div class="tile">
+  <div class="row" style="gap:8px;align-items:center"><b>${esc(g.currencies.join(", "))}</b><span class="small muted">${esc(g.country_code||"")} · ${esc(g.nick_name||"")}</span><span class="pill ${g.status==="ACTIVE"?"good":"warn"}" style="margin-left:auto">${esc(g.status||"-")}</span></div>
+  ${row("Account name",g.account_name)}${row(g.iban?"IBAN":"Account number",g.iban||g.account_number||"not issued yet")}${(g.routing||[]).map(x=>row(String(x.type||"routing").replaceAll("_"," "),x.value)).join("")}${row("SWIFT / BIC",g.swift_code)}${row("Bank",g.institution)}
+  <div class="row" style="gap:8px;margin-top:8px">${g.status==="ACTIVE"?`<button data-awxcopy="${i}">Copy bank details</button>`:'<span class="small muted">wait until ACTIVE before sending money</span>'}</div></div>`).join("")}</div>`
+  :'<div class="empty">no Global Account yet: choose a currency (USD first) and press <b>Create Global Account</b></div>';
+ $("#awxGaList").querySelectorAll("[data-awxcopy]").forEach(b=>b.onclick=()=>copyText(gaDetails(live[+b.dataset.awxcopy]),"Bank details"))}
+ catch(e){box.hidden=false;$("#awxGaList").className="empty";$("#awxGaList").textContent=e.message.includes("503")?"Connect an Airwallex account above first.":e.message}}
+$("#awxGaOpen").onclick=async()=>{const [currency,country_code]=$("#awxGaOpt").value.split("|");if(!currency){toast("Choose a currency","serious");return}
+ if(!confirm(`Create a ${currency} Global Account (${country_code}) at Airwallex for this company?`))return;$("#awxGaMsg").textContent="creating…";
+ try{const g=await api(`/v1/airwallex/global-accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({currency,country_code,nick_name:$("#awxGaNick").value.trim()||"Top-up account",allow_duplicate:true})});
+  $("#awxGaMsg").textContent="";toast(`Global Account created: ${esc(g.currencies.join(", "))}`,"good");awxGa()}catch(e){$("#awxGaMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 let GAS=[];
 const gaDetails=g=>[`Account name: ${g.account_name||"-"}`,g.iban?`IBAN: ${g.iban}`:`Account number: ${g.account_number||"-"}`,
  ...g.routing.map(r=>`${String(r.type||"").replaceAll("_"," ").toUpperCase()}: ${r.value}`),g.swift_code?`SWIFT/BIC: ${g.swift_code}`:"",`Bank: ${g.institution||"-"}`,
@@ -3682,8 +3784,8 @@ $("#gaOpen").onclick=async()=>{const [currency,country_code]=$("#gaOpt").value.s
   toast(`Receiving account opened: ${g.currencies.join(", ")}`,"good");receivingView()}catch(e){toast(e.message,"critical")}};
 
 // ---- User management → Admin team ----------------------------------------------------------------------------------------
-const LEVELS=[["super_admin","Super admin · FCO","HQ"],["hq_admin","Head quarter admins","HQ"],["country_admin","Country office admins","COUNTRY_OFFICE"],["branch_admin","Branch admins","BRANCH_OFFICE"],["project_admin","Project finance admins","PROJECT_FINANCE"]];
-const ROLE_GUIDE=[["Super admin (FCO)","Head quarter","Monitors everything; may do everything, including connecting Airwallex and the admin team."],
+const LEVELS=[["super_admin","Super admin · FCO","HQ"],["developer","Developer (IT) · Platform Setup and Developer Console only","HQ"],["hq_admin","Head quarter admins","HQ"],["country_admin","Country office admins","COUNTRY_OFFICE"],["branch_admin","Branch admins","BRANCH_OFFICE"],["project_admin","Project finance admins","PROJECT_FINANCE"]];
+const ROLE_GUIDE=[["Super admin (FCO)","Head quarter","Monitors everything; may do everything, including connecting Airwallex and the admin team."],["Developer (IT)","Head quarter","Deploys and sets up VENTHORA: Platform Setup and the Developer Console. Never sees FCO Authorize, payments or reports."],
  ["HQ admin","Head quarter","Company-wide settings, users, budgets and data sources."],["Country office admin","A country office","Its office and the branches and project finance units under it."],
  ["Branch admin","A branch","Its branch and the project finance units under it."],["Project finance admin","A project finance unit","That unit only."],
  ["CFO","Head quarter","Approves the largest payments; company-wide finance settings."],["Finance manager","Any office","Reviews and approves invoices and claims; runs payments within the mandate."],
@@ -4042,6 +4144,12 @@ function travelBody(){const one=v=>v.includes(ALL)?[ALL]:v;const has=id=>documen
 // ---- Users & Beneficiaries: vendors, consultants, customers ---------------------------------------------------------
 const BENV={vendor:"#vendorsView",consultant:"#consultantsView",customer:"#customersView"};let BEN={};
 const PRIO={10:"10 · operations stop without it (payroll, shipping)",9:"9 · critical supplier",8:"8",7:"7 · contracted services",6:"6",5:"5 · normal",4:"4",3:"3",2:"2 · can wait",1:"1 · cheapest to defer"};
+// the bank check of a payee (bankcheck.py): only a passed check lets a payment go
+const BC_LABEL={PASSED_NAME_MATCH:["good","Account open · name matches"],PASSED_FORMAT:["good","Format accepted · call-back confirms holder"],FORMAT_INVALID:["critical","Refused · wrong details"],
+ ACCOUNT_INVALID:["critical","Refused · account closed or unknown"],NAME_MISMATCH:["critical","Refused · name does not match"],CANNOT_VERIFY:["warn","Bank could not verify"],
+ UNCHECKED:["warn","Not checked yet"],NOT_CHECKED:["warn","Not checked yet"],STALE:["warn","Details changed · check again"]};
+function bcCell(c){c=c||{};const [tone,label]=BC_LABEL[c.verdict]||["warn",c.verdict||"Not checked"];
+ return `<span class="pill ${tone}">${esc(label)}</span>${c.resolved_account_name?`<div class="small muted">bank: ${esc(c.resolved_account_name)}${c.resolved_bank_name?` · ${esc(c.resolved_bank_name)}`:""}</div>`:""}<div class="small ${c.payable?"muted":""}">${c.payable?"may be paid":"<b>not paid</b> until it passes"}</div>`}
 async function benView(kind){try{const rows=await api(`/v1/beneficiaries?kind=${kind}`);BEN[kind]=rows;const el=$(BENV[kind]);
  if(kind==="customer"){el.innerHTML=table([{h:"Customer",f:r=>`<b>${esc(r.name)}</b><div class="small muted">${esc(r.id)}</div>`},{h:"Currency",f:r=>esc(r.currency)},
   {h:"Registered mailboxes",f:r=>`<span class="small">${esc((r.contacts||[]).join(", ")||"-")}</span>`},{h:"Domains / also known as",f:r=>`<span class="small">${esc([...(r.domains||[]),...(r.aliases||[])].join(", ")||"-")}</span>`},
@@ -4050,11 +4158,14 @@ async function benView(kind){try{const rows=await api(`/v1/beneficiaries?kind=${
  else{el.innerHTML=table([{h:kind==="consultant"?"Consultant":"Vendor",f:r=>`<b>${esc(r.name)}</b><div class="small muted">${esc(r.id)} · ${esc(r.entity_type==="PERSONAL"?"person":"company")}${r.tax_id?` · tax ${esc(r.tax_id)}`:""}${kind==="consultant"?` · ${r.engagement==="regular"?"regular retainer":"short-term"}`:""}</div>`},
   {h:"Paid in",f:r=>`${esc(r.currency)} · ${esc(r.payout_method)}<div class="small muted">priority ${esc(r.default_priority)} · ${esc(r.budget_line||"no budget line")}</div>`},
   {h:"Bank account",f:r=>r.bank?`<span class="small">${esc(r.bank.bank_name||"")} ${esc(r.bank.bank_country_code||"")}<br>${esc(r.bank.iban||r.bank.account_number||"")}${r.bank.swift_code?` · ${esc(r.bank.swift_code)}`:""}${r.bank.routing_value?` · ${esc(r.bank.routing_type||"routing")} ${esc(r.bank.routing_value)}`:""}</span>`:'<span class="pill critical">NO ACCOUNT</span>'},
+  {h:"Bank check",f:r=>bcCell(r.bank_check)},
   {h:"Registered mailboxes · call-back",f:r=>`<span class="small">${esc((r.contacts||[]).join(", ")||"-")}<br>☎ ${esc(r.registered_phone||"no registered number")}</span>`},
   {h:"Status",f:r=>`${pill(r.status||"NEW")}${r.cooling_until?`<div class="small muted">cooling until ${esc(r.cooling_until.slice(0,10))}</div>`:""}`},
   {h:kind==="consultant"?"Contract (purchase orders)":"Purchase orders",f:r=>r.purchase_orders.length?`<span class="small">${r.purchase_orders.map(p=>`${esc(p.po_id)} · ${dmoney(p.total_minor,p.currency)}`).join("<br>")}</span>`:`<span class="small muted">${kind==="consultant"?"no contract on file":"none"}</span>`},
-  {h:"",f:r=>r.synced_from?SYNCED(r.synced_from):`<button data-bedit="${esc(r.id)}">Edit</button>`}],rows,`no ${kind} yet`)}
- el.querySelectorAll("[data-bedit]").forEach(b=>b.onclick=()=>benForm(kind,rows.find(r=>r.id===b.dataset.bedit)))}
+  {h:"",f:r=>`${r.bank?`<button data-bverify="${esc(r.id)}" title="Ask the bank, through Airwallex, whether this account is open and in this name">Verify account</button> `:""}${r.synced_from?SYNCED(r.synced_from):`<button data-bedit="${esc(r.id)}">Edit</button>`}`}],rows,`no ${kind} yet`)}
+ el.querySelectorAll("[data-bedit]").forEach(b=>b.onclick=()=>benForm(kind,rows.find(r=>r.id===b.dataset.bedit)));
+ el.querySelectorAll("[data-bverify]").forEach(b=>b.onclick=async()=>{b.disabled=true;b.textContent="checking…";try{const d=await api(`/v1/beneficiaries/bank-check?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ids:[b.dataset.bverify]})});
+  const x=Object.values(d.results)[0]||{};toast(`${esc(x.verdict||"checked")}: ${esc(x.detail||"")}`,x.passed?"good":"serious");benView(kind)}catch(e){toast(esc(e.message),"serious");b.disabled=false;b.textContent="Verify account"}})}
  catch(e){$(BENV[kind]).innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 document.querySelectorAll("[data-bnew]").forEach(b=>b.onclick=()=>benForm(b.dataset.bnew,null));
 function benForm(kind,r,seed,onSaved){const v=r||{currency:ORG?.standards?.base_currency||"USD",payout_method:"LOCAL",default_priority:kind==="employee"?10:kind==="consultant"?7:5,entity_type:kind==="vendor"?"COMPANY":"PERSONAL",contacts:[],address:{},engagement:"short_term",budget_line:kind==="employee"?"payroll":"",...(seed||{})};
@@ -4090,7 +4201,7 @@ function benForm(kind,r,seed,onSaved){const v=r||{currency:ORG?.standards?.base_
    bank:keep&&keep.checked?null:{account_name:g("#bf-aname"),bank_name:g("#bf-bname"),bank_country_code:g("#bf-bctry").toUpperCase(),account_currency:g("#bf-accy").toUpperCase(),account_number:g("#bf-acct"),
     iban:g("#bf-iban"),swift_code:g("#bf-swift").toUpperCase(),routing_type:g("#bf-rtype"),routing_value:g("#bf-rval"),bank_account_category:g("#bf-cat")}}}
   try{const res=await api(`/v1/beneficiaries?kind=${kind}&${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({record:rec,keep_bank:!!(keep&&keep.checked)})});
-   $("#dlg").close();toast((res.followed||[]).join("; ")||`${kind[0].toUpperCase()+kind.slice(1)} saved`,"good");
+   $("#dlg").close();const bc=Object.values(res.airwallex_check||{})[0];toast(((res.followed||[]).join("; ")||`${kind[0].toUpperCase()+kind.slice(1)} saved`)+(bc?` · bank check: ${esc(bc.verdict)}`:""),bc&&!bc.passed?"warn":"good");
    if(onSaved)onSaved([...(res.created||[]),...(res.updated||[]),...(res.unchanged||[])][0]);else benView(kind)}catch(e){$("#dlgErr").textContent=e.message}}}
 // ---- Payment → Travel requests: the dashboard channel of the travel delegation -------------------------------------
 async function travelView(){try{const [d,q]=await Promise.all([api("/v1/doa"),api("/v1/intake")]);const t=d.internal.find(c=>c.key==="travel"),pol=t.policy,P=d.travel_catalog.places;
@@ -4141,6 +4252,11 @@ async function doaRun(){$("#doaRun").disabled=true;try{const res=await fetch("/v
 const WH_EVENTS=["deposit.pending","deposit.settled","deposit.rejected","deposit.reversed","payout.transfer.processing","payout.transfer.sent","payout.transfer.paid","payout.transfer.failed","conversion.settled","conversion.cancelled"];
 document.querySelectorAll("#whTabs [data-wtab]").forEach(b=>b.onclick=()=>{document.querySelectorAll("#whTabs [data-wtab]").forEach(x=>x.classList.toggle("on",x===b));
  document.querySelectorAll("[data-wpane]").forEach(p=>p.hidden=p.dataset.wpane!==b.dataset.wtab)});
+$("#whCreate").onclick=async()=>{const u=$("#whUrl").value.trim();if(!/^https:\/\//.test(u)){$("#whMsg").innerHTML='<span class="err">the address must start with https://</span>';return}
+ $("#whMsg").textContent="asking Airwallex…";try{const r=await api(`/v1/webhooks/register?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({public_url:u})});
+  $("#whMsg").innerHTML=`<span class="pill good">${esc(r.action)}</span> ${esc(r.url)} · ${r.events.length} events${r.secret_kept?" · secret kept":""}`;toast("Webhooks "+esc(r.action),"good");webhookView()}
+ catch(e){$("#whMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+if(location.protocol==="https:")$("#whUrl").value=location.origin;
 async function webhookView(){try{const [s,ev]=await Promise.all([api("/v1/webhooks/status"),api("/v1/webhooks/events?limit=50")]);
  $("#whBadge").innerHTML=s.secret_configured?'<span class="pill good">ENABLED</span>':`<span class="pill warn">SECRET NOT SET</span>`;
  const total=Object.values(s.counts).reduce((a,b)=>a+b,0);$("#whCount").textContent=total||"";
