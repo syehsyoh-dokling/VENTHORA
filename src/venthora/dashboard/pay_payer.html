@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pay with your advance</title>
+<style>
+:root{--ink:#16202c;--muted:#5d6779;--line:#dde3ec;--bg:#eef2f8;--accent:#1a1f71;--good:#13795b;--bad:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",system-ui,Arial,sans-serif}
+main{max-width:460px;margin:0 auto;padding:16px}.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px}
+.muted{color:var(--muted);font-size:13px}.amt{font-size:32px;font-weight:700}
+.opt{display:flex;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;margin-top:8px;cursor:pointer}
+.opt input{width:20px;height:20px}.visa{background:linear-gradient(135deg,#1a1f71,#2f6fed);color:#fff;border-radius:8px;padding:6px 8px;font-weight:700;font-size:12px}
+input[type=text]{font:inherit;padding:12px;border:1px solid var(--line);border-radius:10px;width:100%;letter-spacing:6px;text-align:center;font-size:22px}
+.go{width:100%;padding:16px;border:0;border-radius:14px;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:18px}
+.tap{width:190px;height:190px;border-radius:50%;margin:8px auto;display:flex;align-items:center;justify-content:center;flex-direction:column;
+ background:radial-gradient(circle,#2f6fed,#1a1f71);color:#fff;font-weight:700;font-size:20px;border:0;box-shadow:0 0 0 12px rgba(47,111,237,.15),0 0 0 24px rgba(47,111,237,.07)}
+.st{font-size:24px;font-weight:700;text-align:center;margin:10px 0}.ok{color:var(--good)}.no{color:var(--bad)}
+</style></head>
+<body><main>
+<div class="card"><div class="muted" id="who">loading…</div><div class="amt" id="amt"></div><div class="muted" id="mode"></div></div>
+<div class="card" id="pick" hidden><b>Pay with your advance card</b><div class="muted">A virtual Visa card VENTHORA issued for your advance (sandbox).</div><div id="cards"></div>
+ <div id="numbox" hidden style="margin-top:12px"><div class="muted" style="margin-bottom:6px">Type the card's last four digits (as on your card app)</div><input id="last4" type="text" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+ <div style="margin-top:14px" id="btnbox"></div><div class="muted" id="err" style="color:var(--bad);margin-top:8px"></div></div>
+<div class="card" id="done" hidden><div class="st" id="st"></div><div class="muted" id="why" style="text-align:center"></div></div>
+</main>
+<script>
+const T=location.pathname.split("/").filter(Boolean).pop();const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=(m,c)=>`${c} ${(m/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;let D=null;
+function result(d){$("pick").hidden=true;$("done").hidden=false;const ok=d.status==="APPROVED";$("st").className="st "+(ok?"ok":"no");
+ $("st").textContent=ok?"✓ Paid":d.status==="EXPIRED"?"✗ Expired":"✗ Declined";$("why").textContent=[(d.result||{}).card?`card ••${d.result.card}`:"",(d.result||{}).reason||""].filter(Boolean).join(" · ")}
+(async()=>{try{const r=await fetch(`/pay-sim/api/p/${T}`);D=await r.json();if(!r.ok)throw new Error(D.detail||r.statusText);
+ $("who").textContent=D.merchant;$("amt").textContent=fmt(D.amount_minor,D.currency);$("mode").textContent=D.mode_label;
+ if(D.status!=="WAITING"){result(D);return}
+ if(!D.cards.length){$("pick").hidden=false;$("cards").innerHTML='<div class="muted" style="margin-top:8px">No advance card in use: ask the FCO for an advance first.</div>';return}
+ $("cards").innerHTML=D.cards.map((c,i)=>`<label class="opt"><input type="radio" name="card" value="${esc(c.card_id)}" ${i===0?"checked":""}><span class="visa">VISA</span><span><b>•••• ${esc(c.last4)}</b><div class="muted">${esc(c.label)} · ${esc(c.purpose||"")}</div></span></label>`).join("");
+ $("numbox").hidden=D.mode!=="card_number";
+ $("btnbox").innerHTML=D.mode==="contactless"?'<button class="tap" id="pay"><span style="font-size:34px">)))</span>Tap to pay</button>':`<button class="go" id="pay">${D.mode==="qr"?"Pay":"Pay by card number"}</button>`;
+ $("pick").hidden=false;$("pay").onclick=pay}
+ catch(e){$("who").innerHTML=`<span style="color:var(--bad)">${esc(e.message)}</span>`}})();
+async function pay(){$("err").textContent="";const card=(document.querySelector("input[name=card]:checked")||{}).value;$("pay").disabled=true;
+ try{const r=await fetch(`/pay-sim/api/p/${T}/pay`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({card_id:card,last4:$("last4").value.trim()})});
+  const d=await r.json();if(!r.ok)throw new Error(d.detail||r.statusText);result(d)}catch(e){$("err").textContent=e.message;$("pay").disabled=false}}
+</script></body></html>

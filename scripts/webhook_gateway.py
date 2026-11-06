@@ -19,13 +19,15 @@ def main() -> None:
     ap.add_argument("--upstream", default="http://127.0.0.1:8001", help="the VENTHORA API, never exposed itself")
     ap.add_argument("--api", action="store_true", help="also forward the API for requests carrying a key")
     ap.add_argument("--email-upstream", default=None, help="send inbound email (/webhooks/email) to this VENTHORA instead")
+    ap.add_argument("--paysim-upstream", default=None, help="send the phone pay simulator (/pay-sim/...) elsewhere")
     a = ap.parse_args()
     sys.path.insert(0, str(ROOT / "src"))
     import uvicorn
 
     from venthora.webhook_gateway import create_app
 
-    uvicorn.run(create_app(a.upstream, api=a.api, email_upstream=a.email_upstream), host="127.0.0.1", port=a.port, log_level="info")
+    app = create_app(a.upstream, api=a.api, email_upstream=a.email_upstream, paysim_upstream=a.paysim_upstream)
+    uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="info")
 
 
 if __name__ == "__main__":

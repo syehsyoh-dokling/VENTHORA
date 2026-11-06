@@ -268,6 +268,98 @@ def _execution_done(result) -> None:
                                         "paid": paid})
 
 
+@app.middleware("http")
+async def test_log(request: Request, call_next):
+    """Demo-Only → Test log: while a recording is on, every change (POST/PUT/PATCH/DELETE) is written down with who sent
+    it, its answer and the numbers it produced (testlog.py). Declared last, so it is the outermost: it sees each request
+    as it came in, API keys and public forms included."""
+    from . import testlog
+
+    path, method = request.url.path, request.method
+    if method not in ("POST", "PUT", "PATCH", "DELETE") or path.startswith(testlog.SKIP):
+        return await call_next(request)
+    org = request.app.state.org
+    try:
+        active = (await asyncio.to_thread(testlog.session, org)).get("active")
+    except Exception:  # noqa: BLE001 - the log never stops a request
+        active = False
+    if not active:
+        return await call_next(request)
+    started = time.perf_counter()
+    response = await call_next(request)
+    raw = b"".join([chunk async for chunk in response.body_iterator])
+    role = request.query_params.get("role") or request.headers.get("x-venthora-role")
+    with contextlib.suppress(Exception):
+        await asyncio.to_thread(testlog.record, org, method=method, path=path, query=request.url.query, status=response.status_code,
+                                ms=int((time.perf_counter() - started) * 1000), role=role, by=request.query_params.get("by"),
+                                channel=testlog.channel_of(path, request.headers, role), body=raw, ctype=response.headers.get("content-type", ""))
+    headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+    return Response(raw, status_code=response.status_code, headers=headers)
+
+
+# ---- Demo-Only → Test log ----
+class TestLogStartIn(BaseModel):
+    scenario: str = Field(min_length=1, max_length=80, description="e.g. '1 · via endpoints' or '2 · UI only'")
+
+
+@app.get("/v1/demo/testlog")
+async def demo_testlog(scenario: str | None = None, tab: str | None = None, limit: int = Query(2000, ge=1, le=10000)):
+    from . import testlog
+
+    org = app.state.org
+    rows = await asyncio.to_thread(testlog.entries, org, scenario, None, limit)
+    tabs = {t: 0 for t, _ in testlog.TABS} | {"Other": 0}
+    for r in rows:
+        tabs[r["tab"]] = tabs.get(r["tab"], 0) + 1
+    scenarios = sorted({r.get("scenario") for r in await asyncio.to_thread(testlog.entries, org, None, None, 10000) if r.get("scenario")})
+    return {"session": await asyncio.to_thread(testlog.session, org), "scenarios": scenarios, "tabs": tabs,
+            "entries": [r for r in rows if not tab or r["tab"] == tab][::-1]}
+
+
+@app.post("/v1/demo/testlog/start")
+async def demo_testlog_start(body: TestLogStartIn, role: str = "super_admin", by: str = "dashboard"):
+    from . import testlog
+
+    rec = await asyncio.to_thread(testlog.start, app.state.org, body.scenario, f"{by} ({role})")
+    await asyncio.to_thread(app.state.audit.append, "testlog_started", {"scenario": rec["scenario"], "by": f"{by} ({role})"})
+    return rec
+
+
+@app.post("/v1/demo/testlog/stop")
+async def demo_testlog_stop(role: str = "super_admin", by: str = "dashboard"):
+    from . import testlog
+
+    rec = await asyncio.to_thread(testlog.stop, app.state.org, f"{by} ({role})")
+    await asyncio.to_thread(app.state.audit.append, "testlog_stopped", {"scenario": rec.get("scenario"), "by": f"{by} ({role})"})
+    return rec
+
+
+@app.delete("/v1/demo/testlog")
+async def demo_testlog_clear(scenario: str | None = None, role: str = "super_admin", by: str = "dashboard"):
+    from . import testlog
+
+    if role != "super_admin":
+        raise HTTPException(403, "only the FCO (Super admin) clears the test log")
+    return {"deleted": await asyncio.to_thread(testlog.clear, app.state.org, scenario)}
+
+
+@app.get("/v1/demo/testlog.csv", include_in_schema=False)
+async def demo_testlog_csv(scenario: str | None = None):
+    import csv
+    import io
+
+    from . import testlog
+
+    rows = await asyncio.to_thread(testlog.entries, app.state.org, scenario, None, 10000)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["at", "scenario", "tab", "channel", "actor", "method", "path", "status", "ms", "result"])
+    for r in rows:
+        w.writerow([r["at"], r.get("scenario"), r["tab"], r["channel"], r["actor"], r["method"], r["path"] + (f"?{r['query']}" if r.get("query") else ""), r["status"], r["ms"], r["result"]])
+    name = f"venthora-test-log-{(scenario or 'all').replace(' ', '_').replace('·', '')}.csv"
+    return Response(buf.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+
 def _scenario_file(scenario_id: str):
     path = SCENARIOS / f"{scenario_id}.json"
     if not scenario_id.replace("_", "").replace("-", "").isalnum() or not path.is_file():
@@ -5325,6 +5417,110 @@ async def cards_simulate(card_id: str, body: CardChargeIn, role: str = "finance_
     await asyncio.to_thread(app.state.audit.append, "card_charge_simulated", {"card_id": card_id, "amount_minor": body.amount_minor, "currency": body.currency,
                                                                               "status": res.get("status"), "channel": body.channel, "by": who})
     return res | {"channel": body.channel}
+
+
+# ---- Demo-Only → phone pay simulator (paysim.py): a cashier phone shows a QR, a payer phone pays with an advance card ----
+@app.get("/v1/demo/pay-sim/link")
+async def paysim_link(new: bool = False, role: str = "super_admin", by: str = "dashboard"):
+    """The cashier's link (with its key) to open on a phone, from Sandbox simulator."""
+    from . import paysim, sourcing
+
+    if role not in ("super_admin", "developer", "finance_manager"):
+        raise HTTPException(403, "the FCO, a Developer or a finance manager opens the cashier")
+    key = await asyncio.to_thread(paysim.cashier_key, app.state.org, f"{by} ({role})", new)
+    return {"cashier_url": f"{sourcing.public_url()}/pay-sim/cashier?k={key}", "cards": await asyncio.to_thread(paysim.advance_cards, app.state.org)}
+
+
+@app.get("/pay-sim/cashier", include_in_schema=False)
+async def paysim_cashier_page():
+    return FileResponse(DASHBOARD.parent / "pay_cashier.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/pay-sim/p/{token}", include_in_schema=False)
+async def paysim_payer_page(token: str):
+    return FileResponse(DASHBOARD.parent / "pay_payer.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+class PaySimRequestIn(BaseModel):
+    merchant: str = Field(min_length=1, max_length=40)
+    amount_minor: int = Field(gt=0, le=10_000_000)
+    currency: str = Field("USD", pattern="^(USD|SGD|EUR|GBP|AUD|HKD)$", description="currencies the sandbox simulation accepts")
+    mcc: str = Field("5812", pattern=r"^\d{4}$")
+    mode: str = Field("qr", pattern="^(qr|contactless|card_number)$")
+
+
+@app.post("/pay-sim/api/requests", include_in_schema=False)
+async def paysim_new(body: PaySimRequestIn, k: str = ""):
+    from . import paysim, sourcing
+
+    if not paysim.key_ok(app.state.org, k):
+        raise HTTPException(403, "open the cashier from VENTHORA (Demo-Only → Sandbox simulator)")
+    rec = await asyncio.to_thread(paysim.new_request, app.state.org, merchant=body.merchant, amount_minor=body.amount_minor,
+                                  currency=body.currency, mcc=body.mcc, mode=body.mode)
+    return rec | {"pay_url": f"{sourcing.public_url()}/pay-sim/p/{rec['_id']}"}
+
+
+@app.get("/pay-sim/api/requests/{token}", include_in_schema=False)
+async def paysim_status(token: str, k: str = ""):
+    from . import paysim
+
+    if not paysim.key_ok(app.state.org, k):
+        raise HTTPException(403, "not the cashier")
+    rec = await asyncio.to_thread(paysim.get, app.state.org, token)
+    if rec is None:
+        raise HTTPException(404, "no such payment")
+    return rec
+
+
+@app.get("/pay-sim/api/p/{token}", include_in_schema=False)
+async def paysim_payer_data(token: str):
+    from . import paysim
+
+    rec = await asyncio.to_thread(paysim.get, app.state.org, token)
+    if rec is None:
+        raise HTTPException(404, "this payment link is not valid")
+    return {k: rec.get(k) for k in ("merchant", "amount_minor", "currency", "mode", "status", "result")} | {
+        "mode_label": paysim.MODES[rec["mode"]], "cards": await asyncio.to_thread(paysim.advance_cards, app.state.org) if rec["status"] == "WAITING" else []}
+
+
+class PaySimPayIn(BaseModel):
+    card_id: str = Field(min_length=1, max_length=80)
+    last4: str = Field("", max_length=4)
+
+
+@app.post("/pay-sim/api/p/{token}/pay", include_in_schema=False)
+async def paysim_pay(token: str, body: PaySimPayIn):
+    """The payer pays: the charge goes to Airwallex's sandbox simulation on the chosen advance card, once."""
+    from . import paysim
+
+    org = app.state.org
+    rec = await asyncio.to_thread(paysim.get, org, token)
+    if rec is None:
+        raise HTTPException(404, "this payment link is not valid")
+    if rec["status"] != "WAITING":
+        raise HTTPException(409, f"this payment is {rec['status'].lower()}")
+    card = next((c for c in await asyncio.to_thread(paysim.advance_cards, org) if c["card_id"] == body.card_id), None)
+    if card is None:
+        raise HTTPException(422, "choose one of the advance cards")
+    if rec["mode"] == "card_number" and body.last4 != card["last4"]:
+        raise HTTPException(422, "the card number does not match that card")
+    await asyncio.to_thread(org._put, paysim.KIND, rec | {"status": "PAYING"}, "pay-sim payer")
+    try:
+        res = await cards_simulate(body.card_id, CardChargeIn(amount_minor=rec["amount_minor"], currency=rec["currency"], merchant=rec["merchant"],
+                                                              merchant_category_code=rec["mcc"], channel=rec["mode"]), role="finance_manager", by="pay-sim payer")
+    except HTTPException as exc:
+        out = await asyncio.to_thread(paysim.finish, org, token, {"status": "DECLINED", "reason": str(exc.detail)[:200], "card": card["last4"]})
+        return out
+    status, reason = "APPROVED", ""
+    with contextlib.suppress(Exception):  # Airwallex's own record of the charge decides what both phones show
+        await asyncio.sleep(1.5)
+        tx = next((t for t in await _bank().card_transactions(body.card_id) if t.get("transaction_id") == res.get("card_transaction_id")), None)
+        if tx and str(tx.get("status", "")).upper() not in ("APPROVED", "CLEARED", "SETTLED", "PENDING", "AUTHORIZED"):
+            status, reason = "DECLINED", tx.get("failure_reason") or tx.get("status")
+        if status == "APPROVED" and tx and tx.get("billing_currency") and tx.get("billing_currency") != tx.get("transaction_currency"):
+            reason = f"billed {tx['billing_currency']} {abs(float(tx.get('billing_amount') or 0)):,.2f}"
+    return await asyncio.to_thread(paysim.finish, org, token, {"status": status, "reason": reason, "card": card["last4"], "request": card["request"],
+                                                               "transaction_id": res.get("card_transaction_id")})
 
 
 # ---- the card-issuing account: Airwallex Issuing is enabled per account and country, so cards may live on a

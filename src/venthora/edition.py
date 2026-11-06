@@ -58,4 +58,6 @@ def set_demo(org, on: bool, *, role: str, by: str) -> dict:
 def is_demo_path(path: str) -> bool:
     if path in DEMO_PATHS or path.endswith(DEMO_SUFFIXES):
         return True
+    if path.startswith(("/v1/demo/", "/pay-sim")):  # the test log and the phone pay simulator exist for the demo only
+        return True
     return path.startswith(DEMO_PREFIXES) and "/form-link/" in path

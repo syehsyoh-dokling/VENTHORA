@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demo cashier</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+:root{--ink:#16202c;--muted:#5d6779;--line:#dde3ec;--bg:#0f172a;--card:#fff;--accent:#2f6fed;--good:#13795b;--bad:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",system-ui,Arial,sans-serif}
+main{max-width:460px;margin:0 auto;padding:16px}
+.card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:12px}
+h1{color:#fff;font-size:18px;margin:4px 0 12px}.muted{color:var(--muted);font-size:13px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);margin-bottom:10px}
+input,select{font:inherit;color:var(--ink);padding:10px;border:1px solid var(--line);border-radius:10px;width:100%}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.modes button{padding:12px 6px;border-radius:10px;border:1px solid var(--line);background:#f6f8fb;font:inherit;font-size:14px}
+.modes button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.go{width:100%;padding:14px;border:0;border-radius:12px;background:var(--accent);color:#fff;font:inherit;font-weight:600}
+#qr{display:flex;justify-content:center;margin:8px 0}#qr img{width:240px;height:240px}
+.amt{font-size:30px;font-weight:700;text-align:center}.st{font-size:22px;font-weight:700;text-align:center;margin-top:8px}
+.ok{color:var(--good)}.no{color:var(--bad)}.wait{color:var(--muted)}
+</style></head>
+<body><main>
+<h1>VENTHORA · demo cashier <span class="muted" style="color:#9fb0c8">(sandbox)</span></h1>
+<div class="card" id="form">
+ <label>Shop<input id="m" value="Kopi Corner Bukit Bintang"></label>
+ <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px">
+  <label>Amount<input id="a" type="number" min="0.01" step="0.01" value="8.50" inputmode="decimal"></label>
+  <label>Currency<select id="c"><option>USD</option><option>SGD</option><option>EUR</option><option>GBP</option><option>AUD</option><option>HKD</option></select></label>
+ </div>
+ <label>What the shop is<select id="mcc"><option value="5814">Café / fast food</option><option value="5812">Restaurant</option><option value="4121">Taxi / ride</option>
+  <option value="7011">Hotel</option><option value="5411">Grocery</option><option value="4111">Train / bus</option></select></label>
+ <div class="muted" style="margin-bottom:6px">How the customer pays</div>
+ <div class="modes"><button data-m="qr" class="on">Scan QR</button><button data-m="contactless">Tap</button><button data-m="card_number">Card number</button></div>
+ <button class="go" id="go">Charge</button>
+ <div id="err" class="muted" style="color:var(--bad);margin-top:8px"></div>
+</div>
+<div class="card" id="show" hidden>
+ <div class="muted" id="what"></div><div class="amt" id="amt"></div>
+ <div id="qr"></div><div class="muted" style="text-align:center" id="hint"></div>
+ <div class="st wait" id="st">waiting for the customer…</div>
+ <button class="go" id="again" style="margin-top:12px;background:#334155">New charge</button>
+</div>
+</main>
+<script>
+const K=new URLSearchParams(location.search).get("k")||"";const $=id=>document.getElementById(id);let MODE="qr",TOK=null,timer=null;
+const fmt=(m,c)=>`${c} ${(m/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{MODE=b.dataset.m;document.querySelectorAll("[data-m]").forEach(x=>x.classList.toggle("on",x===b))});
+$("go").onclick=async()=>{$("err").textContent="";const amount=Math.round(parseFloat($("a").value)*100);if(!(amount>0)){$("err").textContent="enter an amount";return}
+ try{const r=await fetch(`/pay-sim/api/requests?k=${encodeURIComponent(K)}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({merchant:$("m").value.trim(),amount_minor:amount,currency:$("c").value,mcc:$("mcc").value,mode:MODE})});
+  const d=await r.json();if(!r.ok)throw new Error(d.detail||r.statusText);TOK=d._id;
+  $("what").textContent=`${d.merchant} · ${{qr:"scan to pay",contactless:"tap to pay",card_number:"pay by card number"}[d.mode]}`;$("amt").textContent=fmt(d.amount_minor,d.currency);
+  const q=qrcode(0,"M");q.addData(d.pay_url);q.make();$("qr").innerHTML=q.createImgTag(6,8);
+  $("hint").textContent=d.mode==="qr"?"Customer: scan this with the phone camera":d.mode==="contactless"?"Customer: scan, then hold the phone near the terminal and tap":"Customer: scan, then type the card's last four digits";
+  $("st").className="st wait";$("st").textContent="waiting for the customer…";$("form").hidden=true;$("show").hidden=false;poll()}
+ catch(e){$("err").textContent=e.message}};
+async function poll(){clearTimeout(timer);if(!TOK)return;try{const d=await (await fetch(`/pay-sim/api/requests/${TOK}?k=${encodeURIComponent(K)}`)).json();
+ if(d.status==="APPROVED"){$("st").className="st ok";$("st").textContent=`✓ Approved · card ••${(d.result||{}).card||""}`+((d.result||{}).reason?` · ${d.result.reason}`:"");return}
+ if(d.status==="DECLINED"||d.status==="EXPIRED"){$("st").className="st no";$("st").textContent=`✗ ${d.status==="EXPIRED"?"Expired":"Declined"}`+(((d.result||{}).reason)?` · ${d.result.reason}`:"");return}
+ if(d.status==="PAYING"){$("st").textContent="paying…"}}catch(e){}timer=setTimeout(poll,2000)}
+$("again").onclick=()=>{TOK=null;clearTimeout(timer);$("show").hidden=true;$("form").hidden=false};
+if(!K)$("err").textContent="open the cashier from VENTHORA (Demo-Only → Sandbox simulator)";
+</script></body></html>

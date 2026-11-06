@@ -57,11 +57,12 @@ def has_key(headers) -> bool:
 
 
 def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClient | None = None, api: bool = False,
-               email_upstream: str | None = None) -> Starlette:
+               email_upstream: str | None = None, paysim_upstream: str | None = None) -> Starlette:
     """`email_upstream`: inbound email (/webhooks/email) goes to another VENTHORA than the rest (one company's mail
     moved to a new installation while the Airwallex webhooks still reach the old one)."""
     http = client or httpx.AsyncClient(base_url=upstream, timeout=60.0)
     mail_http = httpx.AsyncClient(base_url=email_upstream, timeout=60.0) if email_upstream else http
+    sim_http = httpx.AsyncClient(base_url=paysim_upstream, timeout=60.0) if paysim_upstream else http
 
     async def forward(request: Request) -> Response:
         path = request.url.path
@@ -122,6 +123,34 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
             return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)
         return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
 
+    async def paysim(request: Request) -> Response:
+        """The phone pay simulator (demo mode, sandbox): its two pages and their small JSON calls, with the query (the
+        cashier's key) and nothing else of the phone's headers."""
+        body = await request.body() if request.method == "POST" else b""
+        if len(body) > 16 * 1024:
+            return JSONResponse({"detail": "body too large"}, status_code=413)
+        try:
+            res = await sim_http.request(request.method, request.url.path, params=dict(request.query_params), content=body or None,
+                                         headers={"content-type": "application/json"} if body else None)
+        except httpx.HTTPError:
+            return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)
+        return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
+
+    async def details(request: Request) -> Response:
+        """The awarded vendor's details form (bank account): the page, its data and the submission, keyed by the token."""
+        token = request.path_params["token"]
+        if not RFQ_TOKEN.match(token):
+            return JSONResponse({"detail": "not found"}, status_code=404)
+        body = await request.body() if request.method == "POST" else b""
+        if len(body) > MAX_RFQ_BODY:
+            return JSONResponse({"detail": "body too large"}, status_code=413)
+        try:
+            res = await sim_http.request(request.method, request.url.path, content=body or None,  # the instance that awarded it
+                                     headers={"content-type": "application/json"} if body else None)
+        except httpx.HTTPError:
+            return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)
+        return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
+
     async def developers(request: Request) -> Response:
         """The public API Catalog (read only, no key, no data): the page and its three files."""
         try:
@@ -140,5 +169,7 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
     return Starlette(routes=[Route(PATH, forward, methods=["POST"]), Route(EMAIL_PATH, forward, methods=["POST"]),
                              Route(REMOTE_AUTH_PATH, forward, methods=["POST"]), Route(AGENT_KEYS_PATH, agent_keys, methods=["GET"]),
                              Route("/rfq/{token}", rfq, methods=["GET", "POST"]), Route("/rfq/{token}/data", rfq, methods=["GET"]),
+                             Route("/vendor-details/{token}", details, methods=["GET", "POST"]), Route("/vendor-details/{token}/data", details, methods=["GET"]),
+                             Route("/pay-sim/{rest:path}", paysim, methods=["GET", "POST"]),
                              *[Route(p, developers, methods=["GET"]) for p in DEVELOPER_PATHS],
                              Route("/{rest:path}", nothing, methods=every)], lifespan=lifespan)
