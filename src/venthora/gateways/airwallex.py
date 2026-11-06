@@ -447,6 +447,35 @@ class Airwallex:
     async def get_card(self, card_id: str) -> dict:
         return await self._request("GET", f"/api/v1/issuing/cards/{card_id}")
 
+    async def fund_connected_account(self, *, account_id: str, amount_minor: int, currency: str, reference: str, request_id: str,
+                                     reason: str = "travel") -> dict:
+        """Connected Account Transfers: the platform's wallet pays a connected account's wallet, same currency, no fee
+        (internal; it may be held by transaction monitoring before SETTLED)."""
+        return await self._request("POST", "/api/v1/connected_account_transfers/create", own=True, json={
+            "amount": f"{Decimal(amount_minor) / 100:.2f}", "currency": currency, "destination": account_id, "reason": reason,
+            "reference": reference[:140], "request_id": request_id})
+
+    async def charge_connected_account(self, *, account_id: str, amount_minor: int, currency: str, reference: str, request_id: str,
+                                       reason: str = "travel") -> dict:
+        """Charges: a connected account's wallet pays the platform's wallet back, same currency (internal)."""
+        return await self._request("POST", "/api/v1/charges/create", own=True, json={
+            "amount": f"{Decimal(amount_minor) / 100:.2f}", "currency": currency, "source": account_id, "reason": reason,
+            "reference": reference[:140], "request_id": request_id})
+
+    async def balances_of(self, account_id: str) -> dict[str, int]:
+        """Available balances (minor units) of a connected account, read on its behalf."""
+        body = await self._request_for(account_id, "GET", "/api/v1/balances/current")
+        items = body if isinstance(body, list) else body.get("items", [])
+        return {x["currency"]: round(float(x.get("available_amount") or 0) * 100) for x in items if x.get("available_amount")}
+
+    async def _request_for(self, account_id: str, method: str, path: str, **kw):
+        old = self._acting
+        self._acting = lambda: account_id
+        try:
+            return await self._request(method, path, **kw)
+        finally:
+            self._acting = old
+
     async def card_details(self, card_id: str) -> dict:
         """GET /issuing/cards/{id}/details: the card number, CVV and expiry (sensitive: never stored or shown by VENTHORA;
         used only to simulate a charge typed in by card number on the sandbox)."""

@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
+import secrets
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -5586,15 +5587,20 @@ async def _issue_advance_card(number: str, who: str) -> dict:
     req = cards.card_body(cardholder_id=holder["cardholder_id"], payee=payee, per_tx_minor=fr["amount_minor"], monthly_minor=fr["amount_minor"],
                           currency=fr["currency"], by=who, purpose=purpose, active_to=fr.get("settle_by"), all_time_minor=fr["amount_minor"],
                           nick_name=f"{FUND_KINDS[fr['kind']][0]} {label}")
+    funding = await _fund_card_account(number, fr, who)
     try:
         resp = await _bank().create_card(req)
     except AirwallexError as exc:
+        if funding and funding.get("transfer_id"):  # no card: the money goes back to the main account
+            with contextlib.suppress(Exception):
+                await _return_from_card_account(number, fr["amount_minor"], fr["currency"], who)
         raise HTTPException(502, f"Airwallex refused the card: {exc}") from exc
     rec = await asyncio.to_thread(cards.record_card, org, resp, payee=payee, per_tx_minor=fr["amount_minor"], monthly_minor=fr["amount_minor"],
                                   currency=fr["currency"], merchant="", mcc=[], by=who)
     rec = rec | {"fund_request": number, "all_time_minor": fr["amount_minor"], "active_to": fr.get("settle_by"), "purpose": purpose}
     await asyncio.to_thread(org._put, "card", rec, who)
-    paid = fr | {"status": "IN_PAYMENT", "paid_by": "virtual_card", "card_id": rec["_id"], "card_masked": rec.get("masked"), "paid_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    paid = fr | {"status": "IN_PAYMENT", "paid_by": "virtual_card", "card_id": rec["_id"], "card_masked": rec.get("masked"),
+                 "paid_at": datetime.now(UTC).isoformat(timespec="seconds"), "funding": funding}
     await asyncio.to_thread(org._put, "fund_request", paid, who)
     if person.get("email"):
         from . import outbox
@@ -5609,6 +5615,53 @@ async def _issue_advance_card(number: str, who: str) -> dict:
     await asyncio.to_thread(app.state.audit.append, "advance_card_issued", {"request": number, "card_id": rec["_id"], "amount_minor": fr["amount_minor"],
                                                                           "currency": fr["currency"], "by": who})
     return paid | {"card": {k: rec.get(k) for k in ("_id", "masked", "brand", "status", "purpose", "active_to", "all_time_minor")}}
+
+
+async def _fund_card_account(number: str, fr: dict, who: str) -> dict | None:
+    """The advance's money moves inside Airwallex, from the main account to the card-issuing account, in the advance's
+    currency (Connected Account Transfers: no fee, nothing leaves Airwallex), so the card spends it without a
+    conversion. None when cards live on the main account itself."""
+    from .airwallex_settings import card_account_for
+
+    acct = card_account_for()
+    if not acct:
+        return None
+    try:
+        t = await _bank().fund_connected_account(account_id=acct, amount_minor=fr["amount_minor"], currency=fr["currency"],
+                                                 reference=f"VENTHORA {number} card funding", request_id=f"fund-{number}-{secrets.token_hex(4)}")
+    except AirwallexError as exc:
+        raise HTTPException(409, f"the card account could not be funded from the main account ({exc}): top up the main account's "
+                                 f"{fr['currency']} balance first") from exc
+    out = {"to": acct, "transfer_id": t.get("id"), "status": t.get("status"), "amount_minor": fr["amount_minor"], "currency": fr["currency"],
+           "fee": t.get("fee", 0), "at": datetime.now(UTC).isoformat(timespec="seconds")}
+    await asyncio.to_thread(app.state.audit.append, "card_account_funded", {"request": number, **out, "by": who})
+    return out
+
+
+async def _return_from_card_account(number: str, amount_minor: int, currency: str, who: str) -> dict | None:
+    """What an advance did not spend goes back from the card-issuing account to the main account (Charges: internal, no
+    fee); never more than that account still holds in the currency."""
+    from .airwallex_settings import card_account_for
+
+    acct = card_account_for()
+    if not acct or amount_minor <= 0:
+        return None
+    try:
+        held = (await _bank().balances_of(acct)).get(currency, 0)
+    except AirwallexError:
+        held = amount_minor
+    back = min(amount_minor, held)
+    if back <= 0:
+        return {"returned_minor": 0, "note": f"the card account holds no {currency}"}
+    try:
+        ch = await _bank().charge_connected_account(account_id=acct, amount_minor=back, currency=currency,
+                                                    reference=f"VENTHORA {number} unspent advance", request_id=f"back-{number}-{secrets.token_hex(4)}")
+    except AirwallexError as exc:
+        return {"returned_minor": 0, "note": f"not returned: {exc}"}
+    out = {"returned_minor": back, "currency": currency, "charge_id": ch.get("id"), "status": ch.get("status"),
+           "at": datetime.now(UTC).isoformat(timespec="seconds")}
+    await asyncio.to_thread(app.state.audit.append, "card_account_returned", {"request": number, **out, "by": who})
+    return out
 
 
 @app.post("/v1/fund-requests/{number}/card")
@@ -5646,7 +5699,9 @@ async def fund_request_settle_card(number: str, role: str = "finance_manager", b
         await _bank().set_card_status(fr["card_id"], "INACTIVE")
     card = org.get("card", fr["card_id"]) or {}
     org._put("card", card | {"frozen": True, "settled_for": number}, who)
-    rec = fr | {"status": "SETTLED", "settled_minor": spent, "settlement_note": f"from the card's spend: {len(ok)} charge(s); card frozen", "settled_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    returned = await _return_from_card_account(number, max(fr["amount_minor"] - spent, 0), fr["currency"], who) if fr.get("funding") else None
+    rec = fr | {"status": "SETTLED", "settled_minor": spent, "settlement_note": f"from the card's spend: {len(ok)} charge(s); card frozen", "settled_at": datetime.now(UTC).isoformat(timespec="seconds"),
+                "returned": returned}
     await asyncio.to_thread(org._put, "fund_request", rec, who)
     await asyncio.to_thread(app.state.audit.append, "fund_request_settled", {"request": number, "settled_minor": spent, "by": who, "from": "card"})
     return rec | {"charges": len(ok), "unspent_minor": max(fr["amount_minor"] - spent, 0),
