@@ -42,19 +42,19 @@ AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
                   "/v1/accounts", "/v1/balances", "/v1/collection-accounts", "/v1/acting-as", "/v1/reference",
                   "/api/airwallex", "/v1/airwallex", "/api/audit", "/v1/audit")),
     "payables": ("Payables", "intake of invoices and claims, payees, vendors, consultants and customers with their bank details, purchase orders, approvals",
-                 ("/v1/intake", "/v1/payees", "/v1/beneficiaries", "/v1/procurement", "/v1/commitments", "/v1/approvals", "/v1/purchase-requests", "/v1/fund-requests", "/v1/cards", "/v1/card-authorization")),
+                 ("/v1/intake", "/v1/payees", "/v1/beneficiaries", "/v1/procurement", "/v1/commitments", "/v1/approvals", "/v1/purchase-requests", "/v1/fund-requests", "/v1/cards", "/v1/card-authorization", "/v1/wallet-payouts")),
     "receivables": ("Receivables", "customer invoices and ageing, balance received", ("/v1/aging", "/v1/receipts")),
     "budget": ("Budget and reporting", "budgets, period close, reporting periods and rates, tenants",
                ("/v1/budgets", "/v1/budget-lines", "/v1/budget-allocation", "/v1/cash-placement", "/v1/reporting", "/v1/reports", "/v1/tenants", "/api/budget")),
     "organisation": ("Organisation", "units, people and limits, projects, accounts, allocations, standards",
                      ("/v1/org",)),
     "sources": ("Data sources", "connectors, sync, uploads, master data, readiness", ("/v1/sources",)),
-    "settings": ("Settings and integrations", "AI model, webhook status and events", ("/v1/settings", "/v1/webhooks", "/v1/prompt-system", "/v1/visa", "/v1/outbox", "/v1/metal", "/v1/mcp")),
+    "settings": ("Settings and integrations", "AI model, webhook status and events", ("/v1/settings", "/v1/webhooks", "/v1/prompt-system", "/v1/visa", "/v1/outbox", "/v1/metal", "/v1/mcp", "/v1/providers")),
     "system": ("Health and evidence", "health, status, ground-truth suites, scenario matrix",
-               ("/health", "/api/status", "/v1/status", "/v1/evidence")),
+               ("/health", "/api/status", "/v1/status", "/v1/evidence", "/v1/demo")),
 }
 NO_KEY = ("/webhooks/",)               # inbound push channels: their own signatures and secrets
-NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection", "/v1/settings/ai", "/v1/settings/email", "/v1/mandate", "/v1/doa", "/v1/priority-sop", "/v1/prompt-system", "/v1/card-authorization", "/v1/visa", "/v1/edition")  # keys, bank, AI vault, mailboxes, the agent's authority, the edition
+NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection", "/v1/settings/ai", "/v1/settings/email", "/v1/mandate", "/v1/doa", "/v1/priority-sop", "/v1/prompt-system", "/v1/card-authorization", "/v1/visa", "/v1/edition", "/v1/providers")  # keys, bank, AI vault, mailboxes, the agent's authority, the edition
 OPEN_WITH_KEY = ("/openapi.json", "/docs", "/v1/developer/catalog")
 ROLES = ("auditor", "treasury_analyst", "finance_manager", "cfo", "admin")  # the dashboard's roles; auditor is read only
 

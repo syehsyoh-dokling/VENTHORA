@@ -8,6 +8,8 @@ Two checks, both on Airwallex, neither creating anything there:
   2. account  POST /beneficiaries/verify_account: the account exists and is open, and the holder's name matches the
               name VENTHORA has (the banks' Confirmation / Verification of Payee). Only where Airwallex covers it:
               the United Kingdom, the SEPA countries and Viet Nam, by LOCAL transfer.
+  3. Indonesia the holder's name of an Indonesian account, by Xendit's name check (gateways/xendit.py) when it is
+              connected: Airwallex has no name check there. The payment itself still goes through Airwallex.
 
 Verdicts:
   PASSED_NAME_MATCH  format right, the bank confirms the account is open and the name is a full match
@@ -52,8 +54,33 @@ def _verify_body(payload: dict) -> dict:
             "bank_details": {k: bd[k] for k in keep if bd.get(k)}}
 
 
-async def run(bank, payload: dict | None) -> dict:
-    """Check one beneficiary payload (masterdata.beneficiary_payload) on Airwallex. `bank` None: not connected."""
+async def _indonesian_name(xendit, bd: dict, base: dict) -> dict | None:
+    """Indonesia has no name check on Airwallex: Xendit's name check fills that gap (the money still goes through
+    Airwallex). None when Xendit cannot check this bank or has no name check active: the format verdict stands."""
+    from .gateways.xendit import SWIFT_TO_CHANNEL, XenditError
+
+    ch = SWIFT_TO_CHANNEL.get((bd.get("swift_code") or "")[:8].upper())
+    if ch is None or xendit.mode == "off":
+        return None
+    try:
+        res = await xendit.check_name(ch, bd.get("account_number") or "", bd.get("account_name") or "")
+    except XenditError:
+        return None
+    if not res.get("available"):
+        return None
+    tag = {"name_check_by": "xendit" + (" (simulated)" if res.get("simulated") else ""), "resolved_account_name": res.get("resolved_name")}
+    if res["result"] == "MATCH":
+        return base | tag | {"verdict": "PASSED_NAME_MATCH", "passed": True, "name_match": "FULL_MATCH",
+                             "detail": "format accepted by Airwallex; Xendit's name check confirms the account is in this name"}
+    if res["result"] == "MISMATCH":
+        return base | tag | {"verdict": "NAME_MISMATCH", "passed": False, "name_match": "NO_MATCH",
+                             "detail": f"the bank holds this account in the name '{res.get('resolved_name')}' (Xendit's name check): correct the name or ask the vendor"}
+    return base | tag | {"verdict": "ACCOUNT_INVALID", "passed": False, "detail": "Xendit's name check finds no account with this number at this bank"}
+
+
+async def run(bank, payload: dict | None, name_checker=None) -> dict:
+    """Check one beneficiary payload (masterdata.beneficiary_payload) on Airwallex. `bank` None: not connected.
+    `name_checker`: the Xendit client, for the holder's name of an Indonesian account (Airwallex has none there)."""
     from .gateways.airwallex import AirwallexError
 
     at = datetime.now(UTC).isoformat(timespec="seconds")
@@ -69,6 +96,10 @@ async def run(bank, payload: dict | None) -> dict:
         return base | {"verdict": "FORMAT_INVALID", "passed": False, "detail": str(exc)[:400], "fields": getattr(exc, "fields", [])}
     bd = payload["payload"]["beneficiary"]["bank_details"]
     country, method = bd.get("bank_country_code"), (payload["payload"].get("transfer_methods") or ["LOCAL"])[0]
+    if country == "ID" and method == "LOCAL" and name_checker is not None:
+        held = await _indonesian_name(name_checker, bd, base)
+        if held is not None:
+            return held
     if country not in NAME_CHECK or method != "LOCAL":
         return base | {"verdict": "PASSED_FORMAT", "passed": True,
                        "detail": f"bank details accepted by Airwallex; {country} has no bank-side name check on Airwallex, so the call-back confirms the holder"}

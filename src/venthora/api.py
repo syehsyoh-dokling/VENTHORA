@@ -3358,7 +3358,7 @@ async def _bank_check_payload(rec: dict) -> dict | None:
         bank = _bank()
     except HTTPException:
         bank = None
-    return await bankcheck.run(bank, payload)
+    return await bankcheck.run(bank, payload, _xendit_or_none())
 
 
 class AirwallexCheckIn(BaseModel):
@@ -3391,7 +3391,7 @@ async def _airwallex_check(vendor_ids: list[str], reuse: dict | None = None, by:
     for vid in vendor_ids:
         rec = store.get("vendor", vid)
         p = beneficiary_payload(rec) if rec else None
-        res = reuse if reuse and p is not None and reuse.get("fingerprint") == bankcheck.fingerprint(p) else await bankcheck.run(bank, p)
+        res = reuse if reuse and p is not None and reuse.get("fingerprint") == bankcheck.fingerprint(p) else await bankcheck.run(bank, p, _xendit_or_none())
         await asyncio.to_thread(bankcheck.save, app.state.org, vid, res, by)
         out[vid] = res | {"ok": None if res["verdict"] == "UNCHECKED" else res["passed"]}
     return out
@@ -5556,7 +5556,205 @@ async def cards_issuing_account_put(body: IssuingAccountIn, role: str = "super_a
     return {"issuing_account": await asyncio.to_thread(AirwallexStore().card_account)}
 
 
-ADVANCE_PURPOSE = {"cash_advance": "TRAVEL_EXPENSES", "petty_cash": "OFFICE_SUPPLIES", "odc": "BUSINESS_EXPENSES"}
+# ---- Xendit: the Indonesian rails Airwallex lacks (e-wallet payouts, the holder's name of an Indonesian account).
+# Indonesian bank accounts are still paid through Airwallex. gateways/xendit.py, wallet_payouts.py ----
+def _xendit_or_none():
+    from . import wallet_payouts
+    from .gateways.xendit import XenditError
+
+    try:
+        x = wallet_payouts.client(app.state.org)
+    except XenditError:
+        return None
+    return None if x.mode == "off" else x
+
+
+def _xendit():
+    from . import wallet_payouts
+    from .gateways.xendit import XenditError
+
+    try:
+        return wallet_payouts.client(app.state.org)
+    except XenditError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@app.get("/v1/providers/xendit")
+async def xendit_get():
+    """Xendit's mode, whether a key and callback token are set (never their values), the balance and the channels."""
+    from . import wallet_payouts
+    from .gateways.xendit import XenditError
+
+    out = await asyncio.to_thread(wallet_payouts.settings, app.state.org)
+    out["why"] = ("Airwallex pays Indonesian bank accounts but not e-wallets (its wallet payouts are Airwallex and PayPal only) "
+                  "and has no name check for Indonesian accounts: Xendit covers those two, nothing else")
+    out["balance_minor"], out["channels"], out["error"] = None, [], None
+    if out["effective_mode"] != "off":
+        try:
+            x = _xendit()
+            out["balance_minor"] = await x.balance()
+            out["channels"] = await x.channels()
+        except (XenditError, HTTPException) as exc:
+            out["error"] = getattr(exc, "detail", None) or str(exc)
+    return out
+
+
+class XenditSettingsIn(BaseModel):
+    mode: str = Field(pattern="^(off|simulator|live)$")
+    secret_key: str | None = Field(None, max_length=200, description="write-only; a test-mode key (xnd_development_...)")
+    callback_token: str | None = Field(None, max_length=200, description="write-only; Xendit's webhook verification token")
+
+
+@app.put("/v1/providers/xendit")
+async def xendit_put(body: XenditSettingsIn, role: str = "super_admin", by: str = "dashboard"):
+    from . import wallet_payouts
+
+    who = _connector(role, by)
+    try:
+        out = await asyncio.to_thread(wallet_payouts.save_settings, app.state.org, body.mode, who, body.secret_key, body.callback_token)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "xendit_settings", {"mode": body.mode, "by": who,  # never the key itself
+                                                                        "key_changed": bool(body.secret_key), "token_changed": bool(body.callback_token)})
+    return out
+
+
+class XenditTopupIn(BaseModel):
+    amount_minor: int = Field(gt=0, le=10_000_000_000)
+
+
+@app.post("/v1/demo/xendit/topup")
+async def xendit_sim_topup(body: XenditTopupIn, role: str = "super_admin", by: str = "dashboard"):
+    """Demo only: put rupiah on the simulator's Xendit balance (on live, the balance is topped up by an Airwallex IDR
+    transfer to the business's Xendit top-up account)."""
+    who = _connector(role, by)
+    x = _xendit()
+    if not x.simulated:
+        raise HTTPException(409, "the top-up is for the simulator; a live Xendit balance is topped up by a bank transfer")
+    bal = await asyncio.to_thread(x.sim_topup, body.amount_minor)
+    await asyncio.to_thread(app.state.audit.append, "xendit_sim_topup", {"amount_minor": body.amount_minor, "by": who})
+    return {"balance_minor": bal, "simulated": True}
+
+
+class WalletPayoutIn(BaseModel):
+    channel_code: str = Field(max_length=30, description="ID_OVO, ID_DANA, ID_GOPAY, ID_SHOPEEPAY or ID_LINKAJA")
+    account_number: str = Field(max_length=30, description="the holder's registered mobile number")
+    account_holder_name: str = Field(max_length=140)
+    amount_minor: int = Field(gt=0, description="whole rupiah")
+    purpose: str = Field("", max_length=200)
+    vendor_id: str | None = Field(None, max_length=80)
+    budget_line: str | None = Field(None, max_length=80)
+    fund_request: str | None = Field(None, max_length=80)
+
+
+@app.get("/v1/wallet-payouts")
+async def wallet_payouts_list():
+    from . import wallet_payouts
+
+    return [wallet_payouts.public(r) for r in await asyncio.to_thread(wallet_payouts.listing, app.state.org)]
+
+
+@app.post("/v1/wallet-payouts")
+async def wallet_payouts_create(body: WalletPayoutIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Ask for an e-wallet payout: the holder's name is checked first; a second person approves before anything is sent."""
+    from . import wallet_payouts
+
+    who = _writer(role, by)
+    try:
+        rec = await wallet_payouts.create(app.state.org, _xendit(), body.model_dump(), who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "wallet_payout_requested", {
+        "payout": rec["payout_number"], "channel": rec["channel_code"], "amount_minor": rec["amount_minor"], "status": rec["status"], "by": who})
+    return wallet_payouts.public(rec)
+
+
+async def _wallet_step(pid: str, fn, event: str, who: str):
+    from . import wallet_payouts
+    from .gateways.xendit import XenditError
+
+    try:
+        rec = await fn()
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except XenditError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, event, {"payout": pid, "status": rec["status"], "by": who,
+                                                            "xendit_id": (rec.get("xendit") or {}).get("id")})
+    return wallet_payouts.public(rec)
+
+
+class CallbackIn(BaseModel):
+    note: str = Field("", max_length=200)
+
+
+@app.post("/v1/wallet-payouts/{pid}/confirm-holder")
+async def wallet_payouts_confirm(pid: str, body: CallbackIn | None = None, role: str = "finance_manager", by: str = "dashboard"):
+    """The holder confirmed on a call-back to the registered number (when no name check was available)."""
+    from . import wallet_payouts
+
+    who = _writer(role, by)
+    return await _wallet_step(pid, lambda: asyncio.to_thread(wallet_payouts.confirm_holder, app.state.org, pid, who, (body.note if body else "")),
+                              "wallet_payout_callback", who)
+
+
+@app.post("/v1/wallet-payouts/{pid}/approve")
+async def wallet_payouts_approve(pid: str, role: str = "super_admin", by: str = "dashboard"):
+    """The second person approves; the payout goes to Xendit at once, with its Idempotency-key kept first."""
+    from . import wallet_payouts
+
+    who = _writer(role, by)
+    return await _wallet_step(pid, lambda: wallet_payouts.approve_and_send(app.state.org, _xendit(), pid, role, by, who), "wallet_payout_approved", who)
+
+
+@app.post("/v1/wallet-payouts/{pid}/refresh")
+async def wallet_payouts_refresh(pid: str, by: str = "dashboard"):
+    """Read the payout back from Xendit: PAID only when Xendit says SUCCEEDED."""
+    from . import wallet_payouts
+
+    return await _wallet_step(pid, lambda: wallet_payouts.refresh(app.state.org, _xendit(), pid, by), "wallet_payout_refreshed", by)
+
+
+@app.post("/v1/wallet-payouts/{pid}/cancel")
+async def wallet_payouts_cancel(pid: str, role: str = "finance_manager", by: str = "dashboard"):
+    from . import wallet_payouts
+
+    who = _writer(role, by)
+    return await _wallet_step(pid, lambda: wallet_payouts.cancel(app.state.org, _xendit(), pid, who), "wallet_payout_cancelled", who)
+
+
+@app.post("/webhooks/xendit", include_in_schema=True)
+async def xendit_webhook(request: Request):
+    """Xendit's payout callback, verified by its x-callback-token. The payout is read back from Xendit before its
+    status is believed: the callback only says when to look."""
+    from . import wallet_payouts
+    from .gateways.xendit import XenditError
+
+    if not wallet_payouts.callback_ok(request.headers.get("x-callback-token")):
+        raise HTTPException(401, "callback token missing or wrong")
+    try:
+        ev = await request.json()
+    except ValueError as exc:
+        raise HTTPException(400, "not JSON") from exc
+    data = ev.get("data") or ev
+    ref = data.get("reference_id")
+    rec = await asyncio.to_thread(wallet_payouts.by_reference, app.state.org, ref) if ref else None
+    if rec is None or not (rec.get("xendit") or {}).get("id"):
+        return {"received": True, "matched": False}
+    try:
+        p = await _xendit().get_payout(rec["xendit"]["id"])
+    except XenditError:
+        return {"received": True, "matched": True, "read_back": False}
+    rec = await asyncio.to_thread(wallet_payouts.apply_status, app.state.org, rec, p, "xendit-webhook")
+    await asyncio.to_thread(app.state.audit.append, "wallet_payout_webhook", {"payout": ref, "status": rec["status"]})
+    return {"received": True, "matched": True, "status": rec["status"]}
+
+
+ADVANCE_PURPOSE ={"cash_advance": "TRAVEL_EXPENSES", "petty_cash": "OFFICE_SUPPLIES", "odc": "BUSINESS_EXPENSES"}
 
 
 async def _issue_advance_card(number: str, who: str) -> dict:

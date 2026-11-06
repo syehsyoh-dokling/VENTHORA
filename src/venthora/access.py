@@ -39,7 +39,8 @@ def _rx(*patterns: str) -> re.Pattern:
 # FCO Authorize: changed by the FCO only, never read by a Developer
 FCO_AUTHORIZE = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop", r"/v1/org/standards")
 # Platform Setup, the money part: the FCO changes it, a Developer may only look
-PLATFORM_MONEY = _rx(r"/v1/airwallex/.*", r"/v1/cards(/.*)?", r"/v1/card-authorization(/.*)?", r"/v1/visa/vic(/.*)?")
+PLATFORM_MONEY = _rx(r"/v1/airwallex/.*", r"/v1/providers/.*",
+                     r"/v1/cards(/.*)?", r"/v1/card-authorization(/.*)?", r"/v1/visa/vic(/.*)?")
 # Platform Setup, the technical part: the FCO or a Developer changes it
 PLATFORM_TECH = _rx(r"/v1/webhooks/register", r"/v1/settings/ai(/.*)?", r"/v1/settings/email(/.*)?", r"/v1/outbox/smtp(/.*)?",
                     r"/v1/developer/keys(/.*)?",
