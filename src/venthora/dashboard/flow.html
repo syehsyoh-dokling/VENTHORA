@@ -56,6 +56,14 @@ header .right{margin-left:auto;display:flex;gap:14px;align-items:center}
 .g{--c:var(--good)}.a{--c:var(--warn)}.r{--c:var(--crit)}.u{--c:var(--rule)}.x{--c:var(--awx)}.o{--c:var(--cfo)}
 .ico{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:9px;background:rgba(255,255,255,.08);margin-right:8px;vertical-align:-7px;font-size:15px}
 
+/* links to the dashboard's menus (the frame's base opens them in the dashboard) */
+.node .k{display:flex;align-items:center;gap:8px}
+.node a.go{margin-left:auto;font-size:11.5px;letter-spacing:.04em;text-transform:none;font-weight:700;color:var(--ink);text-decoration:none;padding:2px 9px;border-radius:999px;
+ background:rgba(255,255,255,.08);border:1px solid var(--c);white-space:nowrap}
+.node a.go:hover{background:var(--c);color:#06122b}
+.node a.to{color:var(--ink2);text-decoration:none}.node a.to b{color:var(--ink);font-weight:600}
+.node a.to:hover,.node a.to:hover b{color:#fff;text-decoration:underline;text-decoration-color:var(--c);text-underline-offset:3px}
+#stage a{cursor:pointer!important}
 /* verdict pills */
 .pills{display:flex;gap:8px;margin-top:10px}
 .pill{flex:1;text-align:center;font-size:12.5px;font-weight:800;letter-spacing:.06em;border-radius:10px;padding:9px 4px;opacity:0;transform:scale(.9);transition:.6s}
@@ -112,13 +120,13 @@ body:not(.ctl-on) #stage{cursor:none}
   <button data-a="prev" title="Previous step (←)">◀ Back</button>
   <button data-a="play" id="playBtn" title="Pause or play (Space)">❚❚ Pause</button>
   <button data-a="next" title="Next step (→ or click)">Next ▶</button>
-  <label>Speed <select id="spd"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="2.5">2.5×</option><option value="3">3×</option></select></label>
+  <label>Speed <select id="spd"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option><option value="2.5">2.5×</option><option value="3">3×</option><option value="4">4×</option></select></label>
   <button data-a="full" title="Full screen (F)">⛶ Full screen</button>
 </div>
 <div id="stage">
   <header>
     <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l8 14 8-14"/></svg></div>
-    <div><h1>VENTHORA <span>How it works</span></h1><div class="sub">From the mandate you assign to books reconciled on Airwallex</div></div>
+    <div><h1>VENTHORA <span>How it works</span></h1><div class="sub">From setup to books reconciled on Airwallex</div></div>
     <div class="right"><span id="stepChip">Ready</span><span class="badge">Alpha · live on the Airwallex sandbox</span></div>
   </header>
 
@@ -126,39 +134,40 @@ body:not(.ctl-on) #stage{cursor:none}
 
   <!-- row 1: the mandate -->
   <div class="node" id="mandate" style="left:60px;top:140px;width:380px;height:250px">
-    <div class="k">Step 1 · Mandate assigned</div>
-    <h3><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>Finance Manager</h3>
+    <div class="k">Platform Setup · Required<a class="go" href="/#/airwallex" title="Open Platform Setup">Go to ›</a></div>
+    <h3>Connect once</h3>
     <ul>
-      <li><b>Goal:</b> pay every bill due in the next 72 hours, in USD, EUR and GBP</li>
-      <li><b>Allocation</b> USD 30,000, ring-fenced</li>
-      <li><b>Reserve floor</b> USD 10,000, never crossed</li>
-      <li><b>Approvers</b> Finance Manager and CFO</li>
+      <li><a class="to" href="/#/airwallex">Go to <b>Airwallex Global Account</b></a></li>
+      <li><a class="to" href="/#/integrations">Go to <b>Airwallex webhooks</b></a></li>
+      <li><a class="to" href="/#/ai">Go to <b>Agent (AI &amp; Model)</b></a></li>
+      <li><a class="to" href="/#/sources-email">Go to <b>Email Sync</b></a></li>
+      <li><a class="to" href="/#/readiness">Go to <b>Setup Checklist</b></a></li>
     </ul>
   </div>
   <div class="node g" id="laneG" style="left:480px;top:140px;width:440px;height:250px">
-    <div class="k">Checked · acts on its own</div>
-    <h3>Within the limit you set</h3>
+    <div class="k">System Setting · Required<a class="go" href="/#/standards" title="Open System Setting">Go to ›</a></div>
+    <h3>The rules the agent works under</h3>
     <ul>
-      <li>Single payout up to <b>USD 10,000</b></li>
-      <li>One payee per period up to <b>USD 15,000</b></li>
-      <li>Outflow up to <b>USD 30,000</b> / 24 h, <b>USD 60,000</b> / 7 days</li>
-      <li>Currency conversion up to <b>USD 10,000</b></li>
-      <li>Defer a bill if the customer payment is <b>≥ 80%</b> likely</li>
+      <li><a class="to" href="/#/standards">Go to <b>Finance standards</b></a></li>
+      <li><a class="to" href="/#/mandate">Go to <b>Delegation of Authority</b></a>: alone up to <b>USD 10,000</b></li>
+      <li><a class="to" href="/#/budget-policy">Go to <b>Period, cut-off &amp; sync</b></a></li>
+      <li><a class="to" href="/#/doc-rules">Go to <b>Document validation</b></a></li>
+      <li><a class="to" href="/#/priority-sop">Go to <b>Payment Priority Policy</b></a></li>
     </ul>
   </div>
   <div class="node a" id="laneA" style="left:950px;top:140px;width:440px;height:250px">
-    <div class="k">Unchecked · comes back to a person</div>
-    <h3>A person decides</h3>
+    <div class="k">Data integration<a class="go" href="/#/api-access" title="Open App Integration">Go to ›</a></div>
+    <h3>Your organisation's data</h3>
     <ul>
-      <li>Any permission you uncheck, anything above its limit</li>
-      <li><b>USD 25,000</b> and up: two different approvers</li>
-      <li>The requester can never approve their own request</li>
-      <li>Changed bank details: call-back, <b>72 h</b> cooling period</li>
-      <li>Overdue <b>&gt; 30 days</b> or late interest <b>&gt; USD 500</b></li>
+      <li><a class="to" href="/#/api-access">Go to <b>App Integration</b></a>: sync from your ERP</li>
+      <li><a class="to" href="/#/sources-upload">Go to <b>Dataset upload</b></a>: CSV, Excel, PDF</li>
+      <li><a class="to" href="/#/offices">Go to <b>Offices &amp; units</b></a></li>
+      <li><a class="to" href="/#/users">Go to <b>People &amp; roles</b></a></li>
+      <li><a class="to" href="/#/vendors">Go to <b>Vendors</b></a>, POs and contracts</li>
     </ul>
   </div>
   <div class="node u" id="laneU" style="left:1420px;top:140px;width:440px;height:250px">
-    <div class="k">Always enforced · cannot be switched off</div>
+    <div class="k">Always enforced · cannot be switched off<a class="go" href="/#/mandate" title="Open Delegation of Authority">Go to ›</a></div>
     <h3>Rules that never move</h3>
     <ul>
       <li>Never pay an invoice twice</li>
@@ -171,46 +180,46 @@ body:not(.ctl-on) #stage{cursor:none}
 
   <!-- row 2: the pipeline -->
   <div class="node" id="sources" style="left:60px;top:460px;width:290px;height:230px">
-    <div class="k">Requests arrive</div>
+    <div class="k">Intake<a class="go" href="/#/intake" title="Open Intake">Go to ›</a></div>
     <h3>Every channel</h3>
     <ul>
-      <li>Accounts-payable invoices</li>
-      <li>Payroll runs</li>
-      <li>Supplier emails</li>
-      <li>Customer emails</li>
-      <li>Forms and the API</li>
+      <li>Email Sync: invoices@, pay@</li>
+      <li>Purchase request → <b>RFQ</b> → PO</li>
+      <li>Payroll, cash advance, travel</li>
+      <li>Customer remittances</li>
+      <li>API (App Integration)</li>
     </ul>
   </div>
   <div class="node" id="verify" style="left:400px;top:460px;width:260px;height:230px">
-    <div class="k">Read and verify</div>
+    <div class="k">Verify<a class="go" href="/#/payee-lifecycle" title="Open Payee lifecycle">Go to ›</a></div>
     <h3>Evidence first</h3>
     <ul>
+      <li>Document validation</li>
       <li>Quotes every claim word for word</li>
-      <li>Rejects claims it cannot ground</li>
-      <li>Flags changed bank details</li>
-      <li>Checks each payee's status</li>
+      <li><b>Payee lifecycle</b>: new bank → call-back</li>
+      <li>Duplicates rejected</li>
     </ul>
   </div>
   <div class="node" id="forecast" style="left:700px;top:460px;width:260px;height:230px">
-    <div class="k">Forecast</div>
-    <h3>Money coming in</h3>
+    <div class="k">72-hour view<a class="go" href="/#/overview" title="Open the Dashboard">Go to ›</a></div>
+    <h3>Cash ahead</h3>
     <ul>
+      <li>Due in the next 72 hours</li>
       <li>Expected customer payments</li>
-      <li>Confidence from each payer's track record</li>
-      <li>Simulated chance of breaching the reserve</li>
+      <li>Balance after commitment</li>
     </ul>
   </div>
   <div class="node" id="plan" style="left:1000px;top:460px;width:260px;height:230px">
-    <div class="k">Plan</div>
+    <div class="k">Agent plan<a class="go" href="/#/agent-plan" title="Open Agent plan">Go to ›</a></div>
     <h3>Next 72 hours</h3>
     <ul>
-      <li>Pay, convert and pay, wait, escalate or reject</li>
-      <li>Alternatives compared</li>
+      <li>In the Payment Priority order</li>
+      <li><b>Visa card</b> or bank transfer</li>
       <li>Planned in under <b>0.1 s</b></li>
     </ul>
   </div>
   <div class="node u" id="prove" style="left:1300px;top:460px;width:240px;height:230px">
-    <div class="k">Prove</div>
+    <div class="k">Prove · DoA<a class="go" href="/#/mandate" title="Open Delegation of Authority">Go to ›</a></div>
     <h3>Before money moves</h3>
     <ul>
       <li>Two independent policy engines must agree</li>
@@ -218,7 +227,7 @@ body:not(.ctl-on) #stage{cursor:none}
     </ul>
   </div>
   <div class="node" id="verdict" style="left:1580px;top:460px;width:280px;height:230px">
-    <div class="k">Verdict</div>
+    <div class="k">Pending payment<a class="go" href="/#/pending" title="Open Pending payment">Go to ›</a></div>
     <h3>One of three</h3>
     <ul><li>Every decision carries its reason</li><li>AI and human suggestions judged the same way</li></ul>
     <div class="pills"><span class="pill g" id="pG">APPROVED</span><span class="pill a" id="pA">APPROVAL</span><span class="pill r" id="pR">BLOCKED</span></div>
@@ -226,45 +235,45 @@ body:not(.ctl-on) #stage{cursor:none}
 
   <!-- row 3: outcomes -->
   <div class="node o" id="control" style="left:60px;top:750px;width:330px;height:196px">
-    <div class="k">CFO monitors</div>
-    <h3><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>Control center</h3>
+    <div class="k">Reporting &amp; Dashboard<a class="go" href="/#/payment-reports" title="Open Total Spending">Go to ›</a></div>
+    <h3><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>CFO monitors</h3>
     <ul>
+      <li>Total Spending, reports 01–10</li>
+      <li>Contract blockchain, anchored on Metal</li>
       <li>Audit trail that cannot be altered</li>
-      <li>Budget against plan, ledger per book</li>
-      <li>Reporting periods and checks</li>
     </ul>
   </div>
   <div class="node g" id="recon" style="left:430px;top:750px;width:320px;height:196px">
-    <div class="k">Reconcile and close</div>
+    <div class="k">Books &amp; ledger · Period close<a class="go" href="/#/ledger" title="Open Books &amp; ledger">Go to ›</a></div>
     <h3>To the cent</h3>
     <ul>
       <li>Wallet movement = book ledger</li>
       <li>Real fees learned per rail</li>
-      <li>Mismatch: book locked, case opened</li>
+      <li>Journal export to accounting</li>
     </ul>
   </div>
-  <div class="node x" id="awx" style="left:790px;top:750px;width:560px;height:196px">
-    <div class="k">Airwallex moves the money</div>
+  <div class="node x" id="awx" style="left:790px;top:750px;width:560px;height:204px">
+    <div class="k">Executions · Airwallex<a class="go" href="/#/executions" title="Open Executions">Go to ›</a></div>
     <h3>Your wallet: USD · EUR · GBP</h3>
     <ul class="rail">
       <li>FX quote<small>live rate</small></li><li class="sep">→</li>
       <li>Conversion<small>settled</small></li><li class="sep">→</li>
-      <li>Payout<small>LOCAL · SWIFT</small></li><li class="sep">→</li>
+      <li>Payout<small>bank · card</small></li><li class="sep">→</li>
       <li>Status<small>PAID</small></li>
     </ul>
     <div class="late inc" id="incLine"><b>Payout failed?</b> Wait, replace it under the same invoice lock, or escalate. Wrong bank details: never replaced automatically.</div>
   </div>
   <div class="node a" id="approve" style="left:1390px;top:750px;width:250px;height:196px">
-    <div class="k">Waits for a person</div>
-    <h3>Approval</h3>
+    <div class="k">Approval · DoA<a class="go" href="/#/pending" title="Open Pending payment">Go to ›</a></div>
+    <h3>A person decides</h3>
     <ul>
-      <li>Finance Manager approves</li>
-      <li>USD 25,000+: also the CFO</li>
-      <li>Sent once approved</li>
+      <li>Approver set by the DoA</li>
+      <li>USD 25,000+: two people</li>
+      <li>Never the requester</li>
     </ul>
   </div>
   <div class="node r" id="blocked" style="left:1680px;top:750px;width:180px;height:196px">
-    <div class="k">Blocked</div>
+    <div class="k">Blocked<a class="go" href="/#/pending" title="Open Pending payment">Go to ›</a></div>
     <h3>Never paid</h3>
     <ul>
       <li>Reason recorded</li>
@@ -274,7 +283,7 @@ body:not(.ctl-on) #stage{cursor:none}
 
   <div id="cap"><div id="capNum">·</div><div id="capText"></div><div id="bar"></div></div>
 
-  <div class="card" id="title"><div><h2>How VENTHORA works</h2><p>From the mandate you assign to books reconciled on Airwallex</p></div></div>
+  <div class="card" id="title"><div><h2>How VENTHORA works</h2><p>From setup to books reconciled on Airwallex</p></div></div>
   <div class="card off" id="end"><div><h2>VENTHORA alpha</h2><p>Your rules. Proven plans. Payments on Airwallex, reconciled to the cent.</p><span class="badge">Live on the Airwallex sandbox · next: the live product</span></div></div>
 </div>
 
@@ -289,7 +298,7 @@ const WIRES=[
  ["s2",["verify","r",.5],["forecast","l",.5],"brand"],
  ["s3",["forecast","r",.5],["plan","l",.5],"brand"],
  ["s4",["plan","r",.5],["prove","l",.5],"brand"],
- ["rules",["laneU","b",.1],["prove","t",.62],"u",{dash:1,label:"Your mandate is the policy",lx:110,ly:6}],
+ ["rules",["laneU","b",.1],["prove","t",.62],"u",{dash:1,label:"Your settings are the policy",lx:110,ly:6}],
  ["s5",["prove","r",.5],["verdict","l",.5],"u"],
  ["vR",["pR","b",.5],["blocked","t",.5],"r"],
  ["vA",["pA","b",.5],["approve","t",.5],"a"],
@@ -300,28 +309,28 @@ const WIRES=[
  ["rC",["recon","l",.5],["control","r",.5],"g"],
 ];
 const STEPS=[
- {show:["mandate"],cap:"The Finance Manager assigns the mandate: the goal, a ring-fenced USD 30,000 allocation and a USD 10,000 reserve floor."},
- {show:["laneG"],wires:["mG"],cap:"Every permission you check, VENTHORA carries out on its own, but only up to the limit you set."},
- {show:["laneA"],wires:["mA"],cap:"Anything you uncheck, or anything above a limit, comes back to a person. Large payments need two different approvers."},
+ {show:["mandate"],cap:"First, Platform Setup: connect or create the Airwallex Global Account, turn on webhooks, choose the AI model, connect the mailboxes, run the Setup Checklist."},
+ {show:["laneG"],wires:["mG"],cap:"Then System Setting: finance standards, the Delegation of Authority (what the agent may pay alone), the period, document rules and the payment priority."},
+ {show:["laneA"],wires:["mA"],cap:"Bring in your data: sync it from your ERP with App Integration, or upload a dataset of offices, people and roles, vendors, POs, contracts and budgets."},
  {show:["laneU"],wires:["mU"],cap:"Some rules can never be switched off: no double payments, no crossing the reserve, no action without evidence."},
- {show:["sources"],cap:"Requests arrive from every channel: invoices, payroll, supplier and customer emails, forms and the API."},
- {show:["verify"],wires:["s1"],cap:"VENTHORA reads every request and uses only what it can quote word for word. A changed bank account is flagged here."},
- {show:["forecast"],wires:["s2"],cap:"It forecasts the money coming in, with a confidence based on each customer's track record."},
- {show:["plan"],wires:["s3"],cap:"It plans the next 72 hours: pay, convert and pay, wait, send to a person, or reject. The demo book plans in under 0.1 seconds."},
- {show:["prove"],wires:["s4","rules"],cap:"Before any money moves, two independent policy engines check the plan against your mandate. Both must agree."},
- {show:["verdict"],wires:["s5"],cap:"Every decision gets one of three verdicts with its reason. A suggestion from an AI or a person is judged exactly the same way."},
+ {show:["sources"],cap:"Every day, requests arrive in Intake: invoices by email, purchase requests that become RFQs and POs, payroll, cash advances, travel and the API."},
+ {show:["verify"],wires:["s1"],cap:"VENTHORA checks the documents, uses only what it can quote word for word, and holds any payee whose bank details changed until a call-back."},
+ {show:["forecast"],wires:["s2"],cap:"It looks 72 hours ahead: what falls due, what customers are expected to pay, and the balance left after every commitment."},
+ {show:["plan"],wires:["s3"],cap:"The agent plans in the order of the Payment Priority Policy: a Visa merchant by virtual card, anyone else by transfer. Planned in under 0.1 seconds."},
+ {show:["prove"],wires:["s4","rules"],cap:"Before any money moves, two independent policy engines check the plan against your Delegation of Authority. Both must agree."},
+ {show:["verdict"],wires:["s5"],cap:"Every payment lands in Pending payment with one of three verdicts and its reason. An AI or a person's suggestion is judged the same way."},
  {show:["blocked"],wires:["vR"],cap:"Blocked payments are never sent. In the demo book, an invoice sent a second time is rejected as a duplicate."},
- {show:["approve"],wires:["vA"],cap:"Decisions outside the mandate wait for a person. In the demo book, a contractor who emailed new bank details."},
- {show:["awx"],wires:["vG"],cap:"Approved payments go to Airwallex: an FX quote, the conversion, the payout, then a status VENTHORA checks."},
+ {show:["approve"],wires:["vA"],cap:"Anything outside the Delegation of Authority waits for a person. In the demo book, a contractor who emailed new bank details."},
+ {show:["awx"],wires:["vG"],cap:"Approved payments run in Executions on Airwallex: an FX quote, the conversion, the payout or a Visa card charge, then a status VENTHORA checks."},
  {focus:["approve","awx"],wires:["aX"],cap:"Once a person approves, the payment follows the same path, and it is sent exactly once."},
  {focus:["awx"],reveal:["incLine"],cap:"If a payout fails after it leaves, the same agent handles the incident: wait, replace it under the same invoice lock, or escalate."},
  {focus:["awx","forecast"],wires:["loop"],cap:"New information changes the plan. A customer payment counts only when Airwallex confirms it SETTLED, then VENTHORA re-plans."},
- {show:["recon"],wires:["xR"],cap:"Every movement on the wallet is matched to the book's ledger, to the cent. A mismatch locks the book and opens a case."},
- {show:["control"],wires:["rC"],cap:"The CFO monitors everything in the Control center: the audit trail, budget against plan, and every book's ledger."},
- {all:1,cap:"VENTHORA alpha, live on the Airwallex sandbox. Now, the live product."},
+ {show:["recon"],wires:["xR"],cap:"In Books & ledger every wallet movement is matched to the book, to the cent; a mismatch locks the book. The period closes and the journal goes to accounting."},
+ {show:["control"],wires:["rC"],cap:"The CFO follows it all in Reporting and the Dashboard: Total Spending, reports 01 to 10, and every contract's hash chain, anchored on Metal."},
+ {all:1,cap:"VENTHORA alpha, live on the Airwallex sandbox: set it up once, then every payment is planned, proved, paid and reconciled."},
 ];
 const q=new URLSearchParams(location.search);
-let SPEED=Math.max(.25,parseFloat(q.get("speed")||"1"));
+let SPEED=Math.max(.25,parseFloat(q.get("speed")||"4"));  // 4x by default (the whole run in about 30 s)
 let STEP_MS=6200/SPEED, TITLE_MS=3600/SPEED;
 const stage=document.getElementById("stage"), $=id=>document.getElementById(id);
 const wires={};let cur=-1,paused=false,timer=null,stepStart=0,remaining=0,raf=0;
@@ -394,7 +403,7 @@ addEventListener("keydown",e=>{
   else if(e.key==="ArrowRight")next();else if(e.key==="ArrowLeft")prev();else if(e.key==="r"||e.key==="R")restart();
   else if(e.key==="f"||e.key==="F")fullscreen()});
 // click anywhere on the stage = next step; the control bar appears while the mouse moves and hides when it rests
-stage.addEventListener("click",()=>next());
+stage.addEventListener("click",e=>{if(e.target.closest("a"))return;next()});  // a "Go to" link opens the menu instead
 document.querySelectorAll("#ctl [data-a]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();
   ({restart,prev,next,play:togglePause,full:fullscreen})[b.dataset.a]();b.blur()}));
 $("spd").value=String(SPEED);$("spd").addEventListener("change",e=>{setSpeed(parseFloat(e.target.value));e.target.blur()});
