@@ -17,7 +17,7 @@ everything itself, so the gateway adds no trust, only removes reach.
 With ``--api`` (``create_app(api=True)``) the gateway also forwards the API itself (``/v1/*``, ``/api/*``,
 ``/openapi.json``, ``/health``) for other applications, but only requests that carry an API key
 (``Authorization: Bearer vth_...`` or ``X-API-Key``); anything else gets 401 here. The API checks the key, its
-scopes and its role (Settings → API access).
+scopes and its role (Platform Setup → App Integration).
 
     python scripts/webhook_gateway.py [--port 8002] [--upstream http://127.0.0.1:8001] [--api]
 """
@@ -88,7 +88,7 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
         if not (api and (path.startswith(API_PREFIXES) or path in API_EXACT)):
             return JSONResponse({"detail": "not found"}, status_code=404)
         if not has_key(request.headers):
-            return JSONResponse({"detail": "an API key is required (Settings → API access)"}, status_code=401,
+            return JSONResponse({"detail": "an API key is required (Platform Setup → App Integration)"}, status_code=401,
                                 headers={"WWW-Authenticate": "Bearer"})
         if int(request.headers.get("content-length") or 0) > MAX_API_BODY:
             return JSONResponse({"detail": "body too large"}, status_code=413)

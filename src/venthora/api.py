@@ -203,7 +203,7 @@ async def idempotency(request: Request, call_next):
 
 @app.middleware("http")
 async def api_keys(request: Request, call_next):
-    """Requests carrying an API key (Settings → API access) are held to its scopes and act with its role.
+    """Requests carrying an API key (Platform Setup → App Integration) are held to its scopes and act with its role.
 
     Requests without a key are the local dashboard; the gateway forwards the API to the internet only for
     requests that carry one (scripts/webhook_gateway.py --api)."""
@@ -5491,7 +5491,7 @@ async def org_delete(collection: str, record_id: str, role: str = "finance_manag
     return {"deleted": record_id}
 
 
-# ---- Settings → API access: keys for other applications, and the catalogue of what they can call ----
+# ---- Platform Setup → App Integration: keys for other applications, and the catalogue of what they can call ----
 @app.get("/v1/developer/catalog")
 async def developer_catalog(request: Request):
     """Every endpoint, grouped by area, with the scope an API key needs to call it."""

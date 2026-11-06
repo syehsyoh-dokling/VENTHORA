@@ -345,7 +345,7 @@ everything else (body ≤ 256 KB). It adds no trust, only removes reach.
 
 ```bash
 python scripts/demo_server.py                        # the API on 127.0.0.1:8001, stays private
-python scripts/webhook_gateway.py --port 8002        # the only thing the tunnel may expose
+python scripts/webhook_gateway.py --port 8002 --api  # the only thing the tunnel may expose; --api passes keyed API calls (API Catalog)
 cloudflared tunnel --url http://localhost:8002       # or: ngrok http 8002
 python scripts/register_webhook.py https://<public-host>   # subscribe via the Airwallex API; writes the secret to .env
 ```

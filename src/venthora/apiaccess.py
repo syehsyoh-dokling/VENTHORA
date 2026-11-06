@@ -2,7 +2,7 @@
 """API access for other applications: keys with scopes, and the catalogue of every endpoint they may call.
 
 VENTHORA's own dashboard runs on the same machine and needs no key. Another application (an ERP, a BI tool, a
-bot) gets an API key from Settings → API access and sends it as ``Authorization: Bearer vth_...`` or
+bot) gets an API key from Platform Setup → App Integration and sends it as ``Authorization: Bearer vth_...`` or
 ``X-API-Key: vth_...``. A key carries:
 
 * scopes   ``<area>:read`` and/or ``<area>:write`` per area (treasury, payables, ...). GET and the

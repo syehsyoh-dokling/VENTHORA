@@ -3466,7 +3466,7 @@ $("#polSave").onclick=async()=>{const body={orders_by_email:$("#pol-orders").che
  catch(e){$("#polMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#addBox").onclick=()=>openForm("Add address",BOX_FIELDS(),{purpose:"invoices",provider:"postmark",active:true},"mailboxes",emailView);
 
-// ---- Settings → API access ------------------------------------------------------------------------------------------
+// ---- Platform Setup → App Integration ------------------------------------------------------------------------------------------
 let CAT=null;
 const METHOD_TONE={GET:"good",POST:"warn",PUT:"warn",PATCH:"warn",DELETE:"critical"};
 const curlOf=e=>{const url=location.origin+e.path;const auth=e.scope===null?"":' -H "Authorization: Bearer $VENTHORA_KEY"';
@@ -3667,7 +3667,7 @@ const ROLE_GUIDE=[["Super admin (FCO)","Head quarter","Monitors everything; may 
  ["CFO","Head quarter","Approves the largest payments; company-wide finance settings."],["Finance manager","Any office","Reviews and approves invoices and claims; runs payments within the mandate."],
  ["Country finance lead","A country office","Approves staff claims and payments of its office within its limit."],["Project accountant","A project","Approves within its own limit for its project."],
  ["Treasury analyst","Any office","Prepares runs and reports; approves nothing."],["Requester","Any office","Asks for payments (payment orders, claims); never approves its own."],
- ["Auditor","Any office","Reads everything, changes nothing."],["API key","An application","Another system calling VENTHORA within its scopes (Settings → API access)."]];
+ ["Auditor","Any office","Reads everything, changes nothing."],["API key","An application","Another system calling VENTHORA within its scopes (Platform Setup → App Integration)."]];
 async function adminView(){try{await loadOrg();
  $("#adminLevels").innerHTML=LEVELS.map(([role,label,kind])=>{const rows=ORG.users.filter(u=>u.role===role);
   return `<h3 class="small muted" style="margin:12px 0 6px">${esc(label)} <span class="muted">· ${esc(KIND[kind])}</span></h3>`+table([{h:"Name",f:u=>`<b>${esc(u.name)}</b>${u.active===false?' <span class="small muted">inactive</span>':""}`},{h:"Email",f:u=>`<span class="mono small">${esc(u.email)}</span>`},
