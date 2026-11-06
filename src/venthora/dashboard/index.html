@@ -2184,6 +2184,16 @@ async function fundView(){const need=+((location.hash.match(/[?&]need=(\d+)/)||[
 // ---- Platform Setup -> Airwallex Cards
 const inp=(id,ph,v="",w=160,t="text")=>`<input id="${id}" type="${t}" placeholder="${esc(ph)}" value="${esc(v)}" style="width:${w}px">`;
 const toMinor=v=>Math.round(parseFloat(String(v).replace(/,/g,""))*100);
+let VSMS={};
+const vsmsPill=m=>!m?'<span class="small muted">not checked</span>':!m.ok?`<span class="pill">no answer</span> <span class="small muted">${esc(m.detail||"")}</span>`:m.accepts_visa?`<span class="pill good">✓ Visa merchant</span> <span class="small muted">${esc(m.confidence||"")}${m.mcc?` · MCC ${esc(m.mcc)}`:""}</span>`:'<span class="pill">not a Visa merchant</span>';
+async function cdVsms(fresh){try{const d=await api(`/v1/visa/supplier-match/vendors${fresh?"?fresh=true":""}`);VSMS=Object.fromEntries(d.vendors.map(v=>[v.vendor_id,v]));
+ $("#cdVsms").classList.remove("empty");
+ $("#cdVsms").innerHTML=`<div class="small" style="margin-bottom:6px">${d.accept_visa} of ${d.vendors.length} vendor(s) take Visa cards${d.environment==="sandbox"?' · <span style="color:#b45309">Visa sandbox: test data (every supplier answers the same), not real merchant records</span>':""}</div>`+table([{h:"Vendor",f:v=>`<b>${esc(v.name)}</b><div class="small muted">${esc(v.country||"")}</div>`},
+  {h:"Visa says",f:v=>vsmsPill(v)},{h:"Card data",f:v=>v.ok?`<span class="small">${v.level3?"Level 3":v.level2?"Level 2":"basic"}${v.fleet?" · fleet":""}</span>`:""},
+  {h:"VENTHORA pays by",f:v=>`<span class="pill ${v.rail?.rail==="card"?"info":""}">${v.rail?.rail==="card"?"Visa virtual card":"bank transfer"}</span><div class="small muted">${esc(v.rail?.why||"")}</div>`}],d.vendors,"no vendor");cdVisaPick()}
+ catch(e){$("#cdVsms").innerHTML=`<div class="err small">${esc(e.message)}</div>`}}
+function cdVisaPick(){const id=$("#cdPayee")?.value,m=VSMS[id];if(!$("#cdVisa"))return;$("#cdVisa").innerHTML=m?`Visa: ${vsmsPill(m)}`:"";
+ if(m&&m.ok&&m.accepts_visa&&m.mcc&&!$("#cdMcc").value)$("#cdMcc").value=m.mcc;if(m&&!$("#cdMerchant").value)$("#cdMerchant").value=m.name||""}
 async function cdView(){$("#cdBody").innerHTML='<div class="empty">reading Airwallex Issuing…</div>';
  try{const d=await api("/v1/cards"),c=d.config||{},h=d.cardholder;
   $("#cdMeta").textContent=d.error?d.error:`${(d.cards||[]).length} card(s) issued by VENTHORA`;
@@ -2198,7 +2208,7 @@ async function cdView(){$("#cdBody").innerHTML='<div class="empty">reading Airwa
    <div class="row" style="gap:8px;flex-wrap:wrap">${inp("chFirst","first name")}${inp("chLast","last name")}${inp("chEmail","email","",220)}${inp("chDob","date of birth","",150,"date")}${inp("chLine1","street address","",220)}${inp("chCity","city","",130)}${inp("chPost","postcode","",100)}${inp("chCountry","country (2 letters)","",130)}
    <button class="primary" id="chCreate">Create cardholder</button><span class="small" id="chMsg"></span></div></div>`}
   <div class="tile" style="margin-bottom:12px"><b>${h?"1":"2"} · Issue a virtual card for a vendor</b><div class="small muted" style="margin:4px 0 8px">Limits inside the mandate; lock the card to the vendor's merchant name, and to its merchant category (5734 = software) when you know it.</div>
-   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><select id="cdPayee">${d.payees.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("")}</select>
+   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><select id="cdPayee">${d.payees.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("")}</select><span class="small" id="cdVisa"></span>
    <label class="small">per charge (USD) ${inp("cdPer","e.g. 500","500",100)}</label><label class="small">per month (USD) ${inp("cdMonth","e.g. 800","800",100)}</label>
    <label class="small">merchant name ${inp("cdMerchant","the payee's name","",160)}</label><label class="small">categories ${inp("cdMcc","5734","",90)}</label>
    <select id="cdPurpose">${d.purposes.map(x=>`<option>${x}</option>`).join("")}</select><button class="primary" id="cdIssue" ${h?"":"disabled"}>Issue card</button><span class="small" id="cdMsg"></span></div></div>
@@ -2206,7 +2216,13 @@ async function cdView(){$("#cdBody").innerHTML='<div class="empty">reading Airwa
   ${table([{h:"Vendor",f:x=>`<b>${esc(x.payee)}</b><div class="small muted">locked to ${esc(x.merchant||"-")}${(x.mcc||[]).length?` · ${esc(x.mcc.join(", "))}`:""}</div>`},{h:"Card",f:x=>`<span class="mono">${esc(x.masked||"")}</span> <span class="small muted">${esc(x.brand||"")}</span>`},
     {h:"Status",f:x=>`<span class="pill ${x.frozen?"warn":x.status==="ACTIVE"?"good":""}">${x.frozen?"frozen in VENTHORA":esc(x.status||"-")}</span>`},{h:"Per charge",num:1,f:x=>fmt(x.per_tx_minor,x.currency)},{h:"Per month",num:1,f:x=>fmt(x.monthly_minor,x.currency)},
     {h:"",f:x=>`<div class="acts"><button class="small dev" data-cdsim="${esc(x._id)}">Simulate a charge</button><button class="small" data-cdlim="${esc(x._id)}" title="Read the limits Airwallex enforces and compare them with the mandate">Check limits</button><button class="small" data-cdfreeze="${esc(x._id)}" data-frozen="${x.frozen?1:0}">${x.frozen?"Unfreeze":"Freeze"}</button></div>`}],d.cards||[],"no card issued yet")}
-  <div id="cdSimOut" class="small" style="margin-top:8px"></div>`;
+  <div id="cdSimOut" class="small" style="margin-top:8px"></div>
+  <h3 class="small muted" style="margin:16px 0 6px">Which vendors take Visa cards <span class="pill info">Visa Supplier Matching</span></h3>
+  <div class="small muted" style="margin-bottom:6px">VENTHORA asks Visa whether each vendor is a Visa merchant. A match with high or medium confidence means the bill can go on a Visa virtual card locked to the merchant category Visa reports; otherwise it is a bank transfer. Answers are kept 30 days. <button class="small" id="cdVsmsFresh">Ask Visa again</button></div>
+  <div id="cdVsms" class="empty">asking Visa…</div>`;
+  cdVsms(false);
+  $("#cdVsmsFresh").onclick=()=>cdVsms(true);
+  $("#cdPayee").onchange=cdVisaPick;
   if($("#chCreate"))$("#chCreate").onclick=async()=>{const v=id=>$(id).value.trim();$("#chMsg").textContent="creating on Airwallex…";
    try{await api(`/v1/cards/cardholder?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({first_name:v("#chFirst"),last_name:v("#chLast"),email:v("#chEmail"),date_of_birth:v("#chDob"),address:{line1:v("#chLine1"),city:v("#chCity"),postcode:v("#chPost"),country:v("#chCountry").toUpperCase()}})});toast("Cardholder created","good");cdView()}catch(e){$("#chMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
   $("#cdIssue").onclick=async()=>{$("#cdMsg").textContent="issuing on Airwallex…";
@@ -2968,9 +2984,9 @@ function pqRender(){const pr=$("#pqPr").value,st=$("#pqSt").value,q=$("#pqQ").va
    <span class="small">${b.pr.brand?`<span class="pill info">🔒 locked on brand ${esc(b.pr.brand)} + specifications</span>`:'<span class="pill">locked on specifications</span>'} estimate <b>${fmt(b.pr.estimated_minor,b.pr.currency)}</b> · <span class="pill ${b.quotes.length>=3?"good":"warn"}">${b.quotes.length} quotation(s) · minimum 3</span> <span class="pill ${PSTONE[b.rfq.status]??""}">${esc(b.rfq.status)}</span></span></div>
    ${done?`<div class="small" style="margin:8px 0;padding:8px 10px;border-left:3px solid #13795b;background:rgba(19,121,91,.07)">✔ Approved <b>${esc(aw.vendor)}</b> for ${fmt(aw.total_minor,aw.currency)} by ${esc(aw.by)} · PO <b class="mono">${esc(aw.po_id)}</b> (<a href="#/intake?po">Commitments register</a> · <a href="#/rep-chain">Contract blockchain</a>)${aw.outside_recommendation?`<div class="small" style="color:#b45309">Outside the recommendation (${esc(aw.recommended||"none")}): ${esc(aw.note)}</div>`:aw.note?`<div class="small muted">${esc(aw.note)}</div>`:""}</div>`
     :`<div class="small" style="margin:8px 0;padding:8px 10px;border-left:3px solid #1a1f71;background:rgba(26,31,113,.06)"><b>Recommendation:</b> ${rec?`<b>${esc(rec.vendor.name)}</b> · ${fmt(rec.total_minor,rec.currency)} — ${esc(a.reason)}`:esc(a.reason)}
-     ${b.quotes.some(x=>x.model_review)?`<span class="pill info">model+rules</span>`:'<span class="pill">rules</span>'} <button data-pqrev="${esc(b.pr.pr_number)}" style="margin-left:6px">Check remarks with the model</button>
+     ${b.quotes.some(x=>x.model_review)?`<span class="pill info">model+rules</span>`:'<span class="pill">rules</span>'} <button data-pqrev="${esc(b.pr.pr_number)}" style="margin-left:6px">Check remarks with the model</button><button data-pqvisa="${esc(b.pr.pr_number)}" style="margin-left:6px" title="Visa Supplier Matching: which vendors take Visa cards">Check Visa acceptance</button>
      ${b.pr.status!=="APPROVED"?`<div style="color:#b45309">${esc(b.pr.pr_number)} is ${esc(b.pr.status.toLowerCase())}: approve the purchase request (Intake → Purchase requests) before the award.</div>`:""}</div>`}
-   ${table([{h:"Vendor",f:x=>`<b>${esc(x.vendor.name)}</b><div class="small muted">${esc(x.vendor.contact_person)} · ${esc(x.vendor.email)} · ${esc(x.vendor.phone)}</div><div class="small"><span class="pill ${x.source==="registered vendor"?"good":""}">${esc(x.source||"")}</span>${x.vendor.tax_id?` <span class="muted">tax ${esc(x.vendor.tax_id)}</span>`:""}</div>`},
+   ${table([{h:"Vendor",f:x=>`<b>${esc(x.vendor.name)}</b>${PQV[x._id]?`<div>${vsmsPill(PQV[x._id])}</div>`:""}<div class="small muted">${esc(x.vendor.contact_person)} · ${esc(x.vendor.email)} · ${esc(x.vendor.phone)}</div><div class="small"><span class="pill ${x.source==="registered vendor"?"good":""}">${esc(x.source||"")}</span>${x.vendor.tax_id?` <span class="muted">tax ${esc(x.vendor.tax_id)}</span>`:""}</div>`},
     {h:"Brand / model",f:x=>`${esc(x.brand||"-")}<div class="small muted">${esc(x.model||"")}</div>`},
     {h:"Specifications",f:x=>{const met=x.specs.filter(s=>s.ok&&!((x.model_review||{}).contradicts||[]).includes(s.spec)).length;return`<details><summary class="small">${met} of ${x.specs.length} met</summary>${x.specs.map(s=>{const bad=((x.model_review||{}).contradicts||[]).includes(s.spec);return`<div class="small">${s.ok&&!bad?"✔":"✘"} ${esc(s.spec)}${s.note?` <span class="muted">— ${esc(s.note)}</span>`:""}${bad?' <span class="pill critical">model: contradicted</span>':""}</div>`}).join("")}${x.model_review?.note?`<div class="small muted">Model: ${esc(x.model_review.note)}</div>`:""}</details>`}},
     {h:"Qty × unit price",num:1,f:x=>`${esc(x.quantity)} × ${fmt(x.unit_price_minor,x.currency)}`},{h:"Delivery + tax",num:1,f:x=>`${fmt(x.delivery_minor,x.currency)}<div class="small muted">tax ${fmt(x.tax_minor,x.currency)}</div>`},
@@ -2984,6 +3000,11 @@ function pqRender(){const pr=$("#pqPr").value,st=$("#pqSt").value,q=$("#pqQ").va
   const few=g.quotes.length<3;const note=prompt(`Approve ${x.vendor.name} for ${fmt(x.total_minor,x.currency)} as ${actor().name}?\n${rec?"This is the recommended quotation.":"This is NOT the recommended quotation: write the reason (at least 10 characters)."}${few?"\nFewer than 3 quotations: write the reason (single or limited source).":""}\nThe PO is raised and sent to the vendor.`,"");
   if(note===null)return;try{const j=await api(`/v1/procurement/${encodeURIComponent(P)}/award?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({cand_id:C,note})});
    toast(`PO <b>${esc(j.po_id)}</b> raised for ${esc(j.vendor)}`,"good");await pqView()}catch(e){toast(esc(e.message),"serious")}})}
+const PQV={};
+document.addEventListener("click",async ev=>{const bt=ev.target.closest("[data-pqvisa]");if(!bt)return;const g=PB.board.find(b=>b.pr.pr_number===bt.dataset.pqvisa);if(!g)return;
+ bt.disabled=true;bt.textContent="Asking Visa…";
+ for(const q of g.quotes){try{PQV[q._id]=await api(`/v1/visa/supplier-match?name=${encodeURIComponent(q.vendor.legal_name||q.vendor.name)}&country=${encodeURIComponent(q.vendor.country_code||"US")}&city=${encodeURIComponent(q.vendor.city||"")}`)}catch(e){PQV[q._id]={ok:false,detail:e.message}}}
+ pqRender();toast("Visa Supplier Matching: done","good")});
 $("#pqPr").onchange=pqRender;$("#pqSt").onchange=pqRender;$("#pqQ").oninput=pqRender;$("#pqRefresh").onclick=pqView;
 // -- purchase requests
 let PRS=[];const PR_TONE={SUBMITTED:"warn",APPROVED:"good",ORDERED:"info",REJECTED:"critical",DRAFT:""};

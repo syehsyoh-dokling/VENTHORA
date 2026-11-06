@@ -45,6 +45,7 @@
       {"ref": "K2-4", "item": "Read card limits and remaining", "status": "done", "screen": "#/cards", "proof": "GET issuing/cards/{id}/limits compared with the mandate; drift goes to the audit chain"},
       {"ref": "K2-5", "item": "Card spend report", "status": "done", "screen": "#/rep-card", "probe": "/v1/reports/virtual-cards", "proof": "every decision joined with Airwallex's authorization and clearing"},
       {"ref": "V1", "item": "Visa Trusted Agent Protocol (agent signatures)", "status": "done", "screen": "#/visa-tap", "probe": "/v1/visa/tap", "proof": "public keys at /.well-known/venthora-agent.json"},
+      {"ref": "V3", "item": "Visa Supplier Matching: does a vendor take Visa cards?", "status": "done", "screen": "#/cards", "probe": "/v1/visa/supplier-match/vendors", "proof": "every vendor checked with Visa (X-Pay, sandbox): a confident match pays by Visa virtual card locked to Visa's MCC, otherwise bank transfer; also on Procurement → Quotation"},
       {"ref": "V2", "item": "Visa Intelligent Commerce", "status": "blocked", "screen": "#/visa-vic", "probe": "/v1/visa/vic", "proof": "X-Pay signing works (helloworld 200); FX rates live", "waiting": "Visa VIC onboarding"}
     ]},
     {"id": "sponsors", "title": "Sponsor technology", "items": [

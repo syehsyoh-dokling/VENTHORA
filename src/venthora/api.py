@@ -3449,6 +3449,27 @@ async def procurement_board():
     return {"board": rows, "requests": sorted(waiting, key=lambda p: p["pr_number"], reverse=True), "public_url": sourcing.public_url()}
 
 
+@app.get("/v1/visa/supplier-match")
+async def visa_supplier_match(name: str = Query(..., min_length=2, max_length=100), country: str = Query(..., min_length=2, max_length=3),
+                              city: str = "", state: str = "", postal: str = ""):
+    """Visa Supplier Matching Service: does a supplier accept Visa cards, with Visa's confidence and the merchant
+    category code, and how VENTHORA would pay it (Visa virtual card or bank transfer)."""
+    from . import visa_sms
+
+    m = await visa_sms.search(name=name, country=country, city=city, state=state, postal=postal)
+    return m | {"rail": visa_sms.rail(m)}
+
+
+@app.get("/v1/visa/supplier-match/vendors")
+async def visa_supplier_match_vendors(fresh: bool = False):
+    """Every registered vendor and consultant checked with Visa Supplier Matching (kept 30 days; fresh=true asks again)."""
+    from . import visa_sms
+
+    rows = await visa_sms.check_all(app.state.org, app.state.intake.registry.payees, beneficiaries=app.state.executor.beneficiaries, fresh=fresh)
+    return {"vendors": rows, "accept_visa": sum(1 for r in rows if r.get("accepts_visa")), "checked": sum(1 for r in rows if r.get("ok")),
+            "environment": "sandbox", "keep_days": visa_sms.KEEP_DAYS}
+
+
 class EditionIn(BaseModel):
     demo: bool
 

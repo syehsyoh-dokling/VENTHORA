@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 INDEX = Path(__file__).resolve().parents[1] / "src" / "venthora" / "dashboard" / "index.html"
-SLOW = {"/v1/agent-plan", "/v1/cards", "/v1/card-authorization", "/v1/visa/vic", "/v1/metal", "/v1/mcp", "/v1/webhooks/status", "/v1/cash-placement"}  # these reach a bank or a network
+SLOW = {"/v1/agent-plan", "/v1/cards", "/v1/card-authorization", "/v1/visa/vic", "/v1/metal", "/v1/mcp", "/v1/webhooks/status", "/v1/cash-placement", "/v1/visa/supplier-match/vendors"}  # these reach a bank or a network
 
 
 @pytest.fixture
