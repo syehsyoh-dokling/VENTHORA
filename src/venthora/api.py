@@ -4306,9 +4306,10 @@ class PlacementPolicyIn(BaseModel):
 
 
 class PlacementIn(BaseModel):
-    amount_minor: int = Field(gt=0)
+    amount_minor: int = Field(gt=0, description="in the provider's currency (the base currency without a provider)")
     destination: str = Field("", max_length=120)
     note: str = Field("", max_length=300)
+    provider_id: str | None = Field(None, max_length=80, description="a provider from FCO Authorize → Placement providers")
 
 
 class PlacementDecisionIn(BaseModel):
@@ -4355,36 +4356,251 @@ async def cash_placement_policy(body: PlacementPolicyIn, role: str = "finance_ma
 
 @app.post("/v1/cash-placement/instructions")
 async def cash_placement_instruct(body: PlacementIn, role: str = "finance_manager", by: str = "dashboard"):
-    """Propose placing idle cash; never above the idle amount. Nothing moves: a second person approves, then the
-    placement is carried out outside VENTHORA (Airwallex has no placement product) and marked done."""
-    from . import cash_placement
+    """Propose placing idle cash; never above the idle amount. Nothing moves until a second person approves: with a
+    provider (the FCO) it goes by Airwallex transfer; without one it is carried out by hand and marked done."""
 
     who = _writer(role, by)
+    return await _propose_placement(body.amount_minor, body.provider_id, body.destination, body.note, who)
+
+
+async def _propose_placement(amount_minor: int, provider_id: str | None, destination: str, note: str, who: str) -> dict:
+    from . import cash_placement, placement_providers
+
     basis = await _placement_basis()
     pol = cash_placement.policy(app.state.org)
+    base = basis["base_currency"]
+    provider, ccy, in_base = None, base, None
+    if provider_id:
+        try:
+            provider = placement_providers.get(app.state.org, provider_id)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        ccy = provider["currency"]
+        if ccy != base:  # the idle cash is in the base currency: the amount is valued at today's indicative rate
+            try:
+                rate = await _bank().rate_to_base(ccy, base)
+            except AirwallexError as exc:
+                raise HTTPException(502, f"the {ccy} rate could not be read: {exc}") from exc
+            in_base = int(amount_minor * rate)
+        held = next((w["available_minor"] for w in basis["wallet"] if w["currency"] == ccy), 0)
+        if held < amount_minor:
+            raise HTTPException(422, f"the wallet holds {ccy} {held / 100:,.2f}: convert first, or place in a currency held")
     try:
-        rec = await asyncio.to_thread(cash_placement.instruct, app.state.org, amount_minor=body.amount_minor, currency=basis["base_currency"],
-                                      destination=body.destination or pol["destination"], note=body.note, by=who,
+        rec = await asyncio.to_thread(cash_placement.instruct, app.state.org, amount_minor=amount_minor, currency=ccy,
+                                      destination=destination or ("" if provider else pol["destination"]), note=note, by=who, provider=provider, base_minor=in_base,
                                       basis={k: basis[k] for k in ("available_minor", "needed_minor", "idle_minor", "reserve_floor_minor", "bills_minor", "commitments_minor", "buffer_minor")})
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    await asyncio.to_thread(app.state.audit.append, "cash_placement_proposed", {"id": rec["_id"], "amount_minor": rec["amount_minor"], "destination": rec["destination"], "by": who})
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_proposed", {"id": rec["_id"], "amount_minor": rec["amount_minor"], "currency": ccy,
+                                                                                "provider": provider_id, "destination": rec["destination"], "by": who})
     return rec
+
+
+@app.post("/v1/cash-placement/propose")
+async def cash_placement_agent_propose(role: str = "finance_manager", by: str = "dashboard"):
+    """VENTHORA proposes: the idle cash above the minimum, to the best provider on the FCO's list (active, account
+    checked, currency held, minimum met, the highest indicative rate). The FCO approves it."""
+    from . import placement_providers
+
+    _writer(role, by)
+    basis = await _placement_basis()
+    if basis["place_minor"] <= 0:
+        raise HTTPException(409, f"nothing to propose: {basis['why']}")
+    base = basis["base_currency"]
+    held = next((w["available_minor"] for w in basis["wallet"] if w["currency"] == base), 0)
+    amount = min(basis["place_minor"], held)  # the idle cash is counted in every currency; only what the base wallet holds is sent
+    p = await asyncio.to_thread(placement_providers.best, app.state.org, lambda c: c == base, lambda c: amount)
+    if p is None:
+        raise HTTPException(409, f"no active {base} provider with a checked account takes {base} {amount / 100:,.2f}: add one in FCO Authorize → Placement providers")
+    note = (f"proposed by VENTHORA: idle {base} {basis['idle_minor'] / 100:,.2f} above what is needed"
+            + (f" (capped at the {base} {held / 100:,.2f} the {base} wallet holds)" if amount < basis["place_minor"] else "")
+            + f"; {p['name']} at {p['indicative_rate_pct']}% indicative")
+    return await _propose_placement(amount, p["provider_id"], "", note, "VENTHORA agent")
 
 
 @app.post("/v1/cash-placement/instructions/{pid}")
 async def cash_placement_decide(pid: str, body: PlacementDecisionIn, role: str = "finance_manager", by: str = "dashboard"):
-    from . import cash_placement
+    from . import cash_placement, placement_providers
 
     who = _writer(role, by)
     try:
-        rec = await asyncio.to_thread(cash_placement.decide, app.state.org, pid, body.status, who)
+        rec = await asyncio.to_thread(cash_placement.decide, app.state.org, pid, body.status, who, role)
     except KeyError as exc:
         raise HTTPException(404, "no such placement") from exc
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "cash_placement_" + body.status.lower(), {"id": pid, "by": who})
+    if body.status == "APPROVED" and rec.get("provider_id") and rec.get("provider_kind") != "AIRWALLEX_YIELD":
+        # the FCO's approval is the instruction: the money goes to the provider's checked account at once
+        rec = await placement_providers.send(app.state.org, _bank(), rec, who)
+        await asyncio.to_thread(app.state.audit.append, "cash_placement_sent", {"id": pid, "status": rec["status"], "transfer_id": rec.get("transfer_id"),
+                                                                                 "amount_minor": rec["amount_minor"], "currency": rec["currency"], "provider": rec["provider_id"]})
     return rec
+
+
+def _placement(pid: str) -> dict:
+    rec = app.state.org.get("placement", pid)
+    if rec is None:
+        raise HTTPException(404, "no such placement")
+    return rec
+
+
+@app.post("/v1/cash-placement/instructions/{pid}/refresh")
+async def cash_placement_refresh(pid: str, by: str = "dashboard"):
+    """Read the placement's transfer back from Airwallex: PLACED once it is PAID."""
+    from . import placement_providers
+
+    try:
+        return await placement_providers.refresh(app.state.org, _bank(), _placement(pid), by)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+
+
+class WithdrawIn(BaseModel):
+    expected_minor: int | None = Field(None, gt=0, description="what the provider will pay back; default principal + the indicative return")
+
+
+@app.post("/v1/cash-placement/instructions/{pid}/withdraw")
+async def cash_placement_withdraw(pid: str, body: WithdrawIn | None = None, role: str = "super_admin", by: str = "dashboard"):
+    """The FCO asks for the money back. Airwallex cannot pull it from another bank: VENTHORA writes the redemption
+    instruction for the provider (its portal, email or API), with the reference the deposit must carry back."""
+    from . import placement_providers
+
+    who = _writer(role, by)
+    if role != "super_admin":
+        raise HTTPException(403, "a withdrawal is asked for by the FCO (Super admin)")
+    try:
+        rec = await asyncio.to_thread(placement_providers.request_withdrawal, app.state.org, _placement(pid), body.expected_minor if body else None, who)
+    except (ValueError, LookupError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_withdrawal", {"id": pid, "expected_minor": rec["withdrawal"]["expected_minor"], "by": who})
+    return rec
+
+
+@app.get("/v1/cash-placement/instructions/{pid}/matches")
+async def cash_placement_matches(pid: str):
+    """The deposits on Airwallex that may be this placement coming back (its reference first, then the amount)."""
+    from . import placement_providers
+
+    rec = _placement(pid)
+    try:
+        deps = await _bank().list_deposits()
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+    return {"reference": rec.get("reference"), "expected_minor": (rec.get("withdrawal") or {}).get("expected_minor"),
+            "candidates": placement_providers.candidates(app.state.org, rec, deps)}
+
+
+class CloseIn(BaseModel):
+    deposit_id: str | None = Field(None, max_length=80, description="the Airwallex deposit that brought it back (its amount is read from Airwallex)")
+    received_minor: int | None = Field(None, gt=0, description="Airwallex Yield only: what came back to the wallet")
+
+
+@app.post("/v1/cash-placement/instructions/{pid}/close")
+async def cash_placement_close(pid: str, body: CloseIn, role: str = "super_admin", by: str = "dashboard"):
+    """Close a placement on the deposit that brought it back; the amount above the principal is the return."""
+    from . import placement_providers
+
+    who = _writer(role, by)
+    rec = _placement(pid)
+    if body.deposit_id:
+        try:
+            d = await _bank().get_deposit(body.deposit_id)
+        except AirwallexError as exc:
+            raise HTTPException(502, f"Airwallex: {exc}") from exc
+        if str(d.get("currency", "")).upper() != rec["currency"]:
+            raise HTTPException(409, f"the deposit is in {d.get('currency')}, the placement in {rec['currency']}")
+        received = placement_providers._minor(d.get("amount"))
+    elif rec.get("provider_kind") == "AIRWALLEX_YIELD" and body.received_minor:
+        received = body.received_minor
+    else:
+        raise HTTPException(422, "name the Airwallex deposit that brought the money back")
+    try:
+        rec = await asyncio.to_thread(placement_providers.close, app.state.org, rec, received_minor=received, deposit_id=body.deposit_id, by=who)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_closed", {"id": pid, "deposit_id": body.deposit_id, **rec["closing"], "by": who})
+    return rec
+
+
+@app.post("/v1/cash-placement/instructions/{pid}/simulate")
+async def cash_placement_simulate(pid: str, role: str = "super_admin", by: str = "dashboard"):
+    """Sandbox only: the next outside step. A SENT transfer is made PAID; a requested withdrawal arrives as a deposit
+    on the USD Global Account carrying the placement's reference."""
+    from .cli import usd_global_account
+
+    _writer(role, by)
+    rec = _placement(pid)
+    try:
+        if rec["status"] == "SENT":
+            t = await _bank().get_transfer(rec["transfer_id"])
+            for nxt in ("SENT", "PAID"):
+                if t.status not in ("PAID", nxt):
+                    t = await _bank().simulate_transfer_transition(rec["transfer_id"], nxt)
+            t = await _bank().get_transfer(rec["transfer_id"])  # the transition's answer can lag one step: read it back
+            return {"simulated": "transfer", "status": t.status}
+        if rec["status"] == "WITHDRAWAL_REQUESTED":
+            if rec["currency"] != "USD":
+                raise HTTPException(409, "the sandbox deposit simulation is for the USD Global Account")
+            from . import placement_providers
+
+            p = placement_providers.get(app.state.org, rec["provider_id"])
+            res = await _bank().simulate_deposit(global_account_id=await usd_global_account(_bank(), fake=False),
+                                                 amount_minor=rec["withdrawal"]["expected_minor"], payer_name=f"{p['name'][:80]} {rec['reference']}")
+            return {"simulated": "deposit", "deposit": res}
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+    raise HTTPException(409, f"nothing to simulate for a {rec['status'].lower()} placement")
+
+
+# ---- FCO Authorize → Placement providers ----
+class ProviderIn(BaseModel):
+    provider_id: str | None = Field(None, max_length=80)
+    name: str = Field(max_length=120)
+    kind: str = Field(pattern="^(TERM_DEPOSIT|MONEY_MARKET_FUND|AIRWALLEX_YIELD)$")
+    currency: str = Field(max_length=3)
+    tenor_days: int = Field(0, ge=0, le=1830)
+    indicative_rate_pct: float = Field(0, ge=0, le=50)
+    minimum_minor: int = Field(0, ge=0)
+    redeem_by: str | None = Field(None, pattern="^(PORTAL|EMAIL|API|AIRWALLEX_APP)$")
+    redeem_contact: str = Field("", max_length=200)
+    our_reference: str = Field("", max_length=80)
+    account_holder: str | None = Field(None, pattern="^(COMPANY_OWN|FUND_CUSTODIAN)$")
+    payout_method: str = Field("LOCAL", pattern="^(LOCAL|SWIFT)$")
+    bank: dict | None = None
+    address: dict | None = None
+    note: str = Field("", max_length=300)
+    active: bool = True
+
+
+@app.get("/v1/placement-providers")
+async def placement_providers_list():
+    from . import placement_providers
+
+    org = app.state.org
+    return [placement_providers.public(org, p) for p in await asyncio.to_thread(placement_providers.listing, org)]
+
+
+@app.put("/v1/placement-providers")
+async def placement_providers_save(body: ProviderIn, role: str = "super_admin", by: str = "dashboard"):
+    """Add or change a provider (the FCO). A provider reached by transfer has its account checked first; a refused
+    account is not kept, and changed bank details need a new check and a new Airwallex beneficiary."""
+    from . import placement_providers
+
+    who = _writer(role, by)
+    try:
+        bank = _bank()
+    except HTTPException:
+        bank = None
+    try:
+        rec = await placement_providers.save(app.state.org, bank, _xendit_or_none(), body.model_dump(), who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "placement_provider_saved", {"provider": rec["provider_id"], "kind": rec["kind"], "currency": rec["currency"],
+                                                                                  "bank_check": (rec.get("bank_check") or {}).get("verdict"), "by": who})
+    return placement_providers.public(app.state.org, rec)
 
 
 def _anchor_heads() -> dict:

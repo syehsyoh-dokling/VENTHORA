@@ -37,7 +37,7 @@ def _rx(*patterns: str) -> re.Pattern:
 
 
 # FCO Authorize: changed by the FCO only, never read by a Developer
-FCO_AUTHORIZE = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop", r"/v1/org/standards")
+FCO_AUTHORIZE = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop", r"/v1/org/standards", r"/v1/placement-providers(/.*)?")
 # Platform Setup, the money part: the FCO changes it, a Developer may only look
 PLATFORM_MONEY = _rx(r"/v1/airwallex/.*", r"/v1/providers/.*",
                      r"/v1/cards(/.*)?", r"/v1/card-authorization(/.*)?", r"/v1/visa/vic(/.*)?")
@@ -48,7 +48,7 @@ PLATFORM_TECH = _rx(r"/v1/webhooks/register", r"/v1/settings/ai(/.*)?", r"/v1/se
 # Developer Console: a Developer changes it, the FCO views it; absent on SaaS
 DEV_CONSOLE = _rx(r"/v1/visa/tap/keys", r"/v1/visa/tap/sign-test", r"/v1/metal/(key|endpoint|fund|settings)")
 # the GETs of FCO Authorize a Developer may not make (standards stay readable: every screen shows the base currency)
-FCO_READS = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop")
+FCO_READS = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop", r"/v1/placement-providers(/.*)?")
 
 
 def check(role: str | None, method: str, path: str) -> tuple[int, str] | None:

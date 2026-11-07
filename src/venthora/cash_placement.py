@@ -4,8 +4,10 @@
 Needed = the reserve floor + approved bills not yet paid + every open commitment still owed (POs and contracts,
 payroll, requests, invoices waiting; the Total Spending recap) + a safety buffer on top. Money already leaving
 (processing) is already out of the available balance. Idle = available − needed. Above the minimum, VENTHORA proposes
-a placement (a term deposit, a money market fund, another account); it never moves the money itself: Airwallex's API
-has no placement product, so a person approves the instruction and carries it out, and it stays on the record.
+a placement (a term deposit, a money market fund, another account). With a provider from FCO Authorize → Placement
+providers, the FCO's approval sends the money by Airwallex transfer to the provider's checked account, and the
+withdrawal comes back into the Airwallex Global Account (placement_providers.py). Without one, a person carries the
+instruction out and marks it done; it stays on the record either way.
 """
 from __future__ import annotations
 
@@ -48,30 +50,50 @@ def compute(*, available_minor: int, reserve_floor_minor: int, bills_minor: int,
             "place_minor": place, "why": why}
 
 
-def instruct(org, *, amount_minor: int, currency: str, destination: str, note: str, by: str, basis: dict) -> dict:
+def instruct(org, *, amount_minor: int, currency: str, destination: str, note: str, by: str, basis: dict,
+             provider: dict | None = None, base_minor: int | None = None) -> dict:
+    """`amount_minor` in `currency` (the provider's); `base_minor` its value in the base currency, checked against the
+    idle cash (the same number when the currency is the base)."""
     if amount_minor <= 0:
         raise ValueError("the amount must be above zero")
-    if amount_minor > max(basis.get("idle_minor", 0), 0):
+    in_base = amount_minor if base_minor is None else base_minor
+    if in_base > max(basis.get("idle_minor", 0), 0):
         raise ValueError("the amount is above the idle cash: it would touch money that is needed")
-    rec = {"_id": str(uuid.uuid4()), "amount_minor": amount_minor, "currency": currency, "destination": destination[:120], "note": note[:300],
+    if provider is not None:
+        if not provider.get("active", True):
+            raise ValueError(f"{provider['name']} is not an active provider")
+        if amount_minor < provider.get("minimum_minor", 0):
+            raise ValueError(f"{provider['name']} takes at least {provider['currency']} {provider['minimum_minor'] / 100:,.2f}")
+        destination = destination or f"{provider['name']} · " + (f"{provider['tenor_days']}-day term deposit" if provider["kind"] == "TERM_DEPOSIT" else
+                                                                 "money market fund" if provider["kind"] == "MONEY_MARKET_FUND" else "Airwallex Yield (flexible)")
+    rec = {"_id": str(uuid.uuid4()), "amount_minor": amount_minor, "currency": currency, "base_minor": in_base, "destination": destination[:120], "note": note[:300],
            "status": "PROPOSED", "proposed_by": by, "proposed_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "basis": basis,
-           "decided_by": None, "decided_at": None}
+           "decided_by": None, "decided_at": None,
+           "provider_id": provider["provider_id"] if provider else None, "provider_kind": provider["kind"] if provider else None,
+           "indicative_rate_pct": provider.get("indicative_rate_pct") if provider else None,
+           "history": [{"at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), "by": by, "what": "proposed"}]}
     org._put("placement", rec, by)
     return rec
 
 
-def decide(org, pid: str, status: str, by: str) -> dict:
+def decide(org, pid: str, status: str, by: str, role: str | None = None) -> dict:
+    """Approve, mark done or cancel. A placement with a provider reached by transfer is approved by the FCO only and
+    then goes on by itself (placement_providers.send); it is never marked done by hand."""
     rec = org.get("placement", pid)
     if rec is None:
         raise KeyError(pid)
     if status not in STATUSES[1:]:
         raise ValueError("a placement is approved, done or cancelled")
-    allowed = {"PROPOSED": ("APPROVED", "CANCELLED"), "APPROVED": ("DONE", "CANCELLED")}.get(rec["status"], ())
+    by_transfer = rec.get("provider_id") and rec.get("provider_kind") != "AIRWALLEX_YIELD"
+    allowed = {"PROPOSED": ("APPROVED", "CANCELLED"), "APPROVED": ("CANCELLED",) if by_transfer else ("DONE", "CANCELLED")}.get(rec["status"], ())
     if status not in allowed:
         raise ValueError(f"a {rec['status'].lower()} placement cannot become {status.lower()}")
     if status == "APPROVED" and by.split(" (")[0] == rec["proposed_by"].split(" (")[0]:
         raise ValueError("the person who proposed a placement cannot approve it")
+    if status == "APPROVED" and rec.get("provider_id") and role != "super_admin":
+        raise PermissionError("a placement with a provider is approved by the FCO (Super admin)")
     rec |= {"status": status, "decided_by": by, "decided_at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds")}
+    rec.setdefault("history", []).append({"at": rec["decided_at"], "by": by, "what": status.lower()})
     org._put("placement", rec, by)
     return rec
 
