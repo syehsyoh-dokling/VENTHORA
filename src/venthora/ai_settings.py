@@ -90,11 +90,23 @@ def _url(v: str) -> str:
     return v
 
 
+SAVED_MASK = "********"  # what the form shows for a saved secret: sent back unchanged, it means "keep the saved one"
+
+
+def _unmask(v: str | None) -> str | None:
+    return None if v is None or v.strip() in ("", SAVED_MASK) else v
+
+
 class SelfHosted(BaseModel):
     endpoint: str = Field(default="", max_length=300)
     model: str = Field(default="", max_length=200)
     token: str | None = Field(default=None, max_length=500, description="write-only; None keeps the stored token")
     clear_token: bool = False
+
+    @field_validator("token")
+    @classmethod
+    def keep_masked(cls, v: str | None) -> str | None:
+        return _unmask(v)
 
     @field_validator("endpoint")
     @classmethod
@@ -109,6 +121,11 @@ class Provider(BaseModel):
     clear_api_key: bool = False
     base_url: str = Field(default="", max_length=300, description="only for an other OpenAI-compatible service")
     workspace_id: str = Field(default="", max_length=80, description="Anthropic only: for a key that is not scoped to a workspace")
+
+    @field_validator("api_key")
+    @classmethod
+    def keep_masked(cls, v: str | None) -> str | None:
+        return _unmask(v)
 
     @field_validator("name")
     @classmethod

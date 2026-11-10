@@ -39,7 +39,7 @@ def _rx(*patterns: str) -> re.Pattern:
 # FCO Authorize: changed by the FCO only, never read by a Developer
 FCO_AUTHORIZE = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop", r"/v1/org/standards", r"/v1/placement-providers(/.*)?")
 # Platform Setup, the money part: the FCO changes it, a Developer may only look
-PLATFORM_MONEY = _rx(r"/v1/airwallex/.*", r"/v1/providers/.*",
+PLATFORM_MONEY = _rx(r"/v1/airwallex/.*", r"/v1/company-account(/.*)?", r"/v1/providers/.*", r"/v1/controls/.*",
                      r"/v1/cards(/.*)?", r"/v1/card-authorization(/.*)?", r"/v1/visa/vic(/.*)?")
 # Platform Setup, the technical part: the FCO or a Developer changes it
 PLATFORM_TECH = _rx(r"/v1/webhooks/register", r"/v1/settings/ai(/.*)?", r"/v1/settings/email(/.*)?", r"/v1/outbox/smtp(/.*)?",
@@ -47,6 +47,10 @@ PLATFORM_TECH = _rx(r"/v1/webhooks/register", r"/v1/settings/ai(/.*)?", r"/v1/se
                     r"/v1/sources/connectors", r"/v1/sources/connectors/[^/]+", r"/v1/sources/connectors/[^/]+/discover")
 # Developer Console: a Developer changes it, the FCO views it; absent on SaaS
 DEV_CONSOLE = _rx(r"/v1/visa/tap/keys", r"/v1/visa/tap/sign-test", r"/v1/metal/(key|endpoint|fund|settings)")
+# Developer Console, the one-time service setup whose state the FCO's pages also read: only its WRITES are the
+# Developer's (the GETs stay open to the FCO's screens); on SaaS the writes are the operator's
+DEV_SETUP = _rx(r"/v1/airwallex/connection", r"/v1/providers/xendit", r"/v1/visa/vic/(credentials|xpay-public-key|xpay-secret)",
+                r"/v1/placement-connections/[^/]+")
 # the GETs of FCO Authorize a Developer may not make (standards stay readable: every screen shows the base currency)
 FCO_READS = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop", r"/v1/placement-providers(/.*)?")
 
@@ -58,6 +62,12 @@ def check(role: str | None, method: str, path: str) -> tuple[int, str] | None:
         if deployment() == "saas":
             return 404, "not available: on SaaS the technical setup is done by the VENTHORA operator"
         if write and role is not None and role != DEV:
+            return 403, "Developer Console: only a Developer (IT) changes this; the FCO can view it"
+        return None
+    if write and DEV_SETUP.match(path):
+        if deployment() == "saas":
+            return 404, "not available: on SaaS the technical setup is done by the VENTHORA operator"
+        if role is not None and role != DEV:
             return 403, "Developer Console: only a Developer (IT) changes this; the FCO can view it"
         return None
     if role is None:

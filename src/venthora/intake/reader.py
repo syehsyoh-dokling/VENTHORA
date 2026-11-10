@@ -23,13 +23,13 @@ from .models import Quote
 
 PROMPT = """You read one email (with any PDF attachment text) that asks a company to pay money.
 Return only a JSON object with these keys, each null when the text does not state it:
-  "amount": {"value": "<number as written>", "currency": "USD|EUR|GBP", "quote": "<exact words from the text>"}
+  "amount": {"value": "<number as written>", "currency": "<3-letter ISO code, e.g. USD, SGD, IDR, EUR>", "quote": "<exact words from the text>"}
   "invoice_no": {"value": "<invoice or claim reference>", "quote": "<exact words from the text>"}
   "due_date": {"value": "YYYY-MM-DD", "quote": "<exact words from the text>"}
 "amount" is the total to be paid (the amount due), not a line item or a rate.
 Every "quote" must be copied exactly from the text below. Do not guess."""
 
-CURRENCY = {"USD": "USD", "US$": "USD", "$": "USD", "EUR": "EUR", "€": "EUR", "GBP": "GBP", "£": "GBP"}
+from .currency import code as currency_code  # noqa: E402  every currency Airwallex pays out, by code or symbol
 
 
 def _norm(s: str) -> str:
@@ -67,7 +67,7 @@ def ground(reply: dict, text: str, received: dt.date) -> dict[str, Quote]:
     a = reply.get("amount")
     if isinstance(a, dict) and isinstance(a.get("quote"), str):
         where = _find(a["quote"], text)
-        minor, cur = _minor(str(a.get("value") or "")), CURRENCY.get(str(a.get("currency") or "").upper())
+        minor, cur = _minor(str(a.get("value") or "")), currency_code(str(a.get("currency") or ""))
         if where and minor and cur:
             quoted = text[where[0]:where[1]]
             if any(_minor(n) == minor for n in re.findall(r"\d[\d.,]*\d|\d", quoted)):

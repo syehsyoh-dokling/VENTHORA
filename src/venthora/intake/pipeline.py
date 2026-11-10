@@ -30,16 +30,17 @@ from uuid import uuid4
 from .. import doa, mandate
 from ..config import ROOT, data_path
 from ..domain.models import TreasuryState
-from . import claims, documents
+from . import claims, currency, documents
 from .models import IntakeRequest, Quote, ReviewRequest
 
 PAYEES_FILE = ROOT / "data" / "payees.json"
 FREEMAIL = {"gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "yahoo.co.id", "outlook.com", "hotmail.com",
             "live.com", "icloud.com", "proton.me", "protonmail.com"}
 
-CURRENCIES = {"USD": "USD", "US$": "USD", "$": "USD", "EUR": "EUR", "€": "EUR", "GBP": "GBP", "£": "GBP"}
-AMOUNT_RE = re.compile(r"(?P<cur>USD|EUR|GBP|US\$|\$|€|£)\s?(?P<amt>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)"
-                       r"|(?P<amt2>\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\s?(?P<cur2>USD|EUR|GBP)\b")
+_NUM = r"\d{1,3}(?:[,.]\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?"
+# every currency Airwallex pays out, by code or symbol (intake/currency.py): "SGD 2,281.37", "S$ 2,281.37", "Rp 1.500.000"
+AMOUNT_RE = re.compile(rf"(?P<cur>{currency.SYMBOL_PATTERN}|{currency.CODE_PATTERN})\s?(?P<amt>{_NUM})"
+                       rf"|(?P<amt2>{_NUM})\s?(?P<cur2>{currency.CODE_PATTERN})")
 # "Invoice ERGO-INV-1001", "Invoice number: INV-2026-0042", "Inv # LD-4410": the label may carry "number" and a colon
 # together, and the number may have more than one letter part before its digits (ERGO-INV-1001)
 INVOICE_RE = re.compile(r"\b(?:invoice|inv\.?|bill|statement|claim|timesheet)\s*(?:no\.?|number|#|ref\.?)?\s*[:#]?\s*"
@@ -177,8 +178,9 @@ def parse_eml(raw: bytes) -> dict:
 def _amount(text: str) -> tuple[Quote, int, str] | None:
     hits = []
     for m in AMOUNT_RE.finditer(text):
-        cur = CURRENCIES[(m.group("cur") or m.group("cur2")).upper() if (m.group("cur") or m.group("cur2")) not in ("$", "€", "£")
-                         else (m.group("cur") or m.group("cur2"))]
+        cur = currency.code(m.group("cur") or m.group("cur2"))
+        if cur is None:
+            continue
         amt = (m.group("amt") or m.group("amt2")).replace(",", "")
         if amt.count(".") > 1:  # 1.500.000 style
             amt = amt.replace(".", "")
@@ -200,8 +202,7 @@ def _labelled_amount(sums: dict, text: str) -> tuple[Quote, int, str] | None:
     cur = None
     m = AMOUNT_RE.search(total["quote"])
     if m:
-        sym = m.group("cur") or m.group("cur2")
-        cur = CURRENCIES[sym.upper() if sym not in ("$", "€", "£") else sym]
+        cur = currency.code(m.group("cur") or m.group("cur2"))
     if cur is None:  # "Total 1,250.00" with the currency stated elsewhere in the document
         anywhere = _amount(text)
         cur = anywhere[2] if anywhere else None

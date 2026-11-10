@@ -7,6 +7,7 @@ here instead. Only these routes are passed to the API, each with its raw body an
 * ``POST /webhooks/airwallex``  Airwallex status events (signature headers; body up to 256 KB)
 * ``POST /webhooks/email``      invoices and claims from the inbound mail service (Basic auth; up to 32 MB)
 * ``POST /webhooks/airwallex/remote-auth``  Airwallex asks whether a card charge may go (x-signature, x-nonce)
+* ``POST /webhooks/xendit``     Xendit's e-wallet payout callback (x-callback-token; the payout is read back)
 * ``GET /.well-known/venthora-agent.json``  the agent's public signing keys (Visa Trusted Agent Protocol)
 * ``GET|POST /rfq/{token}``, ``GET /rfq/{token}/data``  a vendor's quotation form (procurement; the token is the key)
 * ``GET /developers`` (+ catalog.json, openapi.json, postman.json)  the public API Catalog: read only, no key, no data
@@ -40,8 +41,10 @@ AGENT_KEYS_UPSTREAM = "/v1/visa/tap/keys.json"
 MAX_BODY = 256 * 1024
 MAX_EMAIL_BODY = 32 * 1024 * 1024
 FORWARDED = ("content-type", "x-timestamp", "x-signature")
+XENDIT_PATH = "/webhooks/xendit"
 ROUTES = {PATH: (FORWARDED, MAX_BODY), EMAIL_PATH: (("content-type", "authorization"), MAX_EMAIL_BODY),
-          REMOTE_AUTH_PATH: (("content-type", "x-signature", "x-nonce"), 64 * 1024)}
+          REMOTE_AUTH_PATH: (("content-type", "x-signature", "x-nonce"), 64 * 1024),
+          XENDIT_PATH: (("content-type", "x-callback-token"), 64 * 1024)}
 API_PREFIXES = ("/v1/", "/api/")
 API_EXACT = ("/openapi.json", "/health")
 API_HEADERS = ("content-type", "authorization", "x-api-key", "accept")
@@ -167,7 +170,8 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
 
     every = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
     return Starlette(routes=[Route(PATH, forward, methods=["POST"]), Route(EMAIL_PATH, forward, methods=["POST"]),
-                             Route(REMOTE_AUTH_PATH, forward, methods=["POST"]), Route(AGENT_KEYS_PATH, agent_keys, methods=["GET"]),
+                             Route(REMOTE_AUTH_PATH, forward, methods=["POST"]), Route(XENDIT_PATH, forward, methods=["POST"]),
+                             Route(AGENT_KEYS_PATH, agent_keys, methods=["GET"]),
                              Route("/rfq/{token}", rfq, methods=["GET", "POST"]), Route("/rfq/{token}/data", rfq, methods=["GET"]),
                              Route("/vendor-details/{token}", details, methods=["GET", "POST"]), Route("/vendor-details/{token}/data", details, methods=["GET"]),
                              Route("/pay-sim/{rest:path}", paysim, methods=["GET", "POST"]),

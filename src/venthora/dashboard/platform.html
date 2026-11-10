@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VENTHORA Platform</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e5e9f2;--brand:#4f46e5;--good:#047857;--goodbg:#ecfdf5;--warn:#b45309;--warnbg:#fffbeb;--bad:#b91c1c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;padding:14px 16px;background:#0b1020;color:#fff}
+@media (max-width:640px){header .sub{display:none}header nav{margin-left:0}}
+table{display:block;overflow-x:auto}
+header b{font-size:17px;letter-spacing:.06em}header nav{margin-left:auto;display:flex;gap:6px}
+header nav a{color:#cbd5e1;text-decoration:none;padding:6px 12px;border-radius:8px}header nav a.on{background:#1e293b;color:#fff}
+main{max-width:1180px;margin:0 auto;padding:22px 16px 60px}
+h1{font-size:22px;margin:4px 0 4px}h2{font-size:16px;margin:26px 0 10px}.muted{color:var(--muted)}.small{font-size:12.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.co{display:flex;flex-direction:column;gap:6px}.co b{font-size:16px}
+button,.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;text-decoration:none;color:var(--ink);display:inline-block}
+.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{text-align:left;padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}th{background:#f8fafc;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-top:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.pill{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600}.good{background:var(--goodbg);color:var(--good)}.warn{background:var(--warnbg);color:var(--warn)}
+.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+input,select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;color:var(--ink)}
+.err{color:var(--bad)}.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:6px}
+.tile .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.tile .v{font-size:22px;font-weight:700;margin-top:4px}
+tfoot td{font-weight:700;background:#f8fafc}
+</style>
+</head>
+<body>
+<header><b>VENTHORA</b><span class="small sub" style="color:#94a3b8">Platform · one VENTHORA per company</span>
+ <nav><a href="/platform/console" id="navDev">Developer console</a><a href="/login" id="navHome" hidden></a></nav></header>
+<main>
+ <section id="home" hidden>
+  <h1>Sign in to your company</h1>
+  <div class="muted">Each company has its own VENTHORA: its own data, its own FCO and its own Airwallex account. Nothing of one company is seen from another.</div>
+  <div id="coList" class="grid" style="margin-top:16px"><div class="muted">loading…</div></div>
+ </section>
+ <section id="rootGate" hidden>
+  <div class="card" style="max-width:400px;margin:30px auto">
+   <h1 id="rgTitle">Root sign-in</h1><div id="rgSub" class="small muted"></div>
+   <form id="rgForm" style="display:grid;gap:10px;margin-top:14px">
+    <label>Root password<input id="rgPw" type="password" autocomplete="current-password"></label>
+    <label id="rgPw2L" hidden>Repeat it<input id="rgPw2" type="password" autocomplete="new-password"></label>
+    <button class="primary" type="submit" id="rgGo">Sign in</button><div id="rgMsg" class="small err"></div></form></div>
+ </section>
+ <section id="dev" hidden>
+  <h1 style="display:flex;align-items:center;gap:10px">Developer console <span class="pill good">Root</span><button id="rootOut" style="margin-left:auto">Sign out</button></h1>
+  <div class="muted">VENTHORA's operator: the platform's Airwallex account and every company served from it. Each company's money sits in its own Airwallex account; the figures below are read from Airwallex through each company's VENTHORA.</div>
+  <div class="tiles" id="devTiles" style="margin-top:16px"></div>
+  <h2>Companies</h2>
+  <div id="devTable" class="muted">loading…</div>
+  <h2>Register a company</h2>
+  <div class="card"><div class="small muted" style="margin-bottom:12px">Fill in every field: the company gets its own VENTHORA with its FCO as Super admin, and these details are kept for its Airwallex account. VENTHORA opens that account by itself once the FCO, at the first sign-in, enters the company's funding account and agrees to Airwallex's terms.</div>
+   <h3 class="small muted" style="margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em">Super admin (FCO)</h3>
+   <div class="form"><label>FCO full name *<input id="nFco" placeholder="Jane Tan"></label><label>FCO email (username) *<input id="nEmail" placeholder="jane@acme.com"></label>
+    <label>Base currency *<select id="nCcy"><option>USD</option><option>SGD</option><option>IDR</option><option>HKD</option><option>AUD</option><option>GBP</option><option>EUR</option></select></label></div>
+   <div id="kybForm" style="margin-top:6px"><div class="muted small">loading the registration form…</div></div>
+   <div style="margin-top:14px;display:flex;gap:10px;align-items:center"><button class="primary" id="nGo">Register company</button><span id="nMsg" class="small"></span></div></div>
+  <h2>Platform account</h2>
+  <div id="devPlatform" class="muted">loading…</div>
+ </section>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=(m,c)=>`${c} ${(m/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+const sumBy=(rows,f)=>{const o={};rows.forEach(r=>Object.entries(f(r)||{}).forEach(([c,v])=>o[c]=(o[c]||0)+(typeof v==="number"?v:v.amount_minor)));return o};
+const cnt=(rows,f)=>rows.reduce((n,r)=>n+Object.values(f(r)||{}).reduce((a,x)=>a+x.count,0),0);
+const money=o=>{const e=Object.entries(o||{}).filter(([,v])=>v);return e.length?e.sort((a,b)=>b[1]-a[1]).map(([c,v])=>fmt(v,c)).join("<br>"):'<span class="muted">0.00</span>'};
+const dev=location.pathname.startsWith("/platform/console");
+$("#home").hidden=dev;$("#dev").hidden=!dev;(dev?$("#navDev"):$("#navHome")).classList.add("on");
+const words=(d,s)=>typeof d==="string"&&d?d:Array.isArray(d)&&d.length?d.map(x=>{const f=String((x.loc||[]).filter(p=>p!=="body").slice(-1)[0]??"value").replace(/_/g," ");
+ return `${f.charAt(0).toUpperCase()+f.slice(1)}: ${String(x.msg||"not valid").replace(/^Value error, /,"")}.`}).join(" "):({401:"Please sign in again.",403:"You do not have permission to do this.",
+ 422:"Some details are not valid.",429:"Too many attempts: wait a moment and try again."}[s]||`Something went wrong (${s}).`);
+async function j(u,o){const r=await fetch(u,o);const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(words(d.detail,r.status));return d}
+async function home(){const d=await j("/platform/api/companies");
+ $("#coList").innerHTML=d.items.length?d.items.map(t=>`<div class="card co"><b>${esc(t.name)}</b><span class="small muted">FCO · ${esc(t.fco_name)}</span>
+  <a class="btn primary" style="align-self:flex-start;margin-top:6px" href="/c/${encodeURIComponent(t.tenant_id)}">Open dashboard</a></div>`).join("")
+  :'<div class="muted">No company yet: the Developer adds one in the Developer console.</div>'}
+function acct(t){if(t.error&&!t.mode)return `<span class="err small">${esc(t.error)}</span>`;
+ if(t.mode==="none")return '<span class="pill warn">no account yet</span>';
+ return `<span class="pill good">${t.mode==="linked"?"linked":"opened in VENTHORA"}</span><div>${esc(t.account?.name||"")}</div><div class="mono muted">${esc(t.account?.id||"")}</div>`}
+async function console_(){const d=await j("/platform/api/tenants"),rows=d.items;
+ const withAcct=rows.filter(r=>r.mode&&r.mode!=="none").length,bal=sumBy(rows,r=>r.balances_minor),dep=sumBy(rows,r=>r.deposits),tr=sumBy(rows,r=>r.transfers);
+ $("#devTiles").innerHTML=[["Companies",rows.length],["With an Airwallex account",withAcct],["Transfers",cnt(rows,r=>r.transfers)],["Deposits",cnt(rows,r=>r.deposits)]]
+  .map(([k,v])=>`<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+ $("#devTable").className="";$("#devTable").innerHTML=rows.length?`<table><thead><tr><th>Company</th><th>FCO</th><th>Airwallex account</th><th class="n">Balance</th><th class="n">Deposits in</th><th class="n">Transfers out</th><th></th></tr></thead><tbody>
+  ${rows.map(t=>`<tr><td><b>${esc(t.name)}</b><div class="small muted">${esc(t.country)} · ${esc(t.currency)} · since ${esc((t.created_at||"").slice(0,10))}</div>${t.running===false?'<div class="err small">process stopped</div>':""}</td>
+   <td>${esc(t.fco?.name||t.fco_name)}<div class="small muted">${esc(t.fco?.email||t.fco_email)}</div></td><td>${acct(t)}${t.error&&t.mode?`<div class="err small">${esc(t.error)}</div>`:""}</td>
+   <td class="n">${money(t.balances_minor||{})}</td><td class="n">${money(Object.fromEntries(Object.entries(t.deposits||{}).map(([c,v])=>[c,v.amount_minor])))}<div class="small muted">${cnt([t],r=>r.deposits)} deposit(s)</div></td>
+   <td class="n">${money(Object.fromEntries(Object.entries(t.transfers||{}).map(([c,v])=>[c,v.amount_minor])))}<div class="small muted">${cnt([t],r=>r.transfers)} transfer(s)</div></td>
+   <td><button data-fco="${esc(t.tenant_id)}">FCO sign-in link</button></td></tr>`).join("")}</tbody>
+  <tfoot><tr><td colspan="3">All companies</td><td class="n">${money(bal)}</td><td class="n">${money(dep)}</td><td class="n">${money(tr)}</td><td></td></tr></tfoot></table>`
+  :'<div class="muted">No company yet: add the first one below.</div>';
+ document.querySelectorAll("[data-fco]").forEach(b=>b.onclick=async()=>{if(!confirm("Make a new sign-in link for this company's FCO? Any earlier link stops working, and their password is replaced when they use it."))return;
+  try{const d=await j(`/platform/api/tenants/${encodeURIComponent(b.dataset.fco)}/fco-link`,{method:"POST"});showLink(d.name,d.fco_name,d.fco_email,d.link)}catch(e){alert(e.message)}});
+ const p=await j("/platform/api/account");
+ $("#devPlatform").className="";$("#devPlatform").innerHTML=!p.configured?'<div class="muted">The platform keys are not set (.env).</div>':p.error?`<div class="err">${esc(p.error)}</div>`
+  :`<div class="card"><div class="small muted">The operator's own account (the platform keys). It holds no company's money; companies' accounts are opened under it.</div>
+   <div style="margin:8px 0"><b>Balances</b><div>${money(p.balances_minor||{})}</div></div>
+   <b>Accounts opened under the platform</b> <span class="small muted">(${p.connected_accounts.length})</span>
+   <table style="margin-top:6px"><thead><tr><th>Account</th><th>Status</th><th>Company on VENTHORA</th></tr></thead><tbody>${p.connected_accounts.map(a=>`<tr><td>${esc(a.name)}<div class="mono muted">${esc(a.id)}</div></td><td>${esc(a.status)}</td><td>${a.company?esc(rows.find(r=>r.tenant_id===a.company)?.name||a.company):'<span class="muted">none</span>'}</td></tr>`).join("")}</tbody></table></div>`}
+let KYB=null;
+const HINT={country_code:"SG",director_nationality:"SG",revenue_currency:"USD",director_date_of_birth:"1985-01-31",monthly_revenue:"50000",postcode:"048616",
+ registration_number:"202612345A",contact_mobile:"+65 8123 4567"};
+async function kybForm(){if(KYB)return;KYB=await j("/platform/api/kyb");const secs=[...new Set(KYB.fields.map(f=>f.section))];
+ $("#kybForm").innerHTML=secs.map(s=>`<h3 class="small muted" style="margin:14px 0 6px;text-transform:uppercase;letter-spacing:.04em">${esc(s)}</h3><div class="form">${
+  KYB.fields.filter(f=>f.section===s&&f.key!=="contact_email").map(f=>`<label>${esc(f.label)}${f.required?" *":""}${
+   f.key==="industry_code"?`<select data-k="${f.key}"><option value="">choose…</option>${KYB.industries.map(i=>`<option value="${esc(i.code)}">${esc(i.name)}</option>`).join("")}</select>`
+   :f.choices?`<select data-k="${f.key}">${f.choices.map(c=>`<option>${esc(c)}</option>`).join("")}</select>`
+   :`<input data-k="${f.key}" placeholder="${esc(HINT[f.key]||"")}">`}</label>`).join("")}</div>`).join("")+
+  '<div class="small muted" style="margin-top:8px">The primary contact email is the FCO\'s email above.</div>';
+ const nm=()=>{const [a,...b]=$("#nFco").value.trim().split(/\s+/);const fn=$('[data-k="director_first_name"]'),ln=$('[data-k="director_last_name"]');
+  if(fn&&!fn.dataset.touched)fn.value=a||"";if(ln&&!ln.dataset.touched)ln.value=b.join(" ")}; $("#nFco").oninput=nm;
+ document.querySelectorAll("[data-k]").forEach(x=>x.addEventListener("input",()=>x.dataset.touched="1"))}
+$("#nGo").onclick=async()=>{const kyb={};document.querySelectorAll("[data-k]").forEach(x=>kyb[x.dataset.k]=x.value.trim());kyb.contact_email=$("#nEmail").value.trim();
+ $("#nMsg").textContent="registering the company and starting its VENTHORA…";$("#nGo").disabled=true;
+ try{const t=await j("/platform/api/tenants",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({fco_name:$("#nFco").value,fco_email:$("#nEmail").value,currency:$("#nCcy").value,kyb})});
+  $("#nMsg").innerHTML=`<span class="pill good">registered</span> ${esc(t.name)}${t.profile==="kept"?"":` <span class="err">details: ${esc(t.profile)}</span>`}`;["#nFco","#nEmail"].forEach(i=>$(i).value="");
+  document.querySelectorAll("[data-k]").forEach(x=>{if(x.tagName==="INPUT"){x.value="";delete x.dataset.touched}});
+  if(t.fco_link)showLink(t.name,t.fco?.name||"",t.fco?.email||"",t.fco_link);console_()}catch(e){$("#nMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}finally{$("#nGo").disabled=false}};
+function showLink(co,name,email,link){const url=location.origin+link;
+ $("#nMsg").innerHTML=`<div class="card" style="margin-top:10px"><b>Sign-in link for ${esc(name)}</b> (${esc(email)}), FCO of ${esc(co)}<div class="small muted">Give it to them yourself: VENTHORA sends nothing. It works once, for 7 days; they choose their own password and become the company's Super admin.</div>
+  <input readonly class="mono" style="width:100%;margin-top:6px" value="${esc(url)}" onclick="this.select()"> <button onclick="navigator.clipboard.writeText('${esc(url)}');this.textContent='Copied'">Copy</button></div>`;
+ $("#nMsg").scrollIntoView({behavior:"smooth",block:"center"})}
+async function gate(){const s=await j("/platform/api/root");if(!s.signed_in){location.replace("/login");return}
+ $("#rootGate").hidden=s.signed_in;$("#dev").hidden=!s.signed_in;if(s.signed_in){kybForm().catch(e=>$("#kybForm").innerHTML=`<div class="err">${esc(e.message)}</div>`);return console_()}
+ const setup=!s.set;$("#rgTitle").textContent=setup?"Set the Root password":"Root sign-in";$("#rgPw2L").hidden=!setup;$("#rgGo").textContent=setup?"Set and sign in":"Sign in";
+ $("#rgSub").textContent=setup?"The first visit: choose the platform operator's password (at least 10 characters, upper and lower case and a digit). Keep it safe: it opens every company's totals.":"The platform operator only.";
+ $("#rgForm").onsubmit=async ev=>{ev.preventDefault();$("#rgMsg").textContent="";if(setup&&$("#rgPw").value!==$("#rgPw2").value){$("#rgMsg").textContent="the two passwords differ";return}
+  try{await j(`/platform/api/root/${setup?"setup":"login"}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:$("#rgPw").value})});gate()}catch(e){$("#rgMsg").textContent=e.message}}}
+$("#rootOut").onclick=async()=>{await fetch("/platform/api/root/logout",{method:"POST"});location.replace("/login")};
+if(dev){$("#dev").hidden=true}
+if(!dev)location.replace("/login");
+(dev?gate():Promise.resolve()).catch(e=>{(dev?$("#rgMsg"):$("#coList")).innerHTML=`<div class="err">${esc(e.message)}</div>`});
+</script>
+</body>
+</html>

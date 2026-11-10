@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · VENTHORA</title>
+<style>
+:root{--bg:#0b1020;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e5e9f2;--brand:#4f46e5;--bad:#b91c1c}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;
+ background:radial-gradient(1200px 600px at 20% -10%,#1e2a5a,transparent),var(--bg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
+.card{width:100%;max-width:400px;background:var(--card);border-radius:16px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#4f46e5,#2563eb);display:grid;place-items:center}
+.brand b{font-size:17px;letter-spacing:.08em}.brand small{display:block;color:var(--muted);font-size:12px;letter-spacing:0}
+h1{font-size:20px;margin:0 0 4px}.muted{color:var(--muted)}.small{font-size:12.5px}
+form{display:grid;gap:12px;margin-top:16px}label{display:grid;gap:5px;font-size:12.5px;color:var(--muted)}
+input{font:inherit;padding:10px 11px;border:1px solid var(--line);border-radius:9px;color:var(--ink)}input:focus{outline:2px solid #c7d2fe;border-color:var(--brand)}
+button{font:inherit;border:0;border-radius:9px;padding:11px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}button:disabled{opacity:.6;cursor:wait}
+.err{color:var(--bad);min-height:18px}.choice{display:grid;gap:8px;margin-top:12px}.choice button{background:#fff;color:var(--ink);border:1px solid var(--line);text-align:left;font-weight:500}
+.choice button:hover{border-color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="card">
+ <div class="brand"><div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></div>
+  <div><b>VENTHORA</b><small>Treasury on Airwallex</small></div></div>
+ <h1 id="title">Sign in</h1><div id="sub" class="small muted" hidden></div>
+ <form id="f">
+  <label>Username<input id="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+  <label>Password<input id="pw" type="password" autocomplete="current-password" required></label>
+  <label id="pw2L" hidden>Repeat the password<input id="pw2" type="password" autocomplete="new-password"></label>
+  <button id="go" type="submit">Sign in</button>
+  <div id="msg" class="small err"></div>
+  <a href="#" id="help" class="small" style="text-align:center;color:var(--brand);text-decoration:none">Forgot password?</a>
+  <div id="helpMsg" class="small muted" style="text-align:center" hidden>Ask your admin for a new sign-in link.</div>
+ </form>
+ <div id="choose" class="choice" hidden></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let SETUP=false;
+async function post(u,b){const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(typeof d.detail==="string"&&d.detail?d.detail:r.status===429?"Too many attempts: wait a moment and try again.":"Please check the username and password.");return d}
+function go(d){if(d.redirect){$("#msg").className="small muted";$("#msg").textContent=d.company?`Opening ${d.company}…`:"Opening the console…";location.replace(d.redirect)}}
+async function signIn(extra){const b={email:$("#email").value.trim(),password:$("#pw").value,...(extra||{})};
+ $("#go").disabled=true;$("#msg").className="small err";$("#msg").textContent="";
+ try{if(SETUP){if($("#pw").value!==$("#pw2").value)throw new Error("the two passwords differ");go(await post("/login/api/root-setup",b));return}
+  const d=await post("/login/api",b);
+  if(d.choose){$("#f").hidden=true;$("#choose").hidden=false;$("#title").textContent="Choose the company";
+   $("#choose").innerHTML=d.choose.map(c=>`<button data-t="${esc(c.tenant_id)}"><b>${esc(c.name)}</b><div class="small muted">${esc((c.role||"").replace(/_/g," "))}</div></button>`).join("");
+   document.querySelectorAll("[data-t]").forEach(x=>x.onclick=()=>signIn({tenant_id:x.dataset.t}));return}
+  go(d)}catch(e){$("#msg").textContent=e.message}finally{$("#go").disabled=false}}
+$("#f").onsubmit=ev=>{ev.preventDefault();signIn()};
+$("#help").onclick=ev=>{ev.preventDefault();$("#helpMsg").hidden=!$("#helpMsg").hidden};
+(async()=>{try{const s=await (await fetch("/login/api/state")).json();
+ if(s.root){location.replace("/platform/console");return}
+ if(!s.root_set){SETUP=true;$("#sub").hidden=false;$("#title").textContent="Set up the platform";$("#sub").textContent="First visit: choose Root's email and password (at least 10 characters, upper and lower case and a digit). Root runs the platform and adds the companies.";
+  $("#pw2L").hidden=false;$("#pw").autocomplete="new-password";$("#go").textContent="Create Root and sign in";$("#help").hidden=true}}catch(e){}
+ $("#email").focus()})();
+</script>
+</body>
+</html>

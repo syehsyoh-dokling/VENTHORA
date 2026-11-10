@@ -318,7 +318,7 @@ async function next(){const b=$("#nextBtn");b.disabled=true;$("#busy").textConte
  catch(e){$("#busy").innerHTML=`<span class="err">${esc(e.message)}</span>`;b.disabled=false}}
 async function loadForm(){D=await api("/api/live/setup");}
 // who is signed in: the person chosen in "Acting as" on the dashboard, with the role People and roles gives them
-(async()=>{const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
+(async()=>{const R={super_admin:"Super admin (FCO)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",procurement:"Procurement",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
  let name=null;try{name=localStorage.getItem("venthora.actor.name")}catch(e){}
  try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const rank=["super_admin","cfo","finance_manager"];const u=us.find(x=>x.name===name)||us.sort((a,b)=>((rank.indexOf(a.role)+1)||99)-((rank.indexOf(b.role)+1)||99))[0];
   if(u){WHO={name:u.name,role:u.role};$("#who").innerHTML=`${esc(u.name)}<small>${esc(R[u.role]||u.role)}</small>`}}catch(e){}})();

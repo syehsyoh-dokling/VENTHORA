@@ -89,8 +89,16 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
         "salary_minor": ("amount", ("net pay", "net salary", "monthly net pay", "salary", "monthly salary", "gaji", "take home pay")),
         "salary_currency": ("ccy", ("salary currency", "pay currency", "currency")),
         "charge_code": ("upper", ("charge code", "cost code", "account code", "salary charge code")),
-        "benefits": ("list", ("benefits", "enrolled benefits", "benefit")),
+        "benefits": ("list", ("benefits", "enrolled benefits", "benefit", "tunjangan")),
         "payee_id": ("lower", ("payee id", "bank account id", "beneficiary id")),
+        "may_order_by_email": ("bool", ("may order by email", "order by email", "order via email", "boleh order via email",
+                                        "may instruct payments by email", "email ordering")),
+    },
+    "mailbox": {
+        "address": ("lower", ("email address", "mailbox", "inbound address", "alamat email", "address", "email")),
+        "purpose": ("lower", ("purpose", "used for", "untuk", "for", "kegunaan")),
+        "provider": ("lower", ("provider", "mail service", "service", "layanan")),
+        "note": ("text", ("note", "notes", "catatan", "remarks")),
     },
     "project": {
         "code": ("upper", ("project code", "project no", "project number", "code")),
@@ -122,7 +130,7 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
     },
     "po": {
         "po_id": ("upper", ("po number", "po no", "po", "purchase order", "order number")),
-        "supplier_id": ("lower", ("vendor id", "vendor code", "supplier id", "supplier", "vendor")),
+        "supplier_id": ("lower", ("supplier", "vendor", "issued to", "supplier id", "vendor id", "vendor code", "kepada", "pemasok")),
         "currency": ("ccy", ("currency", "ccy")),
         "total_minor": ("amount", ("total", "po total", "amount", "value", "po value")),
         "account_code": ("upper", ("account code", "cost code", "gl code", "charge code", "cost centre", "cost center")),
@@ -202,7 +210,7 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
     },
     "bill": {
         "bill_id": ("text", ("bill id", "id", "document id", "doc no")),
-        "vendor_id": ("lower", ("vendor id", "vendor code", "supplier id", "supplier", "vendor")),
+        "vendor_id": ("lower", ("supplier", "vendor", "supplier name", "vendor id", "vendor code", "supplier id", "pemasok")),
         "invoice_no": ("upper", ("invoice number", "invoice no", "invoice", "inv no", "reference")),
         "amount_minor": ("amount", ("amount", "amount due", "total", "balance", "open amount")),
         "currency": ("ccy", ("currency", "ccy")),
@@ -222,8 +230,8 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
         "period": ("text", ("period", "month")),
         "line": ("lower", ("line", "budget line", "category")),
         "amount_minor": ("amount", ("amount", "budget", "plan", "planned")),
-        "auto_share_bp": ("int", ("auto share", "autonomous share")),
-        "alert_share_bp": ("int", ("alert share", "alert")),
+        "auto_share_bp": ("bp", ("auto share", "autonomous share")),
+        "alert_share_bp": ("bp", ("alert share", "alert")),
         "require_approval_on_alert": ("bool", ("approver at alert", "approval on alert")),
         "bypass": ("bool", ("bypass", "unlimited")),
         "bypass_approved_by": ("text", ("signed by", "bypass signed by", "signatory")),
@@ -235,8 +243,9 @@ FIELDS: dict[str, dict[str, tuple[str, tuple[str, ...]]]] = {
     "allocation": {
         "basis": ("lower", ("basis", "allocation basis", "allocation type", "budget basis")),
         "period": ("text", ("budget period", "period", "month", "quarter", "fiscal year")),
-        "unit_id": ("lower", ("unit id", "unit", "office", "branch", "cost centre", "cost center")),
-        "include_children": ("bool", ("include children", "include branches", "include sub units")),
+        "unit_id": ("lower", ("unit id", "unit", "office", "branch", "cost centre", "cost center", "kantor", "cabang")),
+        "include_children": ("bool", ("include children", "include branches", "include sub units", "include units below",
+                                      "termasuk unit di bawahnya", "termasuk cabang")),
         "project_code": ("upper", ("project code", "project", "project no")),
         "line": ("text", ("budget line", "line", "expense category", "category")),
         "amount_minor": ("amount", ("allocated amount", "allocation", "allocated", "budget amount", "amount", "budget")),
@@ -265,6 +274,7 @@ ENTITIES: dict[str, tuple[str, str, str]] = {
     "budget_line": ("Budget lines", "the plan per budget line and period", "#/payment-reports?budget"),
     "allocation": ("Budget allocations", "budget given to an office, branch or project for a period", "#/allocation"),
     "tenant_book": ("Tenant books", "which entity a payment belongs to, its payees and approvers", "#/mandate"),
+    "mailbox": ("Email addresses (mailboxes)", "the addresses mail reaches VENTHORA on, and what each one is for", "#/sources-email"),
 }
 
 
@@ -424,9 +434,30 @@ def _eml(data: bytes) -> dict:
     return {"kind": "eml", "headers": [], "rows": [], "text": f"Subject: {msg.get('subject', '')}\n{text}"}
 
 
+def _labels() -> set[str]:
+    """Every field name and synonym, normalised: what a header cell or a label in a label/value table looks like."""
+    out = set()
+    for fs in FIELDS.values():
+        for f, (_, syn) in fs.items():
+            out |= {_norm(f.split(".")[-1])} | {_norm(s) for s in syn}
+    return out | {"date joined", "joined", "employment", "position", "office"}
+
+
 def _table(kind: str, grid: list[list[str]]) -> dict:
+    grid = [[str(c or "").strip() for c in r] for r in grid if any(str(c or "").strip() for c in r)]
     if not grid:
         return {"kind": kind, "headers": [], "rows": []}
+    labels = _labels()
+    # a label / value table ("Full name | Mei Ling Tan", "E-mail | ..."): one record, its labels the columns
+    if all(len([c for c in r if c]) <= 2 for r in grid) and len(grid) >= 3 and \
+            sum(1 for r in grid if r and _norm(r[0]) in labels) >= max(2, len(grid) // 2):
+        headers = [r[0] for r in grid if r and r[0]]
+        return {"kind": kind, "headers": headers, "rows": [{r[0]: (r[1] if len(r) > 1 else "") for r in grid if r and r[0]}], "truncated": False}
+    # title lines and notes above the table ("DAFTAR REKENING KARYAWAN", "dibuat oleh ..."): the header is the first
+    # row that is as wide as the table
+    widest = max(len([c for c in r if c]) for r in grid[:12])
+    start = next((i for i, r in enumerate(grid[:12]) if len([c for c in r if c]) >= max(2, round(widest * 0.8))), 0)
+    grid = grid[start:]
     headers = [h or f"column {i + 1}" for i, h in enumerate(grid[0])]
     rows = [{headers[i]: (r[i] if i < len(r) else "") for i in range(len(headers))} for r in grid[1:]]
     return {"kind": kind, "headers": headers, "rows": rows[:5000], "truncated": len(rows) > 5000}
@@ -515,8 +546,10 @@ async def pdf_rows_with_model(entity: str, text: str, model) -> list[dict]:
     if not model.configured:
         return []
     fields = list(FIELDS[entity])
+    keys = ", ".join(f"{f} ({' / '.join(FIELDS[entity][f][1][:3])})" if FIELDS[entity][f][1] else f for f in fields)
     prompt = (f"Extract every {entity.replace('_', ' ')} row from the document. Reply with one JSON object {{\"rows\": [...]}} where each row "
-              f"uses these keys when the document states them: {', '.join(fields)}. Copy values exactly as written; do not compute or guess.")
+              f"uses these keys when the document states them (what each key means in brackets): {keys}. Copy values exactly as written, "
+              "including dates and amounts as they appear; do not compute or guess.")
     try:
         reply = first_json_object(await model.complete([{"role": "system", "content": prompt}, {"role": "user", "content": text[:8000]}], max_tokens=1500))
     except (LLMUnavailable, ValueError):
@@ -531,6 +564,67 @@ async def pdf_rows_with_model(entity: str, text: str, model) -> list[dict]:
     return rows
 
 
+CCY_COUNTRY = {"IDR": "ID", "SGD": "SG", "MYR": "MY", "HKD": "HK", "AUD": "AU", "NZD": "NZ", "GBP": "GB", "USD": "US", "JPY": "JP",
+               "CNY": "CN", "THB": "TH", "PHP": "PH", "VND": "VN", "INR": "IN", "KRW": "KR", "AED": "AE", "CAD": "CA", "CHF": "CH"}
+MONTHS = {"jan": 1, "januari": 1, "january": 1, "feb": 2, "februari": 2, "february": 2, "mar": 3, "maret": 3, "march": 3,
+          "apr": 4, "april": 4, "mei": 5, "may": 5, "jun": 6, "juni": 6, "june": 6, "jul": 7, "juli": 7, "july": 7,
+          "agu": 8, "agt": 8, "agus": 8, "agustus": 8, "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9,
+          "okt": 10, "oktober": 10, "oct": 10, "october": 10, "nov": 11, "nop": 11, "nopember": 11, "november": 11,
+          "des": 12, "desember": 12, "dec": 12, "december": 12}
+
+
+def _date(v) -> str | None:
+    """A date as people write it: 2026-11-05, 05/11/2026, 5 Nov 2026, 1-Dec-2026, 2 Januari 2024, December 1, 2026."""
+    import datetime as dt
+
+    s = str(v).strip()
+    if not s:
+        return None
+    if re.match(r"^[A-Za-z]{3},\s", s):  # an e-mail's date: Mon, 9 Nov 2026 09:12:00 +0700
+        from email.utils import parsedate_to_datetime
+
+        try:
+            return parsedate_to_datetime(s).date().isoformat()
+        except (TypeError, ValueError):
+            s = s[5:].strip()
+    s = re.sub(r"\s+\d{1,2}:\d{2}(:\d{2})?(\s*[+-]\d{4})?$", "", s)  # a time after the date
+    m = re.fullmatch(r"(\d{1,2})[\s\-/.]+([A-Za-z]+)\.?[\s\-/.,]+(\d{4})", s) or None
+    if m:
+        d, mon, y = int(m.group(1)), MONTHS.get(m.group(2).lower()), int(m.group(3))
+    else:
+        m = re.fullmatch(r"([A-Za-z]+)\.?\s+(\d{1,2}),?\s+(\d{4})", s)
+        d, mon, y = (int(m.group(2)), MONTHS.get(m.group(1).lower()), int(m.group(3))) if m else (0, None, 0)
+    if mon:
+        try:
+            return dt.date(y, mon, d).isoformat()
+        except ValueError as exc:
+            raise ValueError(f"not a date: {v!r}") from exc
+    return _transform(s, "date")
+
+
+def _amount_minor(v) -> int | None:
+    """An amount as people write it, in minor units: 1250, 1,250.50, SGD 6,000.00, Rp 15.000.000, 1.250,50, IDR 9.000.000."""
+    from decimal import Decimal, InvalidOperation
+
+    s = re.sub(r"[^\d.,\-]", "", str(v))
+    if not s or not re.search(r"\d", s):
+        raise ValueError(f"not an amount: {v!r}")
+    if "," in s and "." in s:  # the later one is the decimal mark
+        s = s.replace(".", "").replace(",", ".") if s.rfind(",") > s.rfind(".") else s.replace(",", "")
+    elif re.fullmatch(r"-?\d{1,3}(\.\d{3})+", s):  # 15.000.000: dots are thousands
+        s = s.replace(".", "")
+    elif re.fullmatch(r"-?\d{1,3}(,\d{3})+", s):  # 15,000,000
+        s = s.replace(",", "")
+    elif re.fullmatch(r"-?\d+,\d{1,2}", s):  # 450,50: a decimal comma
+        s = s.replace(",", ".")
+    else:
+        s = s.replace(",", "")
+    try:
+        return int((Decimal(s) * 100).to_integral_value())
+    except InvalidOperation as exc:
+        raise ValueError(f"not an amount: {v!r}") from exc
+
+
 def clean(entity: str, rows: list[dict], mapping: dict[str, str]) -> list[dict]:
     """Rows in VENTHORA's fields; a cell that cannot be cleaned makes its row an error row (rejected with the reason)."""
     out = []
@@ -543,21 +637,32 @@ def clean(entity: str, rows: list[dict], mapping: dict[str, str]) -> list[dict]:
                     continue
                 kind = FIELDS[entity][field][0] if field in FIELDS[entity] else "text"
                 if kind == "amount":
-                    v = _transform(re.sub(r"[^\d.,\-]", "", str(v)), "major")
+                    v = _amount_minor(v)
                 elif kind == "date":
-                    v = _transform(v, "date")
-                elif kind in ("ccy", "upper"):
+                    v = _date(v)
+                elif kind == "ccy":  # "Rp", "S$", "rm", "idr": the ISO code (intake/currency.py)
+                    from .intake.currency import code as _ccy
+
+                    v = _ccy(str(v)) or str(v).strip().upper()
+                elif kind == "upper":
                     v = str(v).strip().upper()
                 elif kind == "lower":
                     v = str(v).strip().lower()
-                elif kind in ("nospace", "iban"):
-                    v = re.sub(r"\s+", "", str(v)).upper() if kind == "iban" else re.sub(r"\s+", "", str(v))
+                elif kind in ("nospace", "iban"):  # account numbers are written in groups: 0881 2345 67, 765-0123-998, 137.001.234
+                    v = re.sub(r"[\s\-.]+", "", str(v)).upper() if kind == "iban" else re.sub(r"[\s\-.]+", "", str(v))
                 elif kind == "list":
                     v = _transform(v, "split")
                 elif kind == "int":
                     v = int(float(str(v).replace(",", "")))
-                elif kind == "bool":
-                    v = str(v).strip().lower() in ("1", "true", "yes", "y", "ja", "ya")
+                elif kind == "bp":  # a share in basis points; a file writes a percent ("90", "90%", "12.5 %")
+                    s = str(v).strip()
+                    n = float(s.rstrip("%").strip().replace(",", "."))
+                    v = round(n * 100) if (s.endswith("%") or n <= 100) else int(n)
+                elif kind == "bool":  # "yes", "Y", "ya", or a sentence: "Partial delivery allowed", "tidak diizinkan"
+                    s = str(v).strip().lower()
+                    no = re.search(r"\b(no|not|never|tidak|tdk|bukan|jangan|nein|false)\b", s)
+                    v = s in ("1", "true", "yes", "y", "ja", "ya") or (not no and bool(
+                        re.search(r"\b(yes|ya|allowed|permitted|accepted|boleh|diizinkan|diperbolehkan|bisa|included|termasuk)\b", s)))
                 cur = rec
                 parts = field.split(".")
                 for p in parts[:-1]:
@@ -585,14 +690,23 @@ def _fill_gaps(entity: str, rec: dict) -> None:
     from .organisation import Role
 
     bank = rec.get("bank")
+    if entity == "vendor" and not rec.get("name") and isinstance(bank, dict) and bank.get("account_name"):
+        holder = " ".join(str(bank["account_name"]).split())  # a list of accounts names only the holder: that is the payee
+        rec["name"] = holder.title() if holder.isupper() else holder
     if isinstance(bank, dict):
         if not bank.get("account_name") and rec.get("name"):
             bank["account_name"] = rec["name"]
         if not bank.get("account_currency") and rec.get("currency"):
             bank["account_currency"] = rec["currency"]
         country = (rec.get("address") or {}).get("country_code") if isinstance(rec.get("address"), dict) else None
-        if not bank.get("bank_country_code") and country:
-            bank["bank_country_code"] = country
+        swift = str(bank.get("swift_code") or "")
+        swift = re.search(r"\b([A-Z]{4})([A-Z]{2})[A-Z0-9]{2}([A-Z0-9]{3})?\b", swift.upper())
+        if not bank.get("bank_country_code"):  # where the bank is: the address, else its SWIFT code, else its currency's country
+            bank["bank_country_code"] = country or (swift.group(2) if swift else CCY_COUNTRY.get(str(bank.get("account_currency") or "").upper()))
+            if not bank["bank_country_code"]:
+                bank.pop("bank_country_code")
+    if entity == "price" and not rec.get("category"):
+        rec["category"] = "uncategorised"
     if entity == "user" and rec.get("role"):
         title = str(rec["role"]).strip()
         valid = set(get_args(Role))

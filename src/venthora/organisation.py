@@ -23,7 +23,7 @@ from .config import data_path
 
 UnitKind = Literal["HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE", "PROJECT_FINANCE"]
 Role = Literal["super_admin", "developer", "hq_admin", "country_admin", "branch_admin", "project_admin", "admin", "cfo", "finance_manager",
-               "treasury_analyst", "country_finance_lead", "project_accountant", "requester", "auditor"]
+               "treasury_analyst", "country_finance_lead", "project_accountant", "procurement", "requester", "auditor"]
 # company-wide writers; the scoped admins below write only inside their own unit and the units under it
 WRITE_ROLES = {"super_admin", "hq_admin", "admin", "cfo", "finance_manager"}
 # the admin team: who runs each level of the organisation (the super admin is the FCO at HQ, who sees and may do everything)
@@ -31,10 +31,11 @@ ADMIN_LEVELS = {"super_admin": "HQ", "hq_admin": "HQ", "country_admin": "COUNTRY
                 "project_admin": "PROJECT_FINANCE"}
 SCOPED_ADMINS = {"country_admin", "branch_admin", "project_admin"}
 # roles a scoped admin may give: never one at or above its own level, never a company-wide one
-GRANTABLE = {"country_admin": {"branch_admin", "project_admin", "country_finance_lead", "project_accountant", "treasury_analyst", "requester", "auditor"},
-             "branch_admin": {"project_admin", "project_accountant", "treasury_analyst", "requester", "auditor"},
-             "project_admin": {"project_accountant", "requester", "auditor"}}
-PARENTS: dict[str, set[str]] = {"HQ": set(), "COUNTRY_OFFICE": {"HQ"}, "BRANCH_OFFICE": {"COUNTRY_OFFICE"},
+GRANTABLE = {"country_admin": {"branch_admin", "project_admin", "country_finance_lead", "project_accountant", "treasury_analyst", "procurement", "requester", "auditor"},
+             "branch_admin": {"project_admin", "project_accountant", "treasury_analyst", "procurement", "requester", "auditor"},
+             "project_admin": {"project_accountant", "procurement", "requester", "auditor"}}
+# a branch office sits under a country office or straight under the head office
+PARENTS: dict[str, set[str]] = {"HQ": set(), "COUNTRY_OFFICE": {"HQ"}, "BRANCH_OFFICE": {"HQ", "COUNTRY_OFFICE"},
                                 "PROJECT_FINANCE": {"HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE"}}
 CCY = re.compile(r"^[A-Z]{3}$")
 

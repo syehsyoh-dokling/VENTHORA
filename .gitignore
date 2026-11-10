@@ -13,5 +13,6 @@ native/*.dll
 native/*.dylib
 data/runs/
 data/demo/
+data/saas/
 demo_video/
 data/procurement/

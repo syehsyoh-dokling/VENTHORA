@@ -233,6 +233,12 @@ class Airwallex:
             from ..airwallex_settings import card_account_for
 
             obo = card_account_for() or obo  # cards live on the card-issuing account (Platform Setup → Airwallex Cards)
+        if not own and obo is None and self._fixed is None:
+            from ..airwallex_settings import linked, tenant
+
+            if tenant() is not None and not linked():  # SaaS: the platform's own account is the operator's, never a company's
+                raise AirwallexError("this company has no Airwallex account yet: the FCO opens a new one or connects the one "
+                                     "it already has in Platform Setup → Airwallex Global Account", status=409, code="no_company_account")
         for attempt in range(self._max_attempts):
             try:
                 res = await self._client.request(method, path, json=json, params=params,
@@ -347,23 +353,54 @@ class Airwallex:
 
     # -- accounts opened through this platform (Airwallex connected accounts) ---------------------------------
 
+    # SaaS: the platform holds every company's connected account; a company's VENTHORA sees and acts on its own only.
+    @staticmethod
+    def _mine(account_id: str) -> None:
+        from ..airwallex_settings import owns
+
+        if not owns(account_id):
+            raise AirwallexError("not found: that account belongs to no account this company opened", status=404, code="not_this_company")
+
+    @staticmethod
+    def _no_platform_wallet() -> None:
+        from ..airwallex_settings import tenant
+
+        if tenant() is not None:
+            raise AirwallexError("not available on SaaS: the platform's wallet is the operator's, never a company's", status=409,
+                                 code="platform_wallet")
+
     async def list_accounts(self) -> list[dict]:
+        from ..airwallex_settings import owns
+
         body = await self._request("GET", "/api/v1/accounts", own=True)
-        return body.get("items", body) if isinstance(body, dict) else body
+        items = body.get("items", body) if isinstance(body, dict) else body
+        return [a for a in items if owns(str(a.get("id") or ""))]
 
     async def create_account(self, body: dict) -> dict:
-        """Open an account under this platform (status CREATED); Airwallex then verifies it after submit."""
-        return await self._request("POST", "/api/v1/accounts/create", json=body, once=True, own=True)
+        """Open an account under this platform (status CREATED); Airwallex then verifies it after submit. On SaaS the
+        new account is recorded as this company's, so only this company sees it."""
+        from ..airwallex_settings import AirwallexStore, tenant
+
+        acct = await self._request("POST", "/api/v1/accounts/create", json=body, once=True, own=True)
+        if tenant() is not None and acct.get("id"):
+            d = acct.get("account_details") or {}
+            name = (d.get("business_details") or {}).get("business_name") or " ".join(
+                filter(None, [(d.get("individual_details") or {}).get("first_name"), (d.get("individual_details") or {}).get("last_name")]))
+            AirwallexStore().add_own(acct["id"], name or acct["id"], "VENTHORA")
+        return acct
 
     async def get_account(self, account_id: str) -> dict:
+        self._mine(account_id)
         return await self._request("GET", f"/api/v1/accounts/{account_id}", own=True)
 
     async def submit_account(self, account_id: str) -> dict:
         """Hand the account to Airwallex's verification (KYC / KYB); status becomes SUBMITTED."""
+        self._mine(account_id)
         return await self._request("POST", f"/api/v1/accounts/{account_id}/submit", json={}, own=True)
 
     async def update_account(self, account_id: str, body: dict) -> dict:
         """Add the KYB / KYC details Airwallex needs before the account can be submitted."""
+        self._mine(account_id)
         return await self._request("POST", f"/api/v1/accounts/{account_id}/update", json=body, own=True)
 
     async def industry_categories(self) -> list[dict]:
@@ -451,6 +488,8 @@ class Airwallex:
                                      reason: str = "travel") -> dict:
         """Connected Account Transfers: the platform's wallet pays a connected account's wallet, same currency, no fee
         (internal; it may be held by transaction monitoring before SETTLED)."""
+        self._no_platform_wallet()
+        self._mine(account_id)
         return await self._request("POST", "/api/v1/connected_account_transfers/create", own=True, json={
             "amount": f"{Decimal(amount_minor) / 100:.2f}", "currency": currency, "destination": account_id, "reason": reason,
             "reference": reference[:140], "request_id": request_id})
@@ -458,6 +497,8 @@ class Airwallex:
     async def charge_connected_account(self, *, account_id: str, amount_minor: int, currency: str, reference: str, request_id: str,
                                        reason: str = "travel") -> dict:
         """Charges: a connected account's wallet pays the platform's wallet back, same currency (internal)."""
+        self._no_platform_wallet()
+        self._mine(account_id)
         return await self._request("POST", "/api/v1/charges/create", own=True, json={
             "amount": f"{Decimal(amount_minor) / 100:.2f}", "currency": currency, "source": account_id, "reason": reason,
             "reference": reference[:140], "request_id": request_id})
@@ -469,6 +510,7 @@ class Airwallex:
         return {x["currency"]: round(float(x.get("available_amount") or 0) * 100) for x in items if x.get("available_amount")}
 
     async def _request_for(self, account_id: str, method: str, path: str, **kw):
+        self._mine(account_id)
         old = self._acting
         self._acting = lambda: account_id
         try:
@@ -492,6 +534,11 @@ class Airwallex:
         if status not in ("ACTIVE", "INACTIVE", "CLOSED"):
             raise ValueError("card_status is ACTIVE, INACTIVE or CLOSED")
         return await self._request("POST", f"/api/v1/issuing/cards/{card_id}/update", json={"card_status": status})
+
+    async def update_card_controls(self, card_id: str, controls: dict) -> dict:
+        """POST /issuing/cards/{id}/update with new authorization_controls (a staff wallet's card: its limits follow
+        the wallet's balance)."""
+        return await self._request("POST", f"/api/v1/issuing/cards/{card_id}/update", json={"authorization_controls": controls})
 
     async def card_transactions(self, card_id: str | None = None) -> list[dict]:
         params = {"page_num": 0, "page_size": 100} | ({"card_id": card_id} if card_id else {})
@@ -533,6 +580,7 @@ class Airwallex:
     async def simulate_account_status(self, account_id: str, next_status: str = "ACTIVE") -> dict:
         """Sandbox only: Airwallex's verification of a SUBMITTED account, decided at once (ACTIVE or SUSPENDED)."""
         self._require_sandbox()
+        self._mine(account_id)
         return await self._request("POST", f"/api/v1/simulation/accounts/{account_id}/update_status",
                                    json={"next_status": next_status}, own=True)
 

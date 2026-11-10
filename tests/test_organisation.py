@@ -22,10 +22,14 @@ def test_tree_rules():
         r = client.post("/v1/org/units", json={"name": "Second HQ", "kind": "HQ"})
         assert r.status_code == 409 and "already a Head Quarter" in r.json()["detail"]
         r = client.post("/v1/org/units", json={"name": "Branch under HQ", "kind": "BRANCH_OFFICE", "parent_id": "hq"})
-        assert r.status_code == 409
+        assert r.status_code == 200  # a branch sits under a country office or straight under the head office
         r = client.post("/v1/org/units", json={"name": "Singapore Country Office", "kind": "COUNTRY_OFFICE", "parent_id": "hq",
                                                "country": "SG", "currency": "sgd"})
         assert r.status_code == 200 and r.json()["currency"] == "SGD"
+        r = client.post("/v1/org/units", json={"name": "Branch under a branch", "kind": "BRANCH_OFFICE", "parent_id": r.json()["unit_id"]})
+        assert r.status_code == 200  # under the country office just made
+        assert client.post("/v1/org/units", json={"name": "Office under a branch", "kind": "COUNTRY_OFFICE",
+                                                  "parent_id": r.json()["unit_id"]}).status_code == 409
         assert client.delete("/v1/org/units/co-us").status_code == 409  # has a branch, people and an allocation
         assert client.post("/v1/org/units", json={"name": "x", "kind": "HQ", "currency": "US"}).status_code == 422
 

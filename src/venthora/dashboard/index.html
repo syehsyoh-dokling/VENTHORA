@@ -107,6 +107,11 @@ details summary{cursor:pointer;color:var(--brand2);font-weight:600}
 .nav .ms .msh:first-child{padding-top:4px}
 body.prod .dev{display:none!important}
 .rolehide,body.saas #mainNav [data-g="devcon"]{display:none!important}
+.row[hidden],#fundSrc[hidden],#awxSignup[hidden]{display:none!important}
+.cta:disabled{opacity:.4;cursor:not-allowed;animation:none;box-shadow:none}.cta.chosen:disabled{opacity:1;outline:3px solid #ffd2b3;outline-offset:2px}
+#signIn{position:fixed;inset:0;z-index:9999;background:var(--bg,#f5f7fb);display:flex;align-items:center;justify-content:center;padding:16px}
+#signIn[hidden]{display:none}#signIn .siCard{max-width:380px;width:100%;background:var(--card,#fff);border:1px solid var(--line);border-radius:14px;padding:24px}
+body.login .actbox .chev,body.login #actor{display:none}body.login .actbox{cursor:default}
 body.ro main section:not([hidden]) :is(button,input,select,textarea){pointer-events:none;opacity:.55}
 .ro-note{margin:0 0 12px;padding:9px 12px;border-radius:10px;border-left:3px solid var(--warn);background:rgba(240,160,40,.10);font-size:13px}
 .edcard{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);margin-bottom:14px}
@@ -266,7 +271,8 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 <body>
 <div class="app">
 <aside class="nav" id="nav">
- <a class="brand" href="#/overview"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>VENTHORA</b><small>Treasury on Airwallex</small></span></a>
+ <a class="brand" href="#/overview"><span class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></span><span><b>VENTHORA</b><small id="tenantName">Treasury on Airwallex</small></span></a>
+ <div id="tenantBar" hidden style="margin:0 12px 8px;font-size:12px;color:#cbd5e1"><a href="#" id="signOut" hidden style="color:#9cc0ff">⎋ Sign out</a></div>
  <nav id="mainNav">
   <a href="#/overview" data-nav="overview" class="mtop" data-deny="developer"><i>◧</i>Dashboard</a>
 
@@ -279,6 +285,18 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/allocation" data-nav="allocation"><i>▤</i>Budget allocation</a>
    <a href="#/executions" data-nav="executions" data-also="payroll"><i>⇄</i>Executions &amp; incidents<span class="cnt" id="cnt-exec"></span></a>
    <a href="#/wallet-payouts" data-nav="wallet-payouts" title="Pay an Indonesian e-wallet (OVO, DANA, GoPay, ShopeePay, LinkAja) through Xendit"><i>◔</i>E-wallet payouts</a>
+  </div></div>
+
+  <div class="mg" data-g="transfers" data-deny="developer"><button type="button" class="mh"><i>⇉</i><span>Transfer</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
+   <div class="msh" title="Asked by a person, approved by the FCO, never by the agent alone">Manual · from the Airwallex account</div>
+   <a href="#/transfers?airwallex" data-nav="transfers"><i>1</i>To another Airwallex account</a>
+   <a href="#/transfers?card_account"><i>2</i>To MyCard (card account)</a>
+   <a href="#/transfers?virtual_card"><i>3</i>To a Visa virtual card</a>
+   <a href="#/transfers?airi_card"><i>4</i>To the Airi card</a>
+   <a href="#/transfers?id_bank"><i>5</i>To a local bank (Indonesia)</a>
+   <a href="#/transfers?xendit"><i>6</i>To Xendit</a>
+   <a href="#/transfers?midtrans"><i>7</i>To Midtrans</a>
+   <a href="#/transfers?international"><i>8</i>To an international bank</a>
   </div></div>
 
   <div class="mg" data-g="procurement" data-deny="developer"><button type="button" class="mh"><i>⚑</i><span>Procurement Process</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
@@ -298,6 +316,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/rep-fx" data-nav="rep-fx"><i>⇆</i>8 · FX &amp; transfer costs</a>
    <a href="#/rep-chain" data-nav="rep-chain"><i>⛓</i>9 · Contract blockchain</a>
    <a href="#/rep-card" data-nav="rep-card"><i>▭</i>10 · Virtual card (Visa)</a>
+   <a href="#/rep-staff" data-nav="rep-staff" title="Per employee: advances received and virtual card spend, by project, branch and country"><i>☺</i>11 · Spending per staff</a>
    <a href="#/payment-reports" data-nav="payment-reports"><i>▤</i>Total Spending</a>
    <a href="#/ledger" data-nav="ledger"><i>≣</i>Books &amp; ledger</a>
    <a href="#/reporting" data-nav="reporting"><i>◷</i>Period close</a>
@@ -311,20 +330,22 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/customers" data-nav="customers"><i>⇩</i>Customers</a>
    <a href="#/payee-lifecycle" data-nav="payee-lifecycle"><i>☺</i>Payee lifecycle</a>
    <a href="#/codes" data-nav="codes"><i>#</i>Projects &amp; accounts</a>
+   <a href="#/charge-codes" data-nav="charge-codes" title="VENTHORA's default charge codes when the company has none: offices, projects, accounts, employee numbers"><i>#</i>Charge codes</a>
   </div></div>
 
   <div class="mg" data-g="platform" data-roles="super_admin developer"><button type="button" class="mh"><i>⚙</i><span>Platform Setup</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <div class="msh" title="Without these the agent cannot run">Required</div>
-   <a href="#/airwallex" data-nav="airwallex" data-ro="developer" title="Connect the Airwallex account and its Global Account: where deposits arrive and payments leave"><i>1</i>Airwallex Global Account</a>
-   <a href="#/integrations" data-nav="integrations" title="Airwallex tells VENTHORA at once when a deposit settles or a transfer changes status"><i>2</i>Airwallex webhooks</a>
-   <a href="#/ai" data-nav="ai" data-also="ai-keys" title="The model that reads invoices, plans and explains; the rules work without it"><i>3</i>Agent (AI &amp; Model)</a>
-   <a href="#/sources-email" data-nav="sources-email" title="The mailboxes invoices, claims and payment orders arrive in, and the outgoing mail"><i>4</i>Email Sync</a>
-   <a href="#/readiness" data-nav="readiness" title="Check that everything above is set and what is still a placeholder"><i>5</i>Setup Checklist<span class="cnt" id="cnt-ready"></span></a>
+   <a href="#/airwallex" data-nav="airwallex" data-ro="developer" title="The company's own Airwallex account: open it, its account numbers, where deposits arrive"><i>1</i>Airwallex Global Account</a>
+   <a href="#/ai" data-nav="ai" data-also="ai-keys" title="The model that reads invoices, plans and explains; the rules work without it"><i>2</i>Agent (AI &amp; Model)</a>
+   <a href="#/sources-email" data-nav="sources-email" title="The mailboxes invoices, claims and payment orders arrive in, and the outgoing mail"><i>3</i>Email Sync</a>
+   <a href="#/readiness" data-nav="readiness" title="Check that everything above is set and what is still a placeholder"><i>4</i>Setup Checklist<span class="cnt" id="cnt-ready"></span></a>
    <div class="msh" title="Turn on when the company needs it">Optional</div>
    <a href="#/api-access" data-nav="api-access" data-also="sources-sync" title="Sync people, vendors, POs and bills from your ERP; API keys for other apps"><i>⇅</i>App Integration</a>
    <a href="#/cards" data-nav="cards" data-ro="developer" title="Visa virtual cards for card-billed vendors"><i>▭</i>Airwallex Cards</a>
    <a href="#/card-auth" data-nav="card-auth" data-ro="developer" title="VENTHORA approves or declines every card charge (after Airwallex Cards)"><i>✓</i>Card Authorization</a>
-   <a href="#/visa-vic" data-nav="visa-vic" data-ro="developer" title="Agent payments through Visa, and Visa's daily FX rate"><i>◆</i>Visa Intelligent Commerce</a>
+   <a href="#/visa-controls" data-nav="visa-controls" data-ro="developer" title="Which Visa features VENTHORA may use: on or off"><i>◆</i>Visa controls</a>
+   <a href="#/airi-controls" data-nav="airi-controls" data-ro="developer" title="Whether staff may check out with Airi, and the limits"><i>◎</i>Airi usage</a>
+   <a href="#/metal-scope" data-nav="metal-scope" data-ro="developer" title="Which kinds of record are anchored on Metal"><i>⬡</i>Metal categories</a>
    <a href="#/xendit" data-nav="xendit" data-ro="developer" title="Indonesian e-wallets and the holder's name of Indonesian accounts: what Airwallex does not cover"><i>◔</i>Xendit (Indonesia)</a>
   </div></div>
 
@@ -348,10 +369,18 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 
   <div class="mg" data-g="devcon" data-roles="super_admin developer"><button type="button" class="mh"><i>⌨</i><span>Developer Console</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
    <div class="msh" title="IT only; on SaaS this is done by the VENTHORA operator">One-time technical setup</div>
+   <a href="#/dev-airwallex" data-nav="dev-airwallex" data-ro="super_admin" title="VENTHORA's platform keys: one Client ID and API key for every company"><i>1</i>Airwallex platform</a>
+   <a href="#/integrations" data-nav="integrations" title="Airwallex tells VENTHORA at once when a deposit settles or a transfer changes status"><i>2</i>Airwallex webhooks</a>
+   <a href="#/mcp" data-nav="mcp" title="Airwallex documentation and developer tools for the agent"><i>3</i>Airwallex MCP</a>
+   <a href="#/visa-vic" data-nav="visa-vic" data-ro="super_admin" title="Visa Developer project credentials and Intelligent Commerce onboarding"><i>4</i>Visa (VIC credentials)</a>
+   <a href="#/visa-tap" data-nav="visa-tap" data-ro="super_admin" title="The agent signs its requests so merchants know it is VENTHORA"><i>5</i>Visa Agent Identity (TAP)</a>
+   <a href="#/dev-airi" data-nav="dev-airi" title="Airi CLI installed and signed in to the company's Airi account"><i>6</i>Airi (CLI)</a>
+   <a href="#/metal" data-nav="metal" data-ro="super_admin" title="Anchor the audit chain on a public testnet"><i>7</i>Metal (testnet anchoring)</a>
+   <a href="#/dev-xendit" data-nav="dev-xendit" data-ro="super_admin" title="Xendit mode, secret key and webhook token"><i>8</i>Xendit (keys)</a>
+   <a href="#/dev-t0" data-nav="dev-t0" title="T:0 books: API key and its MCP server"><i>9</i>T:0 (books)</a>
+   <a href="#/dev-placement" data-nav="dev-placement" data-ro="super_admin" title="How VENTHORA reaches each deposit or fund provider: by hand, email or its API"><i>10</i>Placement connections</a>
+   <div class="msh" title="For IT">Tools</div>
    <a href="#/api-catalog" data-nav="api-catalog" title="The endpoints other applications may call, and a public link to share with their developers"><i>⌘</i>API Catalog</a>
-   <a href="#/visa-tap" data-nav="visa-tap" data-ro="super_admin" title="The agent signs its requests so merchants know it is VENTHORA"><i>⚿</i>Visa Agent Identity (TAP)</a>
-   <a href="#/metal" data-nav="metal" data-ro="super_admin" title="Anchor the audit chain on a public testnet"><i>⬡</i>Metal (testnet anchoring)</a>
-   <a href="#/mcp" data-nav="mcp" title="Airwallex documentation and developer tools for the agent"><i>⧉</i>Airwallex MCP</a>
    <a href="#/ai-local" data-nav="ai-local" title="A model server the company runs itself (vLLM)"><i>◉</i>Local model (vLLM)</a>
    <a href="#/server-health" data-nav="server-health" title="Engines, versions and connections of this server"><i>♥</i>Server health</a>
   </div></div>
@@ -424,6 +453,33 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="xendit"><h2><span>Xendit · Indonesian rails</span><span class="small muted" id="xdMeta"></span></h2>
   <div class="small rp-note"><b>Only what Airwallex does not cover.</b> Airwallex pays Indonesian bank accounts (SKN / BI-FAST) and VENTHORA keeps paying them there. Airwallex does not pay e-wallets (its wallet payouts are Airwallex and PayPal only) and has no name check for Indonesian accounts. Xendit covers exactly those two: <b>e-wallet payouts</b> (OVO, DANA, GoPay, ShopeePay, LinkAja) and the <b>holder's name</b> of an Indonesian account in the bank check. The key is write-only; only test-mode keys (<code>xnd_development_…</code>) are accepted.</div>
   <div id="xdBody" class="empty">loading…</div></section>
+ <section class="span12" data-view="transfers"><h2><span>Transfer</span><span class="small muted" id="trFrom"></span></h2>
+  <div class="small rp-note"><b>Money moved by a person, never by the agent alone.</b> Fill the form, check it, ask: the FCO approves (never the person who asked) and it is sent at once from the company's Airwallex account. Bank destinations are checked once and kept.</div>
+  <div class="tabs" id="trTabs" style="margin:8px 0;flex-wrap:wrap"></div>
+  <div class="tile" id="trForm"></div>
+  <div id="trReview" hidden style="margin-top:10px"></div>
+  <h3 class="fx-h" style="margin-top:14px">Transfers</h3><div id="trList" class="empty">loading…</div></section>
+ <section class="span12" data-view="dev-placement"><h2><span>Placement connections</span><span class="small muted">Developer setup</span></h2>
+  <div class="small rp-note"><b>How VENTHORA reaches each provider the FCO allows</b> (FCO Authorize → Placement providers). <b>Manual</b>: the FCO acts in the provider's portal; <b>Email</b>: the instruction goes to the provider's address; <b>API</b>: the provider's own API, when it has one (its base URL and key; the key is write-only). The money itself always moves by Airwallex transfer. No deposit provider offers an open sign-up API today, so a bank account is opened once with the bank, then entered here.</div>
+  <div id="dpBody" class="empty">loading…</div></section>
+ <section class="span12" data-view="dev-xendit"><h2><span>Xendit · keys and mode</span><span class="small muted">Developer setup</span></h2>
+  <div class="small rp-note"><b>Developer setup, done once.</b> The Xendit mode (off, simulator in demo mode, live with a test-mode key), the secret key and the webhook token, all write-only. The FCO sees the balance and the e-wallet payouts in Platform Setup → Xendit (Indonesia).</div>
+  <div id="xdDevBody" class="empty">loading…</div></section>
+ <section class="span12" data-view="dev-airi"><h2><span>Airi · CLI setup</span><span class="small muted" id="airiMeta"></span></h2>
+  <div class="small rp-note"><b>Developer setup, done once.</b> Airi CLI (Airwallex's agent checkout wallet) runs on macOS or Linux; on this Windows server it runs inside WSL. Install, sign in with the company's Airi account (a device code approved at app.airi.com), and point <code>AIRI_CLI</code> in .env at it. VENTHORA only reads its status here; it never places an order from this page. How much staff may spend with Airi is the FCO's choice: Platform Setup → Airi usage.</div>
+  <div id="airiBody" class="empty">loading…</div></section>
+ <section class="span12" data-view="dev-t0"><h2><span>T:0 · books connection</span><span class="small muted" id="t0Meta"></span></h2>
+  <div class="small rp-note"><b>Developer setup, done once.</b> T:0 (the AI finance team that keeps the books) is reached through its MCP server with the organisation's API key as a Bearer token. The key is kept in .env (<code>T0_API_KEY</code>), never shown. The check below is read only.</div>
+  <div id="t0Body" class="empty">loading…</div></section>
+ <section class="span12" data-view="visa-controls"><h2><span>Visa controls</span><span class="small muted" id="ctl-visaMeta"></span></h2>
+  <div class="small rp-note"><b>What VENTHORA may use from Visa.</b> The Developer connects Visa once (Developer Console → Visa); the FCO decides here which Visa features are on. A feature switched off is refused by the server, whoever calls it.</div>
+  <div id="ctl-visa" class="empty">loading…</div></section>
+ <section class="span12" data-view="airi-controls"><h2><span>Airi usage</span><span class="small muted" id="ctl-airiMeta"></span></h2>
+  <div class="small rp-note"><b>Whether staff may check out with Airi, and within what.</b> Airi spends from the same staff wallet as the Visa card and Xendit. These limits apply to every Airi checkout VENTHORA approves; above the approval threshold the FCO approves it first.</div>
+  <div id="ctl-airi" class="empty">loading…</div></section>
+ <section class="span12" data-view="metal-scope"><h2><span>Metal categories</span><span class="small muted" id="ctl-metalMeta"></span></h2>
+  <div class="small rp-note"><b>What is anchored on Metal.</b> Each chosen category gets its own digest in the anchor, so it can be proven on its own; the Developer set Metal up once (Developer Console → Metal). The next anchor uses this choice.</div>
+  <div id="ctl-metal" class="empty">loading…</div></section>
  <section class="span12" data-view="wallet-payouts"><h2><span>E-wallet payouts</span><span class="small muted" id="wpMeta"></span></h2>
   <div class="small rp-note"><b>Checked, approved by a second person, sent once, proven.</b> The wallet's holder name is checked first (a mismatch is refused; without a name check, a call-back on the registered number confirms the holder). The FCO or the CFO approves, never the requester; the payout then goes to Xendit with its idempotency key kept first, and is PAID only when Xendit says SUCCEEDED. Bank accounts are paid through Airwallex, not here.</div>
   <div class="tile" style="margin:8px 0"><b>New payout</b>
@@ -857,6 +913,28 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
   <h2><span>Check an account code</span><span class="small muted">office cost centre . project . account</span></h2>
   <div class="row"><input id="codeCheck" placeholder="DE-400.PRJ900.6500" style="min-width:260px"><button id="codeCheckBtn">Check</button><span class="small" id="codeCheckOut"></span></div>
  </section>
+ <section class="span12" data-view="charge-codes">
+  <h2><span>Default charge codes</span><span class="row"><span class="small muted" id="ccMeta"></span><button class="primary" id="ccFill">Fill VENTHORA defaults</button></span></h2>
+  <div class="small rp-note"><b>A charge code is OFFICE.PROJECT.ACCOUNT</b>, e.g. <span class="mono">ID-210.P001.005001</span>: a cash advance (005001) for project P001 at branch ID-210. When the company has no standard of its own, VENTHORA gives one. <b>Only blanks are filled</b>: a code the company set is never changed, and each code shows who set it.</div>
+  <div id="ccScheme" class="empty">loading…</div>
+ </section>
+ <section class="span12" data-view="charge-codes">
+  <h2><span>What the defaults would add</span><span class="small muted" id="ccPlanMeta"></span></h2>
+  <div id="ccPlan" class="empty">loading…</div>
+ </section>
+ <section class="span6" data-view="charge-codes">
+  <h2><span>Offices and cost centres</span></h2><div id="ccUnits" class="empty">loading…</div>
+ </section>
+ <section class="span6" data-view="charge-codes">
+  <h2><span>Staff: employee number and salary code</span></h2><div id="ccStaff" class="empty">loading…</div>
+ </section>
+ <section class="span12 report" data-view="rep-staff">
+  <h2><span>Spending per staff member</span><span class="row"><button id="ssCsv">Download CSV</button></span></h2>
+  <div class="small rp-note"><b>Who received what, and where it was spent.</b> Each person by employee number, with their office, branch and country; the cash advances and petty cash they received and what their virtual cards spent, by project (the PROJECT part of each charge code). Amounts are in the base currency.</div>
+  <div class="rp-filters"><div class="rp-title">Filters</div><div class="rp-row"><label>Country<select id="ssCountry"><option value="">All</option></select></label><label>Office, branch or unit<select id="ssUnit"><option value="">All</option></select></label><label>Project<select id="ssProject"><option value="">All</option></select></label><label>Search<input id="ssQ" placeholder="name or employee no."></label></div></div>
+  <div id="ssTiles"></div>
+  <div id="ssBody" class="empty">loading…</div>
+ </section>
 
  <section class="span12" data-view="prices">
   <h2><span>Unit prices</span><span class="row"><select id="priceCat"><option value="">All categories</option></select><button class="primary" id="addPrice">Add price</button></span></h2>
@@ -1003,8 +1081,9 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
   <div class="small muted" style="margin:10px 0 4px">Allowed file types</div><div class="row" id="drTypes"></div>
  </section>
 
- <section class="span12" data-view="airwallex">
-  <h2><span>Connect to your Airwallex account</span><span id="awxState" class="small"></span></h2>
+ <section class="span12" data-view="dev-airwallex">
+  <h2><span>Airwallex platform connection</span><span id="awxState" class="small"></span></h2>
+  <div class="small rp-note"><b>Developer setup, done once.</b> VENTHORA's own platform keys (one Client ID and API key for every company it serves). Each company then gets its own Airwallex account, opened by its FCO from Platform Setup → Airwallex Global Account, with no keys of its own. On SaaS this is the VENTHORA operator's.</div>
   <div id="awxNow" class="small"></div>
   <div class="form" style="margin-top:12px">
    <label>Client ID<input id="awx-cid" autocomplete="off" placeholder="Airwallex → Developer → API keys"></label>
@@ -1012,30 +1091,41 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
    <label>Account name<input id="awx-name" placeholder="e.g. Acme Group Pte Ltd"></label>
    <label>Environment<select id="awx-env"><option value="sandbox">Sandbox (demo and testing)</option><option value="production" disabled>Production (not in this build)</option></select></label>
   </div>
-  <div class="row" style="margin-top:12px"><button class="primary" id="awxConnect">Test and connect</button><button id="awxDrop">Disconnect (use .env)</button><span class="small" id="awxMsg"></span>
-   <button id="awxNew" class="cta" style="margin-left:auto">✨ Don't have an account yet? Open one here</button></div>
-  <div id="awxSelf" class="small rp-note" hidden style="margin-top:14px"><b>Open your Airwallex account first.</b> This server has no Airwallex platform account to open one for you, so the company registers with Airwallex directly:<ol style="margin:6px 0 0 18px;padding:0"><li>Sign up at <a href="https://www.sandbox.airwallex.com/global/signup" target="_blank" rel="noopener">sandbox.airwallex.com/global/signup</a> (sandbox) or <a href="https://www.airwallex.com/signup" target="_blank" rel="noopener">airwallex.com/signup</a> (live), choosing the country the company is registered in.</li><li>In Airwallex, open <b>Account → Developer → API keys</b> and create a Client ID and an API key.</li><li>Come back here, enter them above and press <b>Test and connect</b>.</li></ol></div>
+  <div class="row" style="margin-top:12px"><button class="primary" id="awxConnect">Test and connect</button><button id="awxDrop">Disconnect (use .env)</button><span class="small" id="awxMsg"></span></div>
+ </section>
+ <section class="span12" data-view="airwallex">
+  <h2><span>Company Airwallex account</span><span id="awxCoState" class="small"></span></h2>
+  <div id="awxCo" class="small"></div>
+  <div class="row" id="awxChoice" style="margin-top:12px;gap:10px;flex-wrap:wrap"><span class="small muted">Choose one:</span>
+   <button id="awxLinkBtn" class="cta">🔗 Connect to Existing Account</button>
+   <button id="awxNew" class="cta">✨ Open New Account</button></div>
+  <div id="fundSrc" hidden style="margin-top:14px"></div>
+  <div id="awxLink" hidden style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+   <h3 style="margin:0 0 4px;font-size:15px">Connect the company's existing Airwallex account</h3>
+   <div class="small muted" style="margin-bottom:6px">No new account is opened. You need one thing from Airwallex, the account's <b>Client ID</b> and <b>API key</b>; anyone who is <b>Owner or Admin</b> of the company's Airwallex account can make them (no developer needed):</div>
+   <ol class="small muted" style="margin:0 0 10px;padding-left:18px;line-height:1.7"><li>Sign in to the Airwallex web app and open <b>Developer → API keys</b>.</li>
+    <li>Copy the <b>Client ID</b> shown there, then create an API key and copy it (Airwallex shows it once).</li>
+    <li>Paste both here and press <b>Check the account</b>: you see the account, balances and account numbers before anything is connected.</li></ol>
+   <div class="small muted" style="margin-bottom:10px">VENTHORA then subscribes to the account's notifications by itself, keeps the key write-only and never shows it again. Sandbox keys only in this build.</div>
+   <div class="form"><label>Client ID<input id="lk-cid" autocomplete="off"></label><label>API key<input id="lk-key" type="password" autocomplete="new-password"></label></div>
+   <div id="lkReview" hidden style="margin-top:12px"></div>
+   <div class="row" style="margin-top:12px;gap:8px"><button id="lkCheck" class="primary">Check the account</button><button id="lkGo" class="primary" hidden>Connect this account</button><button id="lkEdit" hidden>Back to edit</button><span class="small" id="lkMsg"></span></div>
+  </div>
+  <div id="awxSelf" class="small rp-note" hidden style="margin-top:14px"><b>VENTHORA's Airwallex platform is not connected yet.</b> That is the Developer's one-time setup (Developer Console → Airwallex platform). Once it is, the company's account is opened right here.</div>
   <div id="awxSignup" hidden style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-   <h3 style="margin:0 0 10px;font-size:15px">Open an Airwallex account</h3>
-   <div class="form">
-    <label>Account for<select id="su-type"><option value="BUSINESS">A company</option><option value="INDIVIDUAL">A person</option></select></label>
-    <label>Country<select id="su-country"></select></label>
-    <label class="su-biz" style="grid-column:1/-1">Registered company name<input id="su-biz" placeholder="as on the business registration"></label>
-    <label class="su-ind" hidden>First name<input id="su-first"></label>
-    <label class="su-ind" hidden>Last name<input id="su-last"></label>
-    <label>Contact email<input id="su-email" type="email" placeholder="the person who completes verification"></label>
-    <label>Mobile (optional)<input id="su-mobile" placeholder="+65 …"></label>
-    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="su-terms"> The account holder agrees to Airwallex's terms and conditions</label>
-    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="su-data"> The account holder agrees to Airwallex's data usage</label>
-   </div>
-   <div class="row" style="margin-top:12px"><button class="primary" id="suGo">Create account</button><span class="small" id="suMsg"></span></div>
+   <h3 style="margin:0 0 4px;font-size:15px">Open the company's Airwallex account</h3>
+   <div class="small muted" style="margin-bottom:10px">Everything VENTHORA already knows is filled in and marked with where it comes from; only the empty fields are asked. Check every value, then create: the account is opened, its company details added and handed to Airwallex's verification in one step.</div>
+   <div id="suForm" class="empty">loading…</div>
+   <div id="suReview" hidden style="margin-top:12px"></div>
+   <div class="row" style="margin-top:12px;gap:8px"><button id="suCheck" class="primary">Check the details</button><button id="suGo" class="primary" hidden>Create Airwallex account</button><button id="suEdit" hidden>Back to edit</button><span class="small" id="suMsg"></span></div>
    <div id="suList" style="margin-top:12px"></div>
   </div>
   <div id="awxGaBox" hidden style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
    <h3 style="margin:0 0 4px">Deposit into this account · account numbers</h3>
    <div class="small muted" style="margin-bottom:10px">Each Global Account is a bank account in the company's name at Airwallex, one per currency. To top up the balance, the FCO sends a
     <b>bank transfer from the company's bank</b> to these details. The balance counts the money only once Airwallex reports the deposit <b>SETTLED</b>.</div>
-   <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><select id="awxGaOpt"></select><input id="awxGaNick" placeholder="nickname" value="Top-up account">
+   <div class="row" style="margin-bottom:10px"><button id="awxGaAdd">+ New Global Account</button></div>
+   <div class="row" id="awxGaForm" hidden style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><select id="awxGaOpt"></select><input id="awxGaNick" placeholder="nickname" value="Top-up account">
     <button class="cta" id="awxGaOpen">Create Global Account</button><span class="small" id="awxGaMsg"></span></div>
    <div id="awxGaList" class="empty">loading…</div></div>
  </section>
@@ -1048,7 +1138,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px"><input id="brQ" placeholder="Search payer, reference or invoice" style="min-width:240px"><select id="brSt"><option value="">Every state</option><option>Confirmed on Airwallex</option><option>Deposit arriving</option><option>Awaiting the deposit</option><option>Received, not recorded</option></select><span style="flex:1"></span><button class="primary" id="brNew">Record a payment received</button></div>
    <div id="brTiles" class="cm-tiles"></div><div id="brBody" class="empty">loading…</div></div>
   <div data-bpane="ga" hidden>
-   <div class="row" style="gap:8px;margin-bottom:8px;flex-wrap:wrap"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="Customer receipts"><button id="gaOpen">Open another account</button></div>
+   <div class="row" id="gaOpenRow" style="gap:8px;margin-bottom:8px;flex-wrap:wrap"><select id="gaOpt"></select><input id="gaNick" placeholder="nickname" value="Customer receipts"><button id="gaOpen">Open another account</button></div>
    <div class="small muted">Bank details in your name at Airwallex, one per currency. Give them to customers on invoices: they pay by a local
     transfer, and the money lands in the wallet as a deposit (it shows in Payments received and on the Dashboard as cash in).</div>
    <div id="gaList" class="empty" style="margin-top:12px">loading…</div></div>
@@ -1226,6 +1316,15 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
  <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button id="sdlgClose">Close</button></div></dialog>
 <dialog id="pdlg"><h3 id="pdlgTitle"></h3><div id="pdlgBody"></div>
  <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px" id="pdlgActs"></div></dialog>
+<div id="signIn" hidden><div class="siCard"><div class="siBrand"><b>VENTHORA</b> <span id="siCompany" class="small muted"></span></div>
+ <h2 id="siTitle" style="margin:6px 0 4px">Sign in</h2><div id="siSub" class="small muted"></div>
+ <form id="siForm" style="display:grid;gap:10px;margin-top:14px">
+  <label id="siEmailL" class="small">Email<input id="siEmail" type="email" autocomplete="username" style="width:100%"></label>
+  <label class="small">Password<input id="siPw" type="password" autocomplete="current-password" style="width:100%"></label>
+  <label id="siPw2L" class="small" hidden>Repeat the password<input id="siPw2" type="password" autocomplete="new-password" style="width:100%"></label>
+  <button class="primary" id="siGo" type="submit">Sign in</button><div id="siMsg" class="small err"></div>
+  <div class="small muted" id="siHelp">Forgot the password? Ask your admin for a new sign-in link.</div>
+  <a href="/platform/leave" class="small">⇄ Another company</a></form></div></div>
 <dialog id="dlg"><form method="dialog" id="dlgForm"><h3 id="dlgTitle"></h3><div id="dlgBody" class="form"></div><div id="dlgErr" class="err small"></div>
  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="dlgSave" value="save">Save</button></div></form></dialog>
 <script>
@@ -1240,7 +1339,22 @@ const tone={APPROVED:"good",COMPLETED:"good",RESOLVED:"good",VERIFIED:"good",PAS
 const pill=s=>`<span class="pill ${tone[s]||""}">${esc(s??"-")}</span>`;
 // every call says who is acting, so the server can hold each menu to its roles (access.py)
 const roleNow=()=>{try{return actor().role}catch(e){return null}};
-const api=async(u,o)=>{const rl=roleNow();o=o||{};if(rl)o={...o,headers:{...(o.headers||{}),"x-venthora-role":rl}};const r=await fetch(u,o);if(!r.ok){let m=r.statusText;try{const d=(await r.json()).detail;m=(d&&d.message)||(typeof d==="string"?d:JSON.stringify(d))||m}catch{}throw new Error(`${r.status} ${m}`)}return r.json()};
+// an error from the API, in words a person reads: never a raw status code or a JSON list of schema errors
+const HTTP_WORDS={400:"The request was not accepted.",401:"Please sign in again.",403:"You do not have permission to do this.",404:"Not found.",409:"This cannot be done right now.",
+ 413:"The file is too large.",422:"Some details are not valid.",429:"Too many attempts: wait a moment and try again.",500:"Something went wrong on our side. Try again.",
+ 502:"A connected service did not answer. Try again in a moment.",503:"This service is not available right now."};
+function humanError(d,status){if(typeof d==="string"&&d.trim())return d;if(d&&typeof d.message==="string")return d.message;
+ if(Array.isArray(d)&&d.length)return d.map(x=>{const f=String((x.loc||[]).filter(p=>p!=="body"&&p!=="query").slice(-1)[0]??"value").replace(/_/g," ").replace(/ (minor|id)$/,"");
+  const F=f.charAt(0).toUpperCase()+f.slice(1),c=x.ctx||{},t=String(x.type||"");
+  const m=t==="missing"?"is required":t==="string_too_short"?`needs at least ${c.min_length} character${c.min_length==1?"":"s"}`
+   :t==="string_too_long"?`can have at most ${c.max_length} characters`:t==="string_pattern_mismatch"?"contains characters that are not allowed"
+   :/^greater_than/.test(t)?`must be ${t.endsWith("equal")?"at least":"more than"} ${c.gt??c.ge}`:/^less_than/.test(t)?`must be ${t.endsWith("equal")?"at most":"less than"} ${c.lt??c.le}`
+   :/int|float|decimal|number/.test(t)?"must be a number":/bool/.test(t)?"must be yes or no":/enum|literal/.test(t)?`must be one of: ${c.expected||"the listed values"}`
+   :/date/.test(t)?"must be a valid date":String(x.msg||"is not valid").replace(/^Value error, /,"").replace(/^./,s=>s.toLowerCase());
+  return `${F} ${m}.`}).join(" ");
+ return HTTP_WORDS[status]||`Something went wrong (${status}).`}
+const api=async(u,o)=>{const rl=roleNow();o=o||{};if(rl)o={...o,headers:{...(o.headers||{}),"x-venthora-role":rl}};const r=await fetch(u,o);
+ if(!r.ok){let d=null;try{d=(await r.json()).detail}catch{}const e=new Error(humanError(d,r.status));e.status=r.status;throw e}return r.json()};
 const table=(cols,rows,empty="nothing yet")=>rows.length?`<table><thead><tr>${cols.map(c=>`<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${
  rows.map(r=>`<tr>${cols.map(c=>`<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<div class="empty">${empty}</div>`;
 
@@ -1441,11 +1555,11 @@ $("#submitCase").onclick=()=>submitCase().catch(e=>{$("#subOut").innerHTML=`<spa
 window.venthoraSubmit=submitCase;window.venthoraSubmissions=submissions;  // used by the UI bench (scripts/groundtruth_bench.py --ui)
 
 // =============================== app shell: menu, routing, acting person ===============================
-const TITLES={overview:"Dashboard","placement-providers":"FCO Authorize · Placement providers",xendit:"Xendit (Indonesia)","wallet-payouts":"E-wallet payouts",testlog:"Test log","proc-shortlist":"Procurement · Shortlist","server-health":"Server health",sandbox:"Sandbox simulator",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Period close",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Standard Payment Priority Policy",autopilot:"Autopilot Console",workflow:"Workflow",payment:"Payment detail",fund:"Top up the balance",cards:"Airwallex Cards","card-auth":"Card Authorization","visa-tap":"Visa Agent Identity (TAP)","visa-vic":"Visa Intelligent Commerce",metal:"Metal · testnet anchoring",mcp:"Airwallex MCP servers","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost","payee-lifecycle":"Payee lifecycle","rep-chain":"Report · Contract blockchain","rep-card":"Report · Virtual card (Visa)","proc-sourcing":"Procurement · Vendor Sourcing","api-catalog":"API Catalog",evidence:"Hackathon evidence","proc-quotes":"Procurement · Quotation",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
+const TITLES={overview:"Dashboard","charge-codes":"Charge codes","rep-staff":"Report · Spending per staff","dev-placement":"Developer · Placement connections",transfers:"Transfer","dev-airwallex":"Developer · Airwallex platform","dev-xendit":"Developer · Xendit","dev-airi":"Developer · Airi","dev-t0":"Developer · T:0","visa-controls":"Platform Setup · Visa controls","airi-controls":"Platform Setup · Airi usage","metal-scope":"Platform Setup · Metal categories","placement-providers":"FCO Authorize · Placement providers",xendit:"Xendit (Indonesia)","wallet-payouts":"E-wallet payouts",testlog:"Test log","proc-shortlist":"Procurement · Shortlist","server-health":"Server health",sandbox:"Sandbox simulator",plan:"Plan & proof",budget:"Budget & mandate",ledger:"Books & ledger",reporting:"Period close",intake:"Intake","agent-plan":"Agent plan",pending:"Pending payment","priority-sop":"Standard Payment Priority Policy",autopilot:"Autopilot Console",workflow:"Workflow",payment:"Payment detail",fund:"Top up the balance",cards:"Airwallex Cards","card-auth":"Card Authorization","visa-tap":"Visa Agent Identity (TAP)","visa-vic":"Visa Intelligent Commerce",metal:"Metal · testnet anchoring",mcp:"Airwallex MCP servers","rep-payroll":"Report · Payroll","rep-fringe":"Report · Fringe benefit","rep-goods":"Report · Goods and services","rep-operation":"Report · Operation","rep-cash":"Report · Cash advance","rep-travel":"Report · Travel & transport","rep-odc":"Report · Other direct cost","payee-lifecycle":"Payee lifecycle","rep-chain":"Report · Contract blockchain","rep-card":"Report · Virtual card (Visa)","proc-sourcing":"Procurement · Vendor Sourcing","api-catalog":"API Catalog",evidence:"Hackathon evidence","proc-quotes":"Procurement · Quotation",books:"Books & segregation",vendors:"Vendors",consultants:"Consultants",customers:"Customers",travel:"Travel authorisation",payroll:"Payroll register",
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
  standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Total Spending","rep-fx":"FX & transfer costs","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const FRAME_V="20261106e";  // bump when flow.html or live.html changes: the frame then loads the new page, never a cached copy
-const ON_VIEW={overview:()=>overview(),"placement-providers":()=>ppView(),xendit:()=>xdView(),"wallet-payouts":()=>wpView(),testlog:()=>tlView(),"proc-shortlist":()=>slView(),"server-health":()=>shView(),sandbox:()=>sbView(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),"rep-chain":()=>chView(),"rep-card":()=>vcView(),"proc-sourcing":()=>psView(),"api-catalog":()=>acView(),evidence:()=>evView(),"proc-quotes":()=>pqView(),autopilot:()=>openFrame("#frameAutopilot","/live?v="+FRAME_V),payment:()=>payView(),fund:()=>fundView(),cards:()=>cdView(),"card-auth":()=>caView(),"visa-tap":()=>vtView(),"visa-vic":()=>vvView(),metal:()=>mtView(),mcp:()=>mcpView(),workflow:()=>openFrame("#frameWorkflow","/flow?v="+FRAME_V),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>rcView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+const ON_VIEW={overview:()=>overview(),"charge-codes":()=>ccView(),"rep-staff":()=>ssView(),"dev-placement":()=>dpView(),transfers:()=>trView(),"dev-airwallex":()=>awxView(),"dev-xendit":()=>xdView(true),"dev-airi":()=>airiView(),"dev-t0":()=>t0View(),"visa-controls":()=>ctlView("visa"),"airi-controls":()=>ctlView("airi"),"metal-scope":()=>ctlView("metal"),"placement-providers":()=>ppView(),xendit:()=>xdView(),"wallet-payouts":()=>wpView(),testlog:()=>tlView(),"proc-shortlist":()=>slView(),"server-health":()=>shView(),sandbox:()=>sbView(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),"rep-chain":()=>chView(),"rep-card":()=>vcView(),"proc-sourcing":()=>psView(),"api-catalog":()=>acView(),evidence:()=>evView(),"proc-quotes":()=>pqView(),autopilot:()=>openFrame("#frameAutopilot","/live?v="+FRAME_V),payment:()=>payView(),fund:()=>fundView(),cards:()=>cdView(),"card-auth":()=>caView(),"visa-tap":()=>vtView(),"visa-vic":()=>vvView(),metal:()=>mtView(),mcp:()=>mcpView(),workflow:()=>openFrame("#frameWorkflow","/flow?v="+FRAME_V),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>rcView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>apiView(),"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>{location.hash="#/payment-reports"},codes:()=>codesView(),mandate:()=>doaView(),ledger:()=>{tenants();lgOpts()},travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),integrations:()=>webhookView()};
 // Menus by role: Platform Setup (FCO + Developer), FCO Authorize (FCO only), Developer Console (Developer + FCO, not
 // on SaaS), Demo-Only (demo mode). data-roles lists who sees an item, data-deny who does not, data-ro who only reads it.
@@ -1489,7 +1603,41 @@ function actorShow(){const a=ACTORS[+$("#actor").value]||ACTORS[0];$("#actorName
 function actorsFill(){const keep=(()=>{try{return localStorage.getItem("venthora.actor.name")}catch(e){return null}})();
  $("#actor").innerHTML=ACTORS.map((a,i)=>`<option value="${i}">${esc(a.label)}</option>`).join("");
  const i=ACTORS.findIndex(a=>a.name===keep);if(i>=0)$("#actor").value=String(i);actorShow()}
-async function loadActors(){try{const us=(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",developer:"Developer (IT)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
+// ---- Sign-in: on SaaS every person signs in; the session, not this page, decides who acts (api.py sessions)
+let ME=null,AUTH_ST=null;
+async function authGate(){const q=new URLSearchParams(location.search),inv=q.get("invite");
+ let t=null;try{t=await (await fetch("/v1/tenant")).json()}catch(e){}
+ if(inv){signInBox("invite",inv,t);return false}
+ const r=await fetch("/v1/auth/me");if(r.ok){ME=await r.json();return true}
+ if(r.status===401){if(t&&t.saas){location.replace("/login");return false}signInBox("login",null,t);return false}return true}
+async function signInBox(mode,token,t){const box=$("#signIn");box.hidden=false;$("#siCompany").textContent=t&&t.name?`· ${t.name}`:"";
+ const invite=mode==="invite";$("#siPw2L").hidden=!invite;$("#siEmailL").hidden=invite;$("#siHelp").hidden=invite;
+ $("#siPw").autocomplete=invite?"new-password":"current-password";$("#siGo").textContent=invite?"Set my password and sign in":"Sign in";
+ if(invite){$("#siTitle").textContent="Choose your password";try{const d=await (await fetch(`/v1/auth/invite/${encodeURIComponent(token)}`)).json();
+  $("#siSub").innerHTML=d.name?`Welcome, <b>${esc(d.name)}</b> (${esc(d.email)}). At least 10 characters, upper and lower case and a digit.`:`<span class="err">${esc(d.detail||"this link is not valid")}</span>`}catch(e){}}
+ else{$("#siTitle").textContent="Sign in";$("#siSub").textContent="With the email your admin registered for you."}
+ $("#siForm").onsubmit=async ev=>{ev.preventDefault();$("#siMsg").textContent="";
+  if(invite&&$("#siPw").value!==$("#siPw2").value){$("#siMsg").textContent="the two passwords differ";return}
+  const r=await fetch(invite?"/v1/auth/accept":"/v1/auth/login",{method:"POST",headers:{"content-type":"application/json"},
+   body:JSON.stringify(invite?{token,password:$("#siPw").value}:{email:$("#siEmail").value.trim(),password:$("#siPw").value})});
+  if(r.ok){location.replace("/#/overview");return}
+  let m=r.statusText;try{m=(await r.json()).detail||m}catch(e){}$("#siMsg").textContent=typeof m==="string"?m:JSON.stringify(m)}}
+$("#signOut").onclick=async ev=>{ev.preventDefault();await fetch("/v1/auth/logout",{method:"POST"});location.replace("/platform/leave")};
+async function authStatus(){if(!ME)return null;try{AUTH_ST=await api("/v1/auth/status")}catch(e){AUTH_ST=null}return AUTH_ST}
+const signCell=p=>{const s=(AUTH_ST||{})[p.user_id]||{};return s.password_set?`<span class="pill good">can sign in</span>${s.last_login?`<div class="small muted">last ${esc(s.last_login.slice(0,10))}</div>`:""}`
+ :s.link_waiting_until?'<span class="pill warn">link given, not used</span>':'<span class="pill">no sign-in yet</span>'};
+const signBtn=p=>ME&&p.email&&p.user_id!==ME.user_id?`<button data-signin="${esc(p.user_id)}">Sign-in link</button>`:"";
+function wireSignIn(root,after){root.querySelectorAll("[data-signin]").forEach(b=>b.onclick=async()=>{try{
+ const d=await api(`/v1/auth/invite?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({user_id:b.dataset.signin})});
+ const url=location.origin+d.link;$("#dlgTitle").textContent=`Sign-in link for ${d.name}`;$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=`<div style="grid-column:1/-1" class="small">Give this link to <b>${esc(d.name)}</b> (${esc(d.email)}) yourself: VENTHORA sends nothing. It works once, for ${d.valid_days} days, and they choose their own password. A new link cancels this one and is also how a forgotten password is reset.</div>
+  <label style="grid-column:1/-1">Link<textarea id="si-link" readonly style="min-height:70px;font:12px ui-monospace,Consolas,monospace">${esc(url)}</textarea></label>`;
+ $("#dlgSave").textContent="Copy link";$("#dlg").addEventListener("close",()=>{$("#dlgSave").textContent="Save"},{once:true});
+ $("#dlg").showModal();$("#dlgForm").onsubmit=ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();copyText(url,"Sign-in link");$("#dlg").close()};
+ if(after)after()}catch(e){toast(esc(e.message),"serious")}})}
+async function loadActors(){try{if(!(await authGate()))return;
+ if(ME){document.body.classList.add("login");$("#signOut").hidden=false;$("#tenantBar").hidden=false;try{localStorage.removeItem("venthora.actor.name")}catch(e){}}
+ const us=ME?[ME]:(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",developer:"Developer (IT)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",procurement:"Procurement",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
  const rank=["super_admin","developer","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
  ACTORS=us.sort((a,b)=>rank.indexOf(a.role)-rank.indexOf(b.role)||a.name.localeCompare(b.name)).map(u=>({role:u.role,name:u.name,rl:R[u.role]||u.role,label:`${u.name} · ${R[u.role]||u.role}`}));
  if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();ACTORS_READY=true;route();if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()}catch(e){actorsFill();ACTORS_READY=true;route()}}
@@ -1528,7 +1676,13 @@ let KSPAN=(()=>{try{return localStorage.getItem("venthora.kspan")||"month"}catch
 const cmp=(v,c)=>{try{return new Intl.NumberFormat("en",{style:"currency",currency:c,currencyDisplay:"code",notation:"compact",maximumFractionDigits:2}).format(v)}catch(e){return `${c} ${short(Math.round(v*100))}`}};
 async function kpis(){document.querySelectorAll("#kspan button").forEach(b=>b.classList.toggle("on",b.dataset.s===KSPAN));
  const r=await settle(api(`/v1/treasury/overview?span=${KSPAN}`));
- if(!r.ok){$("#bal").className="bal";$("#bal").innerHTML=`<div><div class="lbl">Airwallex balance</div><div class="big">not connected</div><div class="sub">${esc(r.e.message.replace(/^\d+ /,""))}</div></div>`;$("#kpis").innerHTML="";return}
+ if(!r.ok){$("#bal").className="bal";$("#kpis").innerHTML="";
+  // no company account yet (SaaS, 409): the FCO is shown the way to set it up; once connected this card shows only the balance
+  if(r.e.status===409&&/no Airwallex account yet/.test(r.e.message)){const fco=roleNow()==="super_admin";
+   $("#bal").innerHTML=`<div><div class="lbl">Airwallex balance</div><div class="big">Not connected to Airwallex</div>
+    <div class="sub">${fco?"":"Your FCO sets up the company's Airwallex account."}</div>
+    ${fco?'<a class="cta" href="#/airwallex" style="display:inline-block;margin-top:14px;text-decoration:none">Set up your Airwallex account here →</a>':""}</div>`;return}
+  $("#bal").innerHTML=`<div><div class="lbl">Airwallex balance</div><div class="big">not connected</div><div class="sub">${esc(r.e.message.replace(/^\d+ /,""))}</div></div>`;return}
  const o=r.v,B=o.base_currency,b=o.balance,av=b.available_base_minor,whole=Math.trunc(av/100),cents=String(Math.abs(av)%100).padStart(2,"0");
  const out=b.processing_out,wal=b.wallet.filter(w=>w.available).sort((x,y)=>(y.available_base_minor||0)-(x.available_base_minor||0));
  $("#bal").className=`bal ${b.shortfall?"short":""}`;
@@ -1659,7 +1813,7 @@ function stream(){if(!window.EventSource){$("#streamState").textContent="polling
 // =============================== organisation: units and people ===============================
 const KIND={HQ:"Head Quarter",COUNTRY_OFFICE:"Country office",BRANCH_OFFICE:"Branch office",PROJECT_FINANCE:"Project finance"};
 const ROLES={super_admin:"Super admin (FCO)",developer:"Developer (IT)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",
- admin:"Admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",requester:"Requester",auditor:"Auditor"};
+ admin:"Admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",procurement:"Procurement",requester:"Requester",auditor:"Auditor"};
 let ORG={units:[],users:[],prices:[],allocations:[],standards:null};
 async function loadOrg(){const [u,p,pr,al,st]=await Promise.all([api("/v1/org/units"),api("/v1/org/users"),api("/v1/org/prices"),api("/v1/org/allocations"),api("/v1/org/standards")]);
  ORG={units:u,users:p,prices:pr,allocations:al,standards:st};return ORG}
@@ -1688,7 +1842,7 @@ const USER_FIELDS=()=>[{k:"name",l:"Full name",req:1},{k:"email",l:"Work email",
  {k:"approval_limit_minor",l:"Approval limit (USD)",money:1},{k:"may_order_by_email",l:"May order vendor payments by email",check:1,off:1},
  {k:"payee_id",l:"Own bank account (registered payee), for salary and travel claims",opts:[["","— none —"],...PAYEE_OPTS],nullable:1},
  {k:"contract_end",l:"Contract end date (no salary after it)",type:"date",nullable:1},{k:"active",l:"Active",check:1}];
-async function orgUsers(){try{await loadOrg();if(!BENEFIT_OPTS.length){try{const dd=await api("/v1/doa");BENEFIT_OPTS.push(...dd.benefit_catalog.benefits.map(b=>[b.key,b.label]))}catch(e){}}
+async function orgUsers(){try{await loadOrg();await authStatus();if(!BENEFIT_OPTS.length){try{const dd=await api("/v1/doa");BENEFIT_OPTS.push(...dd.benefit_catalog.benefits.map(b=>[b.key,b.label]))}catch(e){}}
  const units=unitTree();if($("#unitsTree"))$("#unitsTree").innerHTML=table([{h:"Unit",f:u=>`${u.depth?`<span class="tree">${"&nbsp;&nbsp;&nbsp;".repeat(u.depth-1)}└─ </span>`:""}<b>${esc(u.name)}</b>${u.active?"":' <span class="small muted">inactive</span>'}`},
   {h:"Type",f:u=>`<span class="chip ${u.kind}">${KIND[u.kind]}</span>`},{h:"Country",f:u=>esc(u.country||"-")},{h:"Currency",f:u=>esc(u.currency)},{h:"Time zone",f:u=>`<span class="small">${esc(u.timezone)}</span>`},
   {h:"Cost centre",f:u=>`<span class="mono">${esc(u.cost_centre||"-")}</span>`},{h:"Pays alone up to",num:1,f:u=>u.payment_limit_minor!=null?usd(u.payment_limit_minor):'<span class="muted">parent\'s</span>'},
@@ -1705,7 +1859,9 @@ async function orgUsers(){try{await loadOrg();if(!BENEFIT_OPTS.length){try{const
   {h:"Bank account",f:p=>p.payee_id?`<span class="small">${esc((PAYEE_OPTS.find(x=>x[0]===p.payee_id)||[,p.payee_id])[1])}</span>`:'<span class="pill warn">NONE</span>'},
   {h:"Benefits",f:p=>p.benefits&&p.benefits.length?`<span class="small">${p.benefits.length} enrolled</span>`:'<span class="muted small">none</span>'},
   {h:"Approval limit",num:1,f:p=>p.approval_limit_minor?usd(p.approval_limit_minor):'<span class="muted">none</span>'},
-  {h:"",f:p=>`<div class="acts"><button data-pbank="${esc(p.user_id)}">Bank account</button>${rowActs("users",p.user_id)}</div>`}],people,"no people in this unit");
+  ...(ME?[{h:"Sign-in",f:p=>signCell(p)}]:[]),
+  {h:"",f:p=>`<div class="acts">${signBtn(p)}<button data-pbank="${esc(p.user_id)}">Bank account</button>${rowActs("users",p.user_id)}</div>`}],people,"no people in this unit");
+ wireSignIn($("#usersTable"),()=>setTimeout(orgUsers,300));
  document.querySelectorAll("[data-pbank]").forEach(b=>b.onclick=()=>{const p=ORG.users.find(x=>x.user_id===b.dataset.pbank);
   const cur=p.payee_id?null:null;benForm("employee",cur,{name:p.name,currency:p.salary_currency||"USD",entity_type:"PERSONAL",contacts:[p.email]},async id=>{
    try{await api(`/v1/org/users?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...p,payee_id:id})});toast(`${p.name}'s bank account registered: NEW until a call-back`,"good");await payees();orgUsers()}catch(e){toast(e.message,"critical")}})});
@@ -2290,9 +2446,15 @@ setInterval(()=>{const on=$("#apWatchOn").checked;$("#apWatch").classList.toggle
 $("#apWatchOn").onchange=()=>{try{localStorage.setItem("venthora.watch",$("#apWatchOn").checked?"1":"0")}catch(e){}if($("#apWatchOn").checked)apWatchStart();else{clearInterval(APW.timer);$("#apWatchMsg").textContent="off"}};
 try{if(localStorage.getItem("venthora.watch")==="0")$("#apWatchOn").checked=false}catch(e){}
 apWatchStart();
+// SaaS: this dashboard is one company's own VENTHORA; show which company, and the way back to the platform's sign-in
+fetch("/v1/tenant").then(r=>r.ok?r.json():null).then(t=>{if(t&&t.saas){$("#tenantName").textContent=t.name;$("#tenantBar").hidden=false;document.title=`${t.name} · VENTHORA`}}).catch(()=>{});
 // ---- Top up the balance: how to deposit into Airwallex, the Global Account details to copy, a sandbox deposit
 const copyBtn=(v,label)=>v?`<button class="small" data-copy="${esc(v)}" title="copy ${esc(label)}">Copy</button>`:"";
+// Until the company opens or links its own Airwallex account it has no account numbers: the platform's are VENTHORA's, not the company's
+async function coOwn(){const co=await api("/v1/company-account").catch(()=>({mode:"none"}));return co.mode!=="none"}
+const NO_CO_ACCOUNT='<div class="empty">The company has no Airwallex account yet, so there are no account numbers to pay into. The FCO opens a new one or connects the one the company already has in <a href="#/airwallex">Platform Setup → Airwallex Global Account</a>.</div>';
 async function fundView(){const need=+((location.hash.match(/[?&]need=(\d+)/)||[])[1]||0);$("#fundBody").innerHTML='<div class="empty">reading the Airwallex account…</div>';
+ if(!(await coOwn())){$("#fundBody").innerHTML=NO_CO_ACCOUNT;return}
  try{const [ga,pos]=await Promise.all([api("/v1/airwallex/global-accounts"),api("/v1/treasury/position").catch(()=>null)]);const b=(pos&&pos.base_currency)||"USD";
   const t=APT||{},w=pos?pos.available.base_minor:null,alloc=t.allocation_minor;
   const field=(k,v)=>v?`<div class="row" style="gap:8px;align-items:center;padding:4px 0;border-top:1px solid var(--line)"><span class="small muted" style="width:150px">${k}</span><span class="mono" style="flex:1">${esc(v)}</span>${copyBtn(v,k)}</div>`:"";
@@ -2411,25 +2573,130 @@ async function vtView(){try{const d=await api("/v1/visa/tap"),k=d.keys[0];
 // ---- Platform Setup -> Visa Intelligent Commerce
 // ---- Xendit (Indonesian rails Airwallex lacks) and e-wallet payouts ----
 const idr=m=>m==null?"-":"IDR "+Number(m).toLocaleString("en-US");
-async function xdView(){try{const d=await api("/v1/providers/xendit"),ro=actor().role!=="super_admin";
+async function xdView(dev){try{const d=await api("/v1/providers/xendit"),ro=dev?actor().role!=="developer":true;const target=dev?"#xdDevBody":"#xdBody";
  $("#xdMeta").textContent=`mode: ${d.effective_mode}${d.effective_mode==="simulator"?" (simulated, no money moves)":""}`;
  const k=d.secret_key,t=d.callback_token,wal=(d.channels||[]).filter(c=>c.channel_category==="EWALLET"),bank=(d.channels||[]).filter(c=>c.channel_category==="BANK");
- $("#xdBody").className="";$("#xdBody").innerHTML=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
-  <div class="tile"><b>Mode</b><div class="small muted" style="margin:4px 0 8px">${esc(d.why)}</div>
+ const fco=actor().role==="super_admin";
+ const modeTile=`<div class="tile"><b>Mode</b><div class="small muted" style="margin:4px 0 8px">${esc(d.why)}</div>
    <label class="small">Mode<select id="xdMode" ${ro?"disabled":""}><option value="off">off</option>${d.demo?'<option value="simulator">simulator (demo mode)</option>':""}<option value="live">live (test-mode key)</option></select></label>
    <label class="small">Secret key ${k.set?`<span class="muted">set ${esc(k.hint)} · ${esc(k.source)}</span>`:'<span class="muted">not set</span>'}<input id="xdKey" type="password" autocomplete="off" placeholder="xnd_development_… (write-only)" ${ro?"disabled":""}></label>
    <label class="small">Callback token ${t.set?`<span class="muted">set ${esc(t.hint)}</span>`:'<span class="muted">not set</span>'}<input id="xdTok" type="password" autocomplete="off" placeholder="webhook verification token (write-only)" ${ro?"disabled":""}></label>
-   ${ro?'<div class="small muted">Only the FCO (Super admin) changes this.</div>':'<button class="primary" id="xdSave" style="margin-top:8px">Save</button>'}
-   ${d.note?`<div class="small" style="margin-top:6px">${esc(d.note)}</div>`:""}${d.error?`<div class="small" style="color:var(--serious,#c33);margin-top:6px">${esc(d.error)}</div>`:""}</div>
-  <div class="tile"><b>Xendit balance</b><div style="font-size:22px;margin:6px 0">${idr(d.balance_minor)}</div>
+   ${ro?'<div class="small muted">Only a Developer (IT) changes this; the FCO can view it.</div>':'<button class="primary" id="xdSave" style="margin-top:8px">Save</button>'}
+   ${d.note?`<div class="small" style="margin-top:6px">${esc(d.note)}</div>`:""}${d.error?`<div class="small" style="color:var(--serious,#c33);margin-top:6px">${esc(d.error)}</div>`:""}
+   <div class="small" style="margin-top:8px">Webhook: <code>/webhooks/xendit</code> (verified by <code>x-callback-token</code>, then read back)</div></div>`;
+ const balTile=`<div class="tile"><b>Xendit balance</b><div style="font-size:22px;margin:6px 0">${idr(d.balance_minor)}</div>
    <div class="small muted">E-wallet payouts are paid from this balance. On live it is topped up by an Airwallex IDR transfer to the business's Xendit top-up account.</div>
-   ${d.effective_mode==="simulator"&&!ro?`<div class="row" style="gap:6px;margin-top:8px"><input id="xdTop" type="number" min="1" step="1" value="5000000" style="width:130px"><button id="xdTopBtn">Top up (simulated)</button></div>`:""}
-   <div class="small" style="margin-top:8px">Webhook: <code>/webhooks/xendit</code> (verified by <code>x-callback-token</code>, then read back)</div></div>
-  <div class="tile"><b>What goes where</b><table class="small" style="width:100%;margin-top:6px"><tr><td>Indonesian bank account</td><td>Airwallex</td></tr><tr><td>Holder's name, Indonesian account</td><td>Xendit name check</td></tr><tr><td>E-wallet</td><td>Xendit payout</td></tr><tr><td>Advances</td><td>Airwallex virtual card</td></tr></table>
-   <div class="small muted" style="margin-top:6px">E-wallets: ${wal.map(c=>esc(c.channel_name)).join(", ")||"-"}${bank.length?` · banks for the name check: ${bank.length}`:""}</div></div></div>`;
- if(!ro){$("#xdMode").value=d.mode;$("#xdSave").onclick=async()=>{try{await api(`/v1/providers/xendit?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({mode:$("#xdMode").value,secret_key:$("#xdKey").value||null,callback_token:$("#xdTok").value||null})});toast("Xendit saved","good");xdView()}catch(e){toast(esc(e.message),"serious")}};
-  const tb=$("#xdTopBtn");if(tb)tb.onclick=async()=>{try{const r=await api(`/v1/demo/xendit/topup?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({amount_minor:+$("#xdTop").value})});toast(`Balance ${idr(r.balance_minor)} (simulated)`,"good");xdView()}catch(e){toast(esc(e.message),"serious")}}}
-}catch(e){$("#xdBody").innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
+   ${d.effective_mode==="simulator"&&fco?`<div class="row" style="gap:6px;margin-top:8px"><input id="xdTop" type="number" min="1" step="1" value="5000000" style="width:130px"><button id="xdTopBtn">Top up (simulated)</button></div>`:""}
+   <div class="small muted" style="margin-top:8px">Mode: <b>${esc(d.effective_mode)}</b> · keys and mode: Developer Console → Xendit</div></div>`;
+ const whatTile=`<div class="tile"><b>What goes where</b><table class="small" style="width:100%;margin-top:6px"><tr><td>Indonesian bank account</td><td>Airwallex</td></tr><tr><td>Holder's name, Indonesian account</td><td>Xendit name check</td></tr><tr><td>E-wallet</td><td>Xendit payout</td></tr><tr><td>Advances</td><td>Airwallex virtual card</td></tr></table>
+   <div class="small muted" style="margin-top:6px">E-wallets: ${wal.map(c=>esc(c.channel_name)).join(", ")||"-"}${bank.length?` · banks for the name check: ${bank.length}`:""}</div></div>`;
+ $(target).className="";$(target).innerHTML=`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">${dev?modeTile:balTile+whatTile}</div>`;
+ if(dev&&!ro){$("#xdMode").value=d.mode;$("#xdSave").onclick=async()=>{try{await api(`/v1/providers/xendit?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({mode:$("#xdMode").value,secret_key:$("#xdKey").value||null,callback_token:$("#xdTok").value||null})});toast("Xendit saved","good");xdView(true)}catch(e){toast(esc(e.message),"serious")}}}
+ else if(dev)$("#xdMode").value=d.mode;
+ const tb=!dev&&$("#xdTopBtn");if(tb)tb.onclick=async()=>{try{const r=await api(`/v1/demo/xendit/topup?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({amount_minor:+$("#xdTop").value})});toast(`Balance ${idr(r.balance_minor)} (simulated)`,"good");xdView()}catch(e){toast(esc(e.message),"serious")}};
+}catch(e){$(dev?"#xdDevBody":"#xdBody").innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
+// ---- Transfer: one form per route (manual_transfers.py) ----
+let TR=null;const TR_ROUTE=()=>{const m=location.hash.match(/^#\/transfers\?(\w+)/);return m?m[1]:"airwallex"};
+const TR_ID=new Set(["id_bank","xendit","midtrans"]);
+async function trView(){try{TR=await api("/v1/transfers/routes");const r=TR_ROUTE();
+ $("#trFrom").textContent=`from: ${TR.from.name||TR.from.account_id||"the platform's own account"}`;
+ $("#trTabs").innerHTML=Object.entries(TR.routes).map(([k,v],i)=>`<a href="#/transfers?${k}" class="${k===r?"on":""}" style="padding:6px 10px">${i+1} · ${esc(v)}</a>`).join("");
+ trForm(r);trList()}catch(e){$("#trForm").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function trForm(r){const off=TR.unavailable[r],f=$("#trForm");$("#trReview").hidden=true;
+ if(off){f.innerHTML=`<b>${esc(TR.routes[r])}</b><div class="small" style="margin-top:6px;color:var(--warn,#d97706)">Not available: ${esc(off)}.</div>`;return}
+ const amt=(ccy)=>`<label>Amount<input id="tr-amt" type="number" min="0.01" step="0.01"></label><label>Currency<input id="tr-ccy" maxlength="3" value="${esc(ccy)}" ${TR_ID.has(r)?"readonly":""}></label><label style="grid-column:1/-1">Purpose / reference<input id="tr-purpose" maxlength="200"></label>`;
+ let body="";
+ if(r==="airwallex")body=`<label style="grid-column:1/-1">To<select id="tr-co"><option value="">another Airwallex customer (account number)…</option>${TR.companies.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.country?` · ${esc(c.country)}`:""} (on this platform, no fee)</option>`).join("")}</select></label>
+  <label class="tr-ext">Their Airwallex account number (digits, given by them: Airwallex shows it only to the account holder)<input id="tr-an" inputmode="numeric"></label><label class="tr-ext">Their account name<input id="tr-aname"></label>${amt("USD")}`;
+ else if(r==="card_account")body=`<div class="small muted" style="grid-column:1/-1">To the card-issuing account <code>${esc(TR.card_account)}</code>: the Visa cards spend from it. Moved inside Airwallex, no fee.</div>${amt("USD")}`;
+ else if(r==="virtual_card")body=`<label style="grid-column:1/-1">Card<select id="tr-card">${TR.cards.map(c=>`<option value="${esc(c.id)}" data-ccy="${esc(c.currency||"USD")}">${esc(c.name||"")} ${esc(c.masked||"")} · ${esc(c.currency||"")}</option>`).join("")||'<option value="">no card issued yet</option>'}</select></label>${amt((TR.cards[0]||{}).currency||"USD")}
+  <div class="small muted" style="grid-column:1/-1">The card account is funded and the card's limit raised by the amount.</div>`;
+ else{const ds=TR.destinations[r]||[];const intl=r==="international";
+  body=`<label style="grid-column:1/-1">To<select id="tr-dest">${ds.map(d=>`<option value="${esc(d._id)}">${esc(d.label)} · ${esc((d.bank_check||{}).verdict||"")}</option>`).join("")}<option value="">+ add a new ${intl||r==="id_bank"?"bank account":TR.routes[r].replace("The company's ","").replace(" balance","")+" top-up account"}…</option></select></label>
+  <div id="tr-new" class="form" style="grid-column:1/-1;border:1px dashed var(--line);padding:8px;border-radius:8px" hidden>
+   <label>Account name<input id="tn-name"></label><label>Bank name<input id="tn-bank"></label>
+   ${intl?'<label>Bank country (2 letters)<input id="tn-country" maxlength="2"></label><label>Account currency<input id="tn-ccy" maxlength="3"></label><label>IBAN<input id="tn-iban"></label>':""}
+   <label>Account number<input id="tn-acct"></label><label>SWIFT / BIC<input id="tn-swift"></label>
+   ${intl?'<label>Routing type (aba, sort_code, bsb…)<input id="tn-rt"></label><label>Routing value<input id="tn-rv"></label><label>Method<select id="tn-method"><option>LOCAL</option><option>SWIFT</option></select></label>':""}
+   <label>Street<input id="tn-street"></label><label>City<input id="tn-city"></label><label>Postcode<input id="tn-post"></label><label>State<input id="tn-state"></label>
+   <div style="grid-column:1/-1"><button type="button" id="tn-save">Check and save this account</button> <span class="small" id="tn-msg"></span></div></div>
+  ${amt(TR_ID.has(r)?"IDR":"USD")}`}
+ f.innerHTML=`<b>${esc(TR.routes[r])}</b><div class="form" style="margin-top:8px">${body}</div><div class="row" style="margin-top:10px"><button class="primary" id="tr-check">Check the details</button><span class="small" id="tr-msg"></span></div>`;
+ const co=$("#tr-co");if(co){const t=()=>document.querySelectorAll(".tr-ext").forEach(e=>e.hidden=!!co.value);co.onchange=t;t()}
+ const cs=$("#tr-card");if(cs)cs.onchange=()=>{$("#tr-ccy").value=cs.selectedOptions[0]?.dataset.ccy||"USD"};
+ const ds=$("#tr-dest");if(ds){const t=()=>$("#tr-new").hidden=!!ds.value;ds.onchange=t;t();
+  $("#tn-save").onclick=async()=>{const v=id=>($(`#${id}`)||{}).value?.trim()||"";const intl=r==="international";
+   const bank={account_name:v("tn-name"),bank_name:v("tn-bank"),account_number:v("tn-acct"),swift_code:v("tn-swift"),
+    ...(intl?{bank_country_code:v("tn-country").toUpperCase(),account_currency:v("tn-ccy").toUpperCase(),iban:v("tn-iban"),routing_type:v("tn-rt"),routing_value:v("tn-rv")}:{})};
+   const body={route:r,bank,address:{street_address:v("tn-street"),city:v("tn-city"),postcode:v("tn-post"),state:v("tn-state"),country_code:intl?v("tn-country").toUpperCase():"ID"},payout_method:intl?v("tn-method"):"LOCAL"};
+   $("#tn-msg").textContent="checking the account…";
+   try{const d=await api(`/v1/transfers/destinations?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast(`Saved: ${esc(d.label)} (${esc(d.bank_check.verdict)})`,"good");await trView()}catch(e){$("#tn-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+ $("#tr-check").onclick=()=>{const b={route:r,amount_minor:Math.round(+$("#tr-amt").value*100),currency:$("#tr-ccy").value.toUpperCase(),purpose:$("#tr-purpose").value};
+  const rows=[["From",TR.from.name||TR.from.account_id||"the platform's own account"],["Route",TR.routes[r]]];
+  if(r==="airwallex"){if($("#tr-co").value){b.target_account_id=$("#tr-co").value;rows.push(["To",$("#tr-co").selectedOptions[0].textContent])}else{b.account_number=$("#tr-an").value.trim();b.account_name=$("#tr-aname").value.trim();rows.push(["To",`${b.account_name} · Airwallex account ${b.account_number}`])}}
+  if(r==="virtual_card"){b.card_id=$("#tr-card").value;rows.push(["Card",$("#tr-card").selectedOptions[0]?.textContent||""])}
+  if(ds){b.destination_id=ds.value;if(!b.destination_id){$("#tr-msg").innerHTML='<span class="err">choose or add the destination account first</span>';return}rows.push(["To",ds.selectedOptions[0].textContent])}
+  if(!(b.amount_minor>0)){$("#tr-msg").innerHTML='<span class="err">enter the amount</span>';return}
+  rows.push(["Amount",`${b.currency} ${(b.amount_minor/100).toLocaleString("en-US",{minimumFractionDigits:2})}`],["Purpose",b.purpose||"—"],["Approval","the FCO, never the person who asks"]);
+  $("#trReview").hidden=false;$("#trReview").innerHTML=`<div class="small rp-note"><b>Check before asking.</b> Nothing moves until the FCO approves.</div><table class="tbl">${rows.map(([k,v])=>`<tr><td class="small muted">${esc(k)}</td><td><b>${esc(v)}</b></td></tr>`).join("")}</table>
+   <div class="row" style="margin-top:8px;gap:8px"><button class="primary" id="tr-go">Ask for approval</button><button id="tr-back">Back to edit</button></div>`;
+  $("#tr-back").onclick=()=>$("#trReview").hidden=true;
+  $("#tr-go").onclick=async()=>{try{const t=await api(`/v1/transfers?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});toast(`${esc(t._id)} waits for the FCO's approval`,"good");$("#trReview").hidden=true;trList()}catch(e){toast(esc(e.message),"serious")}}}}
+async function trList(){try{const rows=await api("/v1/transfers"),fco=actor().role==="super_admin",demo=typeof ED==="object"&&ED.demo;
+ if(!rows.length){$("#trList").className="empty";$("#trList").textContent="No transfer yet.";return}
+ const act=t=>t.status==="AWAITING_APPROVAL"?(fco?`<button class="primary" data-tr="approve" data-id="${esc(t._id)}">Approve &amp; send</button> `:"")+`<button data-tr="cancel" data-id="${esc(t._id)}">Cancel</button>`
+  :t.status==="SENT"?`<button data-tr="refresh" data-id="${esc(t._id)}">Read back</button>`+(demo&&t.transfer_id?` <button data-tr="simulate" data-id="${esc(t._id)}">Simulate PAID (sandbox)</button>`:""):"";
+ $("#trList").className="";$("#trList").innerHTML=`<table class="tbl"><tr><th>Transfer</th><th>Route</th><th>To</th><th class="num">Amount</th><th>Status</th><th>Asked · approved</th><th></th></tr>${rows.map(t=>`<tr>
+  <td>${esc(t._id)}<div class="small muted">${esc(String(t.requested_at).slice(0,16).replace("T"," "))}</div></td><td class="small">${esc(t.route_label)}</td>
+  <td class="small">${esc((t.destination||{}).name||(t.destination||{}).card||"")}${(t.destination||{}).account_masked?` ${esc(t.destination.account_masked)}`:""}</td>
+  <td class="num"><b>${fmt(t.amount_minor,t.currency)}</b></td><td>${pill(t.status)}<div class="small muted">${esc((t.history||[]).slice(-1)[0]?.what||"")}</div></td>
+  <td class="small">${esc(t.requested_by)}${(t.history||[]).find(h=>h.what.startsWith("approved"))?`<br>${esc(t.history.find(h=>h.what.startsWith("approved")).by)}`:""}</td><td>${act(t)}</td></tr>`).join("")}</table>`;
+ $("#trList").querySelectorAll("[data-tr]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const t=await api(`/v1/transfers/${encodeURIComponent(b.dataset.id)}/${b.dataset.tr}?${who()}`,{method:"POST"});toast(`${esc(t._id)}: ${esc(t.status)}`,t.status==="FAILED"?"serious":"good");trList()}catch(e){toast(esc(e.message),"serious");b.disabled=false}});
+}catch(e){$("#trList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+window.addEventListener("hashchange",()=>{if(location.hash.startsWith("#/transfers")&&TR)trView()});
+// ---- Platform Setup → Optional: the FCO's switches (controls.py); Developer Console → Airi and T:0 status ----
+const CTL_LABELS={airi:{enabled:"Staff may check out with Airi",staff_wallets_only:"Only from staff wallets (the same balance as their Visa card and Xendit)",currency:"Currency of the limits",
+ max_per_checkout_minor:"Limit per checkout",monthly_cap_minor:"Monthly cap per person",fco_approval_above_minor:"FCO approves a checkout above",blocked_categories:"Blocked merchant categories (comma separated)"}};
+async function ctlView(group){const el=$(`#ctl-${group}`);try{const [d,m]=await Promise.all([api(`/v1/controls/${group}`),group==="metal"?api("/v1/metal").catch(()=>null):null]);
+ const fco=actor().role==="super_admin",v=d.values,lab=k=>(d.labels||{})[k]||(CTL_LABELS[group]||{})[k]||k,ccy=v.currency||"USD";
+ $(`#ctl-${group}Meta`).textContent=d.updated_by?`changed by ${d.updated_by}`:"defaults";
+ const row=k=>{const x=v[k];if(typeof x==="boolean")return `<label class="check" style="grid-column:1/-1"><input type="checkbox" data-k="${k}" ${x?"checked":""} ${fco?"":"disabled"}> ${esc(lab(k))}</label>`;
+  if(Array.isArray(x))return `<label style="grid-column:1/-1">${esc(lab(k))}<input data-k="${k}" data-t="list" value="${esc(x.join(", "))}" ${fco?"":"disabled"}></label>`;
+  if(typeof x==="number")return `<label>${esc(lab(k))} (${esc(ccy)})<input type="number" min="0" step="0.01" data-k="${k}" data-t="minor" value="${(x/100).toFixed(2)}" ${fco?"":"disabled"}></label>`;
+  return `<label>${esc(lab(k))}<input data-k="${k}" maxlength="3" value="${esc(x)}" ${fco?"":"disabled"}></label>`};
+ const cats=m&&m.heads&&m.heads.categories?`<h3 class="small muted" style="margin:12px 0 4px">What the next anchor holds now</h3><table class="tbl"><tr><th>Category</th><th>Records</th><th>Digest</th></tr>
+  ${m.heads.audit?`<tr><td>Audit chain</td><td>${m.heads.audit.events??"-"}</td><td class="small"><code>${esc(String(m.heads.audit.head||"").slice(0,16))}…</code></td></tr>`:""}
+  ${m.heads.contracts?`<tr><td>Contract chains</td><td>${Object.keys(m.heads.contracts).length}</td><td class="small">one head each</td></tr>`:""}
+  ${Object.entries(m.heads.categories).map(([k,c])=>`<tr><td>${esc(lab(k))}</td><td>${c.events}</td><td class="small"><code>${c.digest?esc(c.digest.slice(0,16))+"…":"—"}</code></td></tr>`).join("")}</table>`:"";
+ el.className="";el.innerHTML=`<div class="form">${Object.keys(v).map(row).join("")}</div>${fco?`<div class="row" style="margin-top:10px"><button class="primary" id="ctlSave-${group}">Save</button></div>`:'<div class="small muted" style="margin-top:8px">Only the FCO (Super admin) changes these.</div>'}${cats}`;
+ if(fco)$(`#ctlSave-${group}`).onclick=async()=>{const body={};el.querySelectorAll("[data-k]").forEach(i=>{const k=i.dataset.k;body[k]=i.type==="checkbox"?i.checked:i.dataset.t==="minor"?Math.round(+i.value*100):i.dataset.t==="list"?i.value.split(",").map(s=>s.trim()).filter(Boolean):i.value});
+  try{await api(`/v1/controls/${group}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast("Saved","good");ctlView(group)}catch(e){toast(esc(e.message),"serious")}};
+}catch(e){el.innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function dpView(){try{const rows=await api("/v1/placement-connections"),dev=actor().role==="developer";
+ if(!rows.length){$("#dpBody").className="empty";$("#dpBody").textContent="No provider yet: the FCO adds them in FCO Authorize → Placement providers.";return}
+ $("#dpBody").className="";$("#dpBody").innerHTML=`<table class="tbl"><tr><th>Provider</th><th>Connection</th><th>API base URL</th><th>API key</th><th>Email</th><th></th></tr>${rows.map(r=>{const c=r.connection,id=esc(r.provider_id);return `<tr>
+  <td><b>${esc(r.name)}</b><div class="small muted">${esc(r.kind.replace(/_/g," ").toLowerCase())}</div></td>
+  <td><select data-m="${id}" ${dev?"":"disabled"}>${["MANUAL","EMAIL","API"].map(m=>`<option ${c.mode===m?"selected":""}>${m}</option>`).join("")}</select></td>
+  <td><input data-u="${id}" value="${esc(c.api_base_url||"")}" placeholder="https://…" ${dev?"":"disabled"}></td>
+  <td><input data-k="${id}" type="password" autocomplete="off" placeholder="${c.api_key&&c.api_key.set?`set ${esc(c.api_key.hint)}`:"write-only"}" ${dev?"":"disabled"}></td>
+  <td><input data-e="${id}" value="${esc(c.email||"")}" ${dev?"":"disabled"}></td>
+  <td>${dev?`<button data-save="${id}">Save</button> `:""}<button data-test="${id}">Test</button></td></tr>`}).join("")}</table>${dev?"":'<div class="small muted" style="margin-top:6px">Only a Developer (IT) changes these; the FCO can view them.</div>'}`;
+ $("#dpBody").querySelectorAll("[data-save]").forEach(b=>b.onclick=async()=>{const id=b.dataset.save,q=s=>$("#dpBody").querySelector(`[${s}="${id}"]`).value;
+  try{await api(`/v1/placement-connections/${encodeURIComponent(id)}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({mode:q("data-m"),api_base_url:q("data-u"),api_key:q("data-k")||null,email:q("data-e")})});toast("Saved","good");dpView()}catch(e){toast(esc(e.message),"serious")}});
+ $("#dpBody").querySelectorAll("[data-test]").forEach(b=>b.onclick=async()=>{try{const r=await api(`/v1/placement-connections/${encodeURIComponent(b.dataset.test)}/test`,{method:"POST"});toast(r.ok===null?esc(r.detail):r.ok?`answers (${r.status})`:`no: ${esc(r.detail||r.status)}`,r.ok===false?"serious":"good")}catch(e){toast(esc(e.message),"serious")}});
+}catch(e){$("#dpBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function airiView(){try{const d=await api("/v1/airi/status");$("#airiMeta").textContent=d.signed_in?"signed in":d.installed?"installed, not signed in":"not set up";
+ const st=(ok,t)=>`<span class="pill ${ok?"good":ok===false?"critical":"warn"}">${t}</span>`;
+ $("#airiBody").className="";$("#airiBody").innerHTML=`<table class="tbl"><tr><td>Installed on this server</td><td>${st(d.installed,d.installed?"yes":"no")}</td></tr>
+  <tr><td>Signed in to the company's Airi account</td><td>${st(d.signed_in,d.signed_in?"yes":"no")}${d.session_expires?` <span class="small muted">session until ${esc(d.session_expires)}</span>`:""}</td></tr>
+  <tr><td>Payment methods in the wallet</td><td>${d.payment_methods==null?"—":st(d.payment_methods>0,String(d.payment_methods))}${d.payment_methods===0?' <span class="small muted">no card yet: Airwallex provides the Airi card</span>':""}</td></tr></table>
+  ${d.error?`<div class="small err" style="margin-top:6px">${esc(d.error)}</div>`:""}<div class="small muted" style="margin-top:6px">${esc(d.how)}</div>`}catch(e){$("#airiBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+async function t0View(){try{const d=await api("/v1/t0/status");$("#t0Meta").textContent=d.connected?"connected":"not connected";
+ $("#t0Body").className="";$("#t0Body").innerHTML=`<table class="tbl"><tr><td>API key</td><td>${d.key_set?`set ${esc(d.key_hint||"")}${d.key_name?` · ${esc(d.key_name)}`:""}`:"not set"}</td></tr>
+  <tr><td>MCP server</td><td><code class="small">${esc(d.mcp_url)}</code></td></tr><tr><td>Answers</td><td><span class="pill ${d.connected?"good":"critical"}">${d.connected?"yes":"no"}</span>${d.server?` <span class="small muted">${esc(d.server.name||"")} ${esc(d.server.version||"")}</span>`:""}</td></tr>
+  <tr><td>Tools offered</td><td>${d.tools.length}<div class="small muted">${esc(d.tools.join(", "))}</div></td></tr>
+  <tr><td>Entities this key can act for</td><td>${d.entities==null?"—":d.entities.length?d.entities.map(e=>`${esc(e.name||"")} <span class="small muted">${esc(e.id||"")}</span>`).join("<br>"):`none listed (T:0 answered ${esc(String(d.entity_call_status??"-"))})`}</td></tr></table>
+  ${d.error?`<div class="small err" style="margin-top:6px">${esc(d.error)}</div>`:""}`}catch(e){$("#t0Body").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 async function wpView(){try{const [rows,x]=await Promise.all([api("/v1/wallet-payouts"),api("/v1/providers/xendit").catch(()=>null)]);
  $("#wpMeta").textContent=x?`Xendit ${x.effective_mode}${x.balance_minor!=null?` · balance ${idr(x.balance_minor)}`:""}`:"";
  if(!rows.length){$("#wpBody").className="empty";$("#wpBody").textContent=x&&x.effective_mode==="off"?"Xendit is off: switch it on in Platform Setup → Xendit (Indonesia).":"No e-wallet payouts yet.";return}
@@ -2611,8 +2878,22 @@ async function ppView(){try{PP=await api("/v1/placement-providers");const fco=ac
    address:{street_address:$("#ppStreet").value,city:$("#ppCity").value,postcode:$("#ppPost").value,state:$("#ppState").value,country_code:$("#ppCountry").value.toUpperCase()}})}
   try{const r=await api(`/v1/placement-providers?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});toast(`${esc(r.name)} saved${r.bank_check?` · bank check ${esc(r.bank_check.verdict)}`:""}`,"good");delete $("#ppSave").dataset.id;ppView()}catch(e){toast(esc(e.message),"serious")}};
 }catch(e){$("#ppBody").innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
+function agreementPopup(x){const ag=x.agreement,fco=actor().role==="super_admin";
+ $("#dlgTitle").textContent=`Placement agreement · ${x.reference||""}`;$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=`<div style="grid-column:1/-1"><pre style="white-space:pre-wrap;font-size:12px;background:var(--panel2,#f6f8fb);padding:10px;border-radius:8px;max-height:50vh;overflow:auto">${esc(ag.text)}</pre>
+  <div class="small muted">SHA-256 ${esc(ag.sha256)} · drafted by ${esc(ag.drafted_by)}</div>
+  <div class="small" style="margin-top:6px">${ag.accepted?`<span class="pill good">accepted</span> by ${esc(ag.accepted.by)} at ${esc(ag.accepted.at)}`:'<span class="pill warn">not accepted yet</span>'}</div>
+  <div class="small muted" style="margin-top:6px">VENTHORA writes this from what it holds; a bank that has its own contract signs that too. Accepting records this exact text (its hash goes into the audit chain).</div>
+  <div class="row" style="gap:8px;margin-top:8px"><button type="button" id="agCopy">Copy the text</button>${!ag.accepted&&fco?'<button type="button" class="primary" id="agAccept">Accept (FCO)</button>':""}</div></div>`;
+ const save=$("#dlgSave"),cancel=$("#dlgForm button[value=cancel]");save.hidden=true;const was=cancel.textContent;cancel.textContent="Close";
+ $("#agCopy").onclick=async()=>{try{await navigator.clipboard.writeText(ag.text);$("#agCopy").textContent="Copied"}catch(e){$("#agCopy").textContent="Copy failed"}};
+ const acc=$("#agAccept");if(acc)acc.onclick=async()=>{try{const r=await api(`/v1/cash-placement/instructions/${encodeURIComponent(x._id)}/agreement/accept?${who()}`,{method:"POST"});toast("Agreement accepted","good");$("#dlg").close();cpView()}catch(e){$("#dlgErr").textContent=e.message}};
+ $("#dlgForm").onsubmit=null;$("#dlg").addEventListener("close",()=>{save.hidden=false;cancel.textContent=was},{once:true});$("#dlg").showModal()}
 function cpActs(x){const b=(a,t,cls="")=>`<button ${cls} data-cpx="${a}" data-id="${esc(x._id)}" data-ccy="${esc(x.currency)}">${t}</button>`,d=(s,t)=>`<button data-cpd="${esc(x._id)}" data-st="${s}">${t}</button>`;
  const transfer=x.provider_id&&x.provider_kind!=="AIRWALLEX_YIELD",demo=typeof ED==="object"&&ED.demo;
+ const ag=x.provider_id&&!["CANCELLED","FAILED"].includes(x.status)?b("agreement",x.agreement?(x.agreement.accepted?"Agreement ✓":"Agreement (to accept)"):"Agreement"):"";
+ return cpActs0(x,b,d,transfer,demo)+ag}
+function cpActs0(x,b,d,transfer,demo){
  if(x.status==="PROPOSED")return d("APPROVED",transfer?"Approve &amp; send":"Approve")+d("CANCELLED","Cancel");
  if(x.status==="APPROVED")return (transfer?"":d("DONE","Mark done"))+d("CANCELLED","Cancel");
  if(x.status==="SENT")return b("refresh","Read back")+(demo?b("simulate","Simulate PAID (sandbox)"):"");
@@ -2638,6 +2919,15 @@ async function cpView(){const el=$("#cpBody");try{const d=await api("/v1/cash-pl
  <div class="rp-filters"><div class="rp-title">Placement policy</div><div class="rp-row" style="grid-template-columns:repeat(2,minmax(0,1fr))">
   <label>Safety buffer (%)<input id="cp-buf" type="number" min="0" max="100" value="${P.buffer_pct}"></label><label>Minimum to place (${esc(B)})<input id="cp-min" type="number" min="0" step="0.01" value="${(P.min_amount_minor/100).toFixed(2)}"></label>
   <label style="grid-column:1/-1">Default destination<input id="cp-dest" value="${esc(P.destination)}"></label><label><span><input type="checkbox" id="cp-on" ${P.enabled?"checked":""}> Propose placements</span></label>
+  <div style="grid-column:1/-1;margin-top:6px" class="small"><b>The FCO's rules</b> <span class="muted">each applies when ticked; every ticked rule must hold, and the smallest limit wins</span></div>
+  <label>Horizon (months)<input id="cp-hz" type="number" min="1" max="24" value="${P.horizon_months}"></label><span></span>
+  <label><span><input type="checkbox" id="cp-r1" ${P.use_horizon_surplus?"checked":""}> Budget for the next ${P.horizon_months} month(s) minus their estimated spending is at least (${esc(B)})</span><input id="cp-r1v" type="number" min="0" step="0.01" value="${(P.surplus_min_minor/100).toFixed(2)}"></label>
+  <label><span><input type="checkbox" id="cp-r2" ${P.use_lower_bound?"checked":""}> Lower bound: the wallet stays at or above (${esc(B)})</span><input id="cp-r2v" type="number" min="0" step="0.01" value="${(P.lower_bound_minor/100).toFixed(2)}"></label>
+  <label style="grid-column:1/-1"><span><input type="checkbox" id="cp-r3" ${P.use_upper_bound?"checked":""}> Upper bound: never more than this placed in total (${esc(B)})</span><input id="cp-r3v" type="number" min="0" step="0.01" value="${(P.upper_bound_minor/100).toFixed(2)}"></label>
+  ${b.horizon?`<div style="grid-column:1/-1" class="small"><table class="tbl"><tr><td>Budget allocated to ${esc(b.horizon.months[0])}…${esc(b.horizon.months.slice(-1)[0])}</td><td class="num">${fmt(b.horizon.budget_minor,B)}</td></tr>
+   <tr><td>Estimated spending: open commitments</td><td class="num">${fmt(b.horizon.commitments_minor,B)}</td></tr><tr><td>Estimated spending: payroll × ${b.horizon.months.length}</td><td class="num">${fmt(b.horizon.payroll_minor,B)}</td></tr>
+   <tr><td><b>Surplus</b></td><td class="num"><b>${fmt(b.horizon.budget_minor-b.horizon.spending_minor,B)}</b></td></tr><tr><td>Placed now</td><td class="num">${fmt(b.placed_minor||0,B)}</td></tr>
+   ${(b.rules||[]).map(r=>`<tr><td>${r.holds?"✓":"✗"} ${esc(r.rule)}</td><td class="num">${fmt(r.value_minor,B)}</td></tr>`).join("")}</table></div>`:""}
   <div class="rp-act"><button id="cp-save" ${can?"":"disabled title='finance manager, CFO or admin'"}>Save policy</button></div></div></div>
  <div class="rp-filters"><div class="rp-title">Propose a placement</div><div class="rp-row" style="grid-template-columns:repeat(2,minmax(0,1fr))">
   <label style="grid-column:1/-1">Provider<select id="cp-prov"><option value="">none: carried out by hand</option>${provs.filter(p=>p.active).map(p=>`<option value="${esc(p.provider_id)}" ${p.payable?"":"disabled"}>${esc(p.name)} · ${esc(ppKind[p.kind])} · ${esc(p.currency)} · ${p.indicative_rate_pct}%${p.payable?"":" (account not checked)"}</option>`).join("")}</select></label>
@@ -2657,10 +2947,13 @@ async function cpView(){const el=$("#cpBody");try{const d=await api("/v1/cash-pl
    if(a==="match"){const m=await api(`/v1/cash-placement/instructions/${id}/matches`);if(!m.candidates.length){toast("No deposit on Airwallex matches yet: it arrives with the reference "+esc(m.reference),"warn");return}
     const c=m.candidates[0];if(!confirm(`Close on deposit ${c.deposit_id}: ${fmt(c.amount_minor,c.currency)} from ${c.payer||"?"}${c.by_reference?" (reference matches)":" (amount only)"}?`))return;
     await api(`/v1/cash-placement/instructions/${id}/close?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({deposit_id:c.deposit_id})})}
+   else if(a==="agreement"){let x=d.instructions.find(i=>i._id===btn.dataset.id);if(!x.agreement)x=await api(`/v1/cash-placement/instructions/${id}/agreement?${who()}`,{method:"POST"});agreementPopup(x);return}
    else if(a==="close-yield"){const v=prompt("What came back to the wallet (in "+btn.dataset.ccy+")?");if(!v)return;await api(`/v1/cash-placement/instructions/${id}/close?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({received_minor:Math.round(+v*100)})})}
    else await api(`/v1/cash-placement/instructions/${id}/${a}?${who()}`,{method:"POST"});
    toast(`Placement: ${esc(a)}`,"good");cpView()}catch(e){toast(esc(e.message),"warn")}});
- $("#cp-save").onclick=async()=>{try{await api(`/v1/cash-placement/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({buffer_pct:+$("#cp-buf").value,min_amount_minor:Math.round(+$("#cp-min").value*100),destination:$("#cp-dest").value,enabled:$("#cp-on").checked})});toast("Placement policy saved","good");cpView()}catch(e){toast(e.message,"warn")}};
+ $("#cp-save").onclick=async()=>{try{await api(`/v1/cash-placement/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({buffer_pct:+$("#cp-buf").value,min_amount_minor:Math.round(+$("#cp-min").value*100),destination:$("#cp-dest").value,enabled:$("#cp-on").checked,
+  horizon_months:+$("#cp-hz").value||3,use_horizon_surplus:$("#cp-r1").checked,surplus_min_minor:Math.round(+$("#cp-r1v").value*100),use_lower_bound:$("#cp-r2").checked,
+  lower_bound_minor:Math.round(+$("#cp-r2v").value*100),use_upper_bound:$("#cp-r3").checked,upper_bound_minor:Math.round(+$("#cp-r3v").value*100)})});toast("Placement policy saved","good");cpView()}catch(e){toast(e.message,"warn")}};
  $("#cp-go").onclick=async()=>{try{await api(`/v1/cash-placement/instructions?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({amount_minor:Math.round(+$("#cp-amt").value*100),destination:$("#cp-to").value,note:$("#cp-note").value,provider_id:$("#cp-prov").value||null})});toast($("#cp-prov").value?"Placement proposed: the FCO approves it":"Placement proposed: a second person approves it","good");cpView()}catch(e){toast(e.message,"warn")}};
  document.querySelectorAll("[data-cpd]").forEach(btn=>btn.onclick=async()=>{try{await api(`/v1/cash-placement/instructions/${encodeURIComponent(btn.dataset.cpd)}?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({status:btn.dataset.st})});toast(`Placement ${btn.dataset.st.toLowerCase()}`,"good");cpView()}catch(e){toast(e.message,"warn")}})
 }catch(e){el.innerHTML=`<div class="err">${esc(e.message)}</div>`}}
@@ -2757,6 +3050,50 @@ async function mtView(){const el=$("#mtBody");try{const d=await api("/v1/metal")
 }catch(e){el.innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 // ---- Reporting -> Virtual card (Visa)
 let VC=null;
+async function ccView(){try{const d=await api("/v1/org/charge-codes"),s=d.scheme,c=d.current,p=d.plan,src=x=>`<span class="chip">${esc(x)}</span>`;
+ $("#ccScheme").className="";
+ $("#ccScheme").innerHTML=`<table class="tbl"><tr><th>Part</th><th>VENTHORA default</th><th>Example</th></tr>
+  ${s.office.map(o=>`<tr><td>Office · ${esc(o.kind.replace(/_/g," ").toLowerCase())}</td><td>${esc(o.rule)}</td><td class="mono">${esc(o.example)}</td></tr>`).join("")}
+  <tr><td>Project</td><td>${esc(s.project.default)} (general operations); new projects ${esc(s.project.next)}</td><td class="mono">${esc(c.next_project)} <span class="small muted">next free</span></td></tr>
+  <tr><td>Account</td><td>${esc(s.account.rule)}</td><td class="mono">001001</td></tr>
+  <tr><td>Employee number</td><td>${esc(s.employee.rule)}</td><td class="mono">${esc(s.employee.example)}</td></tr></table>
+  <div style="margin-top:10px;columns:2 300px;column-gap:24px" class="small">${s.account.categories.map(k=>`<div style="break-inside:avoid;margin-bottom:8px"><b class="mono">${esc(k.prefix)}</b> <b>${esc(k.title)}</b>${k.accounts.map(a=>`<div class="muted"><span class="mono">${esc(a.code)}</span> ${esc(a.name)}</div>`).join("")}</div>`).join("")}</div>`;
+ const n=["units","projects","accounts","employees","charge_codes"].reduce((t,k)=>t+p[k].length,0);
+ $("#ccPlanMeta").textContent=n?`${n} blank(s) to fill`:"nothing blank";$("#ccFill").disabled=!n;
+ $("#ccPlan").className=n?"":"empty";
+ $("#ccPlan").innerHTML=n?[["units","Cost centres",x=>`${esc(x.name)} → <b class="mono">${esc(x.cost_centre)}</b>`],["projects","Projects",x=>`<b class="mono">${esc(x.code)}</b> ${esc(x.name)}`],
+   ["accounts","Accounts",x=>`<b class="mono">${esc(x.code)}</b> ${esc(x.name)}`],["employees","Employee numbers",x=>`${esc(x.name)} → <b class="mono">${esc(x.employee_no)}</b>`],
+   ["charge_codes","Salary charge codes",x=>`${esc(x.name)} → <b class="mono">${esc(x.charge_code)}</b>`]].filter(([k])=>p[k].length)
+   .map(([k,t,f])=>`<div style="margin-bottom:8px"><b>${t}</b> <span class="small muted">(${p[k].length})</span><div class="small">${p[k].slice(0,40).map(f).join(" · ")}${p[k].length>40?" …":""}</div></div>`).join(""):"Every part already has a code: nothing to fill.";
+ const vd=c.accounts.filter(a=>a.source==="VENTHORA default").length;$("#ccMeta").textContent=`${c.accounts.length} account(s), ${vd} from VENTHORA`;
+ $("#ccUnits").className="";$("#ccUnits").innerHTML=table([{h:"Office",f:u=>`<b>${esc(u.name)}</b><div class="small muted">${esc(u.kind.replace(/_/g," ").toLowerCase())}${u.country?" · "+esc(u.country):""}</div>`},
+  {h:"Cost centre",f:u=>u.cost_centre?`<b class="mono">${esc(u.cost_centre)}</b>`:'<span class="muted">blank</span>'},{h:"Set by",f:u=>u.cost_centre?src(u.source):""}],c.units,"no offices");
+ $("#ccStaff").className="";$("#ccStaff").innerHTML=table([{h:"Person",f:u=>`<b>${esc(u.name)}</b><div class="small muted">${esc(unitName(u.unit_id))}</div>`},
+  {h:"Employee no.",f:u=>u.employee_no?`<span class="mono">${esc(u.employee_no)}</span>`:'<span class="muted">blank</span>'},{h:"Salary code",f:u=>u.charge_code?`<span class="mono">${esc(u.charge_code)}</span>`:'<span class="muted">blank</span>'},
+  {h:"Set by",f:u=>src(u.source)}],c.employees,"no people");
+ $("#ccFill").onclick=async()=>{try{const r=await api(`/v1/org/charge-codes/defaults?${who()}`,{method:"POST"});toast(`Filled ${r.filled} blank(s) with VENTHORA defaults`,"good");await loadOrg();ccView()}catch(e){toast(esc(e.message),"serious")}};
+}catch(e){$("#ccScheme").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+let SS=null;
+async function ssView(){try{const q=new URLSearchParams({country:$("#ssCountry").value||"",unit_id:$("#ssUnit").value||"",project:$("#ssProject").value||""});
+ SS=await api("/v1/reports/staff-spend?"+q);const f=SS.filters,keep=(sel,opts)=>{const v=sel.value;sel.innerHTML='<option value="">All</option>'+opts;sel.value=v};
+ keep($("#ssCountry"),f.countries.map(c=>`<option>${esc(c)}</option>`).join(""));
+ keep($("#ssUnit"),f.units.map(u=>`<option value="${esc(u.unit_id)}">${esc(u.name)}${u.cost_centre?" · "+esc(u.cost_centre):""}</option>`).join(""));
+ keep($("#ssProject"),f.projects.map(p=>`<option>${esc(p)}</option>`).join(""));
+ ["#ssCountry","#ssUnit","#ssProject"].forEach(i=>$(i).onchange=ssView);$("#ssQ").oninput=ssDraw;$("#ssCsv").onclick=ssCsv;ssDraw()}catch(e){$("#ssBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function ssRows(){const t=($("#ssQ").value||"").toLowerCase();return SS.rows.filter(r=>!t||r.name.toLowerCase().includes(t)||r.employee_no.toLowerCase().includes(t))}
+function ssDraw(){const b=SS.base,rows=ssRows(),m=x=>fmt(x,b),tot=rows.reduce((a,r)=>({rc:a.rc+r.totals.received_base_minor,cs:a.cs+r.totals.card_spent_base_minor,n:a.n+r.totals.advances}),{rc:0,cs:0,n:0});
+ $("#ssTiles").innerHTML=`<div class="row" style="gap:18px;margin:6px 0 10px"><div><div class="small muted">Staff</div><b>${rows.length}</b></div><div><div class="small muted">Advances received</div><b>${tot.n}</b> · <b>${m(tot.rc)}</b></div><div><div class="small muted">Spent by virtual card</div><b>${m(tot.cs)}</b></div></div>`;
+ if(!rows.length){$("#ssBody").className="empty";$("#ssBody").textContent="No staff in this filter.";return}
+ $("#ssBody").className="";$("#ssBody").innerHTML=`<table class="tbl"><tr><th>Staff</th><th>Employee no.</th><th>Branch / office</th><th>Country</th><th>Projects</th><th class="num">Advances received</th><th class="num">Spent by card</th></tr>${rows.map(r=>`<tr>
+  <td><b>${esc(r.name)}</b><div class="small muted">${esc(r.unit||"")}</div></td><td class="mono">${esc(r.employee_no||"-")}</td>
+  <td>${esc(r.branch||"-")}${r.branch_cc?` <span class="mono small">${esc(r.branch_cc)}</span>`:""}<div class="small muted">${esc(r.office||"")}${r.office_cc?" · "+esc(r.office_cc):""}</div></td>
+  <td>${esc(r.country||"-")}</td>
+  <td class="small">${r.by_project.length?r.by_project.map(p=>`<div><span class="mono">${esc(p.project)}</span> ${m(p.received_base_minor)}${p.card_spent_base_minor?` · card ${m(p.card_spent_base_minor)}`:""}</div>`).join(""):'<span class="muted">none</span>'}</td>
+  <td class="num">${r.totals.advances?`${m(r.totals.received_base_minor)}<div class="small muted">${r.totals.advances} advance(s)</div>`:'<span class="muted">-</span>'}</td>
+  <td class="num">${r.totals.cards?`${m(r.totals.card_spent_base_minor)}<div class="small muted">${r.totals.cards} card(s)</div>`:'<span class="muted">-</span>'}</td></tr>`).join("")}</table>`}
+function ssCsv(){if(!SS)return;const q=v=>`"${String(v??"").replace(/"/g,'""')}"`,b=SS.base,lines=[["employee_no","name","unit","branch","office","country","request","kind","status","charge_code","project","currency","amount","received","by_card","card_spent"].join(",")];
+ ssRows().forEach(r=>(r.lines.length?r.lines:[{}]).forEach(l=>lines.push([r.employee_no,r.name,r.unit,r.branch,r.office,r.country,l.request,l.kind,l.status,l.charge_code,l.project,l.currency,l.amount_minor!=null?l.amount_minor/100:"",l.received_minor!=null?l.received_minor/100:"",l.by_card?"yes":"",l.card_spent_minor!=null?l.card_spent_minor/100:""].map(q).join(","))));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([lines.join("\n")],{type:"text/csv"}));a.download=`staff-spending-${b}.csv`;a.click()}
 async function vcView(){rpConn();$("#vcRows").innerHTML='<div class="empty">loading…</div>';
  try{VC=await api("/v1/reports/virtual-cards");const pg=VC.program,step=(t,ok,yes,no,x)=>`<div class="vc-step"><b>${t}</b><span class="st ${ok?"ok":"no"}">${ok?"✓ "+yes:"… "+no}</span>${x?`<div class="small muted">${x}</div>`:""}</div>`;
   $("#vcProgram").innerHTML=`<div class="vc-prog">${step("1 · Company cardholder",pg.cardholder_status==="READY","ready","not created",esc(pg.cardholder||"Platform Setup → Airwallex Cards"))}
@@ -3910,19 +4247,171 @@ $("#drSave").onclick=async()=>{const req={};Object.keys(DR.kinds).forEach(k=>req
  catch(e){$("#drMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 
 // ---- User management → Airwallex account -------------------------------------------------------------------------------
-async function awxView(){try{const c=await api("/v1/airwallex/connection");window.AWX_PLATFORM=!!c.connected;if(c.connected)awxGa();else $("#awxGaBox").hidden=true;
+// ---- SaaS: the funding account (the account the company already has). Save → confirm Airwallex's terms → Yes = the
+// company's agreement, and VENTHORA opens the company's Airwallex account by itself
+const FS_FIELDS=[["bank_name"],["account_name"],["account_number"],["currency"],["country"]];
+const FS_CCY=["USD","SGD","HKD","AUD","NZD","EUR","GBP","CHF","CAD","JPY","CNY","IDR","MYR","THB","PHP","VND","INR","KRW","AED"];
+const FS_CTRY=[["SG","Singapore"],["HK","Hong Kong"],["AU","Australia"],["NZ","New Zealand"],["ID","Indonesia"],["MY","Malaysia"],["TH","Thailand"],["PH","Philippines"],
+ ["VN","Vietnam"],["IN","India"],["CN","China"],["JP","Japan"],["KR","South Korea"],["AE","United Arab Emirates"],["GB","United Kingdom"],["DE","Germany"],["FR","France"],
+ ["NL","Netherlands"],["IE","Ireland"],["CH","Switzerland"],["US","United States"],["CA","Canada"]];
+async function fsView(chosen){const box=$("#fundSrc");if(!box)return;let d;try{d=await api("/v1/funding-source")}catch(e){box.hidden=false;box.innerHTML=`<div class="err">${esc(e.message)}</div>`;return}
+ const s=d.source,fco=roleNow()==="super_admin";
+ if(!s&&(d.own_account||!chosen)){box.hidden=true;return}  // opened with Open New Account, or not chosen yet: no funding form
+ box.hidden=false;
+ const form=()=>{const v=d.defaults||{},ccys=d.currencies||["USD"],cur=ccys.includes(v.currency)?v.currency:ccys[0];
+  box.innerHTML=`<h3 style="margin:0 0 4px;font-size:15px">Funding account</h3><div class="small muted" style="margin-bottom:10px">The company's existing Airwallex account, where its top-ups come from. VENTHORA never signs in to it.</div>
+   <div class="form"><label>Bank<input id="fs-bank_name" value="Airwallex" readonly style="background:var(--surface2,#f1f5f9);cursor:not-allowed"></label>
+    <label>Airwallex account name<input id="fs-account_name" value="${esc(v.account_name||"")}"></label>
+    <label>Airwallex account number (16 digits)<input id="fs-account_number" inputmode="numeric" maxlength="19" autocomplete="off" placeholder="16 digits"></label>
+    <label>Top-up currency<select id="fs-currency">${ccys.map(c=>`<option value="${c}"${c===cur?" selected":""}>${c}</option>`).join("")}</select></label></div>
+   <div class="small muted" style="margin-top:4px">The 16-digit number Airwallex gives every account for transfers between Airwallex accounts (not a bank account number such as 848…). Airwallex checks it.</div>
+   <div class="row" style="margin-top:12px;gap:8px;align-items:center"><button class="primary" id="fsTest">Test connect</button><button class="primary" id="fsSave" hidden>Save</button><span class="small" id="fsMsg"></span></div>`;
+  const body=()=>({bank_name:"Airwallex",account_name:$("#fs-account_name").value.trim(),account_number:$("#fs-account_number").value.replace(/[\s-]/g,""),currency:$("#fs-currency").value});
+  const reset=()=>{$("#fsSave").hidden=true;$("#fsTest").disabled=false;$("#fsMsg").textContent=""};  // a change needs a new test
+  ["#fs-account_name","#fs-account_number"].forEach(i=>$(i).addEventListener("input",reset));$("#fs-currency").onchange=reset;
+  $("#fsTest").onclick=async()=>{const b=body();if(!b.account_name||!b.account_number){$("#fsMsg").innerHTML='<span class="err">enter the account holder name and the account number</span>';return}
+   $("#fsTest").disabled=true;$("#fsMsg").textContent="asking Airwallex…";
+   try{const r=await api(`/v1/funding-source/check?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});
+    if(r.passed){$("#fsMsg").innerHTML=`<span class="pill good">verified by Airwallex</span> <span class="small">${esc(r.detail)}</span>`;$("#fsSave").hidden=false}
+    else{$("#fsMsg").innerHTML=`<span class="err">${esc(r.detail)}</span>`;$("#fsTest").disabled=false}}
+   catch(e){$("#fsMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`;$("#fsTest").disabled=false}};
+  $("#fsSave").onclick=()=>{const b=body(),first=!d.own_account;$("#dlgTitle").textContent="Confirm and agree";$("#dlgErr").textContent="";
+   $("#dlgBody").innerHTML=`<div style="grid-column:1/-1" class="small"><b>Funding account</b>: Airwallex · ${esc(b.account_name)} · <span class="mono">${esc(b.account_number)}</span> · ${esc(b.currency)}</div>
+    ${first?`<div style="grid-column:1/-1" class="small rp-note">${esc(d.terms)} <a href="https://www.airwallex.com/terms" target="_blank" rel="noopener">Airwallex terms</a> · <a href="https://www.airwallex.com/terms/privacy-policy" target="_blank" rel="noopener">privacy</a></div>`:""}`;
+   $("#dlgSave").textContent="Yes";$("#dlg").querySelector('button[value="cancel"]').textContent="No";
+   $("#dlg").addEventListener("close",()=>{$("#dlgSave").textContent="Save";$("#dlg").querySelector('button[value="cancel"]').textContent="Cancel"},{once:true});
+   $("#dlg").showModal();
+   $("#dlgForm").onsubmit=async ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();$("#dlg").close();
+    $("#fsSave").disabled=true;$("#fsTest").disabled=true;$("#fsMsg").textContent=first?"saving and opening the company's Airwallex account… (up to a minute)":"saving…";
+    try{const r=await api(`/v1/funding-source?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({...b,agreed_to_terms_and_conditions:first,agreed_to_data_usage:first})});
+     if(r.opened&&r.opened.error){toast(`Saved, but the Airwallex account is not open yet: ${esc(r.opened.error)}. Test connect and save again to retry.`,"serious");$("#fsTest").disabled=false}
+     else{toast(r.opened?"The company's Airwallex account is ready":"Funding account saved","good");if(r.opened)setupNext("airwallex")}
+     awxView();if(typeof kpis==="function")kpis()}catch(e){$("#fsMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`;$("#fsTest").disabled=false}}}};
+ if(!s||(!d.own_account&&fco)){if(fco)form();else box.innerHTML='<div class="small muted">Your FCO sets up the company\'s funding account.</div>';return}  // saved but not opened: retry
+ const ga=d.topup_to||[],num=g=>[g.iban?`IBAN ${g.iban}`:g.account_number&&`Account ${g.account_number}`,...(g.routing||[]).map(r=>`${String(r.type||"").replace(/_/g," ")} ${r.value}`),g.swift_code&&`SWIFT ${g.swift_code}`].filter(Boolean).join(" · ");
+ box.innerHTML=`<h3 style="margin:0 0 4px;font-size:15px">Funding account</h3>
+  <div class="small">Airwallex · ${esc(s.account_name)} · <span class="mono">${esc(s.account_number)}</span> · ${esc(s.currency)}${s.agreement?` <span class="pill good" data-tip="${esc(s.agreement.by)} · ${esc(s.agreement.at)}">Airwallex terms agreed</span>`:""}</div>
+  <div class="row" style="margin-top:10px;gap:8px"><button class="primary" disabled>Test connect</button><button class="primary" disabled>Saved</button></div>
+  ${ga.length?`<div class="tile" style="margin-top:12px"><b>To top up:</b> from the funding account, send a transfer to the company's Airwallex account
+   ${ga.map(g=>`<div style="margin-top:6px"><b>${esc(g.currencies.join(", "))}</b> · ${esc(g.account_name||"")} · ${esc(g.institution||"")}<div class="mono small">${esc(num(g))}</div></div>`).join("")}
+   <div style="margin-top:8px">Reference: <b class="mono">${esc(s.reference)}</b> <button data-copyref>Copy</button> <span class="small muted">· put it in the transfer so VENTHORA knows it is the company's own top-up</span></div></div>`
+   :d.own_account?'<div class="small muted" style="margin-top:8px">The account numbers are being issued.</div>':'<div class="small muted" style="margin-top:8px">The company\'s Airwallex account is not open yet.</div>'}`;
+ if($("[data-copyref]"))$("[data-copyref]").onclick=()=>copyText(s.reference,"Reference")}
+async function awxView(){try{const c=await api("/v1/airwallex/connection");if(c.platform_ready)c.connected=true;window.AWX_PLATFORM=!!c.connected;
+ {const co=await api("/v1/company-account").catch(()=>({mode:"none"})),lk=co.linked,a=lk?null:c.acting_for;window.AWX_CO_OWN=!!(lk||a);$("#awxChoice").hidden=!!lk;if(lk){$("#awxSignup").hidden=true;$("#awxLink").hidden=true}
+  $("#awxCoState").innerHTML=lk?'<span class="pill good">linked · existing account</span>':a?'<span class="pill good">in use · opened in VENTHORA</span>':c.connected?'<span class="pill warn">no company account yet</span>':'<span class="pill warn">not connected yet</span>';
+  $("#awxCo").innerHTML=lk?`VENTHORA works on <b>${esc(lk.account_name)}</b>, the Airwallex account the company already had${lk.account_id?` <span class="mono">${esc(lk.account_id)}</span>`:""}: linked by ${esc(lk.linked_by||"-")} on ${esc((lk.linked_at||"").slice(0,10))} with its own key ${esc(lk.client_id_hint||"")}${lk.webhook_secret_set?" · webhook secret set":""}. Its account numbers are below. <button id="lkDrop" style="margin-left:8px">Unlink</button>`
+   :a?`VENTHORA works for <b>${esc(a.name)}</b> (${esc(a.account_id)}), opened in VENTHORA. Its account numbers: open the list below and press <b>Bank details</b>.`
+   :c.connected?"Connect the Airwallex account the company already has, or open a new one: VENTHORA fills in what it already knows.":"Connect the Airwallex account the company already has with its own key. Opening a new one waits for the Developer's one-time platform setup.";
+  if($("#lkDrop"))$("#lkDrop").onclick=async()=>{try{await api(`/v1/company-account/link?${who()}`,{method:"DELETE"});toast("Unlinked: VENTHORA is back on the platform's keys","good");awxView()}catch(e){toast(esc(e.message),"serious")}}
+  if(ME){["#awxLink","#awxSelf"].forEach(s=>{if($(s))$(s).hidden=true});  // SaaS: no API keys; VENTHORA opens the account on its own key
+   $("#awxChoice").hidden=!!a;if(a){$("#awxSignup").hidden=true;window.FS_CHOSEN=null}
+   const ch=window.FS_CHOSEN;$("#awxLinkBtn").disabled=ch==="existing";$("#awxLinkBtn").classList.toggle("chosen",ch==="existing");
+   $("#awxNew").disabled=ch==="new";$("#awxNew").classList.toggle("chosen",ch==="new");$("#awxNew").textContent="✨ Open New Account";$("#awxLinkBtn").textContent="🔗 Connect to Existing Account";
+   if(!a)$("#awxSignup").hidden=ch!=="new";
+   $("#awxCoState").innerHTML=a?'<span class="pill good">ready</span>':'<span class="pill warn">not set up yet</span>';
+   $("#awxCo").innerHTML=a?`The company's Airwallex account <b>${esc(a.name)}</b> is ready.`:"Choose how to set up the company's Airwallex account.";
+   fsView(ch==="existing")}}if(c.connected&&window.AWX_CO_OWN)awxGa();else $("#awxGaBox").hidden=true;
  $("#awxState").innerHTML=c.connected?`<span class="pill good">CONNECTED · ${c.sandbox?"SANDBOX":"LIVE"}</span>`:'<span class="pill critical">NOT CONNECTED</span>';
  $("#awxNow").innerHTML=`<dl class="kv"><dt>Credentials</dt><dd>${c.source==="settings"?`connected here${c.updated_by?` by ${esc(c.updated_by)}`:""}`:c.source==="env"?"from .env on this machine":"none"}${c.client_id_hint?` · client ID ${esc(c.client_id_hint)}`:""}${c.key_set?" · key set":""}</dd>
   ${c.account_name?`<dt>Account</dt><dd>${esc(c.account_name)}</dd>`:""}<dt>Wallet</dt><dd>${c.connected?`${c.currencies.length} currenc${c.currencies.length===1?"y":"ies"} held (${esc(c.currencies.join(", ")||"none")}) · ${c.global_accounts} Global Account(s)`:esc(c.error||"")}</dd>
   <dt>API</dt><dd class="mono">${esc(c.base_url)}</dd>${c.acting_for?`<dt>Working for</dt><dd><b>${esc(c.acting_for.name)}</b> <span class="mono small">${esc(c.acting_for.account_id)}</span> · opened from VENTHORA, no key of its own <button id="awxBack">Back to the main account</button></dd>`:""}</dl>`;
+ if(ME&&$("#awxBack"))$("#awxBack").remove();
  if($("#awxBack"))$("#awxBack").onclick=async()=>{try{await api(`/v1/airwallex/acting?${who()}`,{method:"DELETE"});toast("Back to the main account","good");awxView();kpis()}catch(e){toast(e.message,"critical")}};
  $("#awx-name").value=c.account_name||""}
  catch(e){$("#awxNow").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 const SU_COUNTRIES=[["SG","Singapore"],["ID","Indonesia"],["MY","Malaysia"],["HK","Hong Kong"],["AU","Australia"],["NZ","New Zealand"],["GB","United Kingdom"],["US","United States"],["DE","Germany"],["NL","Netherlands"],["FR","France"],["JP","Japan"],["CN","China"],["CA","Canada"],["AE","United Arab Emirates"]];
-$("#su-country").innerHTML=SU_COUNTRIES.map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join("");
-$("#awxNew").onclick=()=>{if(!window.AWX_PLATFORM){const n=$("#awxSelf");n.hidden=!n.hidden;return}const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxNew").textContent=box.hidden?"✨ Don't have an account yet? Open one here":"Close";
- $("#awxNew").classList.toggle("open",!box.hidden);if(!box.hidden){suList();$("#su-biz").focus()}};
-$("#su-type").onchange=()=>{const biz=$("#su-type").value==="BUSINESS";document.querySelectorAll(".su-biz").forEach(e=>e.hidden=!biz);document.querySelectorAll(".su-ind").forEach(e=>e.hidden=biz)};
+$("#awxNew").onclick=()=>{if(ME){window.FS_CHOSEN="new";$("#fundSrc").hidden=true;awxView();suList();suPrefill();return}  // SaaS: only the open-account form
+ if(!window.AWX_PLATFORM){const n=$("#awxSelf");n.hidden=!n.hidden;return}const box=$("#awxSignup");box.hidden=!box.hidden;$("#awxLink").hidden=true;$("#awxNew").textContent=box.hidden?"✨ Open New Account":"Close";
+ $("#awxNew").classList.toggle("open",!box.hidden);if(!box.hidden){suList();suPrefill()}};
+const LK=()=>({client_id:$("#lk-cid").value.trim(),api_key:$("#lk-key").value.trim()});
+function lkMode(review){$("#lkCheck").hidden=review;$("#lkGo").hidden=!review;$("#lkEdit").hidden=!review;$("#lkReview").hidden=!review;["#lk-cid","#lk-key"].forEach(i=>$(i).disabled=review)}
+function lkReview(d){const gas=d.global_accounts||[],num=g=>[g.account_number&&`No. ${g.account_number}`,g.iban&&`IBAN ${g.iban}`,...(g.routing||[]).map(r=>`${(r.type||"routing").replace(/_/g," ")} ${r.value}`),g.swift_code&&`SWIFT ${g.swift_code}`].filter(Boolean).join(" · ");
+ return `<div class="rp-note small"><b>Verify before connecting.</b> This is the account the key opens; VENTHORA will pay from it and read its deposits.</div>
+ <table class="tbl"><tr><td class="muted">Account</td><td><b>${esc(d.account_name)}</b>${d.account_id?` <span class="mono small">${esc(d.account_id)}</span>`:""}${d.status?` ${pill(d.status)}`:""}</td></tr>
+ <tr><td class="muted">Balances</td><td>${(d.balances=d.balances.filter(b=>b.total||b.available||b.pending)).length?d.balances.map(b=>`${fmt(b.available,b.currency)} <span class="small muted">available</span>`).join("<br>"):'<span class="muted">no balance yet</span>'}</td></tr>
+ <tr><td class="muted">Account numbers</td><td>${gas.length?gas.map(g=>`<div><b>${esc((g.currencies||[]).join(", ")||g.country_code||"")}</b> ${esc(g.country_code||"")} · ${esc(g.nick_name||"")} ${pill(g.status)}<div class="mono small">${esc(num(g)||"number not issued yet")}</div></div>`).join(""):'<span class="muted">no Global Account yet: create one after connecting</span>'}</td></tr></table>`}
+$("#awxLinkBtn").onclick=()=>{if(ME){window.FS_CHOSEN="existing";$("#awxSignup").hidden=true;awxView();return}  // SaaS: only the funding-account form
+ const box=$("#awxLink");box.hidden=!box.hidden;$("#awxSignup").hidden=true;$("#awxSelf").hidden=true;$("#awxNew").textContent="✨ Open New Account";$("#awxLinkBtn").textContent=box.hidden?"🔗 Connect to Existing Account":"Close";lkMode(false)};
+$("#lkCheck").onclick=async()=>{const b=LK();if(!b.client_id||!b.api_key){$("#lkMsg").textContent="Paste the Client ID and the API key";return}
+ $("#lkMsg").textContent="logging in to Airwallex…";try{const d=await api(`/v1/company-account/link/check?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});
+  $("#lkReview").innerHTML=lkReview(d);lkMode(true);$("#lkMsg").textContent=""}catch(e){$("#lkMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#lkEdit").onclick=()=>lkMode(false);
+$("#lkGo").onclick=async()=>{$("#lkMsg").textContent="connecting…";try{const d=await api(`/v1/company-account/link?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(LK())});
+  $("#lk-key").value="";lkMode(false);$("#lkMsg").textContent="";$("#awxLink").hidden=true;$("#awxLinkBtn").textContent="🔗 Connect to Existing Account";
+  const wh=d.webhooks||{};toast(`Connected: VENTHORA now works on ${esc(d.account_name)}${wh.error?` · notifications not subscribed (${esc(wh.error)}); balances are still read on every check`:" · notifications subscribed"}`,wh.error?"warn":"good");awxView();if(typeof kpis==="function")kpis();setupNext("airwallex")}catch(e){$("#lkMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+let SU=null;
+async function suPrefill(){try{SU=await api("/v1/airwallex/accounts/prefill");INDUSTRIES=INDUSTRIES||await api("/v1/airwallex/industries").catch(()=>[]);
+ const secs={};SU.fields.forEach(f=>(secs[f.section]=secs[f.section]||[]).push(f));
+ const input=f=>{const v=f.value??"",id=`su-${f.key}`;
+  if(f.key==="industry_code"&&INDUSTRIES.length){const g={};INDUSTRIES.forEach(i=>(g[i.group]=g[i.group]||[]).push(i));return `<select id="${id}"><option value="">choose…</option>${Object.entries(g).map(([n,xs])=>`<optgroup label="${esc(n)}">${xs.map(x=>`<option value="${esc(x.code)}" ${x.code===v?"selected":""}>${esc(x.name)}</option>`).join("")}</optgroup>`).join("")}</select>`}
+  if(f.key==="country_code")return `<select id="${id}"><option value="">choose…</option>${SU_COUNTRIES.map(([c,n])=>`<option value="${c}" ${c===v?"selected":""}>${esc(n)}</option>`).join("")}</select>`;
+  if(f.choices)return `<select id="${id}">${f.choices.map(c=>`<option ${c===v?"selected":""}>${c}</option>`).join("")}</select>`;
+  return `<input id="${id}" value="${esc(v)}" ${f.key==="director_date_of_birth"?'type="date"':f.key==="monthly_revenue"?'type="number" min="0"':""}>`};
+ $("#suForm").className="";$("#suForm").innerHTML=Object.entries(secs).map(([s,fs])=>`<h3 class="small muted" style="margin:10px 0 4px">${esc(s)}</h3><div class="form">${fs.map(f=>`<label${f.key==="description"||f.key==="business_name"||f.key==="industry_code"?' style="grid-column:1/-1"':""}>${esc(f.label)}${f.required?"":" (optional)"}
+   <span class="small" style="color:${f.source?"var(--good,#16a34a)":"var(--warn,#d97706)"}">${f.source?`✓ from ${esc(f.source)}`:f.required?"needed":"not set"}</span>${input(f)}</label>`).join("")}</div>`).join("")
+  +`<h3 class="small muted" style="margin:10px 0 4px">Airwallex agreements (ticked each time)</h3><div class="small muted" style="margin-bottom:6px">Open and read each document first: its box can be ticked once it has been opened.</div>
+   <div class="form"><label class="check" style="grid-column:1/-1"><input type="checkbox" id="su-terms" disabled> The company agrees to Airwallex's terms and conditions · <a href="${AWX_TERMS_URL}" target="_blank" rel="noopener" data-agree="su-terms">Read the terms</a></label>
+   <label class="check" style="grid-column:1/-1"><input type="checkbox" id="su-data" disabled> The company agrees to Airwallex's data usage · <a href="${AWX_PRIVACY_URL}" target="_blank" rel="noopener" data-agree="su-data">Read the privacy policy</a></label></div>`
+  +(SU.missing.length?`<div class="small" style="margin-top:6px">${SU.missing.length} field(s) VENTHORA does not have yet; everything else is filled in.</div>`:"");
+ suMode(false);suAgreeWire()}catch(e){$("#suForm").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+// a box becomes tickable once its document was opened; "Check the details" waits until both are ticked
+function suAgreeWire(){const both=()=>{$("#suCheck").disabled=!($("#su-terms").checked&&$("#su-data").checked)};
+ document.querySelectorAll("[data-agree]").forEach(a=>a.addEventListener("click",()=>{const c=$(`#${a.dataset.agree}`);c.disabled=false;c.parentElement.title=""}));
+ ["#su-terms","#su-data"].forEach(i=>{$(i).onchange=both;$(i).parentElement.title="Open the document first"});both()}
+// After a Platform Setup step is done: invite to the next one. Yes opens it; No (or closing) goes to the Dashboard.
+const SETUP_NEXT={airwallex:{to:"#/ai",step:"2 · Agent (AI & Model)",done:"The company's Airwallex account is ready.",
+ what:"Next, choose the model VENTHORA uses to read invoices, plan payments and explain its decisions."}};
+function setupNext(from){const n=SETUP_NEXT[from],dlg=$("#dlg");if(!n||!dlg)return;
+ const show=()=>{let yes=false;const save=$("#dlgSave"),cancel=$("#dlgForm button[value=cancel]"),was=[save.textContent,cancel.textContent];
+  $("#dlgTitle").textContent=`Continue the setup: ${n.step}`;$("#dlgErr").textContent="";
+  $("#dlgBody").innerHTML=`<div style="grid-column:1/-1"><div class="small rp-note">✓ ${esc(n.done)}</div>
+   <p style="margin:10px 0 0">${esc(n.what)}</p><p class="small muted" style="margin:6px 0 0">Platform Setup → <b>${esc(n.step)}</b></p></div>`;
+  save.hidden=false;save.textContent=`Yes, go to ${n.step.replace(/^\d+ · /,"")}`;cancel.textContent="No, back to the Dashboard";
+  $("#dlgForm").onsubmit=ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();yes=true;dlg.close()};
+  dlg.addEventListener("close",()=>{save.textContent=was[0];cancel.textContent=was[1];location.hash=yes?n.to:"#/overview"},{once:true});dlg.showModal()};
+ if(dlg.open)dlg.addEventListener("close",()=>setTimeout(show,60),{once:true});else show()}
+function bankPopup(rec,opened){const gas=rec.global_accounts||[];
+ const line=(k,v)=>v?`<tr><td class="small muted">${esc(k)}</td><td><b style="font-family:ui-monospace,monospace">${esc(v)}</b></td><td><button type="button" data-copy="${esc(v)}">Copy</button></td></tr>`:"";
+ const block=g=>{const rt=(g.routing||[]).map(r=>[`${(r.type||"routing").replace(/_/g," ")}${r.system?` (${r.system})`:""}`,r.value]);
+  const all=[["Account name",g.account_name],["Account number",g.account_number],["IBAN",g.iban],...rt,["SWIFT / BIC",g.swift_code],["Bank",g.institution]].filter(x=>x[1]);
+  const pending=!(g.account_number||g.iban);
+  return `<div class="tile" style="margin:8px 0"><div class="row" style="justify-content:space-between"><b>${esc((g.currencies||[]).join(", "))} · ${esc(g.country_code||"")}</b><span class="small muted">${esc(g.status||"")}</span></div>
+   ${pending?`<div class="small" style="color:var(--warn,#d97706);margin-top:4px">Airwallex is still issuing the account number (${esc(g.status||"PROCESSING")}). Open <b>Bank details</b> again in a moment: VENTHORA reads it again.</div>`:""}
+   <table style="width:100%;margin-top:6px">${all.map(([k,v])=>line(k,v)).join("")}</table>
+   <button type="button" data-copy="${esc(all.map(([k,v])=>`${k}: ${v}`).join("\n"))}" style="margin-top:6px">Copy all</button></div>`};
+ $("#dlgTitle").textContent=opened?`Account opened · ${rec.company}`:`Bank details · ${rec.company}`;$("#dlgErr").textContent="";
+ $("#dlgBody").innerHTML=`<div style="grid-column:1/-1">${opened?'<div class="small rp-note"><b>The company\'s Airwallex account is ready.</b> These are its own bank account numbers: money sent to them lands in its Airwallex balance.</div>':""}
+  ${gas.length?gas.map(block).join(""):'<div class="empty">No account numbers yet.</div>'}
+  ${(rec.notes||[]).length?`<div class="small muted">Not offered by Airwallex: ${esc(rec.notes.join("; "))}</div>`:""}
+  <h4 style="margin:12px 0 4px">How to fund it</h4><ol class="small" style="margin:0 0 0 18px;padding:0">
+   <li>From the company's bank, send a <b>local bank transfer</b> in the account's currency to the details above (the account name is the company's).</li>
+   <li>Put the company name in the transfer reference.</li>
+   <li>It shows in <b>Balance received</b> and counts in the balance once Airwallex marks it <b>SETTLED</b> (minutes for fast local transfers, up to a working day).</li>
+   <li>Sandbox: no bank is involved. Use <b>Demo-Only → Sandbox simulator → Simulate deposit</b>.</li></ol>
+  <div class="small muted" style="margin-top:8px">These details stay under Platform Setup → Airwallex Global Account → <b>Bank details</b>, beside the company.</div></div>`;
+ const save=$("#dlgSave"),cancel=$("#dlgForm button[value=cancel]");save.hidden=true;const was=cancel.textContent;cancel.textContent="Close";
+ $("#dlgBody").querySelectorAll("[data-copy]").forEach(x=>x.onclick=async()=>{const t=x.textContent;try{await navigator.clipboard.writeText(x.dataset.copy);x.textContent="Copied"}catch(e){x.textContent="Copy failed"}setTimeout(()=>x.textContent=t,1500)});
+ $("#dlgForm").onsubmit=null;$("#dlg").addEventListener("close",()=>{save.hidden=false;cancel.textContent=was},{once:true});$("#dlg").showModal()}
+function suValues(){const v={};SU.fields.forEach(f=>{const el=$(`#su-${f.key}`);v[f.key]=el?el.value.trim():""});return v}
+const AWX_TERMS_URL="https://www.airwallex.com/terms",AWX_PRIVACY_URL="https://www.airwallex.com/terms/privacy-policy";
+function suMode(review){$("#suForm").hidden=review;$("#suReview").hidden=!review;$("#suCheck").hidden=review;$("#suGo").hidden=!review;$("#suEdit").hidden=!review;$("#suMsg").textContent=""}
+$("#suEdit").onclick=()=>suMode(false);
+$("#suCheck").onclick=()=>{const v=suValues(),miss=SU.fields.filter(f=>f.required&&!v[f.key]).map(f=>f.label);
+ if(miss.length){$("#suMsg").innerHTML=`<span class="err">Still needed: ${esc(miss.join(", "))}</span>`;return}
+ if(!($("#su-terms").checked&&$("#su-data").checked)){$("#suMsg").innerHTML='<span class="err">Tick both Airwallex agreements</span>';return}
+ const show=f=>f.key==="industry_code"?((INDUSTRIES||[]).find(i=>i.code===v[f.key])||{}).name||v[f.key]:f.key==="country_code"?((SU_COUNTRIES.find(c=>c[0]===v[f.key])||[])[1]||v[f.key]):v[f.key];
+ const changed=f=>f.source&&String(f.value??"")!==v[f.key];
+ $("#suReview").innerHTML=`<div class="small rp-note"><b>This is what will be sent to Airwallex.</b> Check each value; nothing is sent until you press Create.</div><table class="tbl"><tr><th>Section</th><th>Field</th><th>Value</th><th>Source</th></tr>${SU.fields.map(f=>`<tr><td class="small muted">${esc(f.section)}</td><td>${esc(f.label)}</td><td><b>${esc(show(f)||"—")}</b></td><td class="small">${changed(f)?"changed by you":f.source?esc(f.source):v[f.key]?"entered now":"—"}</td></tr>`).join("")}
+  <tr><td class="small muted">Agreements</td><td>Terms and conditions · data usage</td><td><b>agreed</b></td><td class="small">ticked now</td></tr></table>`;suMode(true)};
+$("#suGo").onclick=async()=>{$("#suMsg").textContent="opening the account at Airwallex…";$("#suGo").disabled=true;
+ try{const a=await api(`/v1/airwallex/accounts/open?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({values:suValues(),agreed_to_terms_and_conditions:$("#su-terms").checked,agreed_to_data_usage:$("#su-data").checked})});
+  const bad=(a.steps||[]).find(s=>s.error);
+  $("#suMsg").innerHTML=bad?`<span class="pill warn">${esc(a.status)}</span> opened, but the ${esc(bad.step)} step was refused: ${esc(bad.error)}`:`<span class="pill good">${esc(a.status)}</span> account opened and sent to Airwallex's verification`;
+  toast(bad?"Airwallex account opened; one step needs attention":a.bank_details?"Airwallex account opened: its account numbers are ready":"Airwallex account opened and submitted",bad?"warn":"good");suList(a.id);
+  if(a.bank_details)bankPopup(a.bank_details,true);
+  if(a.status==="ACTIVE"&&!bad){awxView();setupNext("airwallex")}}  // after the account numbers are closed
+ catch(e){$("#suMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}finally{$("#suGo").disabled=false}};
 let INDUSTRIES=null;
 async function kybForm(a,envName){INDUSTRIES=INDUSTRIES||await api("/v1/airwallex/industries");
  $("#dlgTitle").textContent=`Company details · ${a.name}`;$("#dlgErr").textContent="";
@@ -3955,17 +4444,13 @@ async function suList(expect="",tries=6){const r=await settle(api("/v1/airwallex
   {h:"Contact",f:a=>`<span class="small">${esc(a.email||"-")}</span>`},{h:"Status",f:a=>`<span class="pill ${a.status==="ACTIVE"?"good":a.status==="SUSPENDED"?"critical":"warn"}">${esc(a.status||"-")}</span>`},
   {h:"",f:a=>`<span class="row" style="flex-wrap:nowrap">`+(["CREATED","ACTION_REQUIRED"].includes(a.status)?(a.type==="BUSINESS"?`<button data-kyb="${esc(a.id)}">Complete details</button>`:"")+`<button class="primary" data-sub="${esc(a.id)}">Submit for verification</button>`
    :a.status==="SUBMITTED"?(r.v.environment==="sandbox"?`<button class="primary" data-approve="${esc(a.id)}" title="sandbox only: Airwallex's review decided at once">Approve (sandbox)</button>`:'<span class="small muted">Airwallex is reviewing it</span>')
-   :a.status==="ACTIVE"?`<button class="primary" data-use="${esc(a.id)}">Use this account</button>`:"")+`</span>`}],r.v.items):"";
+   :a.status==="ACTIVE"?`<button data-bank="${esc(a.id)}">Bank details</button><button class="primary" data-use="${esc(a.id)}">Use this account</button>`:"")+`</span>`}],r.v.items):"";
+  $("#suList").querySelectorAll("[data-bank]").forEach(b=>b.onclick=async()=>{const id=b.dataset.bank;try{bankPopup(await api(`/v1/airwallex/accounts/${id}/bank-details`),false)}
+   catch(e){try{b.textContent="opening…";bankPopup(await api(`/v1/airwallex/accounts/${id}/bank-details?${who()}`,{method:"POST"}),true)}catch(e2){toast(esc(e2.message),"critical")}finally{b.textContent="Bank details"}}});
   $("#suList").querySelectorAll("[data-kyb]").forEach(b=>b.onclick=()=>kybForm(r.v.items.find(a=>a.id===b.dataset.kyb),r.v.environment));
   $("#suList").querySelectorAll("[data-approve]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.approve}/sandbox-approve?${who()}`,{method:"POST"});toast("Approved on the sandbox: the account is ACTIVE","good");suList()}catch(e){toast(e.message,"critical")}});
   $("#suList").querySelectorAll("[data-use]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.use}/use?${who()}`,{method:"POST"});toast("VENTHORA now works for this account","good");awxView();kpis()}catch(e){toast(e.message,"critical")}});
  $("#suList").querySelectorAll("[data-sub]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/airwallex/accounts/${b.dataset.sub}/submit?${who()}`,{method:"POST"});toast("Submitted to Airwallex","good");suList()}catch(e){toast(e.message,"critical")}})}
-$("#suGo").onclick=async()=>{const biz=$("#su-type").value==="BUSINESS";$("#suMsg").textContent="asking Airwallex…";
- const body={legal_entity_type:$("#su-type").value,business_name:biz?$("#su-biz").value.trim():"",first_name:biz?"":$("#su-first").value.trim(),last_name:biz?"":$("#su-last").value.trim(),
-  country_code:$("#su-country").value,email:$("#su-email").value.trim(),mobile:$("#su-mobile").value.trim(),agreed_to_terms_and_conditions:$("#su-terms").checked,agreed_to_data_usage:$("#su-data").checked};
- try{const a=await api(`/v1/airwallex/accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
-  $("#suMsg").innerHTML=`<span class="pill good">${esc(a.status)}</span> account ${esc(a.id)} opened; submit it for verification below`;toast("Airwallex account created","good");suList(a.id)}
- catch(e){$("#suMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#awxConnect").onclick=async()=>{$("#awxMsg").textContent="logging in to Airwallex…";
  try{await api(`/v1/airwallex/connection?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({client_id:$("#awx-cid").value.trim(),api_key:$("#awx-key").value||null,account_name:$("#awx-name").value.trim(),environment:$("#awx-env").value})});
   $("#awx-key").value="";$("#awx-cid").value="";$("#awxMsg").innerHTML='<span class="pill good">CONNECTED</span>';toast("Airwallex account connected","good");awxView();kpis()}
@@ -3977,13 +4462,18 @@ async function awxGa(){const box=$("#awxGaBox");try{const r=await api("/v1/airwa
  $("#awxGaOpt").innerHTML=(r.options||[]).map(o=>`<option value="${o.currency}|${o.country_code}">${esc(o.label)}</option>`).join("");
  const live=(r.items||[]).filter(g=>g.status!=="CLOSED");
  const row=(k,v)=>v?`<div class="row" style="gap:8px;padding:3px 0;border-top:1px solid var(--line)"><span class="small muted" style="width:130px">${esc(k)}</span><span class="mono">${esc(v)}</span></div>`:"";
- $("#awxGaList").className="";$("#awxGaList").innerHTML=live.length?`<div class="k4" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${live.map((g,i)=>`<div class="tile">
-  <div class="row" style="gap:8px;align-items:center"><b>${esc(g.currencies.join(", "))}</b><span class="small muted">${esc(g.country_code||"")} · ${esc(g.nick_name||"")}</span><span class="pill ${g.status==="ACTIVE"?"good":"warn"}" style="margin-left:auto">${esc(g.status||"-")}</span></div>
-  ${row("Account name",g.account_name)}${row(g.iban?"IBAN":"Account number",g.iban||g.account_number||"not issued yet")}${(g.routing||[]).map(x=>row(String(x.type||"routing").replaceAll("_"," "),x.value)).join("")}${row("SWIFT / BIC",g.swift_code)}${row("Bank",g.institution)}
-  <div class="row" style="gap:8px;margin-top:8px">${g.status==="ACTIVE"?`<button data-awxcopy="${i}">Copy bank details</button>`:'<span class="small muted">wait until ACTIVE before sending money</span>'}</div></div>`).join("")}</div>`
-  :'<div class="empty">no Global Account yet: choose a currency (USD first) and press <b>Create Global Account</b></div>';
+ const rt=g=>(g.routing||[]).filter(x=>!(g.swift_code&&/swift/i.test(x.type||"")));
+ $("#awxGaList").className="";$("#awxGaList").innerHTML=live.length?`<table class="tbl"><tr><th>Currency</th><th>Country</th><th>Nickname</th><th>Account no.</th><th>Status</th><th></th></tr>${live.map((g,i)=>`<tr>
+  <td><b>${esc(g.currencies.length>3?g.currencies.slice(0,3).join(", ")+` +${g.currencies.length-3}`:g.currencies.join(", "))}</b></td><td>${esc(g.country_code||"")}</td><td class="small">${esc(g.nick_name||"")}</td>
+  <td class="mono small">${esc(g.iban||g.account_number||"not issued yet")}</td><td><span class="pill ${g.status==="ACTIVE"?"good":"warn"}">${esc(g.status||"-")}</span></td>
+  <td style="text-align:right;white-space:nowrap"><button data-awxshow="${i}">Bank details</button>${g.status==="ACTIVE"?` <button data-awxcopy="${i}">Copy</button>`:""}</td></tr>
+  <tr data-awxdet="${i}" hidden><td colspan="6" style="background:var(--soft,transparent)">${row("Currencies",g.currencies.join(", "))}${row("Account name",g.account_name)}${row(g.iban?"IBAN":"Account number",g.iban||g.account_number||"not issued yet")}${rt(g).map(x=>row(String(x.type||"routing").replaceAll("_"," "),x.value)).join("")}${row("SWIFT / BIC",g.swift_code)}${row("Bank",g.institution)}
+  ${g.status==="ACTIVE"?"":'<div class="small muted" style="margin-top:6px">wait until ACTIVE before sending money</div>'}</td></tr>`).join("")}</table>`
+  :'<div class="empty">no Global Account yet: press <b>+ New Global Account</b>, choose a currency (USD first) and create it</div>';
+ $("#awxGaList").querySelectorAll("[data-awxshow]").forEach(b=>b.onclick=()=>{const d=$(`#awxGaList [data-awxdet="${b.dataset.awxshow}"]`);d.hidden=!d.hidden;b.textContent=d.hidden?"Bank details":"Hide"});
  $("#awxGaList").querySelectorAll("[data-awxcopy]").forEach(b=>b.onclick=()=>copyText(gaDetails(live[+b.dataset.awxcopy]),"Bank details"))}
- catch(e){box.hidden=false;$("#awxGaList").className="empty";$("#awxGaList").textContent=e.message.includes("503")?"Connect an Airwallex account above first.":e.message}}
+ catch(e){box.hidden=false;$("#awxGaList").className="empty";$("#awxGaList").textContent=e.status===503?"Connect an Airwallex account above first.":e.message}}
+$("#awxGaAdd").onclick=()=>{const f=$("#awxGaForm");f.hidden=!f.hidden;$("#awxGaAdd").textContent=f.hidden?"+ New Global Account":"Close"};
 $("#awxGaOpen").onclick=async()=>{const [currency,country_code]=$("#awxGaOpt").value.split("|");if(!currency){toast("Choose a currency","serious");return}
  if(!confirm(`Create a ${currency} Global Account (${country_code}) at Airwallex for this company?`))return;$("#awxGaMsg").textContent="creating…";
  try{const g=await api(`/v1/airwallex/global-accounts?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({currency,country_code,nick_name:$("#awxGaNick").value.trim()||"Top-up account",allow_duplicate:true})});
@@ -3994,7 +4484,8 @@ const gaDetails=g=>[`Account name: ${g.account_name||"-"}`,g.iban?`IBAN: ${g.iba
  `Currency: ${g.currencies.join(", ")}`,`Country: ${g.country_code||"-"}`].filter(Boolean).join("\n");
 const gaInstruction=g=>`Please pay by a local ${g.currencies.length===1?g.currencies[0]+" ":""}bank transfer to:\n\n${gaDetails(g)}\n\nReference: our invoice number.\nThank you.`;
 async function copyText(t,what){try{await navigator.clipboard.writeText(t);toast(`${what} copied`,"good")}catch(e){prompt("Copy:",t)}}
-async function receivingView(){try{const r=await api("/v1/airwallex/global-accounts");GAS=r.items;
+async function receivingView(){try{const own=await coOwn();$("#gaOpenRow").hidden=!own;if(!own){GAS=[];$("#gaList").innerHTML=NO_CO_ACCOUNT;return}
+ const r=await api("/v1/airwallex/global-accounts");GAS=r.items;
  $("#gaOpt").innerHTML=r.options.map(o=>`<option value="${o.currency}|${o.country_code}">${esc(o.label)}</option>`).join("");
  const live=GAS.filter(g=>g.status!=="CLOSED");
  $("#gaList").innerHTML=live.length?`<div class="k4" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr))">${live.map((g,i)=>{const dep=g.deposits[0];
@@ -4027,11 +4518,11 @@ const ROLE_GUIDE=[["Super admin (FCO)","Head quarter","Monitors everything; may 
  ["Country finance lead","A country office","Approves staff claims and payments of its office within its limit."],["Project accountant","A project","Approves within its own limit for its project."],
  ["Treasury analyst","Any office","Prepares runs and reports; approves nothing."],["Requester","Any office","Asks for payments (payment orders, claims); never approves its own."],
  ["Auditor","Any office","Reads everything, changes nothing."],["API key","An application","Another system calling VENTHORA within its scopes (Platform Setup → App Integration)."]];
-async function adminView(){try{await loadOrg();
+async function adminView(){try{await loadOrg();await authStatus();
  $("#adminLevels").innerHTML=LEVELS.map(([role,label,kind])=>{const rows=ORG.users.filter(u=>u.role===role);
   return `<h3 class="small muted" style="margin:12px 0 6px">${esc(label)} <span class="muted">· ${esc(KIND[kind])}</span></h3>`+table([{h:"Name",f:u=>`<b>${esc(u.name)}</b>${u.active===false?' <span class="small muted">inactive</span>':""}`},{h:"Email",f:u=>`<span class="mono small">${esc(u.email)}</span>`},
-   {h:"Unit",f:u=>esc(unitName(u.unit_id))},{h:"Reach",f:u=>role==="super_admin"||role==="hq_admin"?"company-wide":`${esc(unitName(u.unit_id))} and the units under it`},{h:"",f:u=>rowActs("users",u.user_id)}],rows,"nobody yet")}).join("");
- wireActs($("#adminLevels"),"users",()=>ORG.users,"user_id",USER_FIELDS,adminView);
+   {h:"Unit",f:u=>esc(unitName(u.unit_id))},{h:"Reach",f:u=>role==="super_admin"||role==="hq_admin"?"company-wide":`${esc(unitName(u.unit_id))} and the units under it`},...(ME?[{h:"Sign-in",f:u=>signCell(u)}]:[]),{h:"",f:u=>`<div class="acts">${signBtn(u)}${rowActs("users",u.user_id)}</div>`}],rows,"nobody yet")}).join("");
+ wireActs($("#adminLevels"),"users",()=>ORG.users,"user_id",USER_FIELDS,adminView);wireSignIn($("#adminLevels"),()=>setTimeout(adminView,300));
  $("#roleGuide").innerHTML=table([{h:"Account",f:r=>`<b>${esc(r[0])}</b>`},{h:"Sits at",f:r=>esc(r[1])},{h:"May",f:r=>`<span class="small">${esc(r[2])}</span>`}],ROLE_GUIDE)+'<div class="small muted" style="margin-top:6px">Add people in User management; admins here.</div>';
  loadActors()}catch(e){$("#adminLevels").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#addAdmin").onclick=async()=>{await loadOrg();$("#dlgTitle").textContent="Add admin";$("#dlgErr").textContent="";
@@ -4055,21 +4546,21 @@ $("#locTest").onclick=async()=>{$("#locMsg").textContent="testing…";try{const 
  $("#locMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> answered in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#locUse").onclick=async()=>{try{await aiSend("/v1/settings/ai",locBody(),"PUT");toast("Local model in use","good");localView()}catch(e){$("#locMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 let KV=null;
-const kBody=(mode)=>({mode,consent_external:$("#k-consent").checked,provider:{name:$("#k-prov").value,model:$("#k-model").value.trim(),api_key:$("#k-key").value||null,base_url:$("#k-base").value.trim(),workspace_id:$("#k-ws").value.trim()},self_hosted:KV?{endpoint:KV.self_hosted.endpoint,model:KV.self_hosted.model,token:null}:{}});
+const kBody=(mode)=>({mode,consent_external:$("#k-consent").checked,provider:{name:$("#k-prov").value,model:$("#k-model").value.trim(),api_key:secretIn($("#k-key").value),base_url:$("#k-base").value.trim(),workspace_id:$("#k-ws").value.trim()},self_hosted:KV?{endpoint:KV.self_hosted.endpoint,model:KV.self_hosted.model,token:null}:{}});
 function kShow(){const p=$("#k-prov").value,info=(KV.providers[p]||{}),saved=KV.keys[p];
  $("#k-base-l").style.display=info.custom||info.regional?"":"none";$("#k-base").placeholder=info.regional?`${info.base_url} (change the region if needed)`:"https://…/v1";$("#k-ws-l").hidden=p!=="anthropic";$("#k-ws").value=saved?.workspace_id||"";$("#k-key").placeholder=saved?`saved (${saved.key_hint}); blank keeps it`:"paste the key";
  pickModels("k-model-sel","k-model",info.suggested,saved?.model||(p===KV.provider.name?KV.provider.model:"")||info.default||"");$("#k-base").value=saved?.base_url||"";
  $("#k-consent-t").textContent=`Email and PDF text will be sent to ${info.label||p} to be read. I am allowed to share it.`}
 async function keysView(){try{KV=await api("/v1/settings/ai");const cur=$("#k-prov").value;
  $("#k-prov").innerHTML=Object.entries(KV.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}${KV.keys[k]?" ✓":""}</option>`).join("");
- $("#k-prov").value=cur&&KV.providers[cur]?cur:(KV.mode==="provider"?KV.provider.name:"anthropic");$("#k-key").value="";$("#k-consent").checked=!!KV.consent_external;kShow();
+ $("#k-prov").value=cur&&KV.providers[cur]?cur:(KV.mode==="provider"?KV.provider.name:"anthropic");maskField("k-key",!!((KV.keys||{})[$("#k-prov").value]||{}).key_set);$("#k-consent").checked=!!KV.consent_external;kShow();
  $("#keyActive").textContent=`in use: ${KV.active}`;
  $("#kSaved").innerHTML=table([{h:"Provider",f:([k])=>`<b>${esc((KV.providers[k]||{}).label||k)}</b>${KV.mode==="provider"&&KV.provider.name===k?' <span class="pill good">IN USE</span>':""}`},{h:"Key",f:([,v])=>`<span class="mono">${esc(v.key_hint||"")}</span>`},
   {h:"Model",f:([,v])=>esc(v.model||"-")},{h:"",f:([k])=>`<button data-kdel="${esc(k)}">Delete</button>`}],Object.entries(KV.keys),"no key saved yet");
  $("#kSaved").querySelectorAll("[data-kdel]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete this key from VENTHORA?"))return;try{await api(`/v1/settings/ai/keys/${b.dataset.kdel}?${who()}`,{method:"DELETE"});keysView()}catch(e){toast(e.message,"critical")}});
  $("#kMsg").textContent=""}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
-$("#k-prov").onchange=()=>{$("#k-key").value="";kShow()};
-$("#kSave").onclick=async()=>{try{await aiSend(`/v1/settings/ai/keys/${$("#k-prov").value}`,{api_key:$("#k-key").value||null,model:$("#k-model").value.trim(),base_url:$("#k-base").value.trim(),workspace_id:$("#k-ws").value.trim()},"PUT");
+$("#k-prov").onchange=()=>{maskField("k-key",!!((KV.keys||{})[$("#k-prov").value]||{}).key_set);kShow()};
+$("#kSave").onclick=async()=>{try{await aiSend(`/v1/settings/ai/keys/${$("#k-prov").value}`,{api_key:secretIn($("#k-key").value),model:$("#k-model").value.trim(),base_url:$("#k-base").value.trim(),workspace_id:$("#k-ws").value.trim()},"PUT");
  toast("Key saved","good");keysView()}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#kList").onclick=async()=>{$("#kMsg").textContent="asking the provider…";try{const r=await aiSend("/v1/settings/ai/models",kBody("provider"));pickModels("k-model-sel","k-model",[...r.models,...((KV.providers[$("#k-prov").value]||{}).suggested||[])],$("#k-model").value.trim());
  $("#kMsg").textContent=`${r.models.length} model(s) offered`}catch(e){$("#kMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
@@ -4084,18 +4575,24 @@ function aiShow(){const m=aiMode();$("#ai-ws-l").hidden=$("#ai-provider").value!
  const pv=$("#ai-provider").value,lab=(AI&&AI.providers[pv]||{}).label||pv;
  $("#ai-consent-text").textContent=`Email and PDF text will be sent to ${lab} to be read. I am allowed to share it.`;
  $("#aiList").style.display=$("#aiTest").style.display=m==="rules"?"none":""}
+// a saved secret shows as ******** (never its value); left as it is, the saved one is kept
+const SAVED_MASK="********";
+const secretIn=v=>!v||v===SAVED_MASK?null:v;
+function maskField(id,isSet){const el=$("#"+id);el.value=isSet?SAVED_MASK:"";el.title=isSet?"Saved. Type a new one to replace it.":"";
+ el.onfocus=()=>{if(el.value===SAVED_MASK)el.select()}}
 function aiBody(){const m=aiMode();return {mode:m,consent_external:$("#ai-consent").checked,
- self_hosted:{endpoint:$("#ai-endpoint").value.trim(),model:$("#ai-self-model").value.trim(),token:$("#ai-token").value||null},
- provider:{name:$("#ai-provider").value,model:$("#ai-prov-model").value.trim(),api_key:$("#ai-key").value||null,workspace_id:$("#ai-ws").value.trim()}}}
+ self_hosted:{endpoint:$("#ai-endpoint").value.trim(),model:$("#ai-self-model").value.trim(),token:secretIn($("#ai-token").value)},
+ provider:{name:$("#ai-provider").value,model:$("#ai-prov-model").value.trim(),api_key:secretIn($("#ai-key").value),workspace_id:$("#ai-ws").value.trim()}}}
 async function aiView(){try{AI=await api("/v1/settings/ai");
  $("#ai-provider").innerHTML=Object.entries(AI.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join("");
  document.querySelectorAll('input[name="aiMode"]').forEach(r=>{r.checked=r.value===AI.mode;r.onchange=()=>{$("#aiMsg").textContent="";aiShow()}});
- $("#ai-endpoint").value=AI.self_hosted.endpoint||"";$("#ai-self-model").value=AI.self_hosted.model||"";$("#ai-token").value="";
- $("#ai-token").placeholder=AI.self_hosted.token_set?`saved (${AI.self_hosted.token_hint||"set"}); leave blank to keep`:"only if the server asks for one";
- $("#ai-ws").value=AI.provider.workspace_id||"";$("#ai-provider").value=AI.provider.name;pickModels("ai-model-sel","ai-prov-model",(AI.providers[AI.provider.name]||{}).suggested,AI.provider.model||"");$("#ai-key").value="";
- $("#ai-key").placeholder=AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";
+ $("#ai-endpoint").value=AI.self_hosted.endpoint||"";$("#ai-self-model").value=AI.self_hosted.model||"";
+ maskField("ai-token",!!AI.self_hosted.token_set);$("#ai-token").placeholder="only if the server asks for one";
+ $("#ai-ws").value=AI.provider.workspace_id||"";$("#ai-provider").value=AI.provider.name;pickModels("ai-model-sel","ai-prov-model",(AI.providers[AI.provider.name]||{}).suggested,AI.provider.model||"");
+ const keySaved=p=>!!((AI.keys||{})[p]||{}).key_set||(p===AI.provider.name&&AI.provider.key_set);
+ maskField("ai-key",keySaved(AI.provider.name));$("#ai-key").placeholder="paste your API key";
  $("#ai-consent").checked=!!AI.consent_external;
- $("#ai-provider").onchange=()=>{$("#ai-key").placeholder=$("#ai-provider").value===AI.provider.name&&AI.provider.key_set?`saved (${AI.provider.key_hint}); leave blank to keep`:"paste your API key";
+ $("#ai-provider").onchange=()=>{const p=$("#ai-provider").value;maskField("ai-key",keySaved(p));$("#ai-ws").value=((AI.keys||{})[p]||{}).workspace_id||(p===AI.provider.name?AI.provider.workspace_id||"":"");
   const pv=AI.providers[$("#ai-provider").value]||{};pickModels("ai-model-sel","ai-prov-model",pv.suggested,$("#ai-provider").value===AI.provider.name?AI.provider.model:"");aiShow()};
  $("#aiModelList").innerHTML=((AI.providers[AI.provider.name]||{}).suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");
  $("#aiActive").textContent=`now reading with: ${AI.active}${AI.source==="env"?" (from .env)":""}${AI.updated_by?` · saved by ${AI.updated_by}`:""}`;

@@ -47,7 +47,11 @@ SECRET_NAME = "awx_webhook_secret"  # kept by Platform Setup → Airwallex webho
 
 def secret() -> str:
     from . import secret_values
+    from .airwallex_settings import linked
 
+    lk = linked()  # a company's own linked account signs its webhooks with its own secret
+    if lk and lk.get("webhook_secret"):
+        return lk["webhook_secret"]
     return secret_values.get(SECRET_NAME, "AWX_WEBHOOK_SECRET")
 
 

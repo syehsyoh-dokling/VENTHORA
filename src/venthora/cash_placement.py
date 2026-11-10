@@ -14,8 +14,14 @@ from __future__ import annotations
 import datetime as dt
 import uuid
 
-DEFAULT = {"buffer_pct": 10, "min_amount_minor": 100_000, "destination": "Term deposit, 1 month", "enabled": True}
+DEFAULT = {"buffer_pct": 10, "min_amount_minor": 100_000, "destination": "Term deposit, 1 month", "enabled": True,
+           # the FCO's combinable rules (each applies only when ticked; every ticked rule must hold)
+           "horizon_months": 3,
+           "use_horizon_surplus": False, "surplus_min_minor": 0,      # budget for the next N months minus their estimated spending >= X
+           "use_lower_bound": False, "lower_bound_minor": 0,          # the wallet never goes below this after a placement
+           "use_upper_bound": False, "upper_bound_minor": 0}          # never more than this placed in total (open placements)
 STATUSES = ("PROPOSED", "APPROVED", "DONE", "CANCELLED")
+OPEN = ("PROPOSED", "APPROVED", "SENT", "PLACED", "DONE", "WITHDRAWAL_REQUESTED")
 
 
 def policy(org) -> dict:
@@ -23,31 +29,93 @@ def policy(org) -> dict:
 
 
 def save_policy(org, body: dict, by: str) -> dict:
-    pct, low = int(body.get("buffer_pct", DEFAULT["buffer_pct"])), int(body.get("min_amount_minor", DEFAULT["min_amount_minor"]))
+    cur = policy(org)
+    pct, low = int(body.get("buffer_pct", cur["buffer_pct"])), int(body.get("min_amount_minor", cur["min_amount_minor"]))
     if not 0 <= pct <= 100:
         raise ValueError("the buffer is a percentage between 0 and 100")
     if low < 0:
         raise ValueError("the minimum cannot be negative")
-    rec = {"_id": "policy", "buffer_pct": pct, "min_amount_minor": low, "destination": str(body.get("destination") or DEFAULT["destination"])[:120],
-           "enabled": bool(body.get("enabled", True)), "updated_by": by}
+    rec = {"_id": "policy", "buffer_pct": pct, "min_amount_minor": low, "destination": str(body.get("destination") or cur["destination"])[:120],
+           "enabled": bool(body.get("enabled", cur["enabled"])), "updated_by": by}
+    months = int(body.get("horizon_months", cur["horizon_months"]))
+    if not 1 <= months <= 24:
+        raise ValueError("the horizon is 1 to 24 months")
+    rec["horizon_months"] = months
+    for flag, amount in (("use_horizon_surplus", "surplus_min_minor"), ("use_lower_bound", "lower_bound_minor"), ("use_upper_bound", "upper_bound_minor")):
+        rec[flag] = bool(body.get(flag, cur[flag]))
+        rec[amount] = int(body.get(amount, cur[amount]))
+        if rec[amount] < 0:
+            raise ValueError("an amount cannot be negative")
+    if rec["use_upper_bound"] and rec["upper_bound_minor"] <= 0:
+        raise ValueError("the upper bound must be above zero when it is used")
     org._put("cash_placement", rec, by)
     return policy(org)
 
 
-def compute(*, available_minor: int, reserve_floor_minor: int, bills_minor: int, commitments_minor: int, pol: dict) -> dict:
-    """What must stay, what is idle, and what to place (all in the base currency, minor units)."""
+def compute(*, available_minor: int, reserve_floor_minor: int, bills_minor: int, commitments_minor: int, pol: dict,
+            horizon: dict | None = None, placed_minor: int = 0) -> dict:
+    """What must stay, what is idle, and what to place (all in the base currency, minor units). The FCO's ticked rules
+    each cap or block the placement; every ticked rule must hold."""
     base_need = max(reserve_floor_minor, 0) + max(bills_minor, 0) + max(commitments_minor, 0)
     buffer = (base_need * int(pol["buffer_pct"]) + 99) // 100  # rounded up: the buffer never comes out short
     needed = base_need + buffer
     idle = available_minor - needed
-    place = idle if pol.get("enabled") and idle >= int(pol["min_amount_minor"]) else 0
+    caps, rules = [("idle cash", idle)], []
+    if pol.get("use_horizon_surplus") and horizon is not None:
+        surplus = horizon["budget_minor"] - horizon["spending_minor"]
+        ok = surplus >= int(pol["surplus_min_minor"])
+        rules.append({"rule": f"budget for the next {pol['horizon_months']} month(s) minus their estimated spending ≥ {pol['surplus_min_minor'] / 100:,.2f}",
+                      "value_minor": surplus, "holds": ok})
+        caps.append((f"the {pol['horizon_months']}-month surplus", surplus if ok else 0))
+    if pol.get("use_lower_bound"):
+        room = available_minor - int(pol["lower_bound_minor"])
+        rules.append({"rule": f"the wallet stays at or above {pol['lower_bound_minor'] / 100:,.2f}", "value_minor": room, "holds": room > 0})
+        caps.append(("the lower bound", room))
+    if pol.get("use_upper_bound"):
+        room = int(pol["upper_bound_minor"]) - placed_minor
+        rules.append({"rule": f"at most {pol['upper_bound_minor'] / 100:,.2f} placed in total (now {placed_minor / 100:,.2f})", "value_minor": room, "holds": room > 0})
+        caps.append(("the upper bound", room))
+    limit_name, limit = min(caps, key=lambda c: c[1])
+    blocked = next((r for r in rules if not r["holds"]), None)
+    place = limit if pol.get("enabled") and not blocked and limit >= int(pol["min_amount_minor"]) else 0
     why = ("placement is switched off" if not pol.get("enabled") else
+           f"blocked by the rule: {blocked['rule']}" if blocked else
            "nothing idle: what is held does not cover what is needed" if idle <= 0 else
-           "idle cash below the minimum to place" if idle < int(pol["min_amount_minor"]) else
-           "idle cash above the minimum: a placement is proposed")
+           f"below the minimum to place (limited by {limit_name})" if limit < int(pol["min_amount_minor"]) else
+           f"a placement is proposed (limited by {limit_name})")
     return {"available_minor": available_minor, "reserve_floor_minor": reserve_floor_minor, "bills_minor": bills_minor,
             "commitments_minor": commitments_minor, "buffer_minor": buffer, "needed_minor": needed, "idle_minor": idle,
-            "place_minor": place, "why": why}
+            "place_minor": place, "why": why, "rules": rules, "horizon": horizon, "placed_minor": placed_minor}
+
+
+def horizon(org, *, months: int, base: str, commitments_minor: int, to_base) -> dict:
+    """The next `months` months: the budget allocated to them (each allocation spread evenly over the months it covers;
+    one with no period counts whole) and their estimated spending (every open commitment, as if all fell due in the
+    horizon, plus the payroll of people on payroll for those months). `to_base(minor, ccy)` converts."""
+    from .budget_allocation import months_covered
+
+    today = dt.date.today()
+    want, y, m = [], today.year, today.month
+    for _ in range(months):
+        want.append(f"{y:04d}-{m:02d}")
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    start = int(org.standards().get("fiscal_year_start_month", 1))
+    budget = 0
+    for a in org.list("allocation"):
+        if a.get("no_limit"):
+            continue
+        cov = months_covered(a, start)
+        share = a.get("amount_minor", 0) if cov is None else a.get("amount_minor", 0) * len(set(cov) & set(want)) // max(len(cov), 1)
+        budget += to_base(share, a.get("currency") or base)
+    payroll = sum(to_base(u.get("salary_minor") or 0, u.get("salary_currency") or base) for u in org.list("user")
+                  if u.get("active", True) and u.get("salary_minor")) * months
+    return {"months": want, "budget_minor": budget, "commitments_minor": commitments_minor, "payroll_minor": payroll,
+            "spending_minor": commitments_minor + payroll}
+
+
+def placed(org) -> int:
+    """What is placed now (or on its way), in the base currency."""
+    return sum(r.get("base_minor") or r["amount_minor"] for r in org.list("placement") if r.get("status") in OPEN)
 
 
 def instruct(org, *, amount_minor: int, currency: str, destination: str, note: str, by: str, basis: dict,

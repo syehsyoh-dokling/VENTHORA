@@ -283,6 +283,61 @@ def close(org, rec: dict, *, received_minor: int, deposit_id: str | None, by: st
     return rec
 
 
+def agreement(org, rec: dict, by: str) -> dict:
+    """The placement agreement, written by VENTHORA from what it holds (the company, the provider and its account, the
+    amount, tenor and rate, and where the money comes back). The FCO reads it and accepts it in one click; its SHA-256
+    is kept and audited, so the text can be proven unchanged. It is not a bank's own contract: a bank that has one
+    signs that too, and this records what was agreed."""
+    import hashlib
+
+    p = get(org, rec["provider_id"])
+    st, prof = org.standards(), org.get("company_profile", "profile") or {}
+    back = next(iter(org.list("company_bank")), None)
+    ga = ((back or {}).get("global_accounts") or [{}])[0]
+    fco = next((u for u in org.list("user") if u.get("role") == "super_admin"), {})
+    days = p.get("tenor_days") or 0
+    start = dt.date.today()
+    lines = [
+        f"PLACEMENT AGREEMENT  {reference(rec)}",
+        "",
+        f"Date: {start.isoformat()}",
+        f"Company: {st.get('company_name')}" + (f" (registration {prof.get('registration_number')}, {prof.get('country_code')})" if prof.get("registration_number") else ""),
+        f"Provider: {p['name']} ({p['kind'].replace('_', ' ').lower()})",
+        f"Amount: {rec['currency']} {rec['amount_minor'] / 100:,.2f}",
+        f"Term: {f'{days} days, maturing {(start + dt.timedelta(days=days)).isoformat()}' if days else 'no fixed term (withdrawable)'}",
+        f"Indicative rate: {p.get('indicative_rate_pct', 0)}% a year (the provider's confirmation prevails)",
+        "",
+        "Placed into: " + (f"{p['bank'].get('account_name')}, {p['bank'].get('bank_name') or p['bank'].get('bank_country_code')}, account {p['bank'].get('account_number') or p['bank'].get('iban')}"
+                           if p.get("bank") else "Airwallex Yield (the money stays at Airwallex)"),
+        f"Our reference at the provider: {p.get('our_reference') or '-'}",
+        "Paid back to: " + (f"{ga.get('account_name')}, {ga.get('institution')}, account {ga.get('account_number') or ga.get('iban') or '-'} ({', '.join(ga.get('currencies') or [])})"
+                            if ga else "the company's Airwallex Global Account"),
+        f"Every payment back carries the reference {reference(rec)}.",
+        "",
+        "Withdrawal: on the company's written request (its FCO), by "
+        + {"PORTAL": "the provider's portal", "EMAIL": f"email to {p.get('redeem_contact') or 'the provider'}", "API": "the provider's API",
+           "AIRWALLEX_APP": "the Airwallex app"}[p["redeem_by"]] + ".",
+        "",
+        f"For the company: {fco.get('name') or 'FCO'} (FCO)",
+    ]
+    text = "\n".join(lines)
+    rec["agreement"] = {"text": text, "sha256": hashlib.sha256(text.encode()).hexdigest(), "drafted_at": _now(), "drafted_by": by, "accepted": None}
+    _hist(rec, by, "agreement drafted")
+    org._put("placement", rec, by)
+    return rec
+
+
+def accept_agreement(org, rec: dict, role: str, by: str) -> dict:
+    if not rec.get("agreement"):
+        raise ValueError("draft the agreement first")
+    if role != "super_admin":
+        raise PermissionError("the agreement is accepted by the FCO (Super admin)")
+    rec["agreement"]["accepted"] = {"by": by, "at": _now()}
+    _hist(rec, by, f"agreement accepted (sha256 {rec['agreement']['sha256'][:16]}…)")
+    org._put("placement", rec, by)
+    return rec
+
+
 def _fail(org, rec: dict, by: str, why: str) -> dict:
     rec["status"] = "FAILED"
     _hist(rec, by, why)

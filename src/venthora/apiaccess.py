@@ -38,7 +38,7 @@ from .config import data_path
 # area → (label, what it covers, path prefixes). Longest prefix wins.
 AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "treasury": ("Treasury and payments", "accounts, balances, plans, executions, position, ledger, incidents",
-                 ("/v1/plans", "/v1/executions", "/v1/exceptions", "/v1/agent-plan", "/v1/notifications", "/v1/transaction-log", "/v1/treasury", "/v1/incidents", "/v1/ledger", "/v1/recon-cases",
+                 ("/v1/plans", "/v1/transfers", "/v1/executions", "/v1/exceptions", "/v1/agent-plan", "/v1/notifications", "/v1/transaction-log", "/v1/treasury", "/v1/incidents", "/v1/ledger", "/v1/recon-cases",
                   "/v1/accounts", "/v1/balances", "/v1/collection-accounts", "/v1/acting-as", "/v1/reference",
                   "/api/airwallex", "/v1/airwallex", "/api/audit", "/v1/audit")),
     "payables": ("Payables", "intake of invoices and claims, payees, vendors, consultants and customers with their bank details, purchase orders, approvals",
@@ -49,12 +49,12 @@ AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "organisation": ("Organisation", "units, people and limits, projects, accounts, allocations, standards",
                      ("/v1/org",)),
     "sources": ("Data sources", "connectors, sync, uploads, master data, readiness", ("/v1/sources",)),
-    "settings": ("Settings and integrations", "AI model, webhook status and events", ("/v1/settings", "/v1/webhooks", "/v1/prompt-system", "/v1/visa", "/v1/outbox", "/v1/metal", "/v1/mcp", "/v1/providers")),
+    "settings": ("Settings and integrations", "AI model, webhook status and events", ("/v1/settings", "/v1/webhooks", "/v1/prompt-system", "/v1/visa", "/v1/outbox", "/v1/metal", "/v1/mcp", "/v1/providers", "/v1/controls", "/v1/airi", "/v1/t0", "/v1/placement-connections", "/v1/company-account", "/v1/tenant", "/v1/funding-source")),
     "system": ("Health and evidence", "health, status, ground-truth suites, scenario matrix",
                ("/health", "/api/status", "/v1/status", "/v1/evidence", "/v1/demo")),
 }
 NO_KEY = ("/webhooks/",)               # inbound push channels: their own signatures and secrets
-NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection", "/v1/settings/ai", "/v1/settings/email", "/v1/mandate", "/v1/doa", "/v1/priority-sop", "/v1/prompt-system", "/v1/card-authorization", "/v1/visa", "/v1/edition", "/v1/providers", "/v1/placement-providers")  # keys, bank, AI vault, mailboxes, the agent's authority, the edition
+NEVER_BY_KEY = ("/v1/developer/keys", "/v1/airwallex/connection", "/v1/settings/ai", "/v1/settings/email", "/v1/mandate", "/v1/doa", "/v1/priority-sop", "/v1/prompt-system", "/v1/card-authorization", "/v1/visa", "/v1/edition", "/v1/providers", "/v1/placement-providers", "/v1/company-account", "/v1/funding-source")  # keys, bank, AI vault, mailboxes, the agent's authority, the edition
 OPEN_WITH_KEY = ("/openapi.json", "/docs", "/v1/developer/catalog")
 ROLES = ("auditor", "treasury_analyst", "finance_manager", "cfo", "admin")  # the dashboard's roles; auditor is read only
 

@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import hashlib
 import json
+import re
 import secrets
 import time
 from contextlib import asynccontextmanager
@@ -14,7 +15,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode
 
-from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, Body, FastAPI, Header, HTTPException, Query, Request
 from fastapi import Path as PathParam
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
@@ -2796,6 +2797,15 @@ async def ai_settings_test(s: ai_settings.AISettings | None = None, role: str = 
         raise HTTPException(422, str(exc)) from exc
     if not model.configured:
         return {"ok": False, "error": "rules only: no model to test"}
+    mode = s.mode if s is not None else ai_settings.public(ai_settings.AIStore()).get("mode")
+    if mode == "self_hosted" and getattr(model, "endpoint", None) and getattr(model, "model", None):
+        # a self-hosted server must actually offer the model named: a lenient server answering any name is not "connected"
+        with contextlib.suppress(Exception):  # a server that cannot list its models is judged by the reply alone
+            offered = await ai_settings.list_models(model)
+            if offered and model.model not in offered:
+                return {"ok": False, "error": f"The server at {model.endpoint} does not have the model “{model.model}”. "
+                                              f"It offers: {', '.join(offered[:8])}{' …' if len(offered) > 8 else ''}.",
+                        "model": ai_settings.describe(model), "offered": offered[:50]}
     t0 = perf_counter()
     try:
         reply = await model.complete([{"role": "system", "content": "Reply with the single word OK.", "frame": False},
@@ -2810,6 +2820,8 @@ async def ai_settings_test(s: ai_settings.AISettings | None = None, role: str = 
 async def ai_settings_models(s: ai_settings.AISettings | None = None, role: str = "finance_manager"):
     """The model ids the server or provider offers, to pick from instead of typing."""
     _writer(role, "list")
+    if s is not None and s.mode == "self_hosted" and s.self_hosted.endpoint and not s.self_hosted.model:
+        s = s.model_copy(update={"self_hosted": s.self_hosted.model_copy(update={"model": "(listing)"})})  # listing is how the name is found
     try:
         model = _draft_model(s)
     except ValueError as exc:
@@ -2835,6 +2847,7 @@ async def ai_key_save(provider: str, body: AIKeyIn, role: str = "finance_manager
     who = _setup_writer(role, by)
     if provider not in ai_settings.PROVIDERS:
         raise HTTPException(404, "unknown provider")
+    body.api_key = ai_settings._unmask(body.api_key)  # ******** is the saved key shown back: keep it
     try:
         out = await asyncio.to_thread(ai_settings.AIStore().save_key, provider, body.api_key, body.model, body.base_url, who, body.workspace_id)
     except ValueError as exc:
@@ -4303,6 +4316,13 @@ class PlacementPolicyIn(BaseModel):
     min_amount_minor: int = Field(100_000, ge=0)
     destination: str = Field("Term deposit, 1 month", max_length=120)
     enabled: bool = True
+    horizon_months: int = Field(3, ge=1, le=24)
+    use_horizon_surplus: bool = False
+    surplus_min_minor: int = Field(0, ge=0)
+    use_lower_bound: bool = False
+    lower_bound_minor: int = Field(0, ge=0)
+    use_upper_bound: bool = False
+    upper_bound_minor: int = Field(0, ge=0)
 
 
 class PlacementIn(BaseModel):
@@ -4331,8 +4351,13 @@ async def _placement_basis() -> dict:
         out["processing_minor"] = pos["processing_out"]["base_minor"]
     except HTTPException as exc:
         available, bills, out["error"] = 0, 0, f"the Airwallex balance could not be read: {exc.detail}"
+    pol = cash_placement.policy(org)
+    ccys = {a.get("currency") or out["base_currency"] for a in org.list("allocation")} | {u.get("salary_currency") for u in org.list("user") if u.get("salary_currency")}
+    fx = await _rates_to_base(ccys)
+    hz = await asyncio.to_thread(cash_placement.horizon, org, months=pol["horizon_months"], base=out["base_currency"], commitments_minor=commitments,
+                                 to_base=lambda m, c: _in_base(m, c, fx) or 0)
     return out | cash_placement.compute(available_minor=available, reserve_floor_minor=base.policy.reserve_floor_minor, bills_minor=bills,
-                                        commitments_minor=commitments, pol=cash_placement.policy(org))
+                                        commitments_minor=commitments, pol=pol, horizon=hz, placed_minor=cash_placement.placed(org))
 
 
 @app.get("/v1/cash-placement")
@@ -4525,6 +4550,97 @@ async def cash_placement_close(pid: str, body: CloseIn, role: str = "super_admin
     return rec
 
 
+@app.post("/v1/cash-placement/instructions/{pid}/agreement")
+async def cash_placement_agreement(pid: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Draft the placement agreement from what VENTHORA holds (company, provider, account, amount, term, rate, where
+    the money comes back). One click; nothing is sent anywhere."""
+    from . import placement_providers
+
+    who = _writer(role, by)
+    rec = _placement(pid)
+    if not rec.get("provider_id"):
+        raise HTTPException(409, "an agreement needs a placement with a provider")
+    rec = await asyncio.to_thread(placement_providers.agreement, app.state.org, rec, who)
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_agreement_drafted", {"id": pid, "sha256": rec["agreement"]["sha256"], "by": who})
+    return rec
+
+
+@app.post("/v1/cash-placement/instructions/{pid}/agreement/accept")
+async def cash_placement_agreement_accept(pid: str, role: str = "super_admin", by: str = "dashboard"):
+    """The FCO accepts the agreement as written; its SHA-256 goes into the audit chain (and Metal, with placements)."""
+    from . import placement_providers
+
+    who = _writer(role, by)
+    try:
+        rec = await asyncio.to_thread(placement_providers.accept_agreement, app.state.org, _placement(pid), role, who)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "cash_placement_agreement_accepted", {"id": pid, "sha256": rec["agreement"]["sha256"], "by": who})
+    return rec
+
+
+# ---- Developer Console → Placement connections: how VENTHORA reaches each provider (manual, email or its API) ----
+class PlacementConnectionIn(BaseModel):
+    mode: str = Field(pattern="^(MANUAL|EMAIL|API)$")
+    api_base_url: str = Field("", max_length=300)
+    api_key: str | None = Field(None, max_length=500, description="write-only")
+    email: str = Field("", max_length=200)
+
+
+@app.get("/v1/placement-connections")
+async def placement_connections():
+    """Each provider's connection (never its key): the Developer's side of Placement providers."""
+    from . import secret_values
+
+    out = []
+    for p in app.state.org.list("placement_provider"):
+        c = p.get("connection") or {"mode": "MANUAL"}
+        out.append({"provider_id": p["provider_id"], "name": p["name"], "kind": p["kind"], "connection": c | {
+            "api_key": secret_values.info(f"placement_api:{p['provider_id']}")}})
+    return sorted(out, key=lambda r: r["name"])
+
+
+@app.put("/v1/placement-connections/{pid}")
+async def placement_connection_save(pid: str, body: PlacementConnectionIn, role: str = "developer", by: str = "dashboard"):
+    from . import placement_providers, secret_values
+
+    who = _setup_writer(role, by)
+    try:
+        p = placement_providers.get(app.state.org, pid)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    if body.mode == "API" and not body.api_base_url.startswith("https://"):
+        raise HTTPException(422, "an API connection needs the provider's https base URL")
+    if body.api_key:
+        await asyncio.to_thread(secret_values.put, f"placement_api:{pid}", body.api_key.strip(), who)
+    p["connection"] = {"mode": body.mode, "api_base_url": body.api_base_url.strip(), "email": body.email.strip(), "updated_by": who}
+    await asyncio.to_thread(app.state.org._put, "placement_provider", p, who)
+    await asyncio.to_thread(app.state.audit.append, "placement_connection_saved", {"provider": pid, "mode": body.mode, "key_changed": bool(body.api_key), "by": who})
+    return {"provider_id": pid, "connection": p["connection"]}
+
+
+@app.post("/v1/placement-connections/{pid}/test")
+async def placement_connection_test(pid: str):
+    """Does the provider's API answer (a GET on its base URL with the key as a Bearer token)? Nothing is placed."""
+    import httpx
+
+    from . import placement_providers, secret_values
+
+    p = placement_providers.get(app.state.org, pid)
+    c = p.get("connection") or {}
+    if c.get("mode") != "API":
+        return {"ok": None, "detail": f"{c.get('mode') or 'MANUAL'}: nothing to test"}
+    key = secret_values.get(f"placement_api:{pid}")
+    try:
+        async with httpx.AsyncClient(timeout=15) as cl:
+            r = await cl.get(c["api_base_url"], headers={"Authorization": f"Bearer {key}"} if key else {})
+        return {"ok": r.status_code < 400, "status": r.status_code}
+    except httpx.HTTPError as exc:
+        return {"ok": False, "detail": f"no answer: {exc.__class__.__name__}"}
+
+
 @app.post("/v1/cash-placement/instructions/{pid}/simulate")
 async def cash_placement_simulate(pid: str, role: str = "super_admin", by: str = "dashboard"):
     """Sandbox only: the next outside step. A SENT transfer is made PAID; a requested withdrawal arrives as a deposit
@@ -4604,10 +4720,371 @@ async def placement_providers_save(body: ProviderIn, role: str = "super_admin", 
 
 
 def _anchor_heads() -> dict:
+    """What Metal anchors: the categories the FCO chose (Platform Setup → Metal categories)."""
+    from . import controls
+
     org = app.state.org
     audit = app.state.audit.verify()
-    return {"audit": {"head": audit.get("head"), "events": audit.get("checked"), "verified": audit.get("verified")},
+    base = {"audit": {"head": audit.get("head"), "events": audit.get("checked"), "verified": audit.get("verified")},
             "contracts": {r["_id"]: r.get("head") for r in sorted(org.list("contract_seal"), key=lambda r: r["_id"])}}
+    return controls.metal_heads(org, app.state.audit, base)
+
+
+# ---- Platform Setup → Optional: the FCO's switches for Visa, Airi and Metal (controls.py) ----
+@app.middleware("http")
+async def visa_switches(request: Request, call_next):
+    """A Visa feature the FCO switched off is refused here, whoever calls it."""
+    from . import controls
+
+    if request.url.path.startswith("/v1/visa/"):
+        why = await asyncio.to_thread(controls.visa_refusal, request.app.state.org, request.url.path)
+        if why:
+            return JSONResponse({"detail": why}, status_code=409)
+    return await call_next(request)
+
+
+@app.get("/v1/controls/{group}")
+async def controls_get(group: str = PathParam(pattern="^(visa|airi|metal)$")):
+    """The FCO's current choices for Visa, Airi or Metal, with their defaults and labels."""
+    from . import controls
+
+    return await asyncio.to_thread(controls.view, app.state.org, group)
+
+
+@app.put("/v1/controls/{group}")
+async def controls_put(body: Annotated[dict, Body()], group: str = PathParam(pattern="^(visa|airi|metal)$"), role: str = "super_admin", by: str = "dashboard"):
+    """Change the FCO's choices (the FCO only; a Developer reads them)."""
+    from . import controls
+
+    who = _writer(role, by)
+    try:
+        vals = await asyncio.to_thread(controls.save, app.state.org, group, body, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "controls_saved", {"group": group, "values": vals, "by": who})
+    return await asyncio.to_thread(controls.view, app.state.org, group)
+
+
+# ---- Transfers: money moved by a person, one route per form (manual_transfers.py) ----
+def _source_account() -> dict | None:
+    """The Airwallex account the money leaves: the company account this VENTHORA works for, else the platform's own."""
+    from .airwallex_settings import AirwallexStore
+
+    return AirwallexStore().acting()
+
+
+@app.get("/v1/transfers/routes")
+async def transfers_routes():
+    """What each form needs and whether it can be used now: the companies on this platform, the card account, the
+    cards, the saved destinations."""
+    from . import manual_transfers
+    from .airwallex_settings import card_account_for
+
+    src = _source_account()
+    try:
+        accts = [_account_row(a) for a in await _bank().list_accounts()]
+    except (AirwallexError, HTTPException):
+        accts = []
+    me = (src or {}).get("account_id")
+    companies = [{"id": a["id"], "name": a["name"], "country": a["country"]} for a in accts if a["status"] == "ACTIVE" and a["id"] != me]
+    if me:
+        companies.insert(0, {"id": "platform", "name": "The platform's own account (company 1)", "country": None})
+    cards = [{"id": c["_id"], "name": c.get("payee"), "masked": c.get("masked"), "currency": c.get("currency")}
+             for c in app.state.org.list("card") if not c.get("frozen")]
+    dests = {r: [manual_transfers.public_dest(d) for d in manual_transfers.destinations(app.state.org, r)] for r in manual_transfers.BANK_ROUTES}
+    card_acct = card_account_for()
+    return {"routes": manual_transfers.ROUTES, "from": src or {"account_id": None, "name": "the platform's own account"},
+            "companies": companies, "cards": cards, "card_account": card_acct, "destinations": dests,
+            "unavailable": {"airi_card": "Airwallex offers no way to fund the Airi card: Airi spends from the card linked to it",
+                            **({} if card_acct else {"card_account": "no card-issuing account chosen (Platform Setup → Airwallex Cards)",
+                                                     "virtual_card": "no card-issuing account chosen (Platform Setup → Airwallex Cards)"})}}
+
+
+class DestinationIn(BaseModel):
+    route: str = Field(pattern="^(id_bank|xendit|midtrans|international)$")
+    label: str = Field("", max_length=120)
+    bank: dict
+    address: dict | None = None
+    entity_type: str = Field("COMPANY", pattern="^(COMPANY|PERSONAL)$")
+    payout_method: str = Field("LOCAL", pattern="^(LOCAL|SWIFT)$")
+
+
+@app.post("/v1/transfers/destinations")
+async def transfers_destination_save(body: DestinationIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Keep a bank destination after its bank check (a Xendit or Midtrans top-up account, a bank account)."""
+    from . import manual_transfers
+
+    who = _writer(role, by)
+    try:
+        bank = _bank()
+    except HTTPException:
+        bank = None
+    try:
+        d = await manual_transfers.save_destination(app.state.org, bank, _xendit_or_none(), body.route, body.model_dump(), who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "transfer_destination_saved", {"id": d["_id"], "route": body.route, "verdict": d["bank_check"]["verdict"], "by": who})
+    return manual_transfers.public_dest(d)
+
+
+class TransferIn(BaseModel):
+    route: str = Field(pattern="^(airwallex|card_account|virtual_card|airi_card|id_bank|xendit|midtrans|international)$")
+    amount_minor: int = Field(gt=0, le=10**12)
+    currency: str = Field(min_length=3, max_length=3)
+    purpose: str = Field("", max_length=200)
+    target_account_id: str | None = Field(None, max_length=80, description="airwallex: a company on this platform ('platform' = its own account)")
+    account_number: str | None = Field(None, max_length=60, description="airwallex: another Airwallex customer's account number")
+    account_name: str | None = Field(None, max_length=140)
+    card_id: str | None = Field(None, max_length=80)
+    destination_id: str | None = Field(None, max_length=40)
+
+
+@app.get("/v1/transfers")
+async def transfers_list():
+    from . import manual_transfers
+
+    return await asyncio.to_thread(manual_transfers.listing, app.state.org)
+
+
+@app.post("/v1/transfers")
+async def transfers_create(body: TransferIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Ask for a transfer. Nothing moves until the FCO approves it."""
+    from . import manual_transfers
+
+    who = _writer(role, by)
+    org, ccy = app.state.org, body.currency.upper()
+    if body.route == "airwallex":
+        if body.target_account_id:
+            name = next((c["name"] for c in (await transfers_routes())["companies"] if c["id"] == body.target_account_id), None)
+            if name is None:
+                raise HTTPException(422, "that company is not an ACTIVE account on this platform")
+            dest = {"kind": "internal", "account_id": body.target_account_id, "name": name}
+        elif body.account_number and body.account_name:
+            dest = {"kind": "airwallex_pay", "account_number": body.account_number.strip(), "name": body.account_name.strip()}
+        else:
+            raise HTTPException(422, "choose a company on this platform, or give the other company's Airwallex account number and name")
+    elif body.route in ("card_account", "virtual_card"):
+        from .airwallex_settings import card_account_for
+
+        acct = card_account_for()
+        if not acct:
+            raise HTTPException(409, "no card-issuing account chosen (Platform Setup → Airwallex Cards)")
+        dest = {"kind": "internal", "account_id": acct, "name": "card-issuing account"}
+        if body.route == "virtual_card":
+            card = org.get("card", body.card_id or "")
+            if not card:
+                raise HTTPException(422, "choose a card VENTHORA issued")
+            if card.get("currency") and card["currency"] != ccy:
+                raise HTTPException(422, f"the card spends in {card['currency']}: top it up in {card['currency']}")
+            dest |= {"card_id": card["_id"], "card": f"{card.get('payee')} {card.get('masked') or ''}".strip()}
+    elif body.route in manual_transfers.BANK_ROUTES:
+        d = org.get(manual_transfers.DEST, body.destination_id or "")
+        if not d or d["route"] != body.route:
+            raise HTTPException(422, "choose a saved destination for this form (or add one)")
+        if body.route != "international" and ccy != "IDR":
+            raise HTTPException(422, "transfers to Indonesia (bank, Xendit, Midtrans) are in IDR")
+        dest = {"kind": "bank", "destination_id": d["_id"], "name": d["label"], "account_name": d["bank"]["account_name"],
+                "country": d["bank"].get("bank_country_code"), "account_masked": "•••• " + str(d["bank"].get("account_number") or d["bank"].get("iban"))[-4:]}
+    else:
+        dest = {}
+    try:
+        rec = await asyncio.to_thread(manual_transfers.create, org, route=body.route, amount_minor=body.amount_minor, currency=ccy, by=who,
+                                      purpose=body.purpose, destination=dest)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    rec["from"] = _source_account() or {"account_id": None, "name": "the platform's own account"}
+    await asyncio.to_thread(org._put, manual_transfers.KIND, rec, who)
+    await asyncio.to_thread(app.state.audit.append, "manual_transfer_requested", {"id": rec["_id"], "route": rec["route"], "amount_minor": rec["amount_minor"],
+                                                                                "currency": ccy, "by": who})
+    return rec
+
+
+async def _internal_move(src: str | None, dst: str | None, amount_minor: int, ccy: str, ref: str, rid: str) -> dict:
+    """Inside Airwallex, no fee: from a company account to the platform (Charges), then the platform to the other
+    account (Connected Account Transfers). None = the platform's own account."""
+    bank, out = _bank(), {}
+    if src == dst:
+        raise ValueError("the money would go to the account it leaves")
+    if src:
+        ch = await bank.charge_connected_account(account_id=src, amount_minor=amount_minor, currency=ccy, reference=ref, request_id=f"{rid}-out", reason="business_expenses")
+        out["charge_id"], out["charge_status"] = ch.get("id"), ch.get("status")
+    if dst:
+        t = await bank.fund_connected_account(account_id=dst, amount_minor=amount_minor, currency=ccy, reference=ref, request_id=f"{rid}-in", reason="business_expenses")
+        out["cat_id"], out["cat_status"] = t.get("id"), t.get("status")
+    return out
+
+
+@app.post("/v1/transfers/{tid}/approve")
+async def transfers_approve(tid: str, role: str = "super_admin", by: str = "dashboard"):
+    """The FCO approves (never the person who asked) and the transfer is sent at once."""
+    from . import bankcheck, manual_transfers
+    from .fx_routes import pays_through
+
+    who = _writer(role, by)
+    org = app.state.org
+    try:
+        rec = manual_transfers.get(org, tid)
+        manual_transfers.approve_check(rec, role, by)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    rec = await asyncio.to_thread(manual_transfers.mark, org, rec, "APPROVED", who, "approved by the FCO")
+    d, src = rec["destination"], (rec.get("from") or {}).get("account_id")
+    ref = f"VENTHORA {rec['_id']} {rec['purpose']}".strip()[:120]
+    try:
+        if d.get("kind") == "internal":
+            dst = None if d["account_id"] == "platform" else d["account_id"]
+            moved = await _internal_move(src, dst, rec["amount_minor"], rec["currency"], ref, rec["request_id"])
+            extra = {"internal": moved}
+            if rec["route"] == "virtual_card":
+                card = await _bank().get_card(d["card_id"])
+                ctl = card.get("authorization_controls") or {}
+                lims = (ctl.get("transaction_limits") or {}).get("limits") or []
+                add = rec["amount_minor"] / 100
+                raised = [lim | {"amount": float(lim["amount"]) + add} if lim.get("interval") in ("ALL_TIME", "MONTHLY") else lim for lim in lims]
+                if not any(lim.get("interval") in ("ALL_TIME", "MONTHLY") for lim in lims):
+                    raised.append({"amount": add, "interval": "ALL_TIME"})
+                await _bank().update_card_controls(d["card_id"], {"allowed_transaction_count": ctl.get("allowed_transaction_count", "MULTIPLE"),
+                                                                  "transaction_limits": {"currency": (ctl.get("transaction_limits") or {}).get("currency") or rec["currency"], "limits": raised}})
+                extra["card_limits"] = raised
+            rec = await asyncio.to_thread(manual_transfers.mark, org, rec, "SENT", who, "moved inside Airwallex (no fee)", **extra)
+        elif d.get("kind") in ("bank", "airwallex_pay"):
+            if d["kind"] == "bank":
+                dest = org.get(manual_transfers.DEST, d["destination_id"])
+                pay = manual_transfers.bank_payload(dest)
+                ok, why = bankcheck.passed(org, f"dest:{dest['_id']}", pay)
+                if not ok:
+                    raise ValueError(f"not sent: {why}")
+                ben = dest.get("beneficiary_id")
+                method = dest.get("payout_method") or "LOCAL"
+            else:
+                dest, pay, ben, method = None, manual_transfers.wallet_payload(d["account_number"], d["name"]), None, "LOCAL"
+            if not ben:
+                await _bank().validate_beneficiary(pay["payload"])
+                ben = await _bank().create_beneficiary(pay["payload"])
+                if dest is not None:
+                    await asyncio.to_thread(org._put, manual_transfers.DEST, dest | {"beneficiary_id": ben}, who)
+            base = app.state.org.standards().get("base_currency", "USD")
+            t = await _bank().create_transfer(request_id=rec["request_id"], beneficiary_id=ben, currency=rec["currency"], amount_minor=rec["amount_minor"],
+                                              transfer_method=method, reference=ref, reason="business_expenses",
+                                              source_currency=base if pays_through(rec["currency"], base) else None)
+            rec = await asyncio.to_thread(manual_transfers.mark, org, rec, "SENT", who, f"Airwallex transfer {t.transfer_id} ({t.status})",
+                                          transfer_id=t.transfer_id, transfer_status=t.status, fee_minor=t.fee_minor, source_currency=t.source_currency)
+    except (AirwallexError, ValueError) as exc:
+        rec = await asyncio.to_thread(manual_transfers.mark, org, rec, "FAILED", who, f"refused: {str(exc)[:300]}")
+    await asyncio.to_thread(app.state.audit.append, "manual_transfer_approved", {"id": tid, "status": rec["status"], "by": who})
+    return rec
+
+
+@app.post("/v1/transfers/{tid}/refresh")
+async def transfers_refresh(tid: str, by: str = "dashboard"):
+    """Read the transfer back from Airwallex: PAID only when Airwallex says so."""
+    from . import manual_transfers
+
+    org = app.state.org
+    try:
+        rec = manual_transfers.get(org, tid)
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    if rec["status"] != "SENT":
+        return rec
+    try:
+        if rec.get("transfer_id"):
+            t = await _bank().get_transfer(rec["transfer_id"])
+            if t.status == "PAID":
+                rec = manual_transfers.mark(org, rec, "PAID", by, "Airwallex: PAID", transfer_status=t.status)
+            elif t.status in ("FAILED", "CANCELLED"):
+                rec = manual_transfers.mark(org, rec, "FAILED", by, f"Airwallex: {t.status} ({t.failure_reason or '-'})", transfer_status=t.status)
+        elif rec.get("internal"):
+            mv = rec["internal"]
+            states = []
+            if mv.get("cat_id"):
+                states.append((await _bank()._request("GET", f"/api/v1/connected_account_transfers/{mv['cat_id']}", own=True)).get("status"))
+            if mv.get("charge_id"):
+                states.append((await _bank()._request("GET", f"/api/v1/charges/{mv['charge_id']}", own=True)).get("status"))
+            if states and all(s in ("SETTLED", "SUCCEEDED", "COMPLETED") for s in states):
+                rec = manual_transfers.mark(org, rec, "PAID", by, f"Airwallex: {', '.join(states)}")
+            elif any(s in ("FAILED", "CANCELLED", "REJECTED") for s in states):
+                rec = manual_transfers.mark(org, rec, "FAILED", by, f"Airwallex: {', '.join(states)}")
+            else:
+                rec["internal_status"] = states
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+    return rec
+
+
+@app.post("/v1/transfers/{tid}/simulate")
+async def transfers_simulate(tid: str, role: str = "super_admin", by: str = "dashboard"):
+    """Sandbox only: a SENT bank or Airwallex transfer made PAID (an internal move settles by itself)."""
+    from . import manual_transfers
+
+    _writer(role, by)
+    rec = manual_transfers.get(app.state.org, tid)
+    if rec["status"] != "SENT" or not rec.get("transfer_id"):
+        raise HTTPException(409, "only a SENT bank or Airwallex transfer is simulated")
+    try:
+        t = await _bank().get_transfer(rec["transfer_id"])
+        for nxt in ("SENT", "PAID"):
+            if t.status not in ("PAID", nxt):
+                t = await _bank().simulate_transfer_transition(rec["transfer_id"], nxt)
+    except AirwallexError as exc:
+        raise HTTPException(502, f"Airwallex: {exc}") from exc
+    return await transfers_refresh(tid, by)
+
+
+@app.post("/v1/transfers/{tid}/cancel")
+async def transfers_cancel(tid: str, role: str = "finance_manager", by: str = "dashboard"):
+    from . import manual_transfers
+
+    who = _writer(role, by)
+    rec = manual_transfers.get(app.state.org, tid)
+    if rec["status"] != "AWAITING_APPROVAL":
+        raise HTTPException(409, "only a transfer still waiting for approval can be cancelled")
+    return await asyncio.to_thread(manual_transfers.mark, app.state.org, rec, "CANCELLED", who, "cancelled before approval")
+
+
+@app.get("/v1/t0/status")
+async def t0_status():
+    """Developer Console → T:0: whether the key is set (never its value), whether T:0's MCP server answers, its tools
+    and the entities the key can act for. Read only."""
+    from . import t0
+
+    return await t0.status()
+
+
+@app.get("/v1/airi/status")
+async def airi_status():
+    """Developer Console → Airi: whether the Airi CLI is installed on this server, signed in, and how many payment
+    methods the wallet holds. Read only: VENTHORA never places an order from here. The command is AIRI_CLI in .env
+    (on Windows, through WSL), since Airi CLI ships for macOS and Linux only."""
+    import json as _json
+    import shlex
+    import subprocess
+
+    cmd = env("AIRI_CLI")
+    out = {"installed": False, "command_set": bool(cmd), "signed_in": None, "payment_methods": None, "error": None,
+           "how": "install with: npm install -g @airwallex/airi-cli@beta (macOS/Linux; on Windows inside WSL), sign in with airi-cli auth login, "
+                  "then set AIRI_CLI in .env to the command that runs it"}
+
+    def run(*args):
+        r = subprocess.run([*shlex.split(cmd, posix=False), *args, "--no-telemetry", "-o", "json"], capture_output=True, text=True, timeout=60,
+                           env={**__import__("os").environ, "AIRI_TELEMETRY_DISABLED": "1"})
+        return _json.loads((r.stdout or "").replace("\x00", "").strip() or "null")
+
+    if not cmd:
+        return out | {"error": "AIRI_CLI is not set on this server"}
+    try:
+        who = await asyncio.to_thread(run, "auth", "whoami")
+        out |= {"installed": True, "signed_in": bool((who or {}).get("authenticated")), "session_expires": (who or {}).get("session_expires")}
+        if out["signed_in"]:
+            pms = await asyncio.to_thread(run, "payment-methods", "list")
+            out["payment_methods"] = len(pms if isinstance(pms, list) else (pms or {}).get("items", []))
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        out["error"] = f"could not run the Airi CLI: {str(exc)[:200]}"
+    return out
 
 
 class DocsQuestion(BaseModel):
@@ -5825,7 +6302,7 @@ class XenditSettingsIn(BaseModel):
 async def xendit_put(body: XenditSettingsIn, role: str = "super_admin", by: str = "dashboard"):
     from . import wallet_payouts
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     try:
         out = await asyncio.to_thread(wallet_payouts.save_settings, app.state.org, body.mode, who, body.secret_key, body.callback_token)
     except ValueError as exc:
@@ -6316,7 +6793,7 @@ async def visa_vic_status():
 async def visa_vic_credentials(body: VisaCredentialsIn, role: str = "finance_manager", by: str = "dashboard"):
     from . import visa_vic
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     info = await asyncio.to_thread(visa_vic.save_credentials, body.model_dump(), who)
     await asyncio.to_thread(app.state.audit.append, "visa_credentials", {"set": [k for k, v in info.items() if v["set"]], "by": who})
     return info
@@ -6356,7 +6833,7 @@ async def visa_xpay_public_key(role: str = "super_admin", by: str = "dashboard")
     """VENTHORA's public key to upload to Visa (Credentials -> X-Pay Token -> Public Key): created once, then the same."""
     from . import visa_vic
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     out = await asyncio.to_thread(visa_vic.xpay_public_key, who)
     if out["created"]:
         await asyncio.to_thread(app.state.audit.append, "visa_xpay_keypair_created", {"fingerprint": out["fingerprint"], "by": who})
@@ -6368,7 +6845,7 @@ async def visa_xpay_secret(body: XPaySecretIn, role: str = "super_admin", by: st
     """The encrypted shared secret Visa shows, decrypted with VENTHORA's private key and kept write-only."""
     from . import visa_vic
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     try:
         info = await asyncio.to_thread(visa_vic.save_encrypted_secret, body.encrypted_shared_secret, who)
     except ValueError as exc:
@@ -6695,6 +7172,43 @@ async def procurement_spending(period: str | None = None):
     from . import procurement
 
     return procurement.spending(app.state.org, app.state.executor.store, period)
+
+
+@app.get("/v1/org/charge-codes")
+async def charge_codes_view():
+    """The default charge code scheme, the codes in use (each marked Company or VENTHORA default) and what 'Fill
+    VENTHORA defaults' would add."""
+    from . import charge_codes
+
+    org = app.state.org
+    return {"scheme": charge_codes.scheme(), "current": await asyncio.to_thread(charge_codes.current, org),
+            "plan": await asyncio.to_thread(charge_codes.plan, org)}
+
+
+@app.post("/v1/org/charge-codes/defaults")
+async def charge_codes_fill(role: str = "finance_manager", by: str = "dashboard"):
+    """Fill only the blanks with VENTHORA's defaults: cost centres, the OPS project, the six-digit accounts, employee
+    numbers and salary charge codes. A code the company set is never changed."""
+    from . import charge_codes
+    from .organisation import MODELS
+
+    who = _writer(role, by)
+    out = await asyncio.to_thread(charge_codes.apply, app.state.org, models=MODELS)
+    await asyncio.to_thread(app.state.audit.append, "charge_codes_defaults", {"filled": out["filled"], "by": who})
+    return out
+
+
+@app.get("/v1/reports/staff-spend")
+async def reports_staff_spend(country: str = "", unit_id: str = "", project: str = "", user_id: str = ""):
+    """Per staff member (employee number, office, branch, country): the cash advances and petty cash received and what
+    their virtual cards spent, by project, in the base currency."""
+    from . import charge_codes
+
+    org = app.state.org
+    ccys = {f.get("currency") for f in org.list("fund_request")}
+    fx = await _rates_to_base(ccys)
+    return await asyncio.to_thread(charge_codes.staff_spend, org, to_base=lambda m, c: _in_base(m, c, fx) or 0, base=fx["base"],
+                                   country=country, unit_id=unit_id, project=project, user_id=user_id)
 
 
 @app.get("/v1/org/allocation-tree")
@@ -7284,7 +7798,8 @@ def _ga_row(g: dict) -> dict:
     feats = g.get("supported_features") or g.get("required_features") or []
     return {"id": g.get("id"), "nick_name": g.get("nick_name") or "", "status": g.get("status"), "country_code": g.get("country_code"),
             "currencies": sorted({f.get("currency") for f in feats if f.get("currency")}) or ([g["currency"]] if g.get("currency") else []),
-            "account_name": g.get("account_name"), "account_number": g.get("account_number"), "iban": g.get("iban"),
+            "account_name": g.get("account_name"), "iban": g.get("iban"),
+            "account_number": g.get("account_number") if str(g.get("account_number") or "").strip("- ") else None,  # "-" while Airwallex issues it
             "routing": _ga_routing(g),
             "swift_code": g.get("swift_code"), "institution": (g.get("institution") or {}).get("name"),
             "methods": sorted({f.get("transfer_method") for f in feats if f.get("transfer_method")})}
@@ -7301,6 +7816,12 @@ async def airwallex_connection():
             "acting_for": airwallex_settings.AirwallexStore().acting()}
     if not bank.configured:
         return out | {"error": "no Airwallex credentials: connect an account below, or set them in .env"}
+    if airwallex_settings.tenant() is not None and not airwallex_settings.has_own_account():
+        try:  # SaaS, no company account yet: can the platform open one for it? (its own call, nothing of its money)
+            await bank.industry_categories()
+        except AirwallexError as exc:
+            return out | {"error": f"the VENTHORA platform cannot reach Airwallex now: {exc}"}
+        return out | {"platform_ready": True, "error": None}
     try:
         bal = await bank.balances_detail()
         gas = await bank.list_global_accounts()
@@ -7315,7 +7836,7 @@ async def airwallex_connect(body: Annotated[dict, Body()], role: str = "finance_
     from . import airwallex_settings
     from .gateways.airwallex import SANDBOX_URL, Airwallex
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     if str(body.get("environment", "sandbox")) != "sandbox":
         raise HTTPException(422, "VENTHORA executes on the Airwallex sandbox only")
     try:
@@ -7346,12 +7867,185 @@ async def airwallex_disconnect(role: str = "finance_manager", by: str = "dashboa
     """Forget the connected account; VENTHORA falls back to the credentials in .env, if any."""
     from . import airwallex_settings
 
-    who = _connector(role, by)
+    who = _setup_writer(role, by)
     await asyncio.to_thread(airwallex_settings.AirwallexStore().clear)
     app.state.agent.proof.airwallex.forget_token()
     app.state.position_cache = None
     await asyncio.to_thread(app.state.audit.append, "airwallex_disconnected", {"by": who})
     return await airwallex_connection()
+
+
+class CompanyLinkIn(BaseModel):
+    """The company's own Airwallex account, made before VENTHORA: its API key, created in Airwallex → Developer → API keys."""
+    client_id: str = Field(min_length=8, max_length=200)
+    api_key: str = Field(min_length=8, max_length=500, description="write-only, never returned")
+    webhook_secret: str | None = Field(default=None, max_length=500, description="write-only; optional")
+    account_name: str = Field(default="", max_length=200, description="what to call it when Airwallex does not say")
+
+
+async def _read_linked(body: CompanyLinkIn) -> dict:
+    """Log in with the company's own key on the sandbox and read what VENTHORA will work on: its name, balances and
+    Global Accounts with their numbers. Nothing is saved."""
+    from .gateways.airwallex import SANDBOX_URL, Airwallex
+
+    trial = Airwallex(base_url=SANDBOX_URL, credentials=(body.client_id.strip(), body.api_key.strip()), max_attempts=1)
+    try:
+        try:
+            bal = await trial.balances_detail()
+        except AirwallexError as exc:
+            raise HTTPException(422, f"Airwallex refused this key on the sandbox: {exc}. Check the Client ID and API key, and that the key is a sandbox key") from exc
+        try:
+            gas = await trial.list_global_accounts()
+        except AirwallexError:
+            gas = []
+        acct: dict = {}
+        with contextlib.suppress(Exception):  # the account's own details, when the key may read them
+            acct = await trial._request("GET", "/api/v1/account") or {}
+    finally:
+        await trial.close()
+    info = acct.get("account_details") or {}
+    biz = info.get("business_details") or {}
+    name = biz.get("business_name") or acct.get("nickname") or body.account_name.strip() or "Company Airwallex account"
+    return {"account_name": name, "account_id": acct.get("id"), "status": acct.get("status"),
+            "balances": [{"currency": c, **v} for c, v in sorted(bal.items())], "global_accounts": [_ga_row(g) for g in gas]}
+
+
+@app.get("/v1/company-account")
+async def company_account():
+    """How the company's Airwallex account came to VENTHORA: linked (an account it already had, with its own key),
+    opened here (under the platform), or none yet."""
+    from . import airwallex_settings
+
+    lk = airwallex_settings.public_link()
+    acting = airwallex_settings.AirwallexStore().acting()
+    return {"mode": "linked" if lk else "opened" if acting else "none", "linked": lk, "opened": acting}
+
+
+@app.exception_handler(HTTPException)
+async def _http_error(request: Request, exc: HTTPException):
+    """SaaS: a company without its own Airwallex account is a state to show (409), not an Airwallex failure (502)."""
+    from fastapi.exception_handlers import http_exception_handler
+
+    if exc.status_code == 502 and "has no Airwallex account yet" in str(exc.detail):
+        exc = HTTPException(409, str(exc.detail).replace("Airwallex request failed: ", "").replace("Airwallex: ", ""), headers=exc.headers)
+    return await http_exception_handler(request, exc)
+
+
+@app.get("/v1/tenant")
+async def tenant_info():
+    """SaaS: which company this VENTHORA serves (each company has its own process and data), or self-hosted."""
+    from . import airwallex_settings
+
+    t = airwallex_settings.tenant()
+    return {"saas": t is not None, **(t or {"tenant_id": None, "name": None}), "own_account": airwallex_settings.has_own_account()}
+
+
+@app.get("/v1/tenant/summary")
+async def tenant_summary(x_venthora_platform: str | None = Header(default=None)):
+    """For the platform console only (the operator's token, set by the platform when it starts this company's process):
+    the company's Airwallex account and its money totals as Airwallex reports them."""
+    import hmac
+
+    from . import airwallex_settings
+    from .gateways.airwallex import to_minor
+
+    token = env("VENTHORA_PLATFORM_TOKEN")
+    if not token or not x_venthora_platform or not hmac.compare_digest(token, x_venthora_platform):
+        raise HTTPException(404, "Not Found")
+    lk, acting = airwallex_settings.public_link(), airwallex_settings.AirwallexStore().acting()
+    out = {"tenant": airwallex_settings.tenant(), "mode": "linked" if lk else "opened" if acting else "none",
+           "account": ({"name": lk["account_name"], "id": lk["account_id"]} if lk else
+                       {"name": acting["name"], "id": acting["account_id"]} if acting else None),
+           "opened_accounts": sorted(airwallex_settings.AirwallexStore().own_ids()),
+           "fco": next(({"name": u["name"], "email": u.get("email")} for u in app.state.org.list("user") if u.get("role") == "super_admin"), None),
+           "users": len(app.state.org.list("user")), "balances_minor": {}, "transfers": {}, "deposits": {}, "error": None}
+    if out["mode"] == "none":
+        return out
+    bank = _bank()
+    try:
+        out["balances_minor"] = await bank.balances_minor()
+        for t in await bank.list_transfers():
+            ccy, st = t.get("source_currency") or t.get("currency") or "?", t.get("status") or "?"
+            row = out["transfers"].setdefault(ccy, {"count": 0, "amount_minor": 0, "by_status": {}})
+            row["count"] += 1
+            row["amount_minor"] += to_minor(t.get("source_amount") or t.get("amount") or 0)
+            row["by_status"][st] = row["by_status"].get(st, 0) + 1
+        for d in await bank.list_deposits():
+            row = out["deposits"].setdefault(d.get("currency") or "?", {"count": 0, "amount_minor": 0})
+            row["count"] += 1
+            row["amount_minor"] += to_minor(d.get("amount") or 0)
+    except AirwallexError as exc:
+        out["error"] = str(exc)[:200]
+    return out
+
+
+@app.post("/v1/company-account/link/check")
+async def company_account_link_check(body: CompanyLinkIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Step 1: test the key and show the account, its balances and account numbers for the FCO to verify. Saves nothing."""
+    _writer(role, by)
+    return await _read_linked(body)
+
+
+@app.post("/v1/company-account/link")
+async def company_account_link(body: CompanyLinkIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Step 2: link the verified account. VENTHORA then works on it with its own key; the platform's keys stay as they
+    are, and unlinking goes back to them."""
+    from . import airwallex_settings
+
+    who = _writer(role, by)
+    seen = await _read_linked(body)
+    rec = {"client_id": body.client_id.strip(), "api_key": body.api_key.strip(), "webhook_secret": (body.webhook_secret or "").strip(),
+           "account_name": seen["account_name"], "account_id": seen["account_id"]}
+    hook = await _subscribe_linked(rec)  # VENTHORA subscribes itself: the FCO is never asked for a webhook secret
+    if hook.get("secret"):
+        rec["webhook_secret"] = hook.pop("secret")
+    await asyncio.to_thread(airwallex_settings.AirwallexStore().save_link, rec, who)
+    app.state.agent.proof.airwallex.forget_token()
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "company_account_linked", {"by": who, "account": seen["account_name"],
+                                                                              "client_id_hint": rec["client_id"][-4:],
+                                                                              "global_accounts": len(seen["global_accounts"]),
+                                                                              "webhooks": hook.get("action")})
+    return seen | {"linked": airwallex_settings.public_link(), "webhooks": hook}
+
+
+async def _subscribe_linked(rec: dict) -> dict:
+    """Subscribe VENTHORA's webhook address on the company's own account with its key (create, or move an old
+    subscription), so deposits and transfer updates arrive without anyone copying a secret. Airwallex returns the
+    signing secret once; it is kept with the link, write-only. A failure only leaves the account polled instead."""
+    import uuid
+
+    from .gateways.airwallex import SANDBOX_URL, Airwallex
+    from .webhook_gateway import PATH
+
+    url = (env("VENTHORA_PUBLIC_URL") or "https://venthora.muwahid.org").rstrip("/") + PATH
+    bank = Airwallex(base_url=SANDBOX_URL, credentials=(rec["client_id"], rec["api_key"]), max_attempts=1)
+    try:
+        ours = [h for h in await bank.list_webhooks() if str(h.get("url", "")).endswith(PATH)]
+        if ours and ours[0].get("url") == url:
+            return {"action": "already subscribed", "url": url}
+        if ours:
+            h = await bank.update_webhook(ours[0]["id"], url)
+            return {"action": "moved to VENTHORA's address", "url": url, "secret": h.get("secret")}
+        h = await bank.create_webhook(request_id=str(uuid.uuid4()), url=url, events=WEBHOOK_EVENTS, version="2025-02-14")
+        return {"action": "subscribed", "url": url, "secret": h.get("secret")}
+    except AirwallexError as exc:
+        return {"action": "not subscribed", "url": url, "error": str(exc)[:200]}
+    finally:
+        await bank.close()
+
+
+@app.delete("/v1/company-account/link")
+async def company_account_unlink(role: str = "finance_manager", by: str = "dashboard"):
+    """Unlink the company's own account: its key is forgotten and VENTHORA goes back to the platform's keys."""
+    from . import airwallex_settings
+
+    who = _writer(role, by)
+    await asyncio.to_thread(airwallex_settings.AirwallexStore().clear_link)
+    app.state.agent.proof.airwallex.forget_token()
+    app.state.position_cache = None
+    await asyncio.to_thread(app.state.audit.append, "company_account_unlinked", {"by": who})
+    return await company_account()
 
 
 @app.get("/v1/airwallex/global-accounts")
@@ -7367,11 +8061,13 @@ async def airwallex_global_accounts():
     except AirwallexError as exc:
         raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
     by_ga: dict[str, list[dict]] = {}
+    src = app.state.org.get(*FUNDING)
     for d in deposits:
         if d.get("global_account_id"):
             by_ga.setdefault(d["global_account_id"], []).append(
                 {"amount_minor": to_minor(d.get("amount", 0)), "currency": d.get("currency"), "status": d.get("status"),
-                 "payer": (d.get("payer") or {}).get("name") or "", "reference": d.get("reference") or "", "created_at": d.get("created_at")})
+                 "payer": (d.get("payer") or {}).get("name") or "", "reference": d.get("reference") or "", "created_at": d.get("created_at"),
+                 "own_topup": _from_funding(src, d)})
     for r in rows:
         got = sorted(by_ga.get(r["id"], []), key=lambda x: str(x["created_at"] or ""), reverse=True)
         settled: dict[str, int] = {}
@@ -7463,6 +8159,8 @@ def _airwallex_refusal(exc: AirwallexError) -> HTTPException:
     msg = str(exc)
     hint = (" Airwallex has not enabled account opening (connected accounts) on this platform account yet; ask the Airwallex team to enable it."
             if "cannot onboard" in msg else "")
+    if exc.code in ("not_this_company", "no_company_account", "platform_wallet"):  # SaaS refusals, decided before Airwallex
+        return HTTPException(exc.status or 409, f"{msg[:1].upper()}{msg[1:]}.")
     return HTTPException(502, f"Airwallex: {msg}.{hint}")
 
 
@@ -7504,6 +8202,356 @@ async def airwallex_open_account(body: AccountSignUp, role: str = "finance_manag
     await asyncio.to_thread(app.state.audit.append, "airwallex_account_opened", {"by": who, "id": row["id"], "status": row["status"],
                                                                                "type": row["type"], "country": cc})
     return row
+
+
+@app.get("/v1/airwallex/accounts/prefill")
+async def airwallex_account_prefill():
+    """Every field Airwallex needs to open and verify the company's account, filled from what VENTHORA already holds
+    (Finance standards, the head office, the FCO in People & roles, the company profile), each with its source; the
+    required ones still empty are listed as missing. Only those are asked."""
+    from . import airwallex_onboarding
+
+    return await asyncio.to_thread(airwallex_onboarding.prefill, app.state.org)
+
+
+class AccountOpenFull(BaseModel):
+    values: dict = Field(description="every field from GET /v1/airwallex/accounts/prefill, as the FCO checked them")
+    agreed_to_terms_and_conditions: bool = False
+    agreed_to_data_usage: bool = False
+
+
+@app.post("/v1/airwallex/accounts/open")
+async def airwallex_account_open_full(body: AccountOpenFull, role: str = "super_admin", by: str = "dashboard"):
+    """The FCO confirmed every value: open the company account, add its KYB details and hand it to Airwallex's
+    verification in one go. What was typed is kept in VENTHORA so it is never asked again. If a step is refused,
+    the account stays where it got to and the answer says which step and why."""
+    from . import airwallex_onboarding
+
+    who = _connector(role, by)
+    if not (body.agreed_to_terms_and_conditions and body.agreed_to_data_usage):
+        raise HTTPException(422, "the company must agree to Airwallex's terms and conditions and to its data usage")
+    try:
+        v = airwallex_onboarding.validate(body.values)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(airwallex_onboarding.keep, app.state.org, v, who)
+    steps = []
+    try:
+        acct = await _bank().create_account(airwallex_onboarding.create_body(v))
+    except AirwallexError as exc:
+        await asyncio.to_thread(app.state.audit.append, "airwallex_account_refused", {"by": who, "country": v["country_code"], "reason": str(exc)[:200]})
+        raise _airwallex_refusal(exc) from exc
+    row = _account_row(acct)
+    aid = row["id"]
+    steps.append({"step": "created", "status": row["status"]})
+    for name, call in (("details", lambda: _bank().update_account(aid, airwallex_onboarding.details_body(v))),
+                       ("submitted", lambda: _bank().submit_account(aid))):
+        try:
+            row = _account_row(await call())
+            steps.append({"step": name, "status": row["status"]})
+        except AirwallexError as exc:
+            steps.append({"step": name, "error": str(exc)[:300]})
+            break
+    from . import edition
+
+    if row["status"] == "SUBMITTED" and _bank().sandbox and await asyncio.to_thread(edition.demo_on, app.state.org):
+        # demo mode on the sandbox: Airwallex's verification is decided at once, so the account numbers can be shown now
+        for _ in range(8):
+            try:
+                row = _account_row(await _bank().simulate_account_status(aid, "ACTIVE"))
+                steps.append({"step": "verified (sandbox)", "status": row["status"]})
+                break
+            except AirwallexError:
+                await asyncio.sleep(3)  # Airwallex is still taking the submission in
+    bank_details = None
+    if row["status"] == "ACTIVE":
+        bank_details = await _open_bank_details(aid, row["name"], v["country_code"], v.get("revenue_currency"), who)
+        steps.append({"step": "account numbers", "status": f"{len(bank_details['global_accounts'])} opened"})
+        from . import airwallex_settings
+
+        store = airwallex_settings.AirwallexStore()
+        if not await asyncio.to_thread(store.acting):  # this VENTHORA is this company's: it now works for its account
+            await asyncio.to_thread(store.act_for, aid, row["name"], who)
+            app.state.position_cache = None
+            steps.append({"step": "VENTHORA works for it", "status": row["name"]})
+    await asyncio.to_thread(app.state.audit.append, "airwallex_account_opened", {"by": who, "id": row["id"], "status": row["status"],
+                                                                               "type": "BUSINESS", "country": v["country_code"], "steps": steps})
+    return row | {"steps": steps, "bank_details": bank_details}
+
+
+@app.post("/v1/platform/company-profile")
+async def platform_company_profile(body: Annotated[dict, Body()], x_venthora_platform: str | None = Header(default=None)):
+    """SaaS, for the platform (Root) only: the company's full KYB form, filled when Root registered the company. It is
+    kept, not sent: the Airwallex account is opened only once the company's FCO agrees to Airwallex's terms (saving the
+    funding account, PUT /v1/funding-source)."""
+    import hmac
+
+    from . import airwallex_onboarding
+
+    token = env("VENTHORA_PLATFORM_TOKEN")
+    if not token or not x_venthora_platform or not hmac.compare_digest(token, x_venthora_platform):
+        raise HTTPException(404, "Not Found")
+    try:
+        v = airwallex_onboarding.validate(body)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(airwallex_onboarding.keep, app.state.org, v, "VENTHORA platform (Root)")
+    return {"kept": True}
+
+
+# ---- The company's funding account: the account it already had, where its top-ups come from (no key, no access) ----
+class FundingSourceIn(BaseModel):
+    bank_name: str = Field(default="Airwallex", min_length=2, max_length=120)
+    account_name: str = Field(min_length=2, max_length=140)
+    account_number: str = Field(min_length=4, max_length=40, pattern=r"^[0-9 \-]+$")
+    currency: str = Field(min_length=3, max_length=3)
+    country: str = Field(default="", max_length=2)  # not asked: an Airwallex account is named by its Airwallex number
+    swift_code: str = Field(default="", max_length=11)
+    agreed_to_terms_and_conditions: bool = False  # the FCO's Yes in the confirmation box: the company's agreement
+    agreed_to_data_usage: bool = False
+
+
+FUNDING = ("funding_source", "funding_source")
+FUNDING_CHECK = ("funding_check", "funding_check")
+# The funding account is an Airwallex account, named by its own 16-digit Airwallex account number (the number Airwallex
+# uses for transfers between Airwallex accounts, "Airwallex Pay") and its account name. Airwallex itself checks the
+# number: one it does not know is refused. A US bank number (848..., ACH) cannot be checked at all: Airwallex answers
+# "Unsupported transfer method" to a verification of it, so it is not accepted here.
+FUNDING_CURRENCIES = ["USD", "SGD", "HKD", "AUD", "NZD", "EUR", "GBP", "CHF", "CAD", "JPY", "CNY", "IDR", "MYR", "THB", "PHP", "INR", "AED"]
+
+
+class FundingCheckIn(BaseModel):  # loose on purpose: the check answers a wrong number in words, not with a schema error
+    account_name: str = Field(default="", max_length=140)
+    account_number: str = Field(default="", max_length=60)
+    currency: str = Field(default="USD", max_length=3)
+
+
+def _funding_fp(name: str, number: str, ccy: str) -> str:
+    return hashlib.sha256(f"{_norm(name)}|{_norm(number)}|{ccy.upper()}".encode()).hexdigest()[:24]
+
+
+def _awx_refusal_text(msg: str) -> str:
+    if "(019)" in msg:
+        return "The Airwallex account number has 16 digits."
+    if "(104)" in msg:
+        return "Airwallex could not find an account with this number. Check the number and try again."
+    if "account_name" in msg:
+        return "Airwallex does not accept this account name for this number. Use the name exactly as Airwallex shows it."
+    return "Airwallex could not check this account right now. Try again in a moment."
+
+
+@app.post("/v1/funding-source/check")
+async def funding_source_check(body: FundingCheckIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Test connect: Airwallex checks the company's existing Airwallex account, its 16-digit Airwallex account number with
+    its account name, as a recipient of an Airwallex-to-Airwallex transfer (POST /beneficiaries/validate, type
+    DIGITAL_WALLET, provider AIRWALLEX). Nothing is created at Airwallex. A number Airwallex does not recognise is
+    refused, and only a passed check of exactly these details can be saved."""
+    from . import airwallex_settings
+
+    if role != "super_admin":
+        raise HTTPException(403, "only the FCO (Super admin) sets the company's funding account")
+    if app.state.org.get(*FUNDING) and airwallex_settings.has_own_account():
+        raise HTTPException(409, "the funding account is already saved")
+    ccy, number, name = body.currency.upper(), re.sub(r"[\s-]", "", body.account_number), body.account_name.strip()
+    if ccy not in FUNDING_CURRENCIES:
+        raise HTTPException(422, "Choose the top-up currency from the list.")
+    payload = {"beneficiary": {"type": "DIGITAL_WALLET", "digital_wallet": {"provider": "AIRWALLEX", "id_type": "account_number",
+                                                                            "id_value": number, "account_name": name}},
+               "transfer_methods": ["LOCAL"]}
+    if len(name) < 2:
+        res = {"passed": False, "detail": "Enter the Airwallex account name."}
+    elif not number:
+        res = {"passed": False, "detail": "Enter the Airwallex account number."}
+    elif not number.isdigit():
+        res = {"passed": False, "detail": "The Airwallex account number has digits only."}
+    elif len(number) != 16:
+        res = {"passed": False, "detail": f"The Airwallex account number has 16 digits; you entered {len(number)}."}
+    else:
+        try:  # the platform's own call: Airwallex looks the account up; nothing is created, nothing of anyone's money
+            await app.state.agent.proof.airwallex._request("POST", "/api/v1/beneficiaries/validate", json=payload, own=True)
+            res = {"passed": True, "detail": f"Airwallex recognises account {number[:4]} •••• {number[-4:]} ({name})"}
+        except AirwallexError as exc:
+            res = {"passed": False, "detail": _awx_refusal_text(str(exc))}
+    res |= {"currency": ccy, "at": datetime.now(UTC).isoformat(timespec="seconds")}
+    await asyncio.to_thread(app.state.org._put, FUNDING_CHECK[0], {"_id": FUNDING_CHECK[1], "fp": _funding_fp(name, number, ccy)} | res,
+                            f"{by} ({role})")
+    await asyncio.to_thread(app.state.audit.append, "funding_account_checked", {"by": f"{by} ({role})", "passed": res["passed"],
+                                                                                "account_last4": number[-4:], "detail": res["detail"]})
+    return res
+AIRWALLEX_TERMS = ("I agree, for the company, to Airwallex's Terms and Conditions and to Airwallex's use of the company's data, "
+                   "and I ask VENTHORA to open the company's Airwallex account with the details registered with VENTHORA.")
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _from_funding(src: dict | None, d: dict) -> bool:
+    """Is this deposit a top-up from the company's own funding account? Airwallex always gives the payer's name and the
+    reference; the payer's account number only for some banks and rails, so any one of the three is enough."""
+    if not src:
+        return False
+    if src.get("reference") and _norm(src["reference"]) in _norm(d.get("reference") or ""):
+        return True
+    payer = d.get("payer") or {}
+    if src.get("account_name") and _norm(src["account_name"]) == _norm(payer.get("name") or d.get("payer_name") or ""):
+        return True
+    acct = _norm(src.get("account_number"))
+    nums = [_norm(str(v.get("account_number") or v.get("iban") or "")) for v in (payer.get("bank_account") or {}).values() if isinstance(v, dict)]
+    return bool(acct) and any(n and (n == acct or (len(n) >= 4 and acct.endswith(n))) for n in nums)
+
+
+@app.get("/v1/funding-source")
+async def funding_source_get():
+    """The company's funding account and where to send top-ups: its own account numbers and the reference to quote."""
+    from . import airwallex_onboarding, airwallex_settings
+
+    src = app.state.org.get(*FUNDING)
+    prof = app.state.org.get(*airwallex_onboarding.PROFILE) or {}
+    st = app.state.org.standards()
+
+    out = {"source": src, "topup_to": [], "own_account": airwallex_settings.has_own_account(), "terms": AIRWALLEX_TERMS,
+           "profile_ready": bool(prof),
+           # what the form starts with: the company's own name, currency and country (each can be changed)
+           "defaults": {"bank_name": "Airwallex", "account_name": prof.get("business_name") or st.get("company_name") or "",
+                        "currency": st.get("base_currency") if st.get("base_currency") in FUNDING_CURRENCIES else "USD"},
+           "currencies": FUNDING_CURRENCIES}
+
+    if src is None:
+        return out
+    if out["own_account"]:
+        with contextlib.suppress(AirwallexError, HTTPException):
+            out["topup_to"] = [g for g in (_ga_row(x) for x in await _bank().list_global_accounts())
+                               if g["status"] == "ACTIVE" and src["currency"] in g["currencies"]] or \
+                              [g for g in (_ga_row(x) for x in await _bank().list_global_accounts()) if g["status"] == "ACTIVE"]
+    return out
+
+
+@app.put("/v1/funding-source")
+async def funding_source_put(body: FundingSourceIn, role: str = "finance_manager", by: str = "dashboard"):
+    """The FCO enters the account the company already has. VENTHORA never logs in to it: it is only where top-ups come
+    from, recognised by its holder's name, the reference below, or its number when Airwallex passes it on.
+
+    The first save carries the FCO's Yes to Airwallex's terms (the confirmation box): that is the company's agreement,
+    kept with who and when, and VENTHORA then opens the company's Airwallex account on its own key, with the KYB details
+    Root registered: the FCO sees only the result (the account numbers to top up)."""
+    from . import airwallex_onboarding, airwallex_settings
+
+    _secrets = secrets
+    if role != "super_admin":
+        raise HTTPException(403, "only the FCO (Super admin) sets the company's funding account")
+    need_account = not airwallex_settings.has_own_account()
+    if need_account and not (body.agreed_to_terms_and_conditions and body.agreed_to_data_usage):
+        raise HTTPException(422, "the company's Airwallex account is opened only after the FCO agrees to Airwallex's terms (answer Yes)")
+    prof = app.state.org.get(*airwallex_onboarding.PROFILE)
+    if need_account and not prof:
+        raise HTTPException(409, "the company's registration details are not with VENTHORA yet: ask VENTHORA to complete them")
+    chk = app.state.org.get(*FUNDING_CHECK) or {}
+    if not (chk.get("passed") and chk.get("fp") == _funding_fp(body.account_name, re.sub(r"[\s-]", "", body.account_number), body.currency)):
+        raise HTTPException(409, "press Test connect first: these exact details must pass Airwallex's check before they are saved")
+    if app.state.org.get(*FUNDING) and not need_account:  # saved and the account is open: locked (a retry is allowed until then)
+        raise HTTPException(409, "the funding account is already saved")
+    old = app.state.org.get(*FUNDING) or {}
+    ref = old.get("reference") or "VT" + "".join(_secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(6))
+    rec = {"_id": FUNDING[1], "bank_name": "Airwallex", "account_name": body.account_name.strip(),
+           "account_number": re.sub(r"[\s-]", "", body.account_number), "currency": body.currency.upper(),
+           "kind": "Airwallex account (Airwallex Pay)",
+           "checked_at": chk.get("at"), "reference": ref, "updated_by": f"{by} ({role})",
+           "updated_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    if body.agreed_to_terms_and_conditions and body.agreed_to_data_usage:
+        rec["agreement"] = old.get("agreement") or {"text": AIRWALLEX_TERMS, "by": f"{by} ({role})", "at": rec["updated_at"]}
+    elif old.get("agreement"):
+        rec["agreement"] = old["agreement"]
+    await asyncio.to_thread(app.state.org._put, FUNDING[0], rec, f"{by} ({role})")
+    await asyncio.to_thread(app.state.audit.append, "funding_source_set", {"by": f"{by} ({role})", "bank": rec["bank_name"],
+                                                                          "account_last4": rec["account_number"][-4:]})
+    opened = None
+    if need_account:
+        await asyncio.to_thread(app.state.audit.append, "airwallex_terms_agreed", {"by": f"{by} ({role})", "text": AIRWALLEX_TERMS})
+        values = {k: prof.get(k) for k, *_ in airwallex_onboarding.FIELDS}
+        try:
+            opened = await airwallex_account_open_full(AccountOpenFull(values=values, agreed_to_terms_and_conditions=True, agreed_to_data_usage=True),
+                                                       role="super_admin", by=by)
+        except HTTPException as exc:  # the funding account and the agreement stay; saving again retries the opening
+            opened = {"error": str(exc.detail)}
+        opened = {k: opened.get(k) for k in ("status", "name", "steps", "error") if k in opened}
+    return await funding_source_get() | {"opened": opened}
+
+
+# the currency a company's own Global Account is opened in, by its country; USD (United States) is always added
+LOCAL_CCY = {"SG": "SGD", "MY": "MYR", "ID": "IDR", "HK": "HKD", "AU": "AUD", "NZ": "NZD", "GB": "GBP", "US": "USD", "CN": "CNY",
+             "JP": "JPY", "CA": "CAD", "DE": "EUR", "NL": "EUR", "FR": "EUR", "AE": "AED"}
+
+
+async def _open_bank_details(account_id: str, name: str, country: str | None, extra_ccy: str | None, who: str) -> dict:
+    """Open the company's own receiving accounts (Global Accounts) on its behalf, in its local currency and USD, and
+    keep their full details in VENTHORA (they are the numbers the company pays into: not secret). A currency or
+    country Airwallex does not offer is reported, not fatal; one already open is not opened twice."""
+    import uuid
+
+    bank = _bank()
+    want = []
+    for cc, ccy in ((country, LOCAL_CCY.get(country or "")), ("US", "USD"), (country, extra_ccy)):
+        if cc and ccy and (cc, ccy) not in want and (ccy != "USD" or cc == "US"):
+            want.append((cc, ccy))
+    try:
+        have = [_ga_row(g) for g in (await bank._request_for(account_id, "GET", "/api/v1/global_accounts")).get("items", [])]
+    except (AirwallexError, AttributeError):
+        have = []
+    notes = []
+    for cc, ccy in want:
+        if any(g["country_code"] == cc and ccy in g["currencies"] for g in have):
+            continue
+        try:
+            g = await bank._request_for(account_id, "POST", "/api/v1/global_accounts/create", json={
+                "request_id": str(uuid.uuid4()), "country_code": cc, "currency": ccy, "nick_name": f"{name[:30]} {ccy}",
+                "required_features": [{"currency": ccy, "transfer_method": "LOCAL"}]})
+            have.append(_ga_row(g))
+        except AirwallexError as exc:
+            notes.append(f"{ccy} in {cc}: {str(exc)[:160]}")
+    fresh = []
+    for g in have:  # read each back: the numbers can arrive a moment after creation
+        try:
+            fresh.append(_ga_row(await bank._request_for(account_id, "GET", f"/api/v1/global_accounts/{g['id']}")))
+        except AirwallexError:
+            fresh.append(g)
+    rec = {"_id": account_id, "account_id": account_id, "company": name, "global_accounts": fresh, "notes": notes,
+           "updated_at": datetime.now(UTC).isoformat(timespec="seconds"), "updated_by": who}
+    await asyncio.to_thread(app.state.org._put, "company_bank", rec, who)
+    await asyncio.to_thread(app.state.audit.append, "company_bank_details", {"account_id": account_id, "accounts": len(fresh), "by": who})
+    return rec
+
+
+@app.get("/v1/airwallex/accounts/{account_id}/bank-details")
+async def airwallex_bank_details(account_id: str):
+    """The company's account numbers (its Global Accounts) as VENTHORA keeps them, any time."""
+    rec = await asyncio.to_thread(app.state.org.get, "company_bank", account_id)
+    if rec is None:
+        raise HTTPException(404, "no account numbers yet: open them once the account is ACTIVE")
+    if any(not (g.get("account_number") or g.get("iban")) for g in rec["global_accounts"]):  # still being issued: read again
+        with contextlib.suppress(AirwallexError, HTTPException):
+            from . import airwallex_onboarding
+
+            prof = await asyncio.to_thread(app.state.org.get, *airwallex_onboarding.PROFILE) or {}
+            row = _account_row(await _bank().get_account(account_id))
+            rec = await _open_bank_details(account_id, row["name"], row["country"], prof.get("revenue_currency"), "VENTHORA (read again)")
+    return rec
+
+
+@app.post("/v1/airwallex/accounts/{account_id}/bank-details")
+async def airwallex_bank_details_open(account_id: str, role: str = "super_admin", by: str = "dashboard"):
+    """Open (or read again) the company's account numbers; only for an ACTIVE account."""
+    from . import airwallex_onboarding
+
+    who = _connector(role, by)
+    try:
+        row = _account_row(await _bank().get_account(account_id))
+    except AirwallexError as exc:
+        raise _airwallex_refusal(exc) from exc
+    if row["status"] != "ACTIVE":
+        raise HTTPException(409, f"{row['name']} is {row['status']}: Airwallex opens account numbers once it has verified the company (ACTIVE)")
+    prof = await asyncio.to_thread(app.state.org.get, *airwallex_onboarding.PROFILE) or {}
+    return await _open_bank_details(account_id, row["name"], row["country"], prof.get("revenue_currency"), who)
 
 
 @app.get("/v1/airwallex/industries")
@@ -7601,14 +8649,241 @@ async def airwallex_use_account(account_id: str, role: str = "finance_manager", 
 
 @app.delete("/v1/airwallex/acting")
 async def airwallex_stop_acting(role: str = "finance_manager", by: str = "dashboard"):
-    """Back to the platform's own account."""
+    """Back to the platform's own account (self-hosted only: on SaaS the platform's account is the operator's)."""
     from . import airwallex_settings
 
     who = _connector(role, by)
+    if airwallex_settings.tenant() is not None:
+        raise HTTPException(409, "on VENTHORA SaaS the company always works on its own Airwallex account")
     await asyncio.to_thread(airwallex_settings.AirwallexStore().stop_acting)
     app.state.position_cache = None
     await asyncio.to_thread(app.state.audit.append, "airwallex_acting_stopped", {"by": who})
     return await airwallex_connection()
+
+
+# ---- Sign-in (auth.py): on SaaS every person signs in, and a request acts as that person, whatever it says ----------
+AUTH_OPEN_EXACT = {"/", "/index.html", "/health", "/favicon.ico", "/v1/tenant", "/v1/tenant/summary", "/v1/auth/login",
+                   "/v1/auth/accept", "/v1/auth/platform-invite", "/v1/auth/platform-lookup", "/v1/platform/company-profile", "/v1/platform/mailbox-owner",
+                   "/v1/visa/tap/keys.json"}
+AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/")
+
+
+def _login_required() -> bool:
+    """SaaS companies always sign in; a self-hosted VENTHORA may turn it on (VENTHORA_LOGIN=1)."""
+    from . import airwallex_settings
+
+    return airwallex_settings.tenant() is not None or env("VENTHORA_LOGIN") == "1"
+
+
+def _session_cookie() -> str:
+    from . import airwallex_settings
+
+    t = airwallex_settings.tenant()
+    return f"vs_{t['tenant_id']}" if t else "venthora_session"
+
+
+def _me(u: dict) -> dict:
+    unit = app.state.org.get("unit", u.get("unit_id") or "") or {}
+    return {"user_id": u["user_id"], "name": u["name"], "email": u.get("email"), "role": u["role"], "unit_id": u.get("unit_id"),
+            "unit": unit.get("name"), "unit_kind": unit.get("kind")}
+
+
+def _signed_in(response: Response, user_id: str) -> None:
+    from . import auth
+
+    token = auth.AuthStore().session_new(user_id)
+    response.set_cookie(_session_cookie(), token, max_age=auth.SESSION_HOURS * 3600, httponly=True, samesite="lax", path="/")
+
+
+@app.middleware("http")
+async def sessions(request: Request, call_next):
+    """Declared last, so it runs first. On SaaS a request without a session is refused (401), except the sign-in
+    itself, the public pages and channels that carry their own token or signature, and API keys (api_keys checks
+    those). With a session, the person's role and name replace any role and by the request carries."""
+    from . import auth
+
+    path = request.url.path
+    if not _login_required() or apiaccess.token_of(request.headers) is not None or path in AUTH_OPEN_EXACT or path.startswith(AUTH_OPEN_PREFIX):
+        return await call_next(request)
+    uid = await asyncio.to_thread(auth.AuthStore().session_user, request.cookies.get(_session_cookie()))
+    user = app.state.org.get("user", uid) if uid else None
+    if user is None or not user.get("active", True):
+        return JSONResponse({"detail": "sign in first"}, status_code=401)
+    q = [(k, v) for k, v in parse_qsl(request.scope.get("query_string", b"").decode()) if k not in ("role", "by")]
+    q += [("role", user["role"]), ("by", user["name"])]
+    request.scope["query_string"] = urlencode(q).encode()
+    request.scope["headers"] = [(k, v) for k, v in request.scope["headers"] if k != b"x-venthora-role"] + [(b"x-venthora-role", user["role"].encode())]
+    request.state.user = user
+    return await call_next(request)
+
+
+class LoginIn(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class AcceptIn(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class InviteIn(BaseModel):
+    user_id: str = Field(min_length=1, max_length=80)
+
+
+@app.post("/v1/auth/login")
+async def auth_login(body: LoginIn):
+    """Email and password; a wrong one says only that it is wrong (not which), and five in five minutes lock the email."""
+    from . import auth
+
+    email = body.email.strip().lower()
+    if auth.locked(email):
+        raise HTTPException(429, "too many wrong passwords: wait five minutes, or ask your admin for a new sign-in link")
+    user = auth.find_user(app.state.org, email)
+    ok = await asyncio.to_thread(auth.AuthStore().verify, user["user_id"] if user else "-", body.password)
+    if not (user and ok):
+        auth.failed(email)
+        await asyncio.to_thread(app.state.audit.append, "sign_in_refused", {"email": email})
+        raise HTTPException(401, "wrong email or password")
+    auth.cleared(email)
+    out = JSONResponse(_me(user))
+    await asyncio.to_thread(_signed_in, out, user["user_id"])
+    await asyncio.to_thread(app.state.audit.append, "signed_in", {"by": user["name"], "role": user["role"]})
+    return out
+
+
+@app.post("/v1/auth/logout")
+async def auth_logout(request: Request):
+    from . import auth
+
+    await asyncio.to_thread(auth.AuthStore().session_end, request.cookies.get(_session_cookie()))
+    out = JSONResponse({"signed_out": True})
+    out.delete_cookie(_session_cookie(), path="/")
+    return out
+
+
+@app.get("/v1/auth/me")
+async def auth_me(request: Request):
+    """Who is signed in (the session decides; on a self-hosted VENTHORA without sign-in there is nobody)."""
+    user = getattr(request.state, "user", None)
+    if user is None:
+        raise HTTPException(401, "not signed in") if _login_required() else HTTPException(404, "sign-in is off on this VENTHORA")
+    return _me(user) | {"login": True}
+
+
+@app.get("/v1/auth/invite/{token}")
+async def auth_invite_info(token: str):
+    """Whose sign-in link this is (name, email, company), so the page can greet them; nothing is used up."""
+    from . import airwallex_settings, auth
+
+    uid = await asyncio.to_thread(auth.AuthStore().invite_user, token)
+    u = app.state.org.get("user", uid) if uid else None
+    if u is None or not u.get("active", True):
+        raise HTTPException(404, "this sign-in link is not valid any more: ask your admin for a new one")
+    t = airwallex_settings.tenant()
+    return {"name": u["name"], "email": u.get("email"), "role": u["role"], "company": (t or {}).get("name")}
+
+
+@app.post("/v1/auth/accept")
+async def auth_accept(body: AcceptIn):
+    """The person chooses their own password with their link, and is signed in."""
+    from . import auth
+
+    try:
+        uid = await asyncio.to_thread(auth.AuthStore().accept, body.token, body.password)
+    except auth.AuthError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    u = app.state.org.get("user", uid)
+    out = JSONResponse(_me(u))
+    await asyncio.to_thread(_signed_in, out, uid)
+    await asyncio.to_thread(app.state.audit.append, "password_set", {"by": u["name"], "role": u["role"]})
+    return out
+
+
+def _invite_link(token: str) -> str:
+    from . import airwallex_settings
+
+    t = airwallex_settings.tenant()
+    return f"/c/{t['tenant_id']}?invite={token}" if t else f"/?invite={token}"
+
+
+@app.post("/v1/auth/invite")
+async def auth_invite(body: InviteIn, role: str = "finance_manager", by: str = "dashboard"):
+    """A one-time sign-in link for a person the caller may manage (the same reach as changing that person: the FCO
+    anyone, a country, branch or project admin only the people of its unit and below, and never an equal or a
+    superior). The link is shown to the caller to hand over; VENTHORA sends nothing."""
+    from . import auth
+
+    u = app.state.org.get("user", body.user_id)
+    if u is None or not u.get("active", True):
+        raise HTTPException(404, "no active person with that ID")
+    if not u.get("email"):
+        raise HTTPException(422, f"{u['name']} has no email: add one first, it is how they sign in")
+    from .organisation import SCOPED_ADMINS
+
+    if role != "super_admin":  # a link sets a password, so it is as strong as taking the account over: admins of the line only
+        if role not in SCOPED_ADMINS:
+            raise HTTPException(403, "only the Super admin, or a country, branch or project admin for its own people, makes sign-in links")
+        if u["role"] == "super_admin":
+            raise HTTPException(403, "only the Super admin makes a Super admin's sign-in link")
+        _org_writer(role, by, "user", u)
+    token = await asyncio.to_thread(auth.AuthStore().invite, u["user_id"], f"{by} ({role})")
+    await asyncio.to_thread(app.state.audit.append, "sign_in_link_made", {"by": f"{by} ({role})", "for": u["name"], "role": u["role"]})
+    return {"user_id": u["user_id"], "name": u["name"], "email": u["email"], "link": _invite_link(token), "valid_days": auth.INVITE_DAYS}
+
+
+@app.post("/v1/auth/platform-invite")
+async def auth_platform_invite(body: InviteIn, x_venthora_platform: str | None = Header(default=None)):
+    """For the platform (Root) only: the sign-in link of a company's FCO, made when the company is added or asked again."""
+    import hmac
+
+    from . import auth
+
+    token = env("VENTHORA_PLATFORM_TOKEN")
+    if not token or not x_venthora_platform or not hmac.compare_digest(token, x_venthora_platform):
+        raise HTTPException(404, "Not Found")
+    u = app.state.org.get("user", body.user_id)
+    if u is None or u.get("role") != "super_admin":
+        raise HTTPException(404, "the platform makes links for the company's Super admin only")
+    link = _invite_link(await asyncio.to_thread(auth.AuthStore().invite, u["user_id"], "VENTHORA platform (Root)"))
+    await asyncio.to_thread(app.state.audit.append, "sign_in_link_made", {"by": "VENTHORA platform (Root)", "for": u["name"], "role": u["role"]})
+    return {"user_id": u["user_id"], "name": u["name"], "email": u.get("email"), "link": link}
+
+
+@app.post("/v1/auth/platform-lookup")
+async def auth_platform_lookup(body: Annotated[dict, Body()], x_venthora_platform: str | None = Header(default=None)):
+    """For the platform's /login only: does an active person of this company sign in with that email? Nothing else is
+    said, and nothing is counted or logged, so asking every company leaves no trace in the others."""
+    import hmac
+
+    from . import auth
+
+    token = env("VENTHORA_PLATFORM_TOKEN")
+    if not token or not x_venthora_platform or not hmac.compare_digest(token, x_venthora_platform):
+        raise HTTPException(404, "Not Found")
+    return {"exists": auth.find_user(app.state.org, str(body.get("email") or "")) is not None}
+
+
+@app.post("/v1/platform/mailbox-owner")
+async def platform_mailbox_owner(body: Annotated[dict, Body()], x_venthora_platform: str | None = Header(default=None)):
+    """For the platform only: is any of these addresses one of this company's inbound mailboxes (Settings → Email)?
+    The platform asks before it hands an inbound email to a company, so mail reaches the company it was sent to."""
+    import hmac
+
+    token = env("VENTHORA_PLATFORM_TOKEN")
+    if not token or not x_venthora_platform or not hmac.compare_digest(token, x_venthora_platform):
+        raise HTTPException(404, "Not Found")
+    asked = {str(a).strip().lower() for a in (body.get("addresses") or []) if a}
+    mine = {m["address"].lower() for m in app.state.org.list("mailbox") if m.get("active", True)}
+    return {"owns": bool(asked & mine), "matched": sorted(asked & mine)}
+
+
+@app.get("/v1/auth/status")
+async def auth_status():
+    """Per person: whether they can sign in yet and when they last did (for People & roles)."""
+    from . import auth
+
+    return await asyncio.to_thread(auth.AuthStore().status)
 
 
 apidocs.publish(app)  # last: one /v1 prefix, written docs, internal endpoints out of the schema
