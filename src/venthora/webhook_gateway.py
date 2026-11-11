@@ -51,6 +51,7 @@ API_EXACT = ("/openapi.json", "/health")
 API_HEADERS = ("content-type", "authorization", "x-api-key", "accept")
 MAX_API_BODY = 16 * 1024 * 1024
 RFQ_TOKEN = re.compile(r"^[A-Za-z0-9_-]{20,40}$")  # a vendor's quotation form link (sourcing.invite)
+APPROVE_TOKEN = re.compile(r"^[A-Za-z0-9_-]{30,60}$")  # the FCO's approve link in a notice email (fco_notify)
 MAX_RFQ_BODY = 12 * 1024 * 1024  # the form posts the quotation file as base64 (8 MB file)
 DEVELOPER_PATHS = ("/developers", "/developers/catalog.json", "/developers/openapi.json", "/developers/postman.json")  # the API Catalog
 
@@ -164,6 +165,18 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
         keep = {k: v for k, v in res.headers.items() if k.lower() in ("content-disposition", "cache-control")}
         return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"), headers=keep)
 
+    async def approve(request: Request) -> Response:
+        """The FCO's approve link from a notice email: the confirmation page (GET) and the one click that approves (POST,
+        no body). Only a well-formed token goes through; VENTHORA checks it, once."""
+        token = request.path_params["token"]
+        if not APPROVE_TOKEN.match(token):
+            return JSONResponse({"detail": "not found"}, status_code=404)
+        try:
+            res = await http.request(request.method, request.url.path)
+        except httpx.HTTPError:
+            return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)
+        return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
+
     async def mail_signin(request: Request) -> Response:
         """A mail provider's return after the FCO allowed VENTHORA to read and send (OAuth): only its query (state, code,
         error), and the redirect back to Email Sync."""
@@ -185,6 +198,7 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
                              Route(REMOTE_AUTH_PATH, forward, methods=["POST"]), Route(XENDIT_PATH, forward, methods=["POST"]),
                              Route(AGENT_KEYS_PATH, agent_keys, methods=["GET"]),
                              Route("/rfq/{token}", rfq, methods=["GET", "POST"]), Route("/rfq/{token}/data", rfq, methods=["GET"]),
+                             Route("/approve/{token}", approve, methods=["GET", "POST"]),
                              Route("/vendor-details/{token}", details, methods=["GET", "POST"]), Route("/vendor-details/{token}/data", details, methods=["GET"]),
                              Route("/pay-sim/{rest:path}", paysim, methods=["GET", "POST"]),
                              Route(MAIL_SIGNIN_PATH, mail_signin, methods=["GET"]),

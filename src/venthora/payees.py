@@ -114,6 +114,17 @@ def transition(record: PayeeRecord | None, event: dict, now: dt.datetime, *, coo
             raise PayeeError("not a phone number")
         r["registered_phone"] = str(event["registered_phone"]).strip()
         return PayeeRecord.model_validate(r)
+    if kind == "phone_change":  # a finance manager corrects the call-back number found wrong; the new number is called again
+        if event.get("role") not in approver_roles:
+            raise PayeeError(f"role {event.get('role')!r} may not change a payee's call-back number")
+        if len(_digits(event.get("registered_phone"))) < 6:
+            raise PayeeError("not a phone number")
+        if _digits(event.get("registered_phone")) == _digits(record.registered_phone):
+            raise PayeeError("the call-back number is unchanged")
+        r["registered_phone"] = str(event["registered_phone"]).strip()
+        if record.status not in ("NEW", "SUSPENDED"):
+            r.update(status="CHANGED", changed_at=_iso(now), cooling_until=_iso(now + dt.timedelta(hours=cooling_hours)), verified_at=None, verified_by=None)
+        return PayeeRecord.model_validate(r)
     raise PayeeError(f"unknown event {kind!r}")
 
 

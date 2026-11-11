@@ -133,6 +133,7 @@ def deliver(org, msg_id: str) -> dict:
         return rec
     m = EmailMessage()
     m["From"], m["To"], m["Subject"] = s["sender"], ", ".join(rec["to"]), rec["subject"]
+    m["X-Venthora-Notice"] = rec.get("kind") or "notice"  # the inbox reader skips VENTHORA's own mail (email_settings.fetch_new)
     m.set_content(rec["body"])
     rec["attempts"] = rec.get("attempts", 0) + 1
     try:

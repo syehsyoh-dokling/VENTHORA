@@ -142,7 +142,14 @@ BOOK_LIMITS: dict[str, tuple[str, str, str, int, int, str]] = {
     "horizon_hours": ("Planning horizon", "hours", "liquidity", 1, 720, "obligations due inside it are planned now"),
     "full_confidence_bp": ("Full FX limit when forecast confidence is at least", "pct", "liquidity", 1, 10_000, "the conversion limit applies in full"),
     "zero_limit_below_bp": ("No conversions on the agent's own authority when confidence is below", "pct", "liquidity", 0, 9_999, "the limit falls to zero"),
+    "card_max_minor": ("Pay by virtual card (Visa) up to", "usd", "authority", 0, 10**13,
+                       "a cash advance, petty cash or ODC card is issued only up to this amount; above it the payment goes by bank transfer; 0 = no cards"),
+    "anchor_from_minor": ("Anchor each payment on the blockchain (Metal) from", "usd", "authority", 0, 10**13,
+                          "every payment made of this amount or more gets its own proof on Metal testnet within a minute; 0 = by category only"),
 }
+
+
+BOOK_DEFAULTS = {"card_max_minor": 500_000, "anchor_from_minor": 0}  # until the FCO saves them: cards up to USD 5,000; anchoring by category
 
 
 class AuthorityError(PermissionError):
@@ -324,7 +331,7 @@ def view(setup: dict, org, doc_rules_on: bool, role: str | None = None) -> dict:
         cats.append(c | {"checks": checks, "rules": [rows[k] | {"category": c["key"], "short": SHORT[k], "critical": k in CRITICAL_VALUES or rows[k]["kind"] == "locked",
                                                                 "switchable": k in SWITCHABLE_CRITICAL, "built_in": BUILT_IN.get(k)}
                                                      for k, cat in RULE_CATEGORY.items() if cat == c["key"] and k in rows]})
-    limits = [{"key": k, "label": lab, "unit": unit, "category": cat, "min": lo, "max": hi, "help": hlp, "value": setup.get(k), "book": True,
+    limits = [{"key": k, "label": lab, "unit": unit, "category": cat, "min": lo, "max": hi, "help": hlp, "value": setup.get(k, BOOK_DEFAULTS.get(k)), "book": True,
                "critical": k == "reserve_floor_minor"}
               for k, (lab, unit, cat, lo, hi, hlp) in BOOK_LIMITS.items()]
     limits += [{"key": m["key"], "label": m["label"], "unit": m["unit"], "category": RULE_CATEGORY.get(m["key"], "control"), "kind": m["kind"],

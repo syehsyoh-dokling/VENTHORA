@@ -104,13 +104,25 @@ def summary(body: bytes, ctype: str) -> str:
     return " · ".join(parts)[:400]
 
 
-def record(org, *, method: str, path: str, query: str, status: int, ms: int, role: str | None, by: str | None, channel: str, body: bytes, ctype: str) -> None:
+def record(org, *, method: str, path: str, query: str, status: int, ms: int, role: str | None, by: str | None, channel: str, body: bytes, ctype: str,
+           req_body: bytes = b"") -> None:
+    from . import processlog
+
     s = session(org)
     if not s.get("active"):
         return
-    entry = {"_id": f"{int(time.time() * 1000):013d}-{uuid.uuid4().hex[:6]}", "run": s.get("run"), "scenario": s.get("scenario"), "at": _now(),
-             "tab": tab_of(method, path), "method": method, "path": path, "query": _clean_query(query), "status": status, "ms": ms,
-             "actor": f"{by} ({role})" if by and role else (role or by or "-"), "channel": channel, "result": summary(body, ctype)}
+    if path.startswith(("/approve/", "/rfq/", "/vendor-details/", "/v1/auth/invite/")):  # a link's token is its key: never written down
+        path = path.rsplit("/", 1)[0] + "/••••" if path.count("/") >= 2 else path
+    local, utc = processlog.local_now(org)
+    req = processlog.scrub(processlog.parse(req_body))
+    resp = processlog.parse(body) if "json" in (ctype or "") else {}
+    try:
+        line = processlog.describe(method, path, req, resp, status)
+    except Exception:  # noqa: BLE001 - a sentence that cannot be made never loses the entry
+        line = f"{processlog.page_of(path)} · {method} {path}"
+    entry = {"_id": f"{int(time.time() * 1000):013d}-{uuid.uuid4().hex[:6]}", "run": s.get("run"), "scenario": s.get("scenario"), "at": utc,
+             "local_at": local, "tab": tab_of(method, path), "method": method, "path": path, "query": _clean_query(query), "status": status, "ms": ms,
+             "actor": f"{by} ({role})" if by and role else (role or by or "-"), "channel": channel, "result": summary(body, ctype), "line": line}
     org._put(KIND, entry, "test log")
 
 

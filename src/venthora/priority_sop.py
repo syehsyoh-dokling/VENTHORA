@@ -11,6 +11,8 @@ Until the FCO saves the SOP the plan keeps each payee's own priority, so nothing
 """
 from __future__ import annotations
 
+import re
+
 LEVELS = {"high": "High priority", "medium": "Medium priority", "low": "Low priority"}
 BANDS = {"high": (10, 8), "medium": (7, 5), "low": (4, 1)}  # (first in the list, the floor of the band)
 TOP_SHARED = 2  # the first two High categories both carry 10 (wages and the statutory withholdings by default)
@@ -50,7 +52,9 @@ DEADLINE_HOUR_UTC = 17  # a payment is due by 17:00 UTC on its due date: "3 h be
 DEEMED_BEFORE_H = 3  # no intervention this close to the deadline: the plan is deemed approved
 FX_BEFORE_H = 2  # currencies are bought this close to the deadline, at the planned rate or not at all
 POLICY_DEFAULT = {"mode": "priority", "horizon_hours": 72, "deemed_approval": False, "pay_what_fits": True,
-                  "notify_fco": True, "cascade": True, "fx_at_plan": False}
+                  "notify_fco": True, "cascade": True, "fx_at_plan": False, "run_times": [], "run_days": "every"}
+RUN_DAYS = {"every": "Every day", "weekdays": "Monday to Friday"}
+RUN_WINDOW_MIN = 60  # a run time missed (the server was off) is still run within this many minutes, never later
 
 
 def saved(org) -> dict | None:
@@ -70,7 +74,55 @@ def check_policy(p: dict) -> dict:
         raise ValueError("the plan covers the next 24, 48, 72, 96 or 120 hours")
     for k in ("deemed_approval", "pay_what_fits", "notify_fco", "cascade", "fx_at_plan"):
         p[k] = bool(p[k])
+    times = p["run_times"] if isinstance(p["run_times"], list) else str(p["run_times"] or "").replace(";", ",").split(",")
+    clean = set()
+    for t in (str(x).strip() for x in times):
+        if not t:
+            continue
+        m = re.fullmatch(r"([01]?\d|2[0-3])[:.]([0-5]\d)", t)
+        if not m:
+            raise ValueError(f"payment run time {t!r}: write it as HH:MM, e.g. 09:00")
+        clean.add(f"{int(m[1]):02d}:{m[2]}")
+    if len(clean) > 6:
+        raise ValueError("at most six payment run times a day")
+    p["run_times"] = sorted(clean)
+    if p["run_days"] not in RUN_DAYS:
+        raise ValueError("payment runs are every day or Monday to Friday")
     return p
+
+
+def _slots(pol: dict, local, days: range):
+    from datetime import datetime as _dt
+    from datetime import timedelta
+
+    for d in days:
+        day = local.date() + timedelta(days=d)
+        if pol.get("run_days") == "weekdays" and day.weekday() >= 5:
+            continue
+        for t in pol.get("run_times") or []:
+            h, m = map(int, t.split(":"))
+            yield _dt(day.year, day.month, day.day, h, m, tzinfo=local.tzinfo)
+
+
+def next_run(pol: dict, now, tz: str):
+    """The next payment run time after now, in the company's time zone; None when the policy runs continuously."""
+    from zoneinfo import ZoneInfo
+
+    local = now.astimezone(ZoneInfo(tz))
+    return next((at for at in _slots(pol, local, range(0, 8)) if at > local), None)
+
+
+def due_slot(pol: dict, now, tz: str, done: set[str]) -> str | None:
+    """The run time that is due now and not yet run ("YYYY-MM-DD HH:MM"), or None."""
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    local = now.astimezone(ZoneInfo(tz))
+    for at in _slots(pol, local, range(-1, 1)):
+        key = at.strftime("%Y-%m-%d %H:%M")
+        if at <= local < at + timedelta(minutes=RUN_WINDOW_MIN) and key not in done:
+            return key
+    return None
 
 
 def current(org) -> list[dict]:

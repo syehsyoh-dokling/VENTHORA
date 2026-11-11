@@ -41,7 +41,7 @@ HOP = {"host", "connection", "keep-alive", "transfer-encoding", "te", "trailer",
 PAGE = Path(__file__).with_name("dashboard") / "platform.html"
 LOGIN_PAGE = Path(__file__).with_name("dashboard") / "login.html"
 # reached from outside with no browser cookie, each owned by one company (see find_owner)
-PUBLIC_PREFIXES = ("/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/")
+PUBLIC_PREFIXES = ("/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/")
 PUBLIC_EXACT = ("/webhooks/xendit", "/webhooks/airwallex/remote-auth")
 
 
@@ -445,7 +445,7 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
     def public(request: Request) -> bool:
         p = request.url.path
         keyed = (request.headers.get("authorization") or "").lower().startswith("bearer vth_") or bool(request.headers.get("x-api-key"))
-        return p.startswith(PUBLIC_PREFIXES) or p in PUBLIC_EXACT or (keyed and p.startswith(("/v1/", "/api/")))
+        return p.startswith(PUBLIC_PREFIXES) or p in PUBLIC_EXACT or (keyed and (p.startswith(("/v1/", "/api/", "/docs")) or p in ("/openapi.json", "/health")))
 
     # -- inbound email: to the company whose mailbox it was sent to ------------------------------------------------
     async def route_email(request: Request) -> Response:

@@ -418,7 +418,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <select id="tlScen"><option>1 · via endpoints (API)</option><option>2 · UI only</option><option value="">other…</option></select>
    <input id="tlOther" placeholder="scenario name" hidden style="width:200px">
    <button class="primary" id="tlStart">Start recording</button><button id="tlStop">Stop</button>
-   <select id="tlView"></select><a class="small" id="tlCsv" href="/v1/demo/testlog.csv" target="_blank">Download CSV</a>
+   <select id="tlView"></select><a class="small" id="tlCsv" href="/v1/demo/testlog.csv" target="_blank">Download CSV</a> <a class="small" id="tlHtml" href="/v1/demo/testlog.html" target="_blank">Open report</a>
    <button id="tlClear" class="small" style="margin-left:auto">Clear this scenario</button></div>
   <div class="tabs" id="tlTabs" style="margin:6px 0"></div>
   <div id="tlBody" class="empty">loading…</div></section>
@@ -526,13 +526,13 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
     <span class="muted">checks the Airwallex balance every 30 s; money in or out re-plans this page on its own</span><span style="flex:1"></span>
     <span id="apWatchMsg" class="muted">waiting for the first check…</span><b id="apWatchNext"></b><label class="check"><input type="checkbox" id="apWatchOn" checked> on</label></div><div id="apCover"></div><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><span class="small muted" id="apSource"></span><span style="flex:1"></span>
     <button id="apRefresh" title="read the balance now, and re-plan with any money that came in">Check &amp; Refresh Plan</button><button class="primary" id="apExec" title="pay now, by hand, only what is validated and ready">Pay all Valid Now</button></div>
-   <div id="apNotices"></div>
+   <div id="apNotices"></div><div id="apSim"></div>
    <style>.apbox{border:1px solid var(--line);border-top:4px solid var(--tone,#94a3b8);border-radius:12px;padding:12px 14px 6px;margin-top:14px;background:var(--surface,#fff)}
     .apbox .aph{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.apbox .aph h3{margin:0;font-size:14px}.apbox .aph .sub{flex:1;min-width:220px}
     .apbox td.amt,.apbox th.amt{white-space:nowrap;text-align:right}.apbox .empty{padding:10px 0}.apbox td a.small{white-space:nowrap}
     .apbox.ready{--tone:#16a34a}.apbox.wait{--tone:#d97706}.apbox.stop{--tone:#dc2626}</style>
    <div id="apReady"></div><div id="apWait"></div><div id="apOthers"></div>
-   <div id="apRec"></div>
+   <div id="apRec"></div><div id="apFc"></div>
    <details style="margin-top:16px"><summary>The plan and its proof (engines, simulation, alternatives)</summary><div id="apToday" class="empty" style="margin-top:8px">planning…</div></details></div>
   <div data-appane="proof" hidden><div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center"><input id="logQ" placeholder="search a payment, payee or invoice" style="min-width:260px">
     <select id="logStatus"><option value="">every status</option><option value="Paid">paid</option><option value="Plan">planned</option><option value="Rejected">rejected</option><option value="pending">pending</option><option value="Needs">needs a person</option></select><span class="small muted" id="logCount"></span></div>
@@ -766,6 +766,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
    <button id="sopReset">Back to the standard levels</button><button class="primary" id="sopSave">Save policy</button></span></h2>
   <div id="sopAuth"></div>
   <div class="tile" id="sopPolicy" style="margin-bottom:12px">loading…</div>
+  <div class="tile" id="sopNotify" style="margin-bottom:12px"></div>
   <div class="small" id="sopGuide" style="padding:10px 12px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"></div>
   <h3 class="small muted" style="margin:0 0 6px">Priority of each spending category</h3>
   <div id="sopBody" class="empty">loading…</div>
@@ -1396,7 +1397,7 @@ $("#plan").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">plannin
 $("#planIntake").onclick=async()=>{$("#planOut").innerHTML='<div class="empty">adding the intake queue to the book and planning…</div>';
  try{renderPlan(await api("/v1/intake/plan",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({scenario_id:$("#scenario").value,as_of:"2026-10-24"})}))}catch(e){$("#planOut").innerHTML=`<div class="err">${esc(e.message)}</div>`}};
 
-let INTAKE_PEOPLE={};
+let INTAKE_PEOPLE={};const PEND={status:"",q:"",page:0},PEND_SIZE=25,PAYABLE_KIND=["supplier_invoice","contractor_claim","expense_claim"];
 const CHECK_ICON={pass:"✓",fail:"✗",warn:"!",skip:"–"},CHECK_TONE={pass:"good",fail:"critical",warn:"warn",skip:""};
 function docChecks(cs){if(!cs.length)return '<span class="small muted">-</span>';const n=s=>cs.filter(c=>c.status===s).length;
  const held=cs.some(c=>c.status==="fail"&&c.mode==="required");
@@ -1404,7 +1405,12 @@ function docChecks(cs){if(!cs.length)return '<span class="small muted">-</span>'
   +cs.map(c=>`<div class="small" style="margin:3px 0"><span class="pill ${CHECK_TONE[c.status]}" title="${esc(c.mode)}">${CHECK_ICON[c.status]}</span> <b>${esc(c.label)}</b>${c.mode==="required"?"":' <span class="muted">(warn)</span>'}${c.source!=="rules"?` <span class="chip">${esc(c.source)}</span>`:""}<div class="muted">${esc(c.detail)}</div>${c.evidence?`<div class="quote">“${esc(c.evidence)}”</div>`:""}</div>`).join("")+"</details>"}
 async function intake(){try{const every=await api("/v1/intake");const needs=location.hash.includes("?needs");
  const all=every.filter(r=>!r.payment&&!["REJECTED","DUPLICATE"].includes(r.status));  // pending only: what is paid is in Reporting
- const rows=needs?all.filter(r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)):all;try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};all.forEach(r=>{const k=r.payment?"PAID":r.status;c[k]=(c[k]||0)+1});
+ const st=needs&&!PEND.status?"needs":PEND.status,q=PEND.q.trim().toLowerCase();
+ const hit=r=>!q||[r.display_name,r.sender,r.invoice_no,r.po_number,r.counterparty_name,r.claimed_name,r.subject].some(x=>String(x||"").toLowerCase().includes(q));
+ const filtered=all.filter(r=>(!st||(st==="needs"?["NEEDS_REVIEW","QUARANTINED"].includes(r.status):r.status===st))&&hit(r))
+  .sort((a,b)=>(a.status!=="VERIFIED")-(b.status!=="VERIFIED")||String(a.due_date||"9").localeCompare(String(b.due_date||"9")));
+ const pages=Math.max(1,Math.ceil(filtered.length/PEND_SIZE));if(PEND.page>=pages)PEND.page=pages-1;
+ const rows=filtered.slice(PEND.page*PEND_SIZE,(PEND.page+1)*PEND_SIZE);try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};all.forEach(r=>{const k=r.payment?"PAID":r.status;c[k]=(c[k]||0)+1});
  $("#intakeMeta").innerHTML=esc(Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · "))+(needs?` · <span class="pill warn">showing what needs a person</span> <a href="#/pending">show all</a>`:"")+` · <a href="#/rep-goods">paid items are in Reporting ›</a>`;
  $("#intake").innerHTML=table([{h:"Status",f:r=>r.payment?`<span class="pill good">PAID</span><div class="small muted">${fmt(r.payment.amount_minor,r.payment.currency)} · ${esc((r.payment.paid_at||"").slice(0,10))}</div>`:pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
   {h:"Trust",f:r=>`<span class="small">${esc(r.trust)}${r.counterparty_name?` · ${esc(r.counterparty_name)}`:r.claimed_name?` · claims ${esc(r.claimed_name)}`:""}</span>`},
@@ -1414,13 +1420,32 @@ async function intake(){try{const every=await api("/v1/intake");const needs=loca
    <div class="muted">${r.reader==="model+rules"?"model + rules":"rules"}${Object.keys(r.authentication||{}).length?` · ${Object.entries(r.authentication).map(([k,v])=>`${k} ${v}`).join(", ")}`:""}</div></span>`},
   {h:"Checks",f:r=>docChecks(r.checks||[])},
   {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}${(r.approvers||[]).length?`<div class="small">approvers: ${r.approvers.map(id=>esc((INTAKE_PEOPLE[id]||{}).name||id)).join(", ")}</div>`:""}</details>`},
-  {h:"",f:r=>["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`:""}],
-  rows,"Nothing is waiting for payment. Invoices and claims emailed to the inbound address appear here the moment they arrive; what is paid moves to Reporting.");
+  {h:"",f:r=>(["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<input data-note="${r.intake_id}" placeholder="note (e.g. call-back done)" style="width:170px;margin-bottom:4px"><div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`
+   :r.status==="VERIFIED"&&PAYABLE_KIND.includes(r.kind)?`<button class="primary" data-pay="${r.intake_id}" title="Approve this payment as ${esc(actor().name)} and pay it now: the plan still checks the balance, the reserve floor and the limits">Approve &amp; pay</button>`:"")
+   +(["NEEDS_REVIEW","QUARANTINED","VERIFIED"].includes(r.status)?`<button class="small" data-fco="${r.intake_id}" style="margin-top:4px" title="Email the FCO about this one: what stops it, or (first payment) an Approve & pay link">✉ Email FCO</button>`:"")}],
+  rows,filtered.length?"":all.length?"Nothing matches this filter.":"Nothing is waiting for payment. Invoices and claims emailed to the inbound address appear here the moment they arrive; what is paid moves to Reporting.");
+ const opt=(v,l)=>`<option value="${v}" ${st===v?"selected":""}>${l}</option>`;
+ $("#intake").insertAdjacentHTML("afterbegin",`<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+  <select id="pendSt">${opt("","Every status")}${opt("VERIFIED",`Ready to pay (${c.VERIFIED||0})`)}${opt("needs",`Needs a person (${(c.NEEDS_REVIEW||0)+(c.QUARANTINED||0)})`)}${opt("NEEDS_REVIEW","Needs review")}${opt("QUARANTINED","Quarantined")}</select>
+  <input id="pendQ" placeholder="search sender, vendor, invoice, PO" value="${esc(PEND.q)}" style="min-width:260px">
+  <span style="flex:1"></span><span class="small muted">${filtered.length?`${PEND.page*PEND_SIZE+1}–${Math.min((PEND.page+1)*PEND_SIZE,filtered.length)} of ${filtered.length}`:"0"}</span>
+  <button id="pendPrev" ${PEND.page?"":"disabled"}>‹ Prev</button><button id="pendNext" ${PEND.page<pages-1?"":"disabled"}>Next ›</button></div>`);
+ $("#pendSt").onchange=()=>{PEND.status=$("#pendSt").value;PEND.page=0;intake()};
+ let qt;$("#pendQ").oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>{PEND.q=$("#pendQ").value;PEND.page=0;intake().then(()=>{const i=$("#pendQ");i.focus();i.setSelectionRange(i.value.length,i.value.length)})},350)};
+ $("#pendPrev").onclick=()=>{PEND.page--;intake()};$("#pendNext").onclick=()=>{PEND.page++;intake()};
+ $("#intake").querySelectorAll("[data-fco]").forEach(b=>b.onclick=async ev=>{ev.stopPropagation();b.disabled=true;
+  try{const n=await api(`/v1/fco-notify/send/${b.dataset.fco}?${who()}`,{method:"POST"});toast(`Email to the FCO (${esc((n.to||[]).join(", "))}): ${esc(n.status)}${n.error?" · "+esc(n.error):""}`,n.status==="sent"?"good":"warn")}
+  catch(e){toast(esc(e.message),"serious");b.disabled=false}});
+ $("#intake").querySelectorAll("[data-pay]").forEach(b=>b.onclick=async ev=>{ev.stopPropagation();b.disabled=true;b.textContent="paying…";
+  try{const res=await fetch(`/v1/intake/requests/${b.dataset.pay}/pay?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({note:"approved in Pending payment"})});const j=await res.json();
+   if(!res.ok)throw new Error(typeof j.detail==="string"?j.detail:(j.detail&&j.detail.message)||JSON.stringify(j.detail||j));
+   toast(j.paid?`Paid: ${esc((j.execution||{}).status||"")} · ${esc((j.execution||{}).execution_id||"")}`:esc(j.message||"approved; not paid now"),j.paid?"good":"warn");intake();notifications()}
+  catch(e){toast(esc(e.message),"serious");b.disabled=false;b.textContent="Approve & pay"}});
  // a click on a row opens the request in full, to correct and pay it
  $("#intake").querySelectorAll("tbody tr").forEach((tr,i)=>{tr.style.cursor="pointer";tr.title="Open the request to correct it, save or pay";
   tr.onclick=ev=>{if(ev.target.closest("button,details,summary,a,input,select"))return;pdOpen(rows[i].intake_id)}});
- $("#intake").querySelectorAll("button").forEach(b=>b.onclick=async()=>{const a=actor();const note=prompt(`${b.dataset.d} as ${a.label} — note (e.g. call-back done on the registered phone number, receipt checked):`);if(note===null)return;
-  try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:a.name,role:a.role,note})});intake();notifications()}catch(e){alert(e.message)}})}
+ $("#intake").querySelectorAll("button[data-d]").forEach(b=>b.onclick=async ev=>{ev.stopPropagation();const a=actor();const note=($(`[data-note="${b.dataset.id}"]`)||{}).value||"";
+  try{await api(`/v1/intake/${b.dataset.id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:b.dataset.d,reviewer:a.name,role:a.role,note})});toast(`${esc(b.dataset.d)}: done`,"good");intake();notifications()}catch(e){toast(esc(e.message),"serious")}})}
  catch(e){$("#intake").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 
 async function executions(){try{const rows=await api("/v1/executions?limit=15");const cases=await api("/v1/recon-cases");const open=cases.filter(c=>c.status==="OPEN");
@@ -1497,20 +1522,44 @@ async function tenants(){try{const t0=await api("/v1/tenants");const t={...t0,ro
   t.rows,"no tenants registered")}catch(e){$("#tenants").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
 // ---- payees: lifecycle records, the call-back and bank-change actions ----
-let PAYEE_OPTS=[];
+let PAYEE_OPTS=[],PCB_OPEN=null;
+// Call-back: the person phones the REGISTERED number (never one from an email), reads out what is on file, and records
+// what the payee said: all correct, something corrected (account, name, bank, SWIFT, phone), denied, or no answer.
+async function payeeCallback(id){const el=$("#pcb");if(!el)return;let d;try{d=await api(`/v1/payees/${encodeURIComponent(id)}/callback`)}catch(e){el.innerHTML=`<div class="err small">${esc(e.message)}</div>`;return}
+ const p=d.payee||{},v=d.vendor||{},a=actor();
+ const row=(k,label,cur)=>`<tr><td class="small">${label}</td><td class="mono small">${esc(cur||"-")}</td><td><input data-cbfix="${k}" placeholder="what the payee says is right" style="width:100%"></td></tr>`;
+ el.innerHTML=`<div class="tile" style="margin-top:14px;border-left:3px solid var(--accent,#2f6fed)">
+  <div class="row" style="justify-content:space-between;align-items:center"><b>Call-back · ${esc(v.name||id)}</b><span>${pill(p.status||"-")} <button class="small" id="cbClose">Close</button></span></div>
+  <div class="small muted" style="margin:4px 0 10px">1. Phone the <b>registered number</b> below yourself (never a number from an email or invoice). 2. Read out what is on file and ask the payee to confirm it. 3. Record the answer: if something is wrong, type what the payee says is right; a new account starts the ${"72"}-hour cooling period, a new phone number must itself be called back.</div>
+  <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-end">
+   <label class="small"><b>Number called</b><br><input id="cbNum" value="${esc(p.registered_phone||"")}" style="width:180px"></label>
+   <label class="small"><b>Called by</b><br><input id="cbBy" value="${esc(a.name||"")}" style="width:180px"></label>
+   <label class="small"><b>What the payee said</b><br><select id="cbOut"><option value="confirmed">Everything on file is correct</option><option value="corrected">Something is wrong: corrected below</option><option value="denied">Payee denies these details (suspend)</option><option value="unreachable">No answer / wrong person</option></select></label></div>
+  <table style="margin-top:10px"><thead><tr><th>Read out to the payee</th><th>On file</th><th>Correction (only if the payee says it is wrong)</th></tr></thead><tbody>
+   ${row("bank_name","Bank",v.bank_name)}${row("account_number","Account number",v.account_number_masked)}${row("account_name","Account holder",v.account_name)}${row("swift_code","SWIFT / BIC",v.swift_code)}${row("registered_phone","Call-back number",p.registered_phone)}</tbody></table>
+  <label class="small" style="display:block;margin-top:8px"><b>Note</b><br><input id="cbNote" placeholder="e.g. spoke to the finance officer; confirmed the last four digits" style="width:100%"></label>
+  <div class="row" style="gap:8px;margin-top:10px;align-items:center"><button class="primary" id="cbSave">Record the call-back</button><span id="cbMsg" class="small"></span></div>
+  ${(d.history||[]).length?`<div class="small" style="margin-top:12px"><b>Call-backs so far</b>${d.history.map(h=>`<div class="muted">${esc(h.at.slice(0,16).replace("T"," "))} UTC · ${esc(h.by)} called ${esc(h.called_number)} · ${esc(h.outcome)}${h.corrected.length?` (${esc(h.corrected.join(", "))})`:""} · ${esc(h.status_before)} → <b>${esc(h.status_after||"")}</b>${h.note?` · ${esc(h.note)}`:""}</div>`).join("")}</div>`:""}</div>`;
+ $("#cbClose").onclick=()=>{PCB_OPEN=null;el.innerHTML=""};
+ const fix=()=>{const c={};document.querySelectorAll("[data-cbfix]").forEach(i=>{if(i.value.trim())c[i.dataset.cbfix]=i.value.trim()});return c};
+ document.querySelectorAll("[data-cbfix]").forEach(i=>i.oninput=()=>{if(i.value.trim())$("#cbOut").value="corrected"});
+ $("#cbSave").onclick=async()=>{$("#cbMsg").textContent="recording…";
+  try{const r=await api(`/v1/payees/${encodeURIComponent(id)}/callback?${who()}`,{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({called_number:$("#cbNum").value,by:$("#cbBy").value,role:a.role==="super_admin"?"super_admin":"finance_manager",outcome:$("#cbOut").value,corrections:fix(),note:$("#cbNote").value})});
+   toast(`${esc(id)}: ${esc(r.steps.join("; "))}`,"good");await payees()}
+  catch(e){$("#cbMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
 async function payees(){try{const recs=await api("/v1/payees");PAYEE_OPTS=recs.map(r=>[r.beneficiary_id,`${r.name||r.beneficiary_id} · receives ${r.currency||"?"} · ${String(r.status||"").toLowerCase()}`]);
  const act=async(id,path,body)=>{const r=await fetch(`/v1/payees/${encodeURIComponent(id)}/${path}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const j=await r.json();
-  if(!r.ok)alert(`${r.status}: ${j.detail||JSON.stringify(j)}`);await payees()};
+  if(!r.ok)toast(esc(`${r.status}: ${j.detail||JSON.stringify(j)}`),"serious");await payees()};
  $("#payees").innerHTML=table([{h:"Payee",f:r=>`<b>${esc(r.beneficiary_id)}</b>`},{h:"Status",f:r=>pill(r.status)},{h:"Bank details",f:r=>`<span class="mono small">${esc(r.bank_fingerprint||"-")}</span>`},
   {h:"Registered number",f:r=>esc(r.registered_phone||"-")},{h:"Verified",f:r=>r.verified_by?`${esc(r.verified_by)}<br><span class="small muted">${esc((r.verified_at||"").slice(0,16))}</span>`:"-"},
   {h:"Cooling until",f:r=>r.cooling_until?esc(r.cooling_until.slice(0,16).replace("T"," ")):"-"},{h:"Paid",num:1,f:r=>r.paid_count},
-  {h:"",f:r=>`<button data-act="verify" data-id="${esc(r.beneficiary_id)}" ${r.status==="NEW"||r.status==="CHANGED"?"":"disabled"}>Call-back</button> <button data-act="change" data-id="${esc(r.beneficiary_id)}">Bank change</button> <button data-act="${r.status==="SUSPENDED"?"reinstate":"suspend"}" data-id="${esc(r.beneficiary_id)}">${r.status==="SUSPENDED"?"Reinstate":"Suspend"}</button>`}],
-  recs,"no payees registered");
+  {h:"",f:r=>`<button class="${r.status==="NEW"||r.status==="CHANGED"?"primary":""}" data-act="callback" data-id="${esc(r.beneficiary_id)}">Call-back</button> <button data-act="${r.status==="SUSPENDED"?"reinstate":"suspend"}" data-id="${esc(r.beneficiary_id)}">${r.status==="SUSPENDED"?"Reinstate":"Suspend"}</button>`}],
+  recs,"no payees registered")+`<div id="pcb"></div>`;
  $("#payees").querySelectorAll("button[data-act]").forEach(b=>b.onclick=async()=>{const id=b.dataset.id,a=b.dataset.act;
-  if(a==="verify"){const num=prompt(`Call-back for ${id}: which number did you call? (must be the registered number)`);if(!num)return;const by=prompt("Your name (finance manager)","finance manager (owner)");if(!by)return;
-   await act(id,"verify",{by,role:"finance_manager",called_number:num,note:"dashboard"})}
-  else if(a==="change"){const fp=prompt(`New bank details fingerprint for ${id} (e.g. iban:DE..., or any identifier of the new details)`);if(!fp)return;await act(id,"bank-change",{bank_fingerprint:fp,source:"dashboard",note:""})}
-  else{const by=prompt("Your name (finance manager)","finance manager (owner)");if(!by)return;await act(id,a,{by,role:"finance_manager",reason:"dashboard"})}})}
+  if(a==="callback"){PCB_OPEN=id;payeeCallback(id);return}
+  await act(id,a,{by:actor().name,role:"finance_manager",reason:"dashboard"})});
+ if(PCB_OPEN&&recs.some(r=>r.beneficiary_id===PCB_OPEN))payeeCallback(PCB_OPEN)}
  catch(e){$("#payees").innerHTML=`<div class="muted small">${esc(e.message)}</div>`}}
 
 // ---- reporting periods: monthly spend by payment instant, invoice statements, consolidation ----
@@ -2366,9 +2415,43 @@ const AP_NOTE={today:`<b>What VENTHORA would do now with the organisation's real
 function apTab(t){APTAB=t;document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.classList.toggle("on",b.dataset.aptab===t));document.querySelectorAll("[data-appane]").forEach(x=>x.hidden=x.dataset.appane!==t);$("#apNote").innerHTML=t==="today"?"checking every obligation…":AP_NOTE[t];
  if(t==="today")apToday();else if(t==="console")apConsole();else if(t==="proof")apLog()}
 document.querySelectorAll("#apTabs [data-aptab]").forEach(b=>b.onclick=()=>{history.replaceState(null,"",`#/agent-plan?${b.dataset.aptab}`);apTab(b.dataset.aptab)});
-const hm=iso=>{const d=new Date(iso);return `${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")} UTC`};
+const hm=iso=>{if(/[+-]\d\d:\d\d$/.test(iso)&&!/[+-]00:00$/.test(iso))return `${iso.slice(11,16)} company time`;const d=new Date(iso);return `${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")} UTC`};
+// ---- Agent plan → Invoice simulation (Demo-Only): supplier emails in batches, a re-plan after each; this page re-plans with it
+let SIMT=null,SIMB=-1;
+async function apSim(){const el=$("#apSim");if(!el)return;let d;try{d=await api("/v1/demo/simulate-invoices")}catch(e){el.innerHTML="";return}
+ const r=d.run,run=r&&r.status==="running",K=d.kinds||{},nb=r?Math.ceil(r.count/((r.batches[0]||{}).emails||17)):0;
+ const kinds=r?Object.entries(r.by_kind||{}).map(([k,v])=>`<tr><td>${esc(K[k]||k)}</td><td class="small">${Object.entries(v).map(([s,n])=>`${n} ${esc(s.toLowerCase().replace("_"," "))}`).join(" · ")}</td></tr>`).join(""):"";
+ const rows=r?(r.batches||[]).map(b=>`<tr><td>${b.batch}</td><td class="small">${Object.entries(b.outcome).map(([s,n])=>`${n} ${esc(s.toLowerCase().replace("_"," "))}`).join(" · ")}</td>
+   <td>${b.replanned?'<span class="pill good">re-planned</span>':'<span class="pill">unchanged</span>'}</td><td class="amt">${b.plan.count}</td><td class="amt">${b.plan.ready} · ${fmt(b.plan.ready_minor,b.plan.base)}</td>
+   <td class="amt">${b.plan.approval}</td><td class="amt">${b.plan.blocked}</td><td class="small">+${b.new_in_plan} / −${b.left_plan}</td><td class="small">${b.plan.short_minor?`<span class="err">short ${fmt(b.plan.short_minor,b.plan.base)}</span>`:"covered"}</td></tr>`).join(""):"";
+ el.innerHTML=`<details class="apbox" ${run||r&&r.status==="done"&&(Date.now()-new Date(r.finished_at||0))<3600e3?"open":""}><summary class="aph" style="cursor:pointer"><h3>Invoice simulation (demo)</h3><span class="sub small muted">${r?`run ${esc(r.run)} · ${esc(r.status)} · ${r.done}/${r.count} emails`:"supplier emails in batches; the agent re-plans after each batch; nothing is paid on arrival, no real payee changes"}</span></summary>
+  <div class="row" style="gap:8px;align-items:flex-end;flex-wrap:wrap;margin:6px 0"><label class="small"><b>Emails</b><br><input id="simN" type="number" value="136" min="8" max="500" style="width:90px"></label>
+   <label class="small"><b>Re-plan every</b><br><input id="simB" type="number" value="17" min="1" max="100" style="width:70px"> emails</label>
+   <label class="small"><b>Read by the AI model</b><br><input id="simA" type="number" value="2" min="0" max="20" style="width:60px"> first emails</label>
+   <button class="primary" id="simGo" ${run?"disabled":""}>${run?"Running…":"Start simulation"}</button><span class="small muted" style="flex:1;min-width:200px">8 kinds × ${Math.round(136/8)}: ${Object.values(K).map(esc).join(" · ")}</span></div>
+  ${rows?`<table><thead><tr><th>Batch</th><th>Emails in</th><th>Plan</th><th class="amt">Due in horizon</th><th class="amt">Ready</th><th class="amt">Wait</th><th class="amt">Stopped</th><th>In/out</th><th>Balance</th></tr></thead><tbody>${rows}</tbody></table>`:""}
+  ${kinds?`<table style="margin-top:8px"><thead><tr><th>Kind</th><th>Outcome</th></tr></thead><tbody>${kinds}</tbody></table>`:""}</details>`;
+ $("#simGo").onclick=async()=>{try{await api(`/v1/demo/simulate-invoices?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({count:+$("#simN").value,batch:+$("#simB").value,ai_sample:+$("#simA").value})});SIMB=-1;toast("Simulation started: the plan re-plans after each batch","good");apSim()}catch(e){toast(esc(e.message),"serious")}};
+ const nbat=r?(r.batches||[]).length:0;if(r&&nbat!==SIMB){if(SIMB>=0)apToday();SIMB=nbat}
+ clearTimeout(SIMT);if(run)SIMT=setTimeout(()=>{if(!$('section[data-view="agent-plan"]').hidden)apSim()},4000)}
+// ---- Agent plan → the next three months: what goes out and comes in, the balance against the reserve floor, the deposit suggested
+async function apForecast(){const el=$("#apFc");if(!el)return;el.innerHTML='<div class="apbox"><div class="empty">forecasting the next three months…</div></div>';
+ try{const f=await api("/v1/agent-plan/forecast"),b=f.base_currency,s=f.suggestion,M=f.months;
+  const row=(m,i)=>`<tr${m.under_floor?' style="background:rgba(220,38,38,.06)"':""}><td><b>Month ${i+1}</b><div class="small muted">${dmy(m.from)} – ${dmy(m.to)}</div></td>
+   <td class="amt">${fmt(m.opening_minor,b)}</td><td class="amt">${fmt(m.out["Payroll"],b)}</td><td class="amt">${fmt(m.out["Payment requests"],b)}</td><td class="amt">${fmt(m.out["Open purchase orders"],b)}</td>
+   <td class="amt">${m.in?"+"+fmt(m.in,b):"–"}</td><td class="amt"><b${m.closing_minor<f.reserve_floor_minor?' class="err"':""}>${fmt(m.closing_minor,b)}</b>${m.under_floor?'<div class="small err">under the reserve floor</div>':""}</td></tr>`;
+  const tone=s.deposit_minor?"stop":"ready";
+  el.innerHTML=`<div class="apbox ${tone}"><div class="aph"><h3>Next 3 months · cash forecast</h3><span class="sub small muted">payroll of ${f.staff_paid} people, the payment requests waiting, what is left on open purchase orders, the customer receipts expected (weighted by how sure they are); in ${esc(b)}, on the ${esc(f.balances||"plan")} balance; reserve floor ${fmt(f.reserve_floor_minor,b)}</span></div>
+   <table><thead><tr><th>Period</th><th class="amt">Opening</th><th class="amt">Payroll</th><th class="amt">Payment requests</th><th class="amt">Open POs</th><th class="amt">Receipts</th><th class="amt">Closing</th></tr></thead><tbody>${M.map(row).join("")}</tbody></table>
+   ${Object.keys(f.no_rate||{}).length?`<div class="small muted" style="margin-top:6px">Not counted, no rate: ${Object.entries(f.no_rate).map(([c,v])=>fmt(v,c)).join(" · ")}</div>`:""}
+   <div class="tile" style="margin:10px 0 8px;border-left:3px solid ${s.deposit_minor?"var(--critical,#dc2626)":"var(--good,#16a34a)"}">${s.deposit_minor
+    ?`<b>Deposit suggestion: ${fmt(s.deposit_minor,b)} by ${dmy(s.deposit_by)}</b><div class="small">${esc(s.why)}. The amount brings the lowest point back to the reserve floor, rounded up to 1,000.</div>
+      <div class="row" style="gap:8px;margin-top:6px"><a class="go" href="#/fund?need=${s.deposit_minor}">Top up ${fmt(s.deposit_minor,b)} ›</a></div>`
+    :`<b>No deposit needed for the next three months.</b><div class="small">${esc(s.why)}.${s.idle_minor?` ${fmt(s.idle_minor,b)} is ${esc(s.idle_note)}.`:""}</div>`}</div></div>`}
+ catch(e){el.innerHTML=`<div class="apbox"><div class="err small">Forecast: ${esc(e.message)}</div></div>`}}
 const until=iso=>{const m=Math.max(0,Math.round((new Date(iso)-Date.now())/60000));return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`};
 async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on the live balance…</div>';
+ apForecast();apSim();
  try{const d=await api("/v1/agent-plan");const src=d.source,t=d.today;
   const when=t&&t.next_pay_at?` — ready to pay on <b>${dmy(t.next_pay_at)} ${hm(t.next_pay_at)}</b>`:t&&t.ready.length?" — paid when you press <b>Pay all Valid Now</b>":"";
   $("#apSource").innerHTML=`${src.requests} request(s) waiting · ${src.payroll_lines} salary line(s)${src.pay_date?` for ${dmy(src.pay_date)}`:""} · balances: <b>${esc(src.balances)}</b>${src.balances_error?` <span class="muted">(${esc(src.balances_error)})</span>`:""} · horizon ${d.horizon_hours} h · real time ${d.pay_on_arrival?'<span class="pill good">ON</span>':'<span class="pill warn">OFF</span>'}${when}`;
@@ -2409,7 +2492,7 @@ async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on
     {h:"",f:x=>`<div class="acts"><button class="small" data-apreject="${esc(x.obligation_id)}">Reject</button><button class="small" data-appending="${esc(x.obligation_id)}">Pending</button></div>`}],"nothing is ready to pay on its own right now");
   box("#apWait","wait","Waiting for an approval","passed the checks; a person approves it once (a first salary, above a limit), then VENTHORA pays it",wait,
    [{h:"No",num:1,f:x=>x.n},pay,who_,amt,due,{h:"Why it waits",f:x=>`<span class="small">${esc(x.why)}</span>`},
-    {h:"",f:x=>x.payroll?`<a class="small" href="#/executions">Approve ›</a>`:`<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a>`}],"nothing waits for an approval");
+    {h:"",f:x=>x.payroll?`<a class="small" href="#/executions">Approve ›</a>`:`<div class="acts">${x.intake_ref?`<button class="small primary" data-appay="${esc(x.intake_ref)}" data-oid="${esc(x.obligation_id)}" title="Approve this payment as ${esc(actor().name)} and pay it now">Approve &amp; pay</button>`:""}<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a></div>`}],"nothing waits for an approval");
   box("#apOthers","stop","Stopped by a check","cannot be paid as it stands: correct it (in Pending payment) or reject it",stop,
    [{h:"No",num:1,f:x=>x.n},pay,who_,amt,due,{h:"Why VENTHORA does not pay it",f:x=>`<span class="small">${esc(x.why)}</span>`},
     {h:"",f:x=>`<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a>`}],"nothing is stopped by a check");
@@ -2417,6 +2500,11 @@ async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on
   $("#apRec").innerHTML=rc?`<div class="tile" style="margin-top:16px;border-left:3px solid var(--warn)"><b>Recommendation: the balance covers ${fmt(rc.spendable_minor,b)} above the reserve floor</b>${rc.short_minor?` · short by <b>${fmt(rc.short_minor,b)}</b>`:""}
     <div class="two" style="margin-top:8px"><div><div class="small muted" style="margin-bottom:4px">Pay now (fits the balance, in priority order)</div>${table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Payee",f:x=>esc(x.payee)},{h:"Priority",num:1,f:x=>x.priority},{h:"Cost",num:1,f:x=>fmt(x.base_minor,b)}],rc.pay_now,"nothing fits")}</div>
     <div><div class="small muted" style="margin-bottom:4px">Pay when the balance allows</div>${table([{h:"Payment",f:x=>`<span class="mono">${esc(x.obligation_id)}</span>`},{h:"Payee",f:x=>esc(x.payee)},{h:"Priority",num:1,f:x=>x.priority},{h:"Cost",num:1,f:x=>fmt(x.base_minor,b)}],rc.pay_later,"nothing waits for money")}</div></div></div>`:"";
+  document.querySelectorAll("[data-appay]").forEach(x=>x.onclick=async()=>{x.disabled=true;x.textContent="paying…";
+   try{const res=await fetch(`/v1/intake/requests/${encodeURIComponent(x.dataset.appay)}/pay?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({note:`approved in Agent plan (${x.dataset.oid})`})});const j=await res.json();
+    if(!res.ok)throw new Error(typeof j.detail==="string"?j.detail:(j.detail&&j.detail.message)||JSON.stringify(j.detail||j));
+    toast(j.paid?`${esc(x.dataset.oid)} paid: ${esc((j.execution||{}).status||"")}`:esc(j.message||"approved; not paid now"),j.paid?"good":"warn");apToday()}
+   catch(e){toast(esc(e.message),"serious");x.disabled=false;x.textContent="Approve & pay"}});
   document.querySelectorAll("[data-apreject]").forEach(x=>x.onclick=async()=>{const reason=prompt(`Why is ${x.dataset.apreject} rejected? (the reason goes on its log)`);if(!reason||reason.trim().length<3)return;
    try{await api(`/v1/agent-plan/reject?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({obligation_id:x.dataset.apreject,reason:reason.trim()})});toast("Rejected: it will not be paid","good");apToday()}catch(e){toast(esc(e.message),"serious")}});
   document.querySelectorAll("[data-appending]").forEach(x=>x.onclick=async()=>{const until=prompt(`New date for ${x.dataset.appending} (YYYY-MM-DD): it is not paid before it`);if(!until)return;const note=prompt("Why? (optional)")||"";
@@ -2776,12 +2864,19 @@ async function payView(){const id=decodeURIComponent((location.hash.match(/[?&]i
     <div class="tile"><div class="k">Amount</div><div class="v">${r.amount_minor!=null?fmt(r.amount_minor,r.currency):o?fmt(o.amount_minor,o.currency):"-"}</div><div class="d">${r.invoice_no?`invoice ${esc(r.invoice_no)}`:""}${r.po_number?` · PO ${esc(r.po_number)}`:""}</div></div>
     <div class="tile"><div class="k">Due</div><div class="v" style="font-size:15px">${r.due_date?dmy(r.due_date):o&&o.due_date?dmy(o.due_date):"-"}</div><div class="d">${esc(d.status||"")}</div></div>
     <div class="tile"><div class="k">Request</div><div class="v" style="font-size:15px">${esc(r.status||"-")}</div><div class="d">${esc((r.reasons||[]).join("; ")||"")}</div></div></div>
+   ${r.intake_id&&r.status==="VERIFIED"&&!r.payment&&PAYABLE_KIND.includes(r.kind)?`<div class="tile" style="margin-top:12px;border-left:3px solid var(--good,#16a34a)"><div class="row" style="gap:10px;align-items:center;flex-wrap:wrap"><b>Approve and pay</b><span class="small muted" style="flex:1;min-width:240px">The checks passed. It waits for a person when it is the first payment to this payee, or above a limit: approve it as ${esc(me.name)}; the plan still checks the balance, the reserve floor and the limits before Airwallex is called.</span>
+    <input id="payApNote" placeholder="note (optional)" style="width:220px"><button class="primary" id="payApprove">Approve &amp; pay</button><span class="small" id="payApMsg"></span></div></div>`:""}
    ${(r.checks||[]).length?`<h3 class="small muted" style="margin:12px 0 6px">Document checks</h3>${table([{h:"Check",f:c=>esc(c.label)},{h:"Result",f:c=>`<span class="pill ${c.status==="pass"?"good":c.status==="fail"?"critical":"warn"}">${esc(c.status)}</span>`},{h:"Detail",f:c=>`<span class="small">${esc(c.detail)}</span>`}],r.checks)}`:""}
    <h3 class="small muted" style="margin:16px 0 6px">Its story, step by step</h3>${logTimeline(d.events)}
    <div class="tile" style="margin-top:16px"><b>Notify the vendor</b><div class="small muted" style="margin:4px 0 8px">The notice lists what VENTHORA found missing, signed by you. It joins the <b>outbox</b>: ${d.email&&d.email.configured?"outgoing email is set up, so it is <b>sent at once</b> to the vendor's registered mailbox":"outgoing email is not set up yet (Platform Setup → Email Sync → Outgoing email), so it waits <b>queued</b> and opens in your mail program"}; it stays on this payment's log either way.</div>
     ${F.length?`<div class="small" style="margin-bottom:6px"><b>What is missing:</b><ul style="margin:4px 0 0;padding-left:18px">${F.map(f=>`<li>${esc(f)}</li>`).join("")}</ul></div>`:""}
     <textarea id="payMsg" rows="6" style="width:100%">${esc(msg)}</textarea><div class="row" style="margin-top:8px;gap:8px"><button class="primary" id="payNotify" ${(d.vendor.contacts||[]).length?"":"disabled"}>Notify vendor</button><span class="small" id="payNotifyMsg"></span></div>
     ${(d.outbox||[]).length?`<div class="small" style="margin-top:8px"><b>Sent to this vendor</b>${table([{h:"When",f:x=>esc(String(x.created_at).slice(0,16).replace("T"," "))},{h:"To",f:x=>esc((x.to||[]).join(", "))},{h:"Status",f:x=>`<span class="pill ${x.status==="sent"?"good":x.status==="failed"?"critical":"warn"}">${esc(x.status)}</span>${x.error?`<div class="small muted">${esc(x.error)}</div>`:""}`},{h:"By",f:x=>esc(x.created_by)}],d.outbox)}</div>`:""}</div>`;
+  if($("#payApprove"))$("#payApprove").onclick=async()=>{const b=$("#payApprove");b.disabled=true;$("#payApMsg").textContent="paying…";
+   try{const res=await fetch(`/v1/intake/requests/${encodeURIComponent(r.intake_id)}/pay?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({note:$("#payApNote").value||"approved on the payment detail"})});const j=await res.json();
+    if(!res.ok)throw new Error(typeof j.detail==="string"?j.detail:(j.detail&&j.detail.message)||JSON.stringify(j.detail||j));
+    $("#payApMsg").innerHTML=j.paid?`<span class="pill good">paid</span> ${esc((j.execution||{}).status||"")} · ${esc((j.execution||{}).execution_id||"")}`:`<span class="pill warn">not paid now</span> ${esc(j.message||"")}`;setTimeout(payView,1500)}
+   catch(e){$("#payApMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`;b.disabled=false}};
   $("#payNotify").onclick=async()=>{try{const n=await api(`/v1/agent-plan/notify-vendor?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({obligation_id:id,message:$("#payMsg").value})});
    $("#payNotifyMsg").innerHTML=n.status==="sent"?`<span class="pill good">sent</span> to ${esc(n.to.join(", "))}`:n.status==="failed"?`<span class="pill critical">not sent</span> ${esc(n.error||"")} · <a href="${esc(n.mailto)}">open in your mail program</a>`:`<span class="pill warn">queued</span> · <a href="${esc(n.mailto)}">open in your mail program</a>`;
    if(n.status==="queued")location.href=n.mailto;setTimeout(payView,1200)}catch(e){$("#payNotifyMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
@@ -2996,14 +3091,15 @@ async function tlView(){try{const q=TL.scen?`?scenario=${encodeURIComponent(TL.s
  $("#tlMeta").innerHTML=s.active?`<span class="pill good">● recording</span> ${esc(s.scenario)} · since ${esc(String(s.started_at||"").replace("T"," ").slice(0,16))}`:'<span class="pill">not recording</span>';
  const sc=[...new Set([...(d.scenarios||[]),s.scenario].filter(Boolean))];if(!TL.scen&&s.scenario)TL.scen=s.scenario;
  $("#tlView").innerHTML=`<option value="">every scenario</option>`+sc.map(x=>`<option ${x===TL.scen?"selected":""}>${esc(x)}</option>`).join("");
- $("#tlCsv").href="/v1/demo/testlog.csv"+(TL.scen?`?scenario=${encodeURIComponent(TL.scen)}`:"");
+ $("#tlCsv").href="/v1/demo/testlog.csv"+(TL.scen?`?scenario=${encodeURIComponent(TL.scen)}`:"");$("#tlHtml").href="/v1/demo/testlog.html"+(TL.scen?`?scenario=${encodeURIComponent(TL.scen)}`:"");
  const tabs=[["","All",Object.values(d.tabs).reduce((a,b)=>a+b,0)],...Object.entries(d.tabs).map(([k,v])=>[k,k,v])];
  $("#tlTabs").innerHTML=tabs.map(([k,l,n])=>`<button data-tlt="${esc(k)}" class="${TL.tab===k?"on":""}">${esc(l)} <span class="cnt">${n}</span></button>`).join("");
  $("#tlTabs").querySelectorAll("[data-tlt]").forEach(b=>b.onclick=()=>{TL.tab=b.dataset.tlt;tlView()});
  const rows=d.entries.filter(r=>!TL.tab||r.tab===TL.tab);$("#tlBody").className="";
- $("#tlBody").innerHTML=table([{h:"When",f:r=>`<span class="small">${esc(String(r.at).replace("T"," ").slice(0,19))}</span>`},{h:"Stage",f:r=>`<span class="pill info">${esc(r.tab)}</span>`},
-  {h:"Who · channel",f:r=>`<span class="small">${esc(r.actor)}<br><span class="muted">${esc(r.channel)}</span></span>`},{h:"Action",f:r=>`<span class="mono small">${esc(r.method)} ${esc(r.path)}</span>`},
-  {h:"Result",f:r=>`<span class="pill ${r.status<300?"good":r.status<500?"warn":"critical"}">${r.status}</span> <span class="small muted">${r.ms} ms</span><div class="small">${esc(r.result||"")}</div>`}],rows,"nothing recorded yet: press Start recording, then run the scenario")}
+ $("#tlBody").innerHTML=table([{h:"When (local)",f:r=>`<span class="small">${esc(r.local_at||String(r.at).replace("T"," ").slice(0,19))}</span>`},{h:"Stage",f:r=>`<span class="pill info">${esc(r.tab)}</span>`},
+  {h:"What happened",f:r=>`<span>${esc(r.line||`${r.method} ${r.path}`)}</span><div class="small muted mono">${esc(r.method)} ${esc(r.path)}</div>`},
+  {h:"Who · channel",f:r=>`<span class="small">${esc(r.actor)}<br><span class="muted">${esc(r.channel)}</span></span>`},
+  {h:"Result",f:r=>`<span class="pill ${r.status<300?"good":r.status<500?"warn":"critical"}">${r.status}</span> <span class="small muted">${r.ms} ms</span>`}],rows,"nothing recorded yet: press Start recording, then run the scenario")}
  catch(e){$("#tlBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#tlScen").onchange=()=>{$("#tlOther").hidden=$("#tlScen").value!==""};
 $("#tlStart").onclick=async()=>{const name=$("#tlScen").value||$("#tlOther").value.trim();if(!name){toast("name the scenario","serious");return}
@@ -3276,8 +3372,22 @@ async function apConsole(){let last=null;try{last=(await api("/api/live/latest")
 
 // ---- System Setting → Standard Payment Priority Policy: how VENTHORA orders and times payments; the level of each category
 let SOP=null,SOPROWS=[],SOPLATE=true,SOPPOL=null;const SOP_BANDS={high:[10,8],medium:[7,5],low:[4,1]},SOP_TONE={high:"critical",medium:"warn",low:""};
+// FCO Authorize → notices to the FCO by email: one per request that needs a person; a first payment with an Approve & pay link
+async function fcoNotifyView(){const el=$("#sopNotify");if(!el)return;let d;try{d=await api("/v1/fco-notify")}catch(e){el.innerHTML=`<div class="err small">${esc(e.message)}</div>`;return}
+ const s=d.settings,can=actor().role==="super_admin",dis=can?"":"disabled";
+ const ck=(k,l)=>`<label class="check small" style="display:flex;gap:8px;margin:3px 0"><input type="checkbox" data-fn="${k}" ${s[k]?"checked":""} ${dis}> <span>${l}</span></label>`;
+ el.innerHTML=`<div class="row" style="justify-content:space-between;align-items:center"><b>Notices to the FCO by email</b><span class="small muted">${s.updated_by?`saved by ${esc(s.updated_by)}`:"not saved yet: defaults"}</span></div>
+  <div class="small muted" style="margin:4px 0 8px">One email per request, from the company's sender (${esc(d.sender||"Email Sync step 3 not set")}). A first payment carries an <b>Approve &amp; pay</b> link: it opens a confirmation page, works once for 72 hours, and the payment still passes every check, the reserve floor and the limits.</div>
+  <div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-end"><label class="small"><b>FCO's email</b><br><input id="fnTo" value="${esc(s.to||"")}" style="width:260px" ${dis}></label>
+   <label class="small"><b>At most</b><br><input id="fnMax" type="number" min="1" max="200" value="${s.max_per_hour}" style="width:70px" ${dis}> per hour</label>
+   <div>${ck("enabled","Send notices")}${ck("needs_review","Each request that needs a person (held for review, quarantined)")}${ck("first_payment","Each first payment to a new payee, with an Approve & pay link")}${ck("include_simulations","Also for simulated invoices (demo)")}</div>
+   <button class="primary" id="fnSave" ${dis}>Save</button><span class="small" id="fnMsg"></span></div>
+  ${d.recent.length?`<div class="small" style="margin-top:10px"><b>Last notices</b> · ${d.sent_last_hour} in the last hour${d.recent.map(r=>`<div class="muted">${esc(String(r.created_at).slice(0,16).replace("T"," "))} UTC · <span class="pill ${r.status==="sent"?"good":r.status==="failed"?"critical":"warn"}">${esc(r.status)}</span> ${esc(r.subject)}${r.error?` · ${esc(r.error)}`:""}</div>`).join("")}</div>`:""}`;
+ if(!can)return;
+ $("#fnSave").onclick=async()=>{const b={to:$("#fnTo").value.trim(),max_per_hour:+$("#fnMax").value};document.querySelectorAll("[data-fn]").forEach(i=>b[i.dataset.fn]=i.checked);
+  try{await api(`/v1/fco-notify?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(b)});toast("Notices to the FCO saved","good");fcoNotifyView()}catch(e){$("#fnMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
 function sopRank(){const shared=(SOP&&SOP.top_shared)||2;for(const [lvl,[top,floor]] of Object.entries(SOP_BANDS))SOPROWS.filter(r=>r.level===lvl).forEach((r,n)=>r.priority=Math.max(lvl==="high"?top-Math.max(n-(shared-1),0):top-n,floor))}
-async function sopView(){try{SOP=await api(`/v1/priority-sop?role=${encodeURIComponent(actor().role)}`);SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;SOPPOL={...SOP.policy};sopRender()}
+async function sopView(){fcoNotifyView();try{SOP=await api(`/v1/priority-sop?role=${encodeURIComponent(actor().role)}`);SOPROWS=SOP.items.map(r=>({...r}));SOPLATE=SOP.late_cost;SOPPOL={...SOP.policy};sopRender()}
  catch(e){$("#sopBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 function sopGuide(){const P=SOPPOL,T=SOP.timing,fifo=P.mode==="fifo";
  return `<b>For the FCO: how to fill this in.</b>
@@ -3285,10 +3395,10 @@ function sopGuide(){const P=SOPPOL,T=SOP.timing,fifo=P.mode==="fifo";
    <li><b>Choose the priority.</b> <i>First in, first out (FIFO): real time</i> pays each verified request the moment it passes every check, in the order it arrived; use it when the balance normally covers everything. <i>High priority first</i> builds a plan for the next 24 to 120 hours and pays by the levels below; use it when money can be short, or when payments are in several currencies.${fifo?"":` The plan now covers the next <b>${P.horizon_hours} hours</b>.`}</li>
    <li><b>Tick the rules you want.</b> <i>Deemed approval</i>: a payment the plan holds for a person is approved by the policy if nobody holds or changes it ${T.deemed_before_h} hours before its deadline (${T.deadline_hour_utc}:00 UTC on the due date); a payment that needs two people or a named approver is never deemed, and you are notified instead. <i>Balance not enough</i>: pay what the balance covers in priority order, and/or keep the rest in Pending payment with a notice to you. <i>Cascade</i>: Medium is paid only when High is covered, then Low. <i>Currency timing</i>: a currency is bought ${T.fx_before_h} hours before the deadline, at the rate of the plan or better, never above it.</li>
    <li><b>Set the level of each spending category</b> (High, Medium, Low) and move it up or down: the higher one is paid first, and inside the same priority the earliest deadline. High gives 10 down to 8 (the first two High categories share 10), Medium 7 down to 5, Low 4 down to 1.</li>
-   <li><b>Save the policy.</b> From then on every plan, and the scheduler every five minutes, follow it. To stop one payment, use <b>Hold</b> in Agent plan → Today's plan: a held payment is never paid by the policy.</li></ol>
+   <li><b>Save the policy.</b> From then on every plan, and the payment runs (at the times set above, or every five minutes), follow it. To stop one payment, use <b>Hold</b> in Agent plan → Today's plan: a held payment is never paid by the policy.</li></ol>
   <div style="margin-top:6px"><b>A priority never makes a payment allowed.</b> Every payment first passes the checks that are always enforced: a genuine request, a registered payee confirmed by call-back, an open purchase order with room, no duplicate, the documents, the Delegation of Authority, the budget line, the reserve floor and the treasury limits.</div>
   <div class="muted" style="margin-top:6px">The standard levels follow international practice: wages first (ILO C95 and C173), then taxes and social security withheld, then suppliers whose non-payment stops operations, contracted services and normal suppliers next (EU Directive 2011/7/EU), what is cheapest to defer last (docs/PAYMENT_PRIORITY_SOP.md).</div>`}
-function sopRender(){sopRank();const can=actor().role===SOP.authority.role,dis=can?"":"disabled",P=SOPPOL,fifo=P.mode==="fifo";
+function sopRender(){sopRank();const can=actor().role===SOP.authority.role,dis=can?"":"disabled",P=SOPPOL,fifo=P.mode==="fifo",R=SOP.run||{};
  $("#sopMeta").textContent=SOP.policy_saved?`saved by ${SOP.updated_by}`:SOP.saved?`levels saved by ${SOP.updated_by}; the policy rules are not saved yet`:"not saved yet: each payee's own priority applies";
  $("#sopSave").disabled=!can;$("#sopReset").disabled=!can;
  $("#sopAuth").innerHTML=can?"":`<div class="small" style="margin-bottom:8px;color:var(--warn)">Only the mandate authority (${esc(SOP.authority.role.replace("_"," "))}) changes this policy; you may read it.</div>`;
@@ -3296,7 +3406,9 @@ function sopRender(){sopRank();const can=actor().role===SOP.authority.role,dis=c
  $("#sopPolicy").innerHTML=`<div class="row" style="gap:16px;flex-wrap:wrap;align-items:flex-end">
    <label class="small"><b>Priority</b><br><select id="sopMode" ${dis}>${Object.entries(SOP.modes).map(([k,l])=>`<option value="${k}" ${k===P.mode?"selected":""}>${esc(l)}</option>`).join("")}</select></label>
    ${fifo?"":`<label class="small"><b>Create a plan for the next</b><br><select id="sopHorizon" ${dis}>${SOP.horizons.map(h=>`<option value="${h}" ${h===P.horizon_hours?"selected":""}>${h} hours</option>`).join("")}</select></label>`}
-   <span class="small muted" style="flex:1;min-width:220px">${fifo?"Each verified request is paid the moment it passes every check, oldest first; the rules that need a plan are off.":`The plan covers the next ${P.horizon_hours} hours and is renewed every five minutes.`}</span></div>
+   ${fifo?"":`<label class="small"><b>Approved payments run at</b> <span class="muted">(${esc(R.zone||R.timezone)}, HH:MM, comma between)</span><br><input id="sopTimes" ${dis} style="width:170px" placeholder="every 5 minutes" value="${esc((P.run_times||[]).join(", "))}"></label>
+   <label class="small"><b>On</b><br><select id="sopDays" ${dis}>${Object.entries(R.days||{}).map(([k,l])=>`<option value="${k}" ${k===P.run_days?"selected":""}>${esc(l)}</option>`).join("")}</select></label>`}
+   <span class="small muted" style="flex:1;min-width:220px">${fifo?"Each verified request is paid the moment it passes every check, oldest first; the rules that need a plan are off.":`The plan covers the next ${P.horizon_hours} hours. ${(P.run_times||[]).length?`What the plan approves is paid at <b>${esc(P.run_times.join(", "))} ${esc(R.zone||"")}</b>${P.run_days==="weekdays"?", Monday to Friday":", every day"}; a run missed while the server was off is made within ${R.window_min} minutes, never later.${R.next?` Next run: <b>${esc(R.next)}</b>.`:""}${(R.last||[]).length?` Last: ${esc(R.last[R.last.length-1])}.`:""}`:"With no run time, what the plan approves is paid every five minutes."}`}</span></div>
   <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:2px 18px" class="small">
    ${chk("deemed_approval",`If there is no intervention ${SOP.timing.deemed_before_h} hours before the deadline, the plan is deemed approved`,fifo)}
    ${chk("pay_what_fits","If the balance is not enough, pay only what it covers")}
@@ -3314,6 +3426,8 @@ function sopRender(){sopRank();const can=actor().role===SOP.authority.role,dis=c
    <div class="muted" style="margin-top:4px">A payment that is overdue, that the payee sent a second reminder or a final notice for, or whose contract charges late interest of 8% a year or more (EU Directive 2011/7/EU: the reference rate plus 8 points) goes one step up, never above the top of its level.</div></div>`;
  $("#sopMode").onchange=()=>{SOPPOL.mode=$("#sopMode").value;sopRender()};
  if($("#sopHorizon"))$("#sopHorizon").onchange=()=>{SOPPOL.horizon_hours=+$("#sopHorizon").value;sopRender()};
+ if($("#sopTimes"))$("#sopTimes").onchange=()=>{SOPPOL.run_times=$("#sopTimes").value.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean);sopRender()};
+ if($("#sopDays"))$("#sopDays").onchange=()=>{SOPPOL.run_days=$("#sopDays").value;sopRender()};
  document.querySelectorAll("[data-sopp]").forEach(el=>el.onchange=()=>{SOPPOL[el.dataset.sopp]=el.checked;sopRender()});
  document.querySelectorAll("[data-sopl]").forEach(el=>el.onchange=()=>{SOPROWS[+el.dataset.sopl].level=el.value;sopRender()});
  $("#sopLate").onchange=()=>{SOPLATE=$("#sopLate").checked;sopRender()};

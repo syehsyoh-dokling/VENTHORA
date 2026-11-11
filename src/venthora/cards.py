@@ -90,6 +90,12 @@ def check_limits(org, per_tx_minor: int, monthly_minor: int) -> None:
         raise ValueError("the limits must be above zero")
     if per_tx_minor > ceiling:
         raise ValueError(f"the per-transaction limit is above the mandate's single payout limit (USD {major(ceiling)})")
+    from . import mandate
+
+    cmax = (mandate.standing(org).get("book") or {}).get("card_max_minor", mandate.BOOK_DEFAULTS["card_max_minor"])
+    if cmax is not None and per_tx_minor > cmax:
+        raise ValueError("the FCO allows no virtual cards: pay it by bank transfer" if not cmax else
+                         f"above the FCO's card limit (USD {major(cmax)}, FCO Authorize → Delegation of Authority): pay it by bank transfer")
     if monthly_minor < per_tx_minor:
         raise ValueError("the monthly limit cannot be below the per-transaction limit")
 

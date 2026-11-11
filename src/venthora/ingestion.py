@@ -49,6 +49,10 @@ def apply(entity: str, rows: list[dict], ext_ids: list[str | None], *, source: s
     if entity == "vendor" and payees is not None:
         for key in report["created"] + report["updated"]:
             report["followed"] += _vendor_lifecycle(records[key], before.get(key), payees)
+        for key in report.get("unchanged") or []:  # on file but never registered as a payee (e.g. restored data): register it now
+            rec = records.get(key) or master.get("vendor", key)
+            if rec is not None and payees.payee(key) is None:
+                report["followed"] += _vendor_lifecycle(rec, before.get(key), payees)
     if entity == "vendor" and org is not None:  # a staff member's own account (same e-mail): it becomes that person's bank account
         keys = report["created"] + report["updated"] + report.get("unchanged", [])
         report["followed"] += _staff_accounts([v for v in (records.get(k) or master.get("vendor", k) for k in keys) if v], org, source)

@@ -314,6 +314,12 @@ def fetch_new(raw: dict, seen: set[str], limit: int = 25) -> list[tuple[bytes, s
             mid = message_id(body) or f"<uid-{uid.decode()}@{raw['inbox_id']}>"
             if mid in seen:
                 continue
+            from email import policy as _pol
+            from email.parser import BytesParser
+
+            h = BytesParser(policy=_pol.default).parsebytes(body, headersonly=True)
+            if h.get("X-Venthora-Notice") or str(h.get("Subject", "")).startswith("[VENTHORA]"):
+                continue  # VENTHORA's own notice to the FCO landing in the same mailbox: never read as a request (ignoring is the safe side)
             out.append((uid, mid, body))
             if len(out) >= limit:
                 break

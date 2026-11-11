@@ -288,13 +288,18 @@ async def test_log(request: Request, call_next):
     if not active:
         return await call_next(request)
     started = time.perf_counter()
+    try:  # what was sent (secrets are masked before anything is kept): the process log's sentence needs it
+        req_body = await request.body() if "json" in request.headers.get("content-type", "") else b""
+    except Exception:  # noqa: BLE001
+        req_body = b""
     response = await call_next(request)
     raw = b"".join([chunk async for chunk in response.body_iterator])
     role = request.query_params.get("role") or request.headers.get("x-venthora-role")
     with contextlib.suppress(Exception):
         await asyncio.to_thread(testlog.record, org, method=method, path=path, query=request.url.query, status=response.status_code,
                                 ms=int((time.perf_counter() - started) * 1000), role=role, by=request.query_params.get("by"),
-                                channel=testlog.channel_of(path, request.headers, role), body=raw, ctype=response.headers.get("content-type", ""))
+                                channel=testlog.channel_of(path, request.headers, role), body=raw, ctype=response.headers.get("content-type", ""),
+                                req_body=req_body)
     headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
     return Response(raw, status_code=response.status_code, headers=headers)
 
@@ -345,6 +350,32 @@ async def demo_testlog_clear(scenario: str | None = None, role: str = "super_adm
     return {"deleted": await asyncio.to_thread(testlog.clear, app.state.org, scenario)}
 
 
+@app.get("/v1/demo/testlog.html", include_in_schema=False)
+async def demo_testlog_html(scenario: str | None = None):
+    """The process log as a page to read, print or save as PDF: one sentence per step, local time, who, the result."""
+    import html as _h
+
+    from . import testlog
+
+    rows = await asyncio.to_thread(testlog.entries, app.state.org, scenario, None, 10000)
+    s = await asyncio.to_thread(testlog.session, app.state.org)
+    ok = sum(1 for r in rows if r["status"] < 400)
+    body = "".join(
+        f"<tr><td>{i}</td><td class=t>{_h.escape(r.get('local_at') or r['at'])}</td><td>{_h.escape(r['tab'])}</td>"
+        f"<td>{_h.escape(r.get('line') or r['method'] + ' ' + r['path'])}</td><td>{_h.escape(r['actor'])}</td>"
+        f"<td class={'ok' if r['status'] < 400 else 'bad'}>{r['status']}</td></tr>" for i, r in enumerate(rows, 1))
+    page = f"""<!doctype html><meta charset=utf-8><title>VENTHORA process log</title>
+<style>body{{font:14px/1.45 system-ui,sans-serif;margin:28px;color:#16213a}}h1{{font-size:20px;margin:0 0 4px}}.m{{color:#667;margin-bottom:14px}}
+table{{border-collapse:collapse;width:100%}}td,th{{border-bottom:1px solid #e3e7ef;padding:6px 8px;text-align:left;vertical-align:top}}th{{background:#f3f6fb}}
+.t{{white-space:nowrap;font-variant-numeric:tabular-nums}}.ok{{color:#11823b}}.bad{{color:#c0312b;font-weight:600}}</style>
+<h1>VENTHORA · process log{' · ' + _h.escape(scenario) if scenario else ''}</h1>
+<div class=m>{len(rows)} steps · {ok} succeeded · {len(rows) - ok} refused or failed · recording {'on' if s.get('active') else 'off'}
+{(' · started ' + _h.escape(str(s.get('started_at')))) if s.get('started_at') else ''}{(' · stopped ' + _h.escape(str(s.get('stopped_at')))) if s.get('stopped_at') else ''}
+· keys and secrets show only their last four characters</div>
+<table><tr><th>#</th><th>Local time</th><th>Stage</th><th>What happened</th><th>Who</th><th>Result</th></tr>{body}</table>"""
+    return HTMLResponse(page)
+
+
 @app.get("/v1/demo/testlog.csv", include_in_schema=False)
 async def demo_testlog_csv(scenario: str | None = None):
     import csv
@@ -355,9 +386,10 @@ async def demo_testlog_csv(scenario: str | None = None):
     rows = await asyncio.to_thread(testlog.entries, app.state.org, scenario, None, 10000)
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["at", "scenario", "tab", "channel", "actor", "method", "path", "status", "ms", "result"])
+    w.writerow(["local time", "utc", "scenario", "stage", "what happened", "actor", "channel", "method", "path", "status", "ms", "result"])
     for r in rows:
-        w.writerow([r["at"], r.get("scenario"), r["tab"], r["channel"], r["actor"], r["method"], r["path"] + (f"?{r['query']}" if r.get("query") else ""), r["status"], r["ms"], r["result"]])
+        w.writerow([r.get("local_at") or "", r["at"], r.get("scenario"), r["tab"], r.get("line") or "", r["actor"], r["channel"], r["method"],
+                    r["path"] + (f"?{r['query']}" if r.get("query") else ""), r["status"], r["ms"], r["result"]])
     name = f"venthora-test-log-{(scenario or 'all').replace(' ', '_').replace('·', '')}.csv"
     return Response(buf.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
@@ -1044,7 +1076,65 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
                                           approver if ln["verdict"] == "approve" else None, msg)
             (out["paid"] if status != "HELD" else out["held"]).append(rec)
     await asyncio.to_thread(app.state.audit.append, "doa_run", {"by": by, "paid": [r["_id"] for r in out["paid"]], "held": [r["_id"] for r in out["held"]]})
+    if out["paid"] or out["held"]:
+        _note("Payments", f"DoA payment run by {by}: paid {', '.join(r['_id'] for r in out['paid']) or 'none'}; held {', '.join(r['_id'] for r in out['held']) or 'none'}")
     return out
+
+
+async def _anchor_large_payments(limit: int = 5) -> list[dict]:
+    """Every payment made of the FCO's anchoring amount or more (FCO Authorize -> Delegation of Authority) gets its own
+    proof on Metal: the payment's facts and the audit head at that moment, in one transaction. A payment that could
+    not be anchored (no testnet key, no gas) is tried again after 30 minutes."""
+    from . import mandate, metal
+
+    org = app.state.org
+    th = (mandate.standing(org).get("book") or {}).get("anchor_from_minor", mandate.BOOK_DEFAULTS["anchor_from_minor"])
+    if not th:
+        return []
+    now = datetime.now(UTC)
+    seen = {r["_id"]: r for r in org.list("metal_payment")}
+    due = [r for r in await asyncio.to_thread(app.state.executor.store.paid_rows) if r["base_cost_minor"] >= th and (
+        r["transfer_id"] not in seen or (seen[r["transfer_id"]].get("status") == "failed"
+                                         and now - datetime.fromisoformat(seen[r["transfer_id"]]["at"]) > timedelta(minutes=30)))]
+    out = []
+    for r in due[:limit]:
+        pay = {k: r.get(k) for k in ("transfer_id", "obligation_id", "beneficiary_id", "currency", "amount_minor", "base_cost_minor", "paid_at",
+                                     "po_number", "invoice_fingerprint", "account_code")}
+        head = (await asyncio.to_thread(app.state.audit.verify)).get("head")
+        rec = {"_id": r["transfer_id"], "at": now.isoformat(timespec="seconds"), "base_minor": r["base_cost_minor"], "threshold_minor": th}
+        try:
+            a = await metal.anchor(org, {"payment": pay, "audit_head": head}, "VENTHORA (anchoring rule)")
+            rec |= {"status": "anchored", "tx_hash": a["tx_hash"], "digest": a["digest"], "explorer": a.get("explorer")}
+            _note("Reports", f"Payment {r['obligation_id']} ({r['currency']} {r['amount_minor'] / 100:,.2f}, USD {r['base_cost_minor'] / 100:,.2f}) "
+                             f"anchored on Metal testnet: tx {a['tx_hash'][:18]}…, at or above the FCO's USD {th / 100:,.2f}")
+        except Exception as exc:  # noqa: BLE001 - the payment is made; its proof waits for the next try
+            rec |= {"status": "failed", "error": str(exc)[:300]}
+            _note("Reports", f"Payment {r['obligation_id']} not anchored yet on Metal: {str(exc)[:200]}")
+        await asyncio.to_thread(org._put, "metal_payment", rec, "VENTHORA (anchoring rule)")
+        await asyncio.to_thread(app.state.audit.append, "metal_payment_anchor", {k: rec.get(k) for k in ("_id", "status", "tx_hash", "error")})
+        out.append(rec)
+    return out
+
+
+@app.post("/v1/metal/anchor-payments")
+async def metal_anchor_payments(role: str = "finance_manager", by: str = "dashboard"):
+    """Anchor now the payments at or above the FCO's anchoring amount that have no proof yet (the scheduler does it
+    every minute on its own)."""
+    _writer(role, by)
+    done = await _anchor_large_payments(20)
+    from . import mandate
+
+    return {"anchored": [r for r in done if r["status"] == "anchored"], "failed": [r for r in done if r["status"] != "anchored"],
+            "threshold_minor": (mandate.standing(app.state.org).get("book") or {}).get("anchor_from_minor", 0),
+            "proofs": sorted(app.state.org.list("metal_payment"), key=lambda r: r["at"], reverse=True)[:50]}
+
+
+def _note(tab: str, line: str) -> None:
+    """A step nobody clicked, written to the process log while a recording is on; never fails the step itself."""
+    from . import processlog
+
+    with contextlib.suppress(Exception):
+        processlog.note(app.state.org, tab, line)
 
 
 @app.post("/v1/doa/run")
@@ -1154,10 +1244,12 @@ async def _pay_on_arrival(intake_id: str, by: str = "VENTHORA (on arrival)") -> 
         if s.auto_plan is None or not any(d.action in autonomy.PAYING for d in s.auto_plan.obligations):
             held = "; ".join(r for h in s.held for r in h["reasons"]) or "the plan does not pay it now"
             await asyncio.to_thread(app.state.audit.append, "held_on_arrival", {"intake_id": intake_id, "reason": held[:300]})
+            _note("Payments", f"Pay on arrival · {req.invoice_no or intake_id[:8]} held, not paid: {held[:300]}")
             return {"paid": False, "reason": held}
         res = await app.state.executor.execute(ExecutionRequest(state=s.auto_state, plan_hash=s.auto_plan.plan_hash, requested_by=by))
         app.state.position_cache = None
         await asyncio.to_thread(app.state.audit.append, "paid_on_arrival", {"intake_id": intake_id, "execution_id": res.execution_id, "status": res.status})
+        _note("Payments", f"Pay on arrival · {req.invoice_no or intake_id[:8]} paid by the agent alone ({by}): execution {res.execution_id} {res.status}")
         return {"paid": res.status in ("COMPLETED", "IN_FLIGHT"), "execution_id": res.execution_id, "status": res.status}
     except Exception as exc:  # noqa: BLE001 - the request stays in Pending payment; the next sweep tries again
         with contextlib.suppress(Exception):
@@ -1184,9 +1276,10 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
     while True:
         await asyncio.sleep(every_s)
         tick += 1
-        if tick % 5 == 0:
-            with contextlib.suppress(Exception):
-                await _policy_run()
+        with contextlib.suppress(Exception):
+            await _scheduled_policy_run(tick)
+        with contextlib.suppress(Exception):
+            await _anchor_large_payments()
         try:
             if doa.autopilot(app.state.org) and app.state.agent.proof.airwallex.configured:
                 await _doa_run([], None, "finance_manager", "VENTHORA (autopilot)")
@@ -1199,6 +1292,29 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
         except Exception as exc:  # noqa: BLE001  the next minute tries again; the failure is on the audit chain
             with contextlib.suppress(Exception):
                 await asyncio.to_thread(app.state.audit.append, "doa_autopilot_failed", {"error": str(getattr(exc, "detail", exc))[:300]})
+
+
+async def _scheduled_policy_run(tick: int) -> dict | None:
+    """The policy's payment run: at the run times the FCO set (company time), once each; with no run time set, every
+    five minutes as before."""
+    from . import priority_sop, processlog
+
+    org = app.state.org
+    pol = priority_sop.policy(org)
+    if not pol.get("run_times"):
+        return await _policy_run() if tick % 5 == 0 else None
+    tz = processlog.company_tz(org)
+    done = {r["_id"] for r in org.list("policy_slot")}
+    slot = priority_sop.due_slot(pol, datetime.now(UTC), tz, done)
+    if slot is None:
+        return None
+    await asyncio.to_thread(org._put, "policy_slot", {"_id": slot, "at": datetime.now(UTC).isoformat(timespec="seconds")}, "VENTHORA (payment run)")
+    out = await _policy_run()
+    _note("Payments", f"Scheduled payment run {slot} {tz}: paid {', '.join(out.get('paid') or []) or 'nothing'}"
+                      f"{'; deemed approved ' + ', '.join(out['deemed']) if out.get('deemed') else ''}"
+                      f"{'; waiting ' + str(len(out['waiting'])) if out.get('waiting') else ''}{'; ' + out['skipped'] if out.get('skipped') else ''}")
+    await asyncio.to_thread(app.state.audit.append, "policy_scheduled_run", {"slot": slot, "timezone": tz, "paid": out.get("paid"), "skipped": out.get("skipped")})
+    return out
 
 
 async def _policy_run(now: datetime | None = None) -> dict:
@@ -1269,6 +1385,8 @@ async def _policy_run(now: datetime | None = None) -> dict:
             max_quote_slippage_bp=0 if rates else 100))
         await asyncio.to_thread(app.state.audit.append, f"policy_{label}", {"obligations": ids, "execution_id": res.execution_id, "status": res.status,
                                                                             "message": res.message[:300]})
+        _note("Payments", f"Payment run · Standard Payment Priority Policy ({label.replace('_', ' ')}) paid {', '.join(ids)}: "
+                          f"execution {res.execution_id} {res.status}; {res.message[:200]}")
         if res.status not in ("COMPLETED", "IN_FLIGHT") and pol["notify_fco"]:
             priority_sop.notify(org, f"failed-{'-'.join(ids)[:150]}", "A planned payment was not made", f"{', '.join(ids)}: {res.message[:400]}", ids)
         return {"execution_id": res.execution_id, "status": res.status}
@@ -1459,6 +1577,105 @@ async def verify_payee(beneficiary_id: str, req: CallbackRequest, cooling_hours:
     await asyncio.to_thread(app.state.audit.append, "payee_verified",
                             {"beneficiary_id": beneficiary_id, **req.model_dump(), "status": rec["status"]})
     return rec
+
+
+class CallbackRecordIn(BaseModel):
+    called_number: str = Field(min_length=3, max_length=40, description="the number dialled; must be the registered one")
+    by: str = Field(min_length=2, max_length=80, description="who made the call")
+    role: str = "finance_manager"
+    outcome: Literal["confirmed", "corrected", "denied", "unreachable"]
+    corrections: dict[str, str] = Field(default_factory=dict, description="what the payee said is right: account_number, account_name, "
+                                        "bank_name, swift_code, registered_phone")
+    note: str = Field(default="", max_length=500)
+
+
+CALLBACK_FIELDS = {"account_number": "bank.account_number", "account_name": "bank.account_name", "bank_name": "bank.bank_name",
+                   "swift_code": "bank.swift_code", "registered_phone": "registered_phone"}
+
+
+def _vendor_view(vid: str) -> dict | None:
+    from .masterdata import MasterStore
+
+    v = (_ingest_ctx().get("master") or MasterStore()).get("vendor", vid)
+    if v is None:
+        return None
+    b = v.get("bank") or {}
+    acct = str(b.get("account_number") or "")
+    return {"name": v.get("name"), "currency": v.get("currency"), "registered_phone": v.get("registered_phone"), "contacts": v.get("contacts") or [],
+            "bank_name": b.get("bank_name"), "swift_code": b.get("swift_code"), "account_name": b.get("account_name"),
+            "account_number_masked": ("••••" + acct[-4:]) if acct else None, "bank_country_code": b.get("bank_country_code")}
+
+
+@app.get("/v1/payees/{beneficiary_id}/callback")
+async def payee_callback_view(beneficiary_id: str):
+    """Payee lifecycle -> Call-back: what is on file to read out on the phone (the account masked), and every call-back so far."""
+    rec = app.state.executor.store.payee(beneficiary_id)
+    hist = sorted((r for r in app.state.org.list("callback_log") if r.get("beneficiary_id") == beneficiary_id), key=lambda r: r["_id"], reverse=True)
+    return {"payee": rec, "vendor": _vendor_view(beneficiary_id), "history": hist[:20]}
+
+
+@app.post("/v1/payees/{beneficiary_id}/callback")
+async def payee_callback(beneficiary_id: str, req: CallbackRecordIn, cooling_hours: int = Query(72, ge=0, le=2160)):
+    """Record a call-back on the registered number and what it found. Confirmed: the payee is verified. Corrected: what the
+    payee said is right replaces the details on file (a new account starts the cooling period; a new phone number must
+    itself be called back before any payment), then the account is verified on this call. Denied: the payee is suspended.
+    Unreachable: nothing changes; the attempt is logged. Every call is kept, with who called, the number and the outcome."""
+    from . import ingestion
+
+    store = app.state.executor.store
+    rec = store.payee(beneficiary_id)
+    if rec is None:
+        raise HTTPException(404, "not a registered payee")
+    if req.role not in ("finance_manager", "cfo", "super_admin"):
+        raise HTTPException(403, f"role {req.role} may not record a call-back")
+    from .payees import _digits
+
+    if _digits(req.called_number) != _digits(rec.get("registered_phone")):
+        raise HTTPException(409, "the call-back must be made to the registered number on file, not to a number taken from an email or invoice")
+    role = "finance_manager" if req.role in ("cfo", "super_admin") else req.role
+    bad = [k for k in req.corrections if k not in CALLBACK_FIELDS]
+    if bad:
+        raise HTTPException(422, f"cannot correct: {', '.join(bad)}")
+    fixes = {k: v.strip() for k, v in req.corrections.items() if v and v.strip()}
+    if req.outcome == "corrected" and not fixes:
+        raise HTTPException(422, "say what the payee corrected")
+    steps: list[str] = []
+    if req.outcome == "corrected":
+        phone = fixes.pop("registered_phone", None)
+        if fixes:
+            master = _ingest_ctx()["master"]
+            v = master.get("vendor", beneficiary_id)
+            if v is None:
+                raise HTTPException(404, "the vendor is not in the master data: correct it in Vendors")
+            v = json.loads(json.dumps(v))
+            for k, val in fixes.items():
+                v.setdefault("bank", {})[CALLBACK_FIELDS[k].split(".", 1)[1]] = val
+            rep = await asyncio.to_thread(ingestion.apply, "vendor", [v], [None], source=f"call-back:{req.by}", **_ingest_ctx())
+            if rep.get("rejected"):
+                raise HTTPException(422, f"the corrected details are not valid: {rep['rejected'][0].get('error')}")
+            steps += [f"corrected {', '.join(fixes)}"] + list(rep.get("followed") or [])
+        if phone:
+            _payee_event(beneficiary_id, {"kind": "phone_change", "registered_phone": phone, "role": role, "by": req.by}, cooling_hours)
+            steps.append(f"call-back number changed to {phone}: call that number back before any payment")
+    status = (store.payee(beneficiary_id) or {}).get("status")
+    if req.outcome == "confirmed" or (req.outcome == "corrected" and not any("call-back number changed" in s for s in steps)):
+        if status in ("NEW", "CHANGED"):
+            _payee_event(beneficiary_id, {"kind": "verify", "by": req.by, "role": role, "called_number": req.called_number, "note": req.note}, cooling_hours)
+            steps.append("account confirmed by the payee on the registered number: verified")
+        else:
+            steps.append(f"already {status}: nothing to verify")
+    elif req.outcome == "denied":
+        _payee_event(beneficiary_id, {"kind": "suspend", "role": role, "by": req.by, "note": req.note or "the payee denied the details on file"}, cooling_hours)
+        steps.append("the payee denied the details on file: suspended; no payment goes to it")
+    elif req.outcome == "unreachable":
+        steps.append("no answer on the registered number: nothing changes; call again")
+    after = store.payee(beneficiary_id)
+    log = {"_id": f"{datetime.now(UTC):%Y%m%d%H%M%S%f}", "beneficiary_id": beneficiary_id, "at": datetime.now(UTC).isoformat(timespec="seconds"),
+           "called_number": req.called_number, "by": req.by, "role": req.role, "outcome": req.outcome, "corrected": sorted(req.corrections),
+           "note": req.note, "steps": steps, "status_before": rec.get("status"), "status_after": (after or {}).get("status")}
+    await asyncio.to_thread(app.state.org._put, "callback_log", log, req.by)
+    await asyncio.to_thread(app.state.audit.append, "payee_callback", {k: v for k, v in log.items() if k != "_id"})
+    return {"payee": after, "steps": steps, "log": log, "vendor": _vendor_view(beneficiary_id)}
 
 
 @app.post("/v1/payees/{beneficiary_id}/bank-change")
@@ -1778,7 +1995,7 @@ async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822"), dry_
 MAX_EMAIL_BYTES = 12 * 1024 * 1024  # an invoice PDF or two; Postmark caps inbound mail at 35 MB
 
 
-async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) -> IntakeRequest:
+async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, simulate: bool = False, use_model: bool = True) -> IntakeRequest:
     """One email through the model reader (when configured) and the rules; queued, audited and pushed to the dashboards."""
     from .intake import reader
     from .intake.pipeline import parse_eml
@@ -1786,7 +2003,7 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
     parsed = await asyncio.to_thread(parse_eml, raw)
     model = active_model()  # Settings → AI model, else .env; rules only when neither names a model
     proposals = await reader.read(parsed["text"], parsed["subject"], datetime.fromisoformat(parsed["received_at"]).date(),
-                                  model) if model.configured else {}
+                                  model) if model.configured and use_model else {}
     req = await asyncio.to_thread(app.state.intake.ingest, raw, book_fingerprints=fps, save=not dry_run, proposals=proposals,
                                   channel="dashboard" if channel == "dashboard" else "email")
     # a request forwarded by someone the delegation of authority names is governed by the delegation, not by the
@@ -1813,7 +2030,7 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
         await asyncio.to_thread(app.state.audit.append, "intake", req.model_dump(exclude={"text"}))
         # Payee lifecycle: a registered counterparty announcing new bank details moves to CHANGED at once (no payment
         # until a call-back on the registered number), whatever the email says about urgency.
-        if "payee_bank_details_changed" in req.flags and req.counterparty_id:
+        if "payee_bank_details_changed" in req.flags and req.counterparty_id and not simulate:  # a simulation never changes a real payee
             quoted = " | ".join(q.quote for q in req.quotes if q.field == "bank_change") or req.subject
             fp = "email:" + hashlib.sha256(quoted.encode("utf-8")).hexdigest()[:16]
             store = app.state.executor.store
@@ -1821,8 +2038,162 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str) 
                 with contextlib.suppress(PayeeError):
                     store.payee_event(req.counterparty_id, {"kind": "bank_change", "bank_fingerprint": fp,
                                                             "source": f"intake:{req.intake_id}", "quote": quoted[:300]})
-        _after_intake(req)  # verified and inside the mandate: paid now, when the standing mandate says so
+        if not simulate:  # a simulation plans; it never pays on arrival
+            _after_intake(req)  # verified and inside the mandate: paid now, when the standing mandate says so
+        with contextlib.suppress(Exception):  # the FCO's notice: one email per request that needs a person or a first payment
+            await _fco_notice(req, simulated=simulate)
     return req
+
+
+def _public_url() -> str:
+    return (env("VENTHORA_PUBLIC_URL") or "https://venthora.muwahid.org").rstrip("/")
+
+
+def _notice_kind(req) -> str | None:
+    """needs_review | first_payment | None, for one request as it stands now."""
+    if req is None or req.payment:
+        return None
+    if req.status in ("NEEDS_REVIEW", "QUARANTINED"):
+        return "needs_review"
+    if req.status == "VERIFIED" and req.kind in PAYABLE_KINDS and req.counterparty_id:
+        p = app.state.executor.store.payee(req.counterparty_id) or {}
+        if p.get("status") == "VERIFIED" and not p.get("paid_count"):
+            return "first_payment"
+    return None
+
+
+async def _fco_notice(req, *, simulated: bool = False, force: bool = False) -> dict | None:
+    """Queue and send one notice to the FCO for this request (never twice; capped per hour). force: sent on request."""
+    from . import fco_notify, outbox
+
+    org = app.state.org
+    s = fco_notify.settings(org)
+    kind = _notice_kind(req)
+    if kind is None or not s["to"] or (not force and (not s["enabled"] or not s[kind])):
+        return None
+    if not force and ((simulated or "[SIMULATION]" in (req.subject or "")) and not s["include_simulations"]):
+        return None
+    if not force and (fco_notify.already(org, req.intake_id, kind) or fco_notify.sent_last_hour(org) >= s["max_per_hour"]):
+        return None
+    token = fco_notify.make_link(org, req.intake_id, kind) if kind == "first_payment" else None
+    payee = app.state.executor.store.payee(req.counterparty_id or "") or {}
+    subject, body = fco_notify.compose(req, kind, _public_url(), token, payee | {"fco_name": fco_notify.fco_name(org)})
+    rec = await asyncio.to_thread(outbox.queue, org, to=[s["to"]], subject=subject, body=body, ref=f"{kind}:{req.intake_id}",
+                                  by="VENTHORA (FCO notice)", kind="fco_notice")
+    rec = await asyncio.to_thread(outbox.deliver, org, rec["_id"])
+    _note("Invoices & intake", f"Notice to the FCO ({s['to']}): {'first payment, approve link' if kind == 'first_payment' else 'needs a person'} · "
+                               f"{req.counterparty_name or req.sender} {req.invoice_no or ''} · email {rec.get('status')}")
+    return rec
+
+
+class FcoNotifyIn(BaseModel):
+    enabled: bool | None = None
+    to: str | None = Field(None, max_length=200)
+    needs_review: bool | None = None
+    first_payment: bool | None = None
+    include_simulations: bool | None = None
+    max_per_hour: int | None = Field(None, ge=1, le=200)
+
+
+@app.get("/v1/fco-notify")
+async def fco_notify_get():
+    from . import fco_notify, outbox
+
+    sent = sorted((r for r in app.state.org.list("outbox") if r.get("kind") == "fco_notice"), key=lambda r: r.get("created_at", ""), reverse=True)
+    return {"settings": fco_notify.settings(app.state.org), "sender": outbox.smtp(app.state.org).get("sender"),
+            "sent_last_hour": fco_notify.sent_last_hour(app.state.org), "recent": [{k: r.get(k) for k in ("created_at", "subject", "to", "status", "error", "ref")} for r in sent[:15]]}
+
+
+@app.put("/v1/fco-notify")
+async def fco_notify_put(body: FcoNotifyIn, role: str = "super_admin", by: str = "dashboard"):
+    from . import fco_notify
+
+    if role != "super_admin":
+        raise HTTPException(403, "only the FCO sets the notices")
+    try:
+        return {"settings": await asyncio.to_thread(fco_notify.save, app.state.org, body.model_dump(exclude_none=True), f"{by} ({role})")}
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/v1/fco-notify/send/{intake_id}")
+async def fco_notify_send(intake_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Email the FCO about this one request now (needs a person, or a first payment with its approve link)."""
+    _writer(role, by)
+    req = app.state.intake.store.get(intake_id)
+    if req is None:
+        raise HTTPException(404, "no such request")
+    if _notice_kind(req) is None:
+        raise HTTPException(409, "nothing to ask the FCO: it is not held for a person and it is not a first payment")
+    rec = await _fco_notice(req, force=True)
+    if rec is None:
+        raise HTTPException(409, "set the FCO's email address first (FCO Authorize → Payment Priority Policy → Notices)")
+    return {"status": rec.get("status"), "to": rec.get("to"), "error": rec.get("error"), "subject": rec.get("subject")}
+
+
+def _approve_page(title: str, body: str, status: int = 200) -> HTMLResponse:
+    import html as _h
+
+    return HTMLResponse(f"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>VENTHORA · {_h.escape(title)}</title>
+<style>body{{font:15px/1.5 system-ui,sans-serif;background:#0f1a3a;margin:0;padding:24px;color:#16213a}}.c{{max-width:520px;margin:30px auto;background:#fff;border-radius:14px;padding:22px 24px}}
+h1{{font-size:19px;margin:0 0 10px}}table{{width:100%;border-collapse:collapse;margin:10px 0}}td{{padding:5px 0;border-bottom:1px solid #eef}}td:first-child{{color:#667;width:38%}}
+button{{background:#4f46e5;color:#fff;border:0;border-radius:9px;padding:11px 18px;font-size:15px;cursor:pointer}}.m{{color:#667;font-size:13px}}.ok{{color:#11823b}}.bad{{color:#c0312b}}</style>
+<div class=c><div class=m>VENTHORA · payment approval</div><h1>{_h.escape(title)}</h1>{body}</div>""", status_code=status)
+
+
+@app.get("/approve/{token}", include_in_schema=False)
+async def approve_link_page(token: str):
+    """The page an approve link opens: the payment again and one button. Opening it approves nothing."""
+    import html as _h
+
+    from . import fco_notify
+
+    try:
+        link = await asyncio.to_thread(fco_notify.check_link, app.state.org, token)
+    except LookupError:
+        return _approve_page("Link not recognised", "<p>This link does not belong to this company.</p>", 404)
+    except ValueError as exc:
+        return _approve_page("Link no longer valid", f"<p class=bad>{_h.escape(str(exc))}</p>", 410)
+    req = app.state.intake.store.get(link["intake_id"])
+    if req is None or req.payment:
+        return _approve_page("Nothing to approve", "<p>This payment was already paid or no longer exists.</p>", 410)
+    rows = [("Payee", req.counterparty_name or req.display_name), ("Invoice", req.invoice_no or "-"), ("Amount", f"{req.currency} {(req.amount_minor or 0) / 100:,.2f}"),
+            ("Due", req.due_date or "-"), ("Purchase order", req.po_number or "-"), ("Status", req.status)]
+    table = "".join(f"<tr><td>{_h.escape(k)}</td><td><b>{_h.escape(str(v))}</b></td></tr>" for k, v in rows)
+    return _approve_page("Approve this first payment?", f"""<table>{table}</table>
+<form method=post><button type=submit>Approve &amp; pay</button></form>
+<p class=m>Approving as {_h.escape(fco_notify.fco_name(app.state.org))} (FCO). VENTHORA still checks the balance, the reserve floor and the limits before Airwallex is called. The link works once.</p>""")
+
+
+@app.post("/approve/{token}", include_in_schema=False)
+async def approve_link_do(token: str):
+    import html as _h
+
+    from . import fco_notify, mandate
+
+    org = app.state.org
+    try:
+        link = await asyncio.to_thread(fco_notify.check_link, org, token)
+    except LookupError:
+        return _approve_page("Link not recognised", "<p>This link does not belong to this company.</p>", 404)
+    except ValueError as exc:
+        return _approve_page("Link no longer valid", f"<p class=bad>{_h.escape(str(exc))}</p>", 410)
+    who, role = fco_notify.fco_name(org), mandate.standing(org)["authority_role"]
+    await asyncio.to_thread(fco_notify.use_link, org, token, {"status": "approving"})  # once: a second click finds it used
+    try:
+        out = await intake_pay(link["intake_id"], CorrectionIn(note="approved from the FCO's email"), role=role, by=who)
+    except HTTPException as exc:
+        msg = exc.detail if isinstance(exc.detail, str) else (exc.detail or {}).get("message", str(exc.detail))
+        await asyncio.to_thread(fco_notify.use_link, org, token, {"status": "refused", "detail": msg})
+        _note("Payments", f"Approve link from email refused: {msg}")
+        return _approve_page("Not approved", f"<p class=bad>{_h.escape(msg)}</p><p class=m>Open Pending payment in VENTHORA to see why.</p>", 409)
+    ex = out.get("execution") or {}
+    await asyncio.to_thread(fco_notify.use_link, org, token, {"status": "paid" if out.get("paid") else "approved", "execution_id": ex.get("execution_id")})
+    await asyncio.to_thread(app.state.audit.append, "approved_from_email", {"intake_id": link["intake_id"], "by": who, "paid": out.get("paid"), "execution_id": ex.get("execution_id")})
+    _note("Payments", f"First payment approved from the FCO's email by {who}: {'paid, ' + str(ex.get('status')) if out.get('paid') else out.get('message')}")
+    if out.get("paid"):
+        return _approve_page("Approved and paid", f"<p class=ok>Paid: {_h.escape(str(ex.get('status')))} · execution {_h.escape(str(ex.get('execution_id')))}</p><p class=m>The payee is now active; its next payments inside the mandate go on their own.</p>")
+    return _approve_page("Approved, not paid yet", f"<p>{_h.escape(out.get('message') or '')}</p>")
 
 
 async def _po_from_sources(req: IntakeRequest, raw: bytes, fps: dict | None, proposals: dict) -> IntakeRequest:
@@ -2579,6 +2950,10 @@ async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_ma
     from .execution.executor import terms_digest
     from .execution.models import Approval
 
+    if app.state.intake.store.get(intake_id) is None and len(intake_id) >= 8:  # the plan names a request by its first characters
+        hits = [q.intake_id for q in await asyncio.to_thread(app.state.intake.store.list, 5000) if q.intake_id.startswith(intake_id)]
+        if len(hits) == 1:
+            intake_id = hits[0]
     out = await intake_correct(intake_id, body, role=role, by=by)
     if not out["checks_pass"]:
         raise HTTPException(409, {"message": "the checks do not pass yet: correct the request first", "problems": out["problems"]})
@@ -2589,13 +2964,8 @@ async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_ma
         req = app.state.intake.store.get(intake_id)
     if req.status != "VERIFIED":
         raise HTTPException(409, f"it could not be approved: {'; '.join(req.reasons[:2])}")
-    from . import mandate
-
     base = _live_base()
-    state = app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req])
-    alloc = (mandate.standing(app.state.org).get("book") or {}).get("allocation_minor")
-    if alloc is not None:  # the same ring fence as Agent plan: what the FCO allocated from the wallet (capped by the live balance)
-        state = state.model_copy(update={"balances": {**state.balances, state.base_currency: int(alloc)}})
+    state = _with_mandate(app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req]))  # same book rules as Agent plan
     try:
         state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
     except AirwallexError as exc:
@@ -5742,7 +6112,7 @@ class PrioritySopIn(BaseModel):
     items: list[dict] = Field(description="every category in the order wanted, each {key, level: high | medium | low}")
     late_cost: bool = Field(True, description="inside a level, a payment that costs more when late moves up one step")
     policy: dict | None = Field(None, description="mode (fifo | priority), horizon_hours (24-120), deemed_approval, pay_what_fits, "
-                                                  "notify_fco, cascade, fx_at_plan")
+                                                  "notify_fco, cascade, fx_at_plan, run_times [\"09:00\", ...] (company time), run_days (every | weekdays)")
 
 
 @app.get("/v1/priority-sop")
@@ -5781,8 +6151,24 @@ async def priority_sop_get(role: str | None = None):
             "updated_by": rec.get("updated_by"), "horizon_hours": priority_sop.policy(org)["horizon_hours"] if rec.get("policy") else horizon, "preview": preview,
             "policy": priority_sop.policy(org), "policy_saved": bool(rec.get("policy")), "modes": priority_sop.MODES, "horizons": list(priority_sop.HORIZONS),
             "timing": {"deadline_hour_utc": priority_sop.DEADLINE_HOUR_UTC, "deemed_before_h": priority_sop.DEEMED_BEFORE_H, "fx_before_h": priority_sop.FX_BEFORE_H},
+            "run": _run_info(org),
             "notices": priority_sop.notices(org), "holds": list(priority_sop.holds(org).values()),
             "authority": {"role": st["authority_role"], "you_may_change": role == st["authority_role"] if role else None}}
+
+
+def _run_info(org) -> dict:
+    """The payment run times in the company's time zone, the next one and the runs already made."""
+    from zoneinfo import ZoneInfo
+
+    from . import priority_sop, processlog
+
+    tz = processlog.company_tz(org)
+    pol = priority_sop.policy(org)
+    at = priority_sop.next_run(pol, datetime.now(UTC), tz)
+    zone = datetime.now(UTC).astimezone(ZoneInfo(tz)).tzname()
+    last = sorted(org.list("policy_slot"), key=lambda r: r["_id"])[-5:]
+    return {"timezone": tz, "zone": zone, "days": priority_sop.RUN_DAYS, "window_min": priority_sop.RUN_WINDOW_MIN,
+            "next": at.strftime("%a %d %b %Y %H:%M") + f" {zone}" if at else None, "last": [r["_id"] for r in last]}
 
 
 @app.put("/v1/priority-sop")
@@ -5802,6 +6188,27 @@ async def priority_sop_put(body: PrioritySopIn, role: str = "super_admin", by: s
     return await priority_sop_get(role)
 
 
+QUEUE_PLAN_MAX = 90  # requests read into one book (TreasuryState keeps at most 100 pieces of evidence)
+APPROVER_ROLES = ("finance_manager", "cfo")
+
+
+def _with_mandate(state: TreasuryState) -> TreasuryState:
+    """The FCO's standing mandate on a book: the allocation ring-fenced from the wallet, the reserve floor, and who may
+    approve (the finance manager, the CFO and the holder of the mandate authority, the FCO)."""
+    from . import mandate
+
+    st = mandate.standing(app.state.org)
+    book = st.get("book") or {}
+    upd: dict = {}
+    if book.get("allocation_minor") is not None:
+        upd["balances"] = {**state.balances, state.base_currency: int(book["allocation_minor"])}
+    pol: dict = {"approver_roles": sorted(set(state.policy.approver_roles) | set(APPROVER_ROLES) | {st["authority_role"]})}
+    if book.get("reserve_floor_minor") is not None:
+        pol["reserve_floor_minor"] = int(book["reserve_floor_minor"])
+    upd["policy"] = state.policy.model_copy(update=pol)
+    return state.model_copy(update=upd)
+
+
 async def _todays_state() -> tuple[TreasuryState | None, dict]:
     """The organisation's book as it stands now: the payment requests waiting (verified or held for a person), the
     payroll lines ready for the pay day, the customer receipts expected, the budget; on the live Airwallex balance and
@@ -5815,10 +6222,16 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     base = base.model_copy(update={"obligations": [], "receivables": [], "evidence": []})
     queue = [q for q in await asyncio.to_thread(app.state.intake.store.list, 1000)
              if not q.payment and q.status in ("VERIFIED", "NEEDS_REVIEW", "QUARANTINED")]
+    queue_waiting = len(queue)
+    if len(queue) > QUEUE_PLAN_MAX:  # a book holds at most 100 pieces of evidence: the most urgent first, the rest next round
+        queue = sorted(queue, key=lambda q: (q.status != "VERIFIED", q.due_date or "9999-12-31", q.received_at))[:QUEUE_PLAN_MAX]
     try:
         state = await asyncio.to_thread(app.state.intake.to_state, base, as_of=today, requests=queue) if queue else None
-    except ValueError:  # nothing in the queue that is a payable obligation
+    except ValueError as exc:  # nothing in the queue that is a payable obligation (or a request the book refuses)
         state = None
+        queue_error = str(exc)[:400]
+    else:
+        queue_error = None
     rows = await asyncio.to_thread(doa.evaluate, org, _payee_status, payees, today)
     pers = next((r for r in rows if r["key"] == "personnel"), None) or {}
     runs = {r["_id"] for r in org.list("doa_run") if r["status"] in ("PAID", "IN_FLIGHT", "IN_REVIEW")}
@@ -5838,8 +6251,8 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
             state = pb
         else:
             extra = ([o.model_dump() for o in pb.obligations], [e.model_dump() for e in pb.evidence])
-    source = {"requests": len(queue), "payroll_lines": len(pay_lines), "pay_date": pers.get("pay_date"), "balances": "scenario", "next_round": 0,
-              "payroll_waiting": waiting_lines}
+    source = {"requests": queue_waiting, "payroll_lines": len(pay_lines), "pay_date": pers.get("pay_date"), "balances": "scenario", "next_round": 0,
+              "payroll_waiting": waiting_lines, "queue_error": queue_error}
     if state is None:
         return None, source
     data = state.model_dump()
@@ -5855,14 +6268,15 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
             return None, source
     if len(data["obligations"]) > 12:  # one plan proves at most 12 obligations: the most urgent by the SOP now, the rest next round
         source["next_round"] = len(data["obligations"]) - 12
-        data["obligations"] = sorted(data["obligations"], key=lambda o: (-o["priority"], o["due_in_hours"], o["obligation_id"]))[:12]
+        ok = {e["subject_id"] for e in data.get("evidence", []) if e.get("status") == "verified"}  # payable first; stopped ones fill the rest
+        data["obligations"] = sorted(data["obligations"], key=lambda o: (o["obligation_id"] not in ok, -o["priority"], o["due_in_hours"], o["obligation_id"]))[:12]
     # the ring fence is the FCO's "Allocation ring-fenced from the wallet" (Delegation of Authority) when it is set;
     # the scenario's balance only when it is not (a blank company starts with none, so the agent could pay nothing)
-    alloc = (mandate.standing(app.state.org).get("book") or {}).get("allocation_minor")
-    if alloc is not None:
-        data["balances"] = {**data.get("balances", {}), data.get("base_currency", "USD"): int(alloc)}
-        source["allocation_minor"] = int(alloc)
-    state = TreasuryState.model_validate(data)
+    book = mandate.standing(app.state.org).get("book") or {}
+    for k in ("allocation_minor", "reserve_floor_minor"):
+        if book.get(k) is not None:
+            source[k] = int(book[k])
+    state = _with_mandate(TreasuryState.model_validate(data))  # allocation, reserve floor and approvers of the FCO's mandate
     try:
         state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
         source["balances"] = "live Airwallex"
@@ -5870,6 +6284,136 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
         source["balances_error"] = str(getattr(exc, "detail", exc))[:200]
     state, _ = apply_operational_facts(state, app.state.executor.store)
     return _with_budget(state), source
+
+
+class SimulateIn(BaseModel):
+    count: int = Field(136, ge=8, le=500)
+    batch: int = Field(17, ge=1, le=100, description="emails between two re-plans")
+    ai_sample: int = Field(2, ge=0, le=20, description="the first N emails are read by the AI model too; the rest by the rules only")
+    seed: int | None = None
+
+
+async def _plan_snapshot() -> dict:
+    d = await agent_plan_today()
+    t = d.get("today") or {}
+    c = t.get("coverage") or {}
+    return {"plan_hash": ((d.get("plan") or {}).get("plan_hash") or "")[:12], "decision": (d.get("plan") or {}).get("decision"),
+            "ready": t.get("ready_count", 0), "ready_minor": t.get("ready_minor", 0), "approval": t.get("approval_count", 0),
+            "blocked": t.get("blocked_count", 0), "count": t.get("count", 0), "short_minor": c.get("short_minor", 0),
+            "enough": c.get("enough", True), "base": t.get("base_currency") or "USD",
+            "ids": sorted(r["obligation_id"] for r in t.get("due") or [])}
+
+
+async def _sim_run(run: str, emails: list[dict], batch: int, ai_sample: int) -> None:
+    from collections import Counter
+
+    org = app.state.org
+    st = {"_id": run, "run": run, "count": len(emails), "done": 0, "status": "running", "batches": [], "by_kind": {},
+          "started_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    await asyncio.to_thread(org._put, "sim_run", st, "VENTHORA (simulation)")
+    n_b = -(-len(emails) // batch)
+    _note("Intake", f"Invoice simulation {run} started: {len(emails)} supplier emails in {n_b} batches of {batch}; the agent re-plans after each batch; "
+                    f"nothing is paid on arrival and no payee's bank status changes")
+    try:
+        prev = await _plan_snapshot()
+        st["before"] = {k: v for k, v in prev.items() if k != "ids"}
+        for i in range(n_b):
+            outcome: Counter = Counter()
+            for e in emails[i * batch:(i + 1) * batch]:
+                try:
+                    req = await _ingest(e["eml"], None, False, channel="email", simulate=True, use_model=e["n"] <= ai_sample)
+                    res = req.status
+                except Exception as exc:  # noqa: BLE001 - one bad email stops nothing else
+                    res = "ERROR"
+                    e["error"] = str(getattr(exc, "detail", exc))[:200]
+                outcome[res] += 1
+                st["by_kind"].setdefault(e["kind"], {})
+                st["by_kind"][e["kind"]][res] = st["by_kind"][e["kind"]].get(res, 0) + 1
+                st["done"] += 1
+            snap = await _plan_snapshot()
+            new, gone = set(snap["ids"]) - set(prev["ids"]), set(prev["ids"]) - set(snap["ids"])
+            b = snap["base"]
+            row = {"batch": i + 1, "emails": sum(outcome.values()), "outcome": dict(outcome), "plan": {k: v for k, v in snap.items() if k != "ids"},
+                   "new_in_plan": len(new), "left_plan": len(gone), "replanned": snap["plan_hash"] != prev["plan_hash"],
+                   "at": datetime.now(UTC).isoformat(timespec="seconds")}
+            st["batches"].append(row)
+            await asyncio.to_thread(org._put, "sim_run", st, "VENTHORA (simulation)")
+            _note("Payments", f"Simulation {run} · batch {i + 1}/{n_b}: {row['emails']} invoices in ("
+                              + ", ".join(f"{v} {k.lower().replace('_', ' ')}" for k, v in sorted(outcome.items())) + "); "
+                              + ("agent re-planned" if row["replanned"] else "plan unchanged") + f" (plan {snap['plan_hash'][:8] or '-'}): "
+                              f"{snap['count']} due in the horizon, {snap['ready']} ready ({b} {snap['ready_minor'] / 100:,.2f}), "
+                              f"{snap['approval']} wait for a person, {snap['blocked']} stopped; +{len(new)} new / -{len(gone)} out; "
+                              + (f"short {b} {snap['short_minor'] / 100:,.2f}" if snap["short_minor"] else "balance covers it"))
+            prev = snap
+        st["status"] = "done"
+    except Exception as exc:  # noqa: BLE001
+        st["status"], st["error"] = "failed", str(exc)[:300]
+    st["finished_at"] = datetime.now(UTC).isoformat(timespec="seconds")
+    await asyncio.to_thread(org._put, "sim_run", st, "VENTHORA (simulation)")
+    await asyncio.to_thread(app.state.audit.append, "invoice_simulation", {k: st.get(k) for k in ("run", "count", "done", "status", "by_kind")})
+    _note("Intake", f"Invoice simulation {run} {st['status']}: {st['done']} of {st['count']} emails; by kind: "
+                    + "; ".join(f"{k} " + ", ".join(f"{n} {s.lower()}" for s, n in v.items()) for k, v in st["by_kind"].items()))
+
+
+@app.post("/v1/demo/simulate-invoices")
+async def demo_simulate_invoices(body: SimulateIn, role: str = "super_admin", by: str = "dashboard"):
+    """Start an invoice simulation on this company (Demo-Only): the emails are built from the vendors and open orders
+    on file now and go in batch by batch, with a re-plan after each batch. Runs in the background; follow it with GET."""
+    from . import simulator
+
+    if role not in ("super_admin", "finance_manager", "developer"):
+        raise HTTPException(403, "only the FCO, a finance manager or the developer runs a simulation")
+    if any(r.get("status") == "running" for r in app.state.org.list("sim_run")):
+        raise HTTPException(409, "a simulation is already running")
+    run = secrets.token_hex(3)
+    try:
+        emails = simulator.build(simulator.vendors(app.state.intake.registry, app.state.org), body.count, run, datetime.now(UTC).date(), body.seed)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    asyncio.get_running_loop().create_task(_sim_run(run, emails, body.batch, body.ai_sample))
+    return {"run": run, "count": len(emails), "batch": body.batch, "kinds": simulator.KINDS,
+            "vendors": sorted({e["vendor"] for e in emails}), "started_by": f"{by} ({role})"}
+
+
+@app.get("/v1/demo/simulate-invoices")
+async def demo_simulate_invoices_status(run: str | None = None):
+    from . import simulator
+
+    runs = sorted(app.state.org.list("sim_run"), key=lambda r: r.get("started_at", ""), reverse=True)
+    cur = next((r for r in runs if r["_id"] == run), None) if run else (runs[0] if runs else None)
+    return {"run": cur, "runs": [{k: r.get(k) for k in ("_id", "status", "count", "done", "started_at")} for r in runs[:10]], "kinds": simulator.KINDS}
+
+
+@app.get("/v1/agent-plan/forecast")
+async def agent_plan_forecast(months: int = 3):
+    """Agent plan -> the next three months: payroll, the payment requests waiting, what is left on open purchase
+    orders, the customer receipts expected; the balance month by month against the reserve floor, and the deposit
+    VENTHORA suggests (how much, by when, why). Nothing is paid by reading it."""
+    from . import forecast
+
+    months = max(1, min(months, 6))
+    state, source = await _todays_state()
+    base_state = state if state is not None else _live_base()
+    if state is None:
+        with contextlib.suppress(Exception):
+            base_state = await with_live_balances_and_rates(base_state, _bank(), ring_fence=True)
+    reqs = await asyncio.to_thread(app.state.intake.store.list, 2000)
+    cur = base_state.base_currency
+    fx = dict(base_state.fx_to_base)
+    need = {u.get("salary_currency") for u in app.state.org.list("user") if u.get("salary_currency")} | {q.currency for q in reqs if q.currency} \
+        | {p.get("currency") for p in app.state.org.list("po") if p.get("currency")}
+    missing = {c for c in need if c and c != cur and c not in fx}
+    if missing:
+        with contextlib.suppress(Exception):
+            got = await _rates_to_base(missing)
+            fx |= {c: str(v) for c, v in got["rates"].items() if v}
+    short = 0
+    with contextlib.suppress(Exception):
+        today = (await agent_plan_today()).get("today") or {}
+        short = int((today.get("coverage") or {}).get("short_minor") or 0)
+    out = await asyncio.to_thread(forecast.build, app.state.org, reqs, list(base_state.receivables), cur, fx, base_state.balance(cur),
+                                  base_state.policy.reserve_floor_minor, datetime.now(UTC).date(), months, short)
+    return out | {"balances": source.get("balances") if isinstance(source, dict) else None}
 
 
 @app.get("/v1/agent-plan")
@@ -5915,6 +6459,11 @@ def _next_policy_run(pol: dict) -> str | None:
 
     if not (priority_sop.saved(app.state.org) or {}).get("policy") or pol["mode"] != "priority" or not app.state.agent.proof.airwallex.configured:
         return None
+    if pol.get("run_times"):
+        from . import processlog
+
+        at = priority_sop.next_run(pol, datetime.now(UTC), processlog.company_tz(app.state.org))
+        return at.isoformat(timespec="minutes") if at else None
     t0, period = getattr(app.state, "policy_clock", (datetime.now(UTC), 300.0))
     now = datetime.now(UTC)
     n = int((now - t0).total_seconds() // period) + 1
@@ -8976,7 +9525,7 @@ async def airwallex_stop_acting(role: str = "finance_manager", by: str = "dashbo
 AUTH_OPEN_EXACT = {"/", "/index.html", "/health", "/favicon.ico", "/v1/tenant", "/v1/tenant/summary", "/v1/auth/login",
                    "/v1/auth/accept", "/v1/auth/platform-invite", "/v1/auth/platform-lookup", "/v1/platform/company-profile", "/v1/platform/mailbox-owner", "/v1/platform/mail-oauth", "/oauth/mail/callback",
                    "/v1/visa/tap/keys.json"}
-AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/")
+AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/")
 
 
 def _login_required() -> bool:
