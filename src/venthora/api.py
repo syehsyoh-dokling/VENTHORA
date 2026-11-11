@@ -12,7 +12,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import parse_qsl, urlencode
 
 from fastapi import BackgroundTasks, Body, FastAPI, Header, HTTPException, Query, Request
@@ -563,6 +563,59 @@ async def ledger_books():
     """Every book with its balances per currency (cash, committed, expense, fees, fx, funding)."""
     store = app.state.executor.store
     return [{"book_id": b, "balances": store.book_balances(b), "entries": len(store.journal(b))} for b in store.books()]
+
+
+@app.get("/v1/t0/books")
+async def t0_books_get():
+    """Books & ledger → T:0: what the ledger holds, what is posted to T:0, pending, refused, and each entry's verification."""
+    from . import t0_books
+
+    entries = await asyncio.to_thread(app.state.executor.store.journal, None)
+    return await asyncio.to_thread(t0_books.summary, app.state.org, entries)
+
+
+class T0PostIn(BaseModel):
+    scope: Literal["paid", "all"] = Field("paid", description="paid: payments sent, settled or refunded; all: every ledger entry (funding and FX too)")
+    dry_run: bool = False
+    limit: int = Field(200, ge=1, le=1000)
+
+
+@app.post("/v1/t0/books/post")
+async def t0_books_post(body: T0PostIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Post the ledger entries T:0 does not have yet as manual journal entries (once each: VENTHORA's note and T:0's
+    idempotency key), then read them back and verify."""
+    import httpx
+
+    from . import t0_books
+
+    who = _writer(role, by)
+    entries = await asyncio.to_thread(app.state.executor.store.journal, None)
+    kinds = t0_books.PAID_KINDS if body.scope == "paid" else t0_books.ALL_KINDS
+    try:
+        rep = await t0_books.post(app.state.org, entries, kinds=kinds, limit=body.limit, dry_run=body.dry_run)
+        ver = None if body.dry_run else await t0_books.verify(app.state.org, only_unverified=True)
+    except (t0_books.T0Error, httpx.HTTPError) as exc:
+        raise HTTPException(502, f"T:0: {exc}") from exc
+    if not body.dry_run:
+        await asyncio.to_thread(app.state.audit.append, "t0_journal_posted", {"by": who, "scope": body.scope, "posted": len(rep["posted"]),
+                                                                              "refused": len(rep["refused"]), "verified": (ver or {}).get("passed")})
+    return {"post": rep, "verify": ver}
+
+
+@app.post("/v1/t0/books/verify")
+async def t0_books_verify(role: str = "finance_manager", by: str = "dashboard"):
+    """Read every posted entry back from T:0 and compare it with what VENTHORA sent."""
+    import httpx
+
+    from . import t0_books
+
+    who = _writer(role, by)
+    try:
+        out = await t0_books.verify(app.state.org)
+    except (t0_books.T0Error, httpx.HTTPError) as exc:
+        raise HTTPException(502, f"T:0: {exc}") from exc
+    await asyncio.to_thread(app.state.audit.append, "t0_journal_verified", {"by": who, "checked": out["checked"], "passed": out["passed"]})
+    return out
 
 
 JOURNAL_ACCOUNTS = {"cash": ("1010", "Cash at bank (Airwallex wallet)"), "committed": ("1050", "Payments in transit"),
@@ -2536,8 +2589,13 @@ async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_ma
         req = app.state.intake.store.get(intake_id)
     if req.status != "VERIFIED":
         raise HTTPException(409, f"it could not be approved: {'; '.join(req.reasons[:2])}")
+    from . import mandate
+
     base = _live_base()
     state = app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req])
+    alloc = (mandate.standing(app.state.org).get("book") or {}).get("allocation_minor")
+    if alloc is not None:  # the same ring fence as Agent plan: what the FCO allocated from the wallet (capped by the live balance)
+        state = state.model_copy(update={"balances": {**state.balances, state.base_currency: int(alloc)}})
     try:
         state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
     except AirwallexError as exc:
@@ -2978,8 +3036,12 @@ async def ai_settings_test(s: ai_settings.AISettings | None = None, role: str = 
                                       {"role": "user", "content": "Connection test from VENTHORA."}], max_tokens=20)
     except LLMUnavailable as exc:
         return {"ok": False, "error": str(exc), "model": ai_settings.describe(model)}
+    from . import ai_usage
+
+    last = await asyncio.to_thread(ai_usage.latest) or {}  # the call just made, from the usage log: who answered, the tokens
     return {"ok": True, "latency_ms": round((perf_counter() - t0) * 1000), "reply": reply.strip()[:80],
-            "model": ai_settings.describe(model)}
+            "model": ai_settings.describe(model), "answered_by": last.get("model"),
+            "tokens": {"input": last.get("input_tokens", 0), "output": last.get("output_tokens", 0)}}
 
 
 @app.post("/v1/settings/ai/models")

@@ -107,6 +107,13 @@ def transition(record: PayeeRecord | None, event: dict, now: dt.datetime, *, coo
             raise PayeeError(f"payee is not suspended ({record.status})")
         r.update(status="NEW", verified_at=None, verified_by=None, cooling_until=None)
         return PayeeRecord.model_validate(r)
+    if kind == "phone":  # the company's master data names a call-back number for a payee that has none yet
+        if record.registered_phone:  # a number on file is never replaced this way: that is how payment fraud works
+            raise PayeeError("a registered number is already on file; it changes only with a verified bank change")
+        if len(_digits(event.get("registered_phone"))) < 6:
+            raise PayeeError("not a phone number")
+        r["registered_phone"] = str(event["registered_phone"]).strip()
+        return PayeeRecord.model_validate(r)
     raise PayeeError(f"unknown event {kind!r}")
 
 

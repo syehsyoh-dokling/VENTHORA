@@ -69,6 +69,13 @@ def record(*, module: str, provider: str, model: str, input_tokens: int = 0, out
         pass
 
 
+def latest() -> dict | None:
+    """The most recent call (the AI connection test shows its tokens)."""
+    with _connect() as c:
+        r = c.execute("SELECT * FROM ai_usage ORDER BY id DESC LIMIT 1").fetchone()
+    return dict(r) if r else None
+
+
 def prices() -> dict[str, dict]:
     with _connect() as c:
         return {r["model"]: {"input_per_m": r["input_per_m"], "output_per_m": r["output_per_m"], "updated_at": r["updated_at"], "updated_by": r["updated_by"]}

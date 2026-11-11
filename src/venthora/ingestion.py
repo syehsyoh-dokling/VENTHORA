@@ -103,8 +103,10 @@ def _line_key(line) -> str:
 def _known_vendor(row: dict, vendors) -> dict:
     """A row without a vendor code is the payee already on file with one of its e-mails, else with its name (legal
     forms and case aside); otherwise a new payee whose code is made from its name."""
-    if row.get("vendor_id"):
-        return row
+    if row.get("vendor_id"):  # a known code: what the source sends updates the record; the rest stays
+        vid = str(row["vendor_id"]).strip().lower()
+        hit = next((v for v in vendors if str(v["vendor_id"]).lower() == vid), None)
+        return {k: v for k, v in hit.items() if not str(k).startswith("_")} | row | {"vendor_id": hit["vendor_id"]} if hit else row
     mails = {str(c).strip().lower() for c in row.get("contacts") or [] if c}
     bare = _bare(row.get("name", ""))
     hit = next((v for v in vendors if mails & {str(c).lower() for c in v.get("contacts") or []}), None) \
@@ -169,16 +171,23 @@ def _vendor_lifecycle(rec: dict, before: dict | None, payees) -> list[str]:
         return [f"{rec['vendor_id']}: no bank details yet; it cannot be paid"]
     fp = bank_fingerprint_of(payload["payload"]["beneficiary"]["bank_details"])
     current = payees.payee(rec["vendor_id"])
+    notes = []
+    if current is not None and not current.get("registered_phone") and rec.get("registered_phone"):
+        try:  # a payee registered without a call-back number gets the one the master data now gives (never replaces one)
+            payees.payee_event(rec["vendor_id"], {"kind": "phone", "registered_phone": rec["registered_phone"]})
+            notes.append(f"{rec['vendor_id']}: call-back number {rec['registered_phone']} registered; a call-back on it can now verify the account")
+        except PayeeError as exc:
+            notes.append(f"{rec['vendor_id']}: {exc}")
     try:
         if current is None:
             payees.payee_event(rec["vendor_id"], {"kind": "register", "bank_fingerprint": fp, "registered_phone": rec.get("registered_phone") or None})
-            return [f"{rec['vendor_id']}: registered NEW; a call-back on {rec.get('registered_phone') or 'a registered number'} verifies it"]
+            return notes + [f"{rec['vendor_id']}: registered NEW; a call-back on {rec.get('registered_phone') or 'a registered number'} verifies it"]
         if current.get("bank_fingerprint") != fp:
             out = payees.payee_event(rec["vendor_id"], {"kind": "bank_change", "bank_fingerprint": fp, "source": "sync", "note": "bank details from the company's system"})
-            return [f"{rec['vendor_id']}: bank details changed, now {out['status']}; no payment until a call-back on the registered number"]
+            return notes + [f"{rec['vendor_id']}: bank details changed, now {out['status']}; no payment until a call-back on the registered number"]
     except PayeeError as exc:
-        return [f"{rec['vendor_id']}: {exc}"]
-    return []
+        return notes + [f"{rec['vendor_id']}: {exc}"]
+    return notes
 
 
 def _purchase_orders(keep, rejected, *, source: str, org, dry_run: bool) -> dict:
