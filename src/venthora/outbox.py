@@ -8,6 +8,7 @@ their own mail program (a prepared mailto link). Every message, sent or not, sta
 """
 from __future__ import annotations
 
+import base64
 import datetime as dt
 import smtplib
 import ssl
@@ -30,9 +31,8 @@ def smtp(org) -> dict:
             "configured": bool(rec.get("host") and rec.get("sender") and (not rec.get("user") or secret_values.info(PASSWORD)["set"]))}
 
 
-def save_smtp(org, body: dict, by: str) -> dict:
-    """Outgoing email. With `provider` (a preset of email_settings.PRESETS other than "other") and `sender` the address,
-    VENTHORA fills the server, port, security and user itself: the person types only the address and the app password."""
+def _resolved(body: dict) -> dict:
+    """The form with the provider's server, port, security and user filled in."""
     from .email_settings import PRESETS
 
     p = PRESETS.get(body.get("provider") or "")
@@ -44,6 +44,32 @@ def save_smtp(org, body: dict, by: str) -> dict:
         raise ValueError("security is starttls, ssl or none")
     if not body.get("host") or not body.get("sender") or "@" not in body.get("sender", ""):
         raise ValueError("the SMTP host and the sender address are needed")
+    return body | {"security": sec, "port": int(body.get("port") or 587), "user": (body.get("user") or "").strip(), "host": body["host"].strip()}
+
+
+def try_smtp(body: dict) -> dict:
+    """Test connect: sign in with the form's values (a blank password: the saved one); nothing is kept or sent."""
+    s = _resolved(body)
+    pw = body.get("password") or secret_values.get(PASSWORD)
+    if s["user"] and not pw:
+        return {"ok": False, "detail": "type the app password first"}
+    try:
+        conn = _connect(s, password=pw)
+        conn.quit()
+    except smtplib.SMTPAuthenticationError:
+        return {"ok": False, "detail": f"{s['host']} refused the sign-in: check the address and the app password"}
+    except smtplib.SMTPServerDisconnected:
+        return {"ok": False, "detail": f"{s['host']} closed the connection at sign-in: usually a wrong app password, or sending (SMTP) is turned off for this mailbox"}
+    except (OSError, smtplib.SMTPException) as exc:
+        return {"ok": False, "detail": f"cannot reach {s['host']}:{s['port']}: {str(exc)[:160]}"}
+    return {"ok": True, "detail": f"signed in to {s['host']}:{s['port']} as {s['user'] or 'anonymous'}"}
+
+
+def save_smtp(org, body: dict, by: str) -> dict:
+    """Outgoing email. With `provider` (a preset of email_settings.PRESETS other than "other") and `sender` the address,
+    VENTHORA fills the server, port, security and user itself: the person types only the address and the app password."""
+    body = _resolved(body)
+    sec = body["security"]
     org._put("outbox_smtp", {"_id": "smtp", "host": body["host"].strip(), "port": int(body.get("port") or 587), "user": (body.get("user") or "").strip(),
                              "sender": body["sender"].strip(), "security": sec, "updated_by": by}, by)
     if body.get("password"):
@@ -51,7 +77,7 @@ def save_smtp(org, body: dict, by: str) -> dict:
     return smtp(org)
 
 
-def _connect(s: dict, timeout: float = 15.0):
+def _connect(s: dict, timeout: float = 15.0, password: str | None = None):
     if s["security"] == "ssl":
         conn = smtplib.SMTP_SSL(s["host"], s["port"], timeout=timeout, context=ssl.create_default_context())
     else:
@@ -59,7 +85,21 @@ def _connect(s: dict, timeout: float = 15.0):
         if s["security"] == "starttls":
             conn.starttls(context=ssl.create_default_context())
     if s["user"]:
-        conn.login(s["user"], secret_values.get(PASSWORD))
+        from . import mail_oauth
+
+        secret = password if password is not None else secret_values.get(PASSWORD)
+        if mail_oauth.is_oauth(secret):  # a kept sign-in (Connect with Microsoft/Google): XOAUTH2 with a fresh token
+            try:
+                token = mail_oauth.fresh(secret, (lambda v: secret_values.put(PASSWORD, v, "VENTHORA (sign-in renewed)")) if password is None else None)
+            except mail_oauth.OAuthError as exc:
+                conn.close()
+                raise smtplib.SMTPAuthenticationError(535, f"the sign-in could not be renewed: {exc}".encode()) from exc
+            conn.ehlo()
+            code, resp = conn.docmd("AUTH", "XOAUTH2 " + base64.b64encode(mail_oauth.xoauth2(s["user"], token).encode()).decode())
+            if code != 235:
+                raise smtplib.SMTPAuthenticationError(code, resp)
+        else:
+            conn.login(s["user"], secret)
     return conn
 
 

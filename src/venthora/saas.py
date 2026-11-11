@@ -79,6 +79,31 @@ class Registry:
         conn.row_factory = sqlite3.Row
         return conn
 
+    # -- email sign-in apps (OAuth): VENTHORA's own, one per provider, the same for every company -------------------
+    def mail_oauth(self) -> dict:
+        """{provider: {client_id, client_secret}}, redirect_uri: what each company's process is given."""
+        with self._connect() as c:
+            c.execute("CREATE TABLE IF NOT EXISTS mail_oauth (provider TEXT PRIMARY KEY, client_id TEXT NOT NULL, client_secret TEXT NOT NULL,"
+                      " updated_at TEXT NOT NULL)")
+            rows = c.execute("SELECT * FROM mail_oauth").fetchall()
+        out: dict = {r["provider"]: {"client_id": r["client_id"], "client_secret": r["client_secret"], "updated_at": r["updated_at"]} for r in rows}
+        if "_redirect" in out:
+            out["redirect_uri"] = out.pop("_redirect")["client_id"]
+        return out
+
+    def set_mail_oauth(self, provider: str, client_id: str, client_secret: str | None) -> None:
+        """Keep one provider's app; a blank secret keeps the saved one; a blank client ID removes the app."""
+        self.mail_oauth()
+        now = datetime.now(UTC).isoformat(timespec="seconds")
+        with self._lock, self._connect() as c:
+            if not client_id:
+                c.execute("DELETE FROM mail_oauth WHERE provider = ?", (provider,))
+                return
+            old = c.execute("SELECT client_secret FROM mail_oauth WHERE provider = ?", (provider,)).fetchone()
+            sec = client_secret or (old["client_secret"] if old else "")
+            c.execute("INSERT INTO mail_oauth VALUES (?,?,?,?) ON CONFLICT(provider) DO UPDATE SET client_id = excluded.client_id,"
+                      " client_secret = excluded.client_secret, updated_at = excluded.updated_at", (provider, client_id, sec, now))
+
     def token(self) -> str:
         """The platform's token: each company's process accepts the console's summary call with it, nothing else does."""
         with self._connect() as c:

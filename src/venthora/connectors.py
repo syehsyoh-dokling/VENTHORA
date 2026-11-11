@@ -9,7 +9,8 @@ old system's names to VENTHORA's. A mapping value is a source path with optional
     "amount_minor": "Amount|major"           "due_date": "DueDate|date"           "contacts": "Emails|split"
     "currency": "=USD"  (a constant)
 
-Transforms: major (a decimal amount to minor units), int, upper, lower, nospace, date (to YYYY-MM-DD), split (a
+Transforms: major (a decimal amount to minor units), int, upper, lower, nospace, alnum (letters and digits only),
+default:<value> (when the source field is empty), date (to YYYY-MM-DD), split (a
 comma- or semicolon-separated text to a list). Every synced row then goes through the same validation as an upload
 (masterdata.py); a row that does not fit is rejected with its reason, never half-written.
 
@@ -43,8 +44,9 @@ ENTITY_NAMES = ("unit", "user", "project", "account", "price", "vendor", "custom
 
 class EntityMap(BaseModel):
     enabled: bool = True
-    path: str = Field(min_length=1, max_length=200)
+    path: str = Field(min_length=1, max_length=600)
     items_path: str = Field(default="", max_length=100, description="where the list sits in the reply, e.g. data.items")
+    id_path: str = Field(default="", max_length=60, description="the record's own id in the other system (ERPNext: name); blank = id/Id/ID")
     mapping: dict[str, str] = Field(default_factory=dict)
 
 
@@ -98,6 +100,53 @@ class Connector(BaseModel):
 
 
 DEMO_KEY = "demo-legacy-key"  # the stand-in ERP's fake API key: demo only, it guards fictional data
+
+
+def _erp_list(doctype: str, fields: list[str], filters: list | None = None) -> str:
+    """An ERPNext / Frappe list call: the fields to return, the filters, and every row (no paging limit)."""
+    from urllib.parse import quote
+
+    q = f"fields={quote(json.dumps(fields))}&limit_page_length=0"
+    if filters:
+        q += f"&filters={quote(json.dumps(filters))}"
+    return f"api/resource/{quote(doctype)}?{q}"
+
+
+def erpnext_connector(site_url: str, base_currency: str = "", default_unit: str = "", default_charge_code: str = "") -> Connector:
+    """ERPNext (Frappe) as the company's ERP, over its REST API: https://<site>/api/resource/<DocType>, the list under
+    "data", the record's id in "name", and the key sent as "Authorization: token <api key>:<api secret>" (User ->
+    API Access -> Generate Keys). Only submitted documents (docstatus 1) are read; open bills and receivables only.
+    base_currency: ERPNext leaves a customer's currency empty when it is the company's; default_unit: the VENTHORA office
+    employees land in until someone assigns them; default_charge_code: the charge code of POs (ERPNext keeps none)."""
+    def em(doctype, fields, mapping, filters=None):
+        return EntityMap(path=_erp_list(doctype, fields, filters), items_path="data", id_path="name", mapping=mapping)
+
+    submitted = [["docstatus", "=", 1]]
+    return Connector(connector_id="erpnext", name="ERPNext", base_url=site_url, schedule_minutes=0,
+                     auth=Auth(type="header", header_name="Authorization"), entities={
+        "vendor": em("Supplier", ["name", "supplier_name", "default_currency", "email_id", "mobile_no", "tax_id"], {
+            # no vendor_id: the payee already on file with the same e-mail or name is matched (ingestion._known_vendor),
+            # else one is made from the name; POs and bills name the supplier, resolved the same way (ingestion._supplier)
+            "name": "supplier_name", "currency": "default_currency|upper", "contacts": "email_id|split",
+            "registered_phone": "mobile_no", "tax_id": "tax_id"}, [["disabled", "=", 0]]),
+        "customer": em("Customer", ["name", "customer_name", "default_currency", "email_id"], {
+            "customer_id": "name|lower", "name": "customer_name", "currency": "default_currency|upper" + (f"|default:{base_currency}" if base_currency else ""),
+            "contacts": "email_id|split"}, [["disabled", "=", 0]]),
+        "user": em("Employee", ["name", "employee_name", "company_email", "personal_email", "designation", "date_of_joining"], {
+            "name": "employee_name", "email": "company_email|lower", "employee_no": "name", "job_title": "designation",
+            "contract_start": "date_of_joining|date"} | ({"unit_id": f"={default_unit}"} if default_unit else {}), [["status", "=", "Active"]]),
+        "project": em("Project", ["name", "project_name"], {"code": "name|alnum|upper", "name": "project_name"}),
+        "po": em("Purchase Order", ["name", "supplier", "currency", "grand_total", "transaction_date", "schedule_date"], {
+            "po_id": "name|upper", "supplier_id": "supplier|lower", "currency": "currency|upper", "total_minor": "grand_total|major",
+            "issued_date": "transaction_date|date", "start_date": "transaction_date|date", "expiry_date": "schedule_date|date"}
+            | ({"account_code": f"={default_charge_code}"} if default_charge_code else {}), submitted),
+        "bill": em("Purchase Invoice", ["name", "supplier", "bill_no", "currency", "outstanding_amount", "due_date"], {
+            "bill_id": "name", "vendor_id": "supplier|lower", "invoice_no": "bill_no|upper", "amount_minor": "outstanding_amount|major",
+            "currency": "currency|upper", "due_date": "due_date|date"}, [*submitted, ["outstanding_amount", ">", 0]]),
+        "receivable": em("Sales Invoice", ["name", "customer", "currency", "outstanding_amount", "due_date"], {
+            "receivable_id": "name", "customer_id": "customer|lower", "invoice_no": "name|upper", "amount_minor": "outstanding_amount|major",
+            "currency": "currency|upper", "due_date": "due_date|date"}, [*submitted, ["outstanding_amount", ">", 0]]),
+    })
 
 
 def demo_connector(base_url: str) -> Connector:
@@ -274,8 +323,12 @@ def dig(obj, path: str):
 
 
 def _transform(v, t: str):
+    if t.startswith("default:"):  # "default:IDR": the value when the source leaves the field empty
+        return t[8:] if v is None or (isinstance(v, str) and not v.strip()) else v
     if v is None or (isinstance(v, str) and not v.strip()):  # an empty field is no value, not a bad one
         return None
+    if t == "alnum":  # "PROJ-0001" -> "PROJ0001": a code VENTHORA keeps as letters and digits only
+        return re.sub(r"[^A-Za-z0-9]+", "", str(v))
     if t == "major":
         try:
             return int((Decimal(str(v).replace(",", "").strip()) * 100).to_integral_value())
@@ -359,7 +412,8 @@ async def fetch(raw: dict, entity: str, client=None) -> tuple[list[dict], list[s
             rows.append(map_item(it, em["mapping"]))
         except ValueError as exc:
             rows.append({"_error": str(exc)})
-        ids.append(str(it.get("id") or it.get("Id") or it.get("ID") or "") or None)
+        own_id = dig(it, em["id_path"]) if em.get("id_path") else None
+        ids.append(str(own_id or it.get("id") or it.get("Id") or it.get("ID") or "") or None)
     return rows, ids
 
 

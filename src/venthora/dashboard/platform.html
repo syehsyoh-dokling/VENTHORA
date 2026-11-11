@@ -84,17 +84,20 @@ async function home(){const d=await j("/platform/api/companies");
 function acct(t){if(t.error&&!t.mode)return `<span class="err small">${esc(t.error)}</span>`;
  if(t.mode==="none")return '<span class="pill warn">no account yet</span>';
  return `<span class="pill good">${t.mode==="linked"?"linked":"opened in VENTHORA"}</span><div>${esc(t.account?.name||"")}</div><div class="mono muted">${esc(t.account?.id||"")}</div>`}
+const tk=n=>Number(n||0).toLocaleString("en-US");
+const aiCell=a=>!a?'<span class="muted small">-</span>':`${tk(a.input_tokens)} in · ${tk(a.output_tokens)} out<div class="small muted">${a.calls} call(s)${a.priced&&(a.input_tokens+a.output_tokens)?` · $${Number(a.cost_usd).toFixed(2)}`:""}</div>`;
 async function console_(){const d=await j("/platform/api/tenants"),rows=d.items;
  const withAcct=rows.filter(r=>r.mode&&r.mode!=="none").length,bal=sumBy(rows,r=>r.balances_minor),dep=sumBy(rows,r=>r.deposits),tr=sumBy(rows,r=>r.transfers);
- $("#devTiles").innerHTML=[["Companies",rows.length],["With an Airwallex account",withAcct],["Transfers",cnt(rows,r=>r.transfers)],["Deposits",cnt(rows,r=>r.deposits)]]
+ $("#devTiles").innerHTML=[["Companies",rows.length],["With an Airwallex account",withAcct],["Transfers",cnt(rows,r=>r.transfers)],["Deposits",cnt(rows,r=>r.deposits)],["AI tokens, 30 days",tk(rows.reduce((a,r)=>a+((r.ai||{}).input_tokens||0)+((r.ai||{}).output_tokens||0),0))]]
   .map(([k,v])=>`<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
- $("#devTable").className="";$("#devTable").innerHTML=rows.length?`<table><thead><tr><th>Company</th><th>FCO</th><th>Airwallex account</th><th class="n">Balance</th><th class="n">Deposits in</th><th class="n">Transfers out</th><th></th></tr></thead><tbody>
+ $("#devTable").className="";$("#devTable").innerHTML=rows.length?`<table><thead><tr><th>Company</th><th>FCO</th><th>Airwallex account</th><th class="n">Balance</th><th class="n">Deposits in</th><th class="n">Transfers out</th><th class="n">AI, 30 days</th><th></th></tr></thead><tbody>
   ${rows.map(t=>`<tr><td><b>${esc(t.name)}</b><div class="small muted">${esc(t.country)} · ${esc(t.currency)} · since ${esc((t.created_at||"").slice(0,10))}</div>${t.running===false?'<div class="err small">process stopped</div>':""}</td>
    <td>${esc(t.fco?.name||t.fco_name)}<div class="small muted">${esc(t.fco?.email||t.fco_email)}</div></td><td>${acct(t)}${t.error&&t.mode?`<div class="err small">${esc(t.error)}</div>`:""}</td>
    <td class="n">${money(t.balances_minor||{})}</td><td class="n">${money(Object.fromEntries(Object.entries(t.deposits||{}).map(([c,v])=>[c,v.amount_minor])))}<div class="small muted">${cnt([t],r=>r.deposits)} deposit(s)</div></td>
    <td class="n">${money(Object.fromEntries(Object.entries(t.transfers||{}).map(([c,v])=>[c,v.amount_minor])))}<div class="small muted">${cnt([t],r=>r.transfers)} transfer(s)</div></td>
+   <td class="n">${aiCell(t.ai)}</td>
    <td><button data-fco="${esc(t.tenant_id)}">FCO sign-in link</button></td></tr>`).join("")}</tbody>
-  <tfoot><tr><td colspan="3">All companies</td><td class="n">${money(bal)}</td><td class="n">${money(dep)}</td><td class="n">${money(tr)}</td><td></td></tr></tfoot></table>`
+  <tfoot><tr><td colspan="3">All companies</td><td class="n">${money(bal)}</td><td class="n">${money(dep)}</td><td class="n">${money(tr)}</td><td class="n">${aiCell(rows.reduce((a,r)=>{const x=r.ai||{};return {calls:a.calls+(x.calls||0),input_tokens:a.input_tokens+(x.input_tokens||0),output_tokens:a.output_tokens+(x.output_tokens||0),cost_usd:a.cost_usd+(x.cost_usd||0),priced:a.priced&&x.priced!==false}},{calls:0,input_tokens:0,output_tokens:0,cost_usd:0,priced:true}))}</td><td></td></tr></tfoot></table>`
   :'<div class="muted">No company yet: add the first one below.</div>';
  document.querySelectorAll("[data-fco]").forEach(b=>b.onclick=async()=>{if(!confirm("Make a new sign-in link for this company's FCO? Any earlier link stops working, and their password is replaced when they use it."))return;
   try{const d=await j(`/platform/api/tenants/${encodeURIComponent(b.dataset.fco)}/fco-link`,{method:"POST"});showLink(d.name,d.fco_name,d.fco_email,d.link)}catch(e){alert(e.message)}});

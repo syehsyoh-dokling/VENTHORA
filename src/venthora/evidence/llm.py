@@ -23,6 +23,17 @@ class LLMUnavailable(RuntimeError):
 FRAMER = None
 
 
+def _usage(provider: str, model: str, t0: float, module: str, *, tin: int = 0, tout: int = 0, cread: int = 0, cwrite: int = 0,
+           error: str = "") -> None:
+    """One row in the company's AI usage log (ai_usage.py): which feature asked, which model answered, the tokens."""
+    import time
+
+    from .. import ai_usage
+
+    ai_usage.record(module=module, provider=provider, model=model, input_tokens=tin, output_tokens=tout, cache_read=cread,
+                    cache_write=cwrite, ok=not error, ms=int((time.monotonic() - t0) * 1000), error=error)
+
+
 def framed(messages: list[dict]) -> list[dict]:
     if FRAMER is None:
         return [{k: v for k, v in m.items() if k != "frame"} for m in messages]
@@ -51,6 +62,11 @@ class ChatModel:
     async def complete(self, messages: list[dict], max_tokens: int = 300) -> str:
         if not self.configured:
             raise LLMUnavailable("MODEL_ENDPOINT / MODEL_NAME not set")
+        import time
+
+        from .. import ai_usage
+
+        module, t0 = ai_usage.caller(), time.monotonic()
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
         body = {"model": self.model, "messages": framed(messages), "temperature": 0, "max_tokens": max_tokens}
         try:
@@ -60,8 +76,13 @@ class ChatModel:
                 async with httpx.AsyncClient(timeout=self.timeout_s) as client:
                     res = await client.post(self.url, json=body, headers=headers)
             res.raise_for_status()
-            return res.json()["choices"][0]["message"]["content"] or ""
+            data = res.json()
+            u = data.get("usage") or {}
+            _usage("openai-compatible", data.get("model") or self.model, t0, module,
+                   tin=u.get("prompt_tokens") or 0, tout=u.get("completion_tokens") or 0)
+            return data["choices"][0]["message"]["content"] or ""
         except (httpx.HTTPError, KeyError, IndexError, ValueError) as exc:
+            _usage("openai-compatible", self.model, t0, module, error=f"{type(exc).__name__}: {exc}")
             raise LLMUnavailable(f"{type(exc).__name__}: {exc}") from exc
 
 
@@ -90,6 +111,11 @@ class BedrockModel:
             body["system"] = system
         url = f"{self.endpoint}/model/{quote(self.model, safe='')}/converse"
         headers = {"Authorization": f"Bearer {self.api_key}", "content-type": "application/json"}
+        import time
+
+        from .. import ai_usage
+
+        module, t0 = ai_usage.caller(), time.monotonic()
         try:
             if self._client is not None:
                 res = await self._client.post(url, json=body, headers=headers, timeout=self.timeout_s)
@@ -97,11 +123,17 @@ class BedrockModel:
                 async with httpx.AsyncClient(timeout=self.timeout_s) as client:
                     res = await client.post(url, json=body, headers=headers)
             if res.status_code in (401, 403):
+                _usage("bedrock", self.model, t0, module, error=f"HTTP {res.status_code}")
                 raise LLMUnavailable("Bedrock refused the API key (or the model is not enabled for this account and region)")
             res.raise_for_status()
-            parts = res.json()["output"]["message"]["content"]
+            data = res.json()
+            u = data.get("usage") or {}
+            _usage("bedrock", self.model, t0, module, tin=u.get("inputTokens") or 0, tout=u.get("outputTokens") or 0,
+                   cread=u.get("cacheReadInputTokens") or 0, cwrite=u.get("cacheWriteInputTokens") or 0)
+            parts = data["output"]["message"]["content"]
             return "".join(p.get("text", "") for p in parts)
         except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
+            _usage("bedrock", self.model, t0, module, error=f"{type(exc).__name__}: {exc}")
             raise LLMUnavailable(f"{type(exc).__name__}: {exc}") from exc
 
 
@@ -130,10 +162,17 @@ class AnthropicModel:
             import anthropic
         except ImportError as exc:
             raise LLMUnavailable('the Anthropic SDK is not installed: pip install "anthropic>=1,<2"') from exc
+        import time
+
+        from .. import ai_usage
+
+        module, t0 = ai_usage.caller(), time.monotonic()
         messages = framed(messages)
         system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
         turns = [{"role": m["role"], "content": m["content"]} for m in messages if m["role"] != "system"]
         client = self._client()
+        res = None
+        failed = ""
         try:
             # Thinking counts against max_tokens, so the reader's short answers get room; effort low suits a short
             # extraction. fallbacks="default": a declined request is re-run on a fallback model in the same call.
@@ -142,21 +181,31 @@ class AnthropicModel:
                 model=self.model, max_tokens=max(4000, max_tokens), messages=turns, output_config={"effort": "low"},
                 betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kwargs)
         except anthropic.AuthenticationError as exc:
+            failed = "rejected API key"
             raise LLMUnavailable("Anthropic rejected the API key") from exc
         except anthropic.NotFoundError as exc:
+            failed = "unknown model"
             raise LLMUnavailable(f"Anthropic does not know the model {self.model!r}") from exc
         except anthropic.RateLimitError as exc:
+            failed = "rate limit"
             raise LLMUnavailable("Anthropic rate limit reached") from exc
         except anthropic.APIStatusError as exc:
+            failed = f"HTTP {exc.status_code}"
             if "not scoped to a workspace" in str(exc.message):
                 raise LLMUnavailable("this Anthropic API key belongs to no workspace: enter the workspace ID (Claude "
                                      "Console → Settings → Workspaces, it starts with wrkspc_), or create the key inside a "
                                      "workspace") from exc
             raise LLMUnavailable(f"Anthropic HTTP {exc.status_code}: {exc.message}") from exc
         except anthropic.APIConnectionError as exc:
+            failed = f"connection: {type(exc).__name__}"
             raise LLMUnavailable(f"cannot reach Anthropic: {type(exc).__name__}") from exc
         finally:
             await client.close()
+            u = getattr(res, "usage", None)  # res.model: the model that answered (a fallback may answer for the one asked)
+            _usage("anthropic", getattr(res, "model", None) or self.model, t0, module, tin=getattr(u, "input_tokens", 0) or 0,
+                   tout=getattr(u, "output_tokens", 0) or 0, cread=getattr(u, "cache_read_input_tokens", 0) or 0,
+                   cwrite=getattr(u, "cache_creation_input_tokens", 0) or 0,
+                   error=failed or ("" if res is not None else "no response"))
         if res.stop_reason == "refusal":
             raise LLMUnavailable("the model declined the request")
         return "".join(b.text for b in res.content if b.type == "text")
@@ -175,18 +224,31 @@ class AnthropicModel:
                                           default_headers=headers)
         messages: list[dict] = [{"role": "user", "content": prompt}]
         tool = {"type": "web_search_20260209", "name": "web_search", "max_uses": max_uses}
+        import time
+
+        from .. import ai_usage
+
+        module, t0 = ai_usage.caller(), time.monotonic()
+        tin = tout = 0
+        res, failed = None, ""
         try:
             for _ in range(4):
                 res = await client.messages.create(model=self.model, max_tokens=8000, messages=messages, tools=[tool])
+                tin += getattr(res.usage, "input_tokens", 0) or 0  # each resumed turn is billed: add them up
+                tout += getattr(res.usage, "output_tokens", 0) or 0
                 if res.stop_reason != "pause_turn":
                     break
                 messages = [messages[0], {"role": "assistant", "content": res.content}]
         except anthropic.APIStatusError as exc:
+            failed = f"HTTP {exc.status_code}"
             raise LLMUnavailable(f"Anthropic HTTP {exc.status_code}: {exc.message}") from exc
         except anthropic.APIConnectionError as exc:
+            failed = f"connection: {type(exc).__name__}"
             raise LLMUnavailable(f"cannot reach Anthropic: {type(exc).__name__}") from exc
         finally:
             await client.close()
+            _usage("anthropic", getattr(res, "model", None) or self.model, t0, module, tin=tin, tout=tout,
+                   error=failed or ("" if res is not None else "no response"))
         if res.stop_reason == "refusal":
             raise LLMUnavailable("the model declined the request")
         return "".join(b.text for b in res.content if b.type == "text")

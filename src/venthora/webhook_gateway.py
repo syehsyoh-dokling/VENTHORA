@@ -45,6 +45,7 @@ XENDIT_PATH = "/webhooks/xendit"
 ROUTES = {PATH: (FORWARDED, MAX_BODY), EMAIL_PATH: (("content-type", "authorization"), MAX_EMAIL_BODY),
           REMOTE_AUTH_PATH: (("content-type", "x-signature", "x-nonce"), 64 * 1024),
           XENDIT_PATH: (("content-type", "x-callback-token"), 64 * 1024)}
+MAIL_SIGNIN_PATH = "/oauth/mail/callback"  # a mail provider returns here after the FCO allowed VENTHORA (mail_oauth.py)
 API_PREFIXES = ("/v1/", "/api/")
 API_EXACT = ("/openapi.json", "/health")
 API_HEADERS = ("content-type", "authorization", "x-api-key", "accept")
@@ -163,6 +164,17 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
         keep = {k: v for k, v in res.headers.items() if k.lower() in ("content-disposition", "cache-control")}
         return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"), headers=keep)
 
+    async def mail_signin(request: Request) -> Response:
+        """A mail provider's return after the FCO allowed VENTHORA to read and send (OAuth): only its query (state, code,
+        error), and the redirect back to Email Sync."""
+        params = {k: v[:4096] for k, v in request.query_params.items() if k in ("state", "code", "error", "error_description", "scope", "session_state")}
+        try:
+            res = await http.get(MAIL_SIGNIN_PATH, params=params)
+        except httpx.HTTPError:
+            return JSONResponse({"detail": "VENTHORA is not reachable"}, status_code=502)
+        keep = {k: v for k, v in res.headers.items() if k.lower() == "location"}
+        return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"), headers=keep)
+
     @contextlib.asynccontextmanager
     async def lifespan(app):
         yield
@@ -175,5 +187,6 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
                              Route("/rfq/{token}", rfq, methods=["GET", "POST"]), Route("/rfq/{token}/data", rfq, methods=["GET"]),
                              Route("/vendor-details/{token}", details, methods=["GET", "POST"]), Route("/vendor-details/{token}/data", details, methods=["GET"]),
                              Route("/pay-sim/{rest:path}", paysim, methods=["GET", "POST"]),
+                             Route(MAIL_SIGNIN_PATH, mail_signin, methods=["GET"]),
                              *[Route(p, developers, methods=["GET"]) for p in DEVELOPER_PATHS],
                              Route("/{rest:path}", nothing, methods=every)], lifespan=lifespan)

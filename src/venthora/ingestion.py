@@ -109,7 +109,10 @@ def _known_vendor(row: dict, vendors) -> dict:
     bare = _bare(row.get("name", ""))
     hit = next((v for v in vendors if mails & {str(c).lower() for c in v.get("contacts") or []}), None) \
         or next((v for v in vendors if bare and _bare(v.get("name", "")) == bare), None)
-    return row | {"vendor_id": hit["vendor_id"], "name": row.get("name") or hit["name"]} if hit else row
+    if not hit:
+        return row
+    # the record on file, completed by what the source sends (its currency, bank details ... stay unless sent)
+    return {k: v for k, v in hit.items() if not str(k).startswith("_")} | row | {"vendor_id": hit["vendor_id"], "name": row.get("name") or hit["name"]}
 
 
 def _budget_months(keep) -> tuple[list, list[str]]:

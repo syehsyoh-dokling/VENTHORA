@@ -86,11 +86,13 @@ PUSH_PROVIDERS: dict[str, dict] = {
 class EmailPolicy(BaseModel):
     orders_by_email: bool = Field(True, description="staff ticked in User management may order vendor payments by email")
     company_domains: list[str] = Field(default_factory=list, description="staff orders only from these domains; empty = any")
+    order_domains: list[str] = Field(default_factory=list, description="every active person in User management with an address at "
+                                     "one of these domains may order, without being ticked one by one")
     require_authentication: bool = Field(True, description="a staff order needs SPF, DKIM or DMARC pass from the receiving server")
     order_tag: str = Field("", max_length=30, description="a word the subject must carry, e.g. [PAY]; empty = none")
     flag_unknown_mailbox: bool = Field(True, description="mail to an address that is not configured is read and flagged")
 
-    @field_validator("company_domains")
+    @field_validator("company_domains", "order_domains")
     @classmethod
     def _domains(cls, v):
         out = []
@@ -113,12 +115,12 @@ class Inbox(BaseModel):
     security: Literal["ssl", "starttls"] = "ssl"
     username: str = Field("", max_length=200, description="empty = the address")
     auth: Literal["password", "oauth2"] = "password"
-    secret: str | None = Field(None, max_length=4000, description="app password or OAuth 2.0 access token; write-only, None keeps it")
+    secret: str | None = Field(None, max_length=16000, description="app password, OAuth 2.0 access token, or a kept sign-in; write-only, None keeps it")
     folder: str = Field("INBOX", min_length=1, max_length=120)
     only_unread: bool = True
     after: Literal["mark_read", "move", "leave"] = "mark_read"
     move_to: str = Field("VENTHORA/Processed", max_length=120)
-    since_days: int = Field(7, ge=1, le=365, description="the first read goes this far back")
+    since_days: int = Field(7, ge=0, le=365, description="how far back mail is read, in days; 0 = all mail in the folder")
     schedule_minutes: int = Field(1, ge=0, le=1440, description="1 = every minute; 0 = only when a person presses Fetch now")
     active: bool = True
 
@@ -185,6 +187,11 @@ class EmailStore:
                       (ib.inbox_id, json.dumps(rec), secret, _now()))
         return self.public(ib.inbox_id)
 
+    def set_secret(self, inbox_id: str, secret: str) -> None:
+        """A renewed sign-in (OAuth access and refresh token) replaces the kept one."""
+        with self._lock, self._connect() as c:
+            c.execute("UPDATE email_inboxes SET secret = ?, updated_at = ? WHERE inbox_id = ?", (secret, _now(), inbox_id))
+
     def raw(self, inbox_id: str) -> dict | None:
         with self._connect() as c:
             r = c.execute("SELECT * FROM email_inboxes WHERE inbox_id = ?", (inbox_id,)).fetchone()
@@ -245,6 +252,13 @@ def _connect_imap(raw: dict, timeout: float = 30.0) -> imaplib.IMAP4:
             conn = imaplib.IMAP4(cfg["host"], cfg["port"], timeout=timeout)
             conn.starttls()
         if cfg["auth"] == "oauth2":
+            from . import mail_oauth
+
+            if mail_oauth.is_oauth(secret):  # a kept sign-in: a fresh access token from its refresh token
+                try:
+                    secret = mail_oauth.fresh(secret, lambda s: EmailStore().set_secret(raw["inbox_id"], s))
+                except mail_oauth.OAuthError as exc:
+                    raise MailboxError(f"the sign-in could not be renewed: {exc}; connect the mailbox again") from exc
             token = f"user={cfg['username']}\x01auth=Bearer {secret}\x01\x01".encode()
             conn.authenticate("XOAUTH2", lambda _: token)
         else:
@@ -284,8 +298,10 @@ def fetch_new(raw: dict, seen: set[str], limit: int = 25) -> list[tuple[bytes, s
     conn = _connect_imap(raw)
     try:
         _select(conn, raw.get("folder") or "INBOX")
-        since = (dt.date.today() - dt.timedelta(days=int(raw.get("since_days") or 7))).strftime("%d-%b-%Y")
-        crit = f"(UNSEEN SINCE {since})" if raw.get("only_unread", True) else f"(SINCE {since})"
+        days = raw.get("since_days")
+        days = 7 if days is None else int(days)  # 0 = every message in the folder, however old
+        since = f" SINCE {(dt.date.today() - dt.timedelta(days=days)).strftime('%d-%b-%Y')}" if days > 0 else ""
+        crit = f"(UNSEEN{since})" if raw.get("only_unread", True) else (f"({since.strip()})" if since else "ALL")
         typ, data = conn.uid("SEARCH", None, crit)
         if typ != "OK":
             raise MailboxError("the mail server did not answer the search")

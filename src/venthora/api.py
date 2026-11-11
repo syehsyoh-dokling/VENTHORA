@@ -17,7 +17,7 @@ from urllib.parse import parse_qsl, urlencode
 
 from fastapi import BackgroundTasks, Body, FastAPI, Header, HTTPException, Query, Request
 from fastapi import Path as PathParam
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 
 from . import __version__
 from .audit import AuditStore
@@ -2020,7 +2020,7 @@ async def _email_order(req: IntakeRequest, raw: bytes) -> tuple[IntakeRequest | 
     refuse = None
     if not pol["orders_by_email"]:
         refuse = "payment orders by email are turned off (Settings → Email)"
-    elif person is None or not person.get("may_order_by_email"):
+    elif person is None or not (person.get("may_order_by_email") or domain in pol.get("order_domains", [])):
         refuse = f"{req.sender} may not order vendor payments by email (User management → may order vendor payments by email)"
     elif pol["company_domains"] and domain not in pol["company_domains"]:
         refuse = f"{domain} is not a company domain ({', '.join(pol['company_domains'])})"
@@ -2156,7 +2156,14 @@ async def email_settings_get():
             "presets": [{"key": k} | v for k, v in PRESETS.items()], "push_providers": [{"key": k} | v for k, v in PUSH_PROVIDERS.items()],
             "push": {"path": "/webhooks/email", "secret_configured": bool(env("VENTHORA_INBOUND_EMAIL_SECRET"))},
             "senders": {"staff": users, "vendors_with_mailboxes": vendors},
-            "addresses": app.state.org.get("email_addresses", "addresses") or {"invoices": None, "payments": None, "same_for_both": False}}
+            "addresses": app.state.org.get("email_addresses", "addresses") or {"invoices": None, "payments": None, "same_for_both": False},
+            "oauth": await asyncio.to_thread(_mail_oauth_public), "oauth_last_error": app.state.org.get("mail_oauth_status", "last")}
+
+
+def _mail_oauth_public() -> dict:
+    from . import mail_oauth
+
+    return mail_oauth.apps_public()
 
 
 class MailAddressIn(BaseModel):
@@ -2206,16 +2213,49 @@ async def email_policy_put(body: Annotated[dict, Body()], role: str = "finance_m
     return out
 
 
+def _inbox_in(inbox_id: str, body: dict):
+    """The inbox a form sends; `secret_from_sender`: the same mailbox already sends, so its saved app password."""
+    from .email_settings import Inbox
+
+    body = dict(body)
+    if body.pop("secret_from_sender", False) and not body.get("secret"):
+        from . import outbox, secret_values
+
+        smtp = outbox.smtp(app.state.org)
+        if smtp["sender"].lower() != str(body.get("address", "")).lower() or not smtp["password"]["set"]:
+            raise HTTPException(422, "no saved app password for this address yet: type it once")
+        body["secret"] = secret_values.get(outbox.PASSWORD)
+    try:
+        return Inbox.model_validate(body | {"inbox_id": inbox_id})
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.post("/v1/settings/email/inboxes/{inbox_id}/check")
+async def email_inbox_check(inbox_id: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    """Test connect before anything is kept: sign in with what the form holds (a blank password: the saved one) and
+    open the folder. Nothing is saved, read or changed."""
+    from .email_settings import EmailStore, MailboxError, test_inbox
+
+    _setup_writer(role, by)
+    ib = _inbox_in(inbox_id, body)
+    old = await asyncio.to_thread(EmailStore().raw, inbox_id)
+    secret = ib.secret or ((old or {}).get("_secret") if old and old["address"] == ib.address else "") or ""
+    if not secret:
+        raise HTTPException(422, "type the app password first")
+    try:
+        return await asyncio.to_thread(test_inbox, ib.model_dump(exclude={"secret"}) | {"_secret": secret})
+    except MailboxError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
 @app.put("/v1/settings/email/inboxes/{inbox_id}")
 async def email_inbox_put(inbox_id: str, body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
     """Connect or change an inbox VENTHORA reads; the password or token is write-only (blank keeps the saved one)."""
-    from .email_settings import EmailStore, Inbox
+    from .email_settings import EmailStore
 
     who = _setup_writer(role, by)
-    try:
-        ib = Inbox.model_validate(body | {"inbox_id": inbox_id})
-    except ValueError as exc:
-        raise HTTPException(422, str(exc)) from exc
+    ib = _inbox_in(inbox_id, body)
     out = await asyncio.to_thread(EmailStore().save_inbox, ib)
     await asyncio.to_thread(app.state.audit.append, "email_inbox_saved", {"by": who, "inbox": inbox_id, "address": ib.address,
                                                                           "provider": ib.provider, "host": out["resolved"]["host"]})
@@ -2256,6 +2296,104 @@ async def email_inbox_fetch(inbox_id: str, role: str = "finance_manager", by: st
     if await asyncio.to_thread(EmailStore().raw, inbox_id) is None:
         raise HTTPException(404, "no such inbox")
     return await _poll_inbox(inbox_id, who)
+
+
+class MailOAuthStartIn(BaseModel):
+    provider: str = Field(pattern="^(outlook|gmail|yahoo)$")
+    send_too: bool = Field(True, description="also send VENTHORA's emails from the mailbox that signs in")
+    login_hint: str = Field("", max_length=200)
+    client_id: str | None = Field(None, max_length=200, description="the company's own app, registered in its own account (kept, then used)")
+    client_secret: str | None = Field(None, max_length=500, description="write-only; blank keeps the saved one")
+    tenant_id: str | None = Field(None, max_length=100, description="Directory (tenant) ID of a single-tenant Microsoft app; blank = any")
+    since_days: int | None = Field(None, ge=0, le=365, description="how far back the mailbox is read; 0 = all mail")
+
+
+@app.post("/v1/settings/email/oauth/start")
+async def email_oauth_start(body: MailOAuthStartIn, request: Request, role: str = "finance_manager", by: str = "dashboard"):
+    """The provider's consent page for this company's mailbox (Connect with Microsoft / Google / Yahoo)."""
+    from urllib.parse import urlsplit
+
+    from . import airwallex_settings, mail_oauth
+
+    who = _setup_writer(role, by)
+    src = request.headers.get("origin") or request.headers.get("referer") or ""
+    u = urlsplit(src)
+    origin = f"{u.scheme}://{u.netloc}" if u.scheme in ("http", "https") and u.netloc else ""
+    try:
+        if body.client_id is not None:  # the company's own app, from its own Microsoft / Google account
+            await asyncio.to_thread(mail_oauth.set_own, body.provider, body.client_id, body.client_secret, who, body.tenant_id)
+        url = await asyncio.to_thread(mail_oauth.start, app.state.org, body.provider, origin=origin, by=who, tenant=(airwallex_settings.tenant() or {}).get("tenant_id"),
+                                      send_too=body.send_too, login_hint=body.login_hint.strip(), since_days=body.since_days)
+    except mail_oauth.OAuthError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"url": url}
+
+
+@app.get("/oauth/mail/callback", include_in_schema=False)
+async def email_oauth_callback(state: str = "", code: str = "", error: str = "", error_description: str = ""):
+    """The provider sends the person back here with a one-time code: the mailbox is connected (read, and send when
+    asked), its sign-in kept write-only, and the person returned to Email Sync."""
+    import html as _html
+    import re as _re
+    from urllib.parse import quote
+
+    from . import mail_oauth, outbox
+    from .email_settings import EmailStore, Inbox
+
+    try:
+        rec = await asyncio.to_thread(mail_oauth.take_state, app.state.org, state)
+    except mail_oauth.OAuthError as exc:
+        return HTMLResponse(f"<p>{_html.escape(str(exc))}</p><p><a href='/#/sources-email'>Back to Email Sync</a></p>", status_code=400)
+    back = (rec.get("origin") or "") + "/#/sources-email"
+
+    async def failed(why: str) -> RedirectResponse:  # kept, so Email Sync shows why until the next try succeeds
+        await asyncio.to_thread(app.state.org._put, "mail_oauth_status", {"_id": "last", "provider": rec["provider"], "error": why[:400],
+                                                                          "at": datetime.now(UTC).isoformat(timespec="seconds")}, "VENTHORA (mail sign-in)")
+        await asyncio.to_thread(app.state.audit.append, "email_oauth_failed", {"by": rec.get("by") or "dashboard", "provider": rec["provider"], "error": why[:400]})
+        return RedirectResponse(f"{back}?oauth_error={quote(why[:200])}", status_code=303)
+
+    if error or not code:
+        said = error_description or error or "no code"
+        return await failed(next((h for c, h in mail_oauth.HINTS.items() if c in said), said.splitlines()[0][:220]))
+    try:
+        address, secret = await asyncio.to_thread(mail_oauth.finish, rec["provider"], code)
+    except mail_oauth.OAuthError as exc:
+        return await failed(str(exc))
+    with contextlib.suppress(KeyError):
+        await asyncio.to_thread(app.state.org.delete, "mail_oauth_status", "last", "VENTHORA (mail sign-in)")
+    who = rec.get("by") or "dashboard"
+    store = EmailStore()
+    old = next((i for i in await asyncio.to_thread(store.inboxes) if i["address"] == address), None)
+    iid = old["inbox_id"] if old else _re.sub(r"[^a-z0-9]+", "-", address).strip("-")[:40]
+    keep = {k: old[k] for k in ("purpose", "folder", "only_unread", "after", "move_to", "since_days", "schedule_minutes")} if old else {}
+    keep |= {"since_days": rec["since_days"]} if rec.get("since_days") is not None else {}
+    ib = Inbox.model_validate({"purpose": "any", "schedule_minutes": 1} | keep | {"inbox_id": iid, "address": address, "provider": rec["provider"],
+                                                                                 "auth": "oauth2", "secret": secret, "host": "", "username": "", "active": True})
+    await asyncio.to_thread(store.save_inbox, ib)
+    addrs = app.state.org.get("email_addresses", "addresses") or {}
+    slot = {"address": address, "receive": "imap", "provider": rec["provider"]}
+    rec_addr = {"_id": "addresses", "invoices": slot, "payments": slot if rec.get("send_too") else (addrs.get("payments") or slot),
+                "send_from_payments": True, "updated_by": who, "updated_at": datetime.now(UTC).isoformat(timespec="seconds")}
+    rec_addr["same_for_both"] = rec_addr["payments"]["address"] == address
+    await asyncio.to_thread(app.state.org._put, "email_addresses", rec_addr, who)
+    if rec.get("send_too"):
+        await asyncio.to_thread(outbox.save_smtp, app.state.org, {"provider": rec["provider"], "sender": address, "password": secret}, who)
+    await asyncio.to_thread(app.state.audit.append, "email_oauth_connected", {"by": who, "provider": rec["provider"], "address": address,
+                                                                               "sends": bool(rec.get("send_too"))})
+    return RedirectResponse(f"{back}?connected={quote(address)}", status_code=303)
+
+
+@app.put("/v1/platform/mail-oauth", include_in_schema=False)
+async def platform_mail_oauth(body: Annotated[dict, Body()], x_venthora_platform: str | None = Header(default=None)):
+    """For the platform only: VENTHORA's OAuth apps (one per provider, the same for every company)."""
+    import hmac
+
+    from . import mail_oauth
+
+    token = env("VENTHORA_PLATFORM_TOKEN")
+    if not token or not x_venthora_platform or not hmac.compare_digest(token, x_venthora_platform):
+        raise HTTPException(404, "Not Found")
+    return await asyncio.to_thread(mail_oauth.set_apps, body, "VENTHORA platform")
 
 
 async def _poll_inbox(inbox_id: str, who: str) -> dict:
@@ -2753,6 +2891,34 @@ def _writer(role: str, by: str) -> str:
 
 
 # ---- Settings → AI model: rules only, a self-hosted model (any URL), or a provider with the user's own key ----
+@app.get("/v1/settings/ai/usage")
+async def ai_usage_get(days: int = Query(30, ge=1, le=366)):
+    """Every model call of the last `days` days: tokens in and out by day, feature and model, the latest calls, and the
+    company's own prices (USD per million tokens) for the cost estimate. Prompts and answers are never kept."""
+    from . import ai_usage
+
+    return await asyncio.to_thread(ai_usage.summary, days, 30)
+
+
+class AIPriceIn(BaseModel):
+    model: str = Field(min_length=1, max_length=120)
+    input_per_m: float | None = Field(None, ge=0, le=10_000, description="USD per million input tokens; both empty removes the price")
+    output_per_m: float | None = Field(None, ge=0, le=10_000)
+
+
+@app.put("/v1/settings/ai/prices")
+async def ai_price_put(body: AIPriceIn, role: str = "finance_manager", by: str = "dashboard"):
+    from . import ai_usage
+
+    who = _setup_writer(role, by)
+    try:
+        out = await asyncio.to_thread(ai_usage.set_price, body.model, body.input_per_m, body.output_per_m, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "ai_price_saved", {"by": who} | body.model_dump())
+    return out
+
+
 @app.get("/v1/settings/ai")
 async def ai_settings_get():
     """The current choice; secrets are never returned, only whether one is set and its last four characters."""
@@ -3008,6 +3174,54 @@ async def connectors_save(connector_id: str, body: Annotated[dict, Body()], role
     out = ConnectorStore().save(c)
     await asyncio.to_thread(app.state.audit.append, "connector_saved", {"id": connector_id, "by": who, "base_url": c.base_url})
     return out
+
+
+class ERPNextIn(BaseModel):
+    site_url: str = Field(min_length=8, max_length=300, description="https://<your-site>.frappe.cloud")
+    api_key: str = Field("", max_length=200, description="ERPNext: User -> API Access -> Generate Keys; blank keeps the saved one")
+    api_secret: str = Field("", max_length=200, description="shown once by ERPNext; write-only here")
+    default_charge_code: str = Field("", max_length=40, description="the charge code POs from ERPNext get (ERPNext keeps none); blank = POs wait for one")
+
+
+@app.post("/v1/sources/connectors/template/erpnext")
+async def connectors_erpnext(body: ERPNextIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Connect ERPNext from its template (every item VENTHORA reads, mapped from ERPNext's own field names), then
+    read one supplier to prove the site and the key work. Nothing is written until a person presses Sync."""
+    import httpx
+
+    from .connectors import ConnectorStore, erpnext_connector, headers_for
+
+    who = _setup_writer(role, by)
+    if bool(body.api_key.strip()) != bool(body.api_secret.strip()):
+        raise HTTPException(422, "paste both the API key and the API secret")
+    try:
+        c = erpnext_connector(body.site_url)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if body.api_key.strip():
+        c.auth.secret = f"token {body.api_key.strip()}:{body.api_secret.strip()}"
+    store = ConnectorStore()
+    if c.auth.secret is None and store.get_raw("erpnext") is None:
+        raise HTTPException(422, "paste the API key and API secret from ERPNext (User → API Access → Generate Keys)")
+    out = store.save(c)
+    await asyncio.to_thread(app.state.audit.append, "connector_saved", {"id": "erpnext", "by": who, "base_url": c.base_url, "template": "erpnext"})
+    raw = store.get_raw("erpnext")
+    check = {"ok": False, "detail": ""}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(f"{raw['base_url']}/api/method/frappe.auth.get_logged_user", headers=headers_for(raw))
+            check = {"ok": r.status_code == 200, "detail": f"signed in as {r.json().get('message')}" if r.status_code == 200 else
+                     "ERPNext refused the key (check the API key and secret)" if r.status_code in (401, 403) else f"HTTP {r.status_code}"}
+            if check["ok"]:  # the company's currency (a customer without one uses it), and the office new staff land in
+                comp = await client.get(f"{raw['base_url']}/api/resource/Company", params={"fields": '["name","default_currency"]', "limit_page_length": 1},
+                                        headers=headers_for(raw))
+                ccy = ((comp.json().get("data") or [{}])[0].get("default_currency") or "") if comp.status_code == 200 else ""
+                hq = next((u["unit_id"] for u in app.state.org.list("unit") if u.get("kind") == "HQ"), "")
+                out = store.save(erpnext_connector(body.site_url, ccy, hq, body.default_charge_code.strip().upper()))
+                check["defaults"] = {"customer_currency": ccy or None, "staff_office": hq or None, "po_charge_code": body.default_charge_code.strip().upper() or None}
+    except (httpx.HTTPError, ValueError) as exc:
+        check["detail"] = f"cannot reach {raw['base_url']}: {type(exc).__name__}"
+    return {"connector": out, "check": check}
 
 
 @app.delete("/v1/sources/connectors/{connector_id}")
@@ -5805,6 +6019,7 @@ class SmtpIn(BaseModel):
     password: str | None = Field(None, max_length=300, description="write-only; empty keeps the stored one")
     sender: str = Field(min_length=3, max_length=200)
     security: str = Field("starttls", pattern="^(starttls|ssl|none)$")
+    password_from_inbox: str | None = Field(None, max_length=41, description="use the saved app password of this inbox (same address)")
 
 
 @app.get("/v1/outbox")
@@ -5821,12 +6036,41 @@ async def outbox_smtp(body: SmtpIn, role: str = "super_admin", by: str = "dashbo
     from . import outbox
 
     who = _setup_writer(role, by)
+    data = body.model_dump(exclude={"password_from_inbox"})
+    if body.password_from_inbox and not body.password:  # the inbox VENTHORA reads is also the sender: its app password, kept server-side
+        from .email_settings import EmailStore
+
+        raw = await asyncio.to_thread(EmailStore().raw, body.password_from_inbox)
+        if raw is None or raw["address"].lower() != body.sender.lower() or not raw["_secret"]:
+            raise HTTPException(422, "no saved app password for this address yet: type it once")
+        data["password"] = raw["_secret"]
     try:
-        s = await asyncio.to_thread(outbox.save_smtp, app.state.org, body.model_dump(), who)
+        s = await asyncio.to_thread(outbox.save_smtp, app.state.org, data, who)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "outbox_smtp", {"host": s["host"], "sender": s["sender"], "by": who})
     return s
+
+
+@app.post("/v1/outbox/smtp/try")
+async def outbox_smtp_try(body: SmtpIn, role: str = "super_admin", by: str = "dashboard"):
+    """Test connect for the sender before it is kept: sign in to the SMTP server with what the form holds (a blank
+    password: the saved one, or the inbox's when it is the same address). Nothing is saved or sent."""
+    from . import outbox
+
+    _setup_writer(role, by)
+    pw = body.password
+    if not pw and body.password_from_inbox:
+        from .email_settings import EmailStore
+
+        raw = await asyncio.to_thread(EmailStore().raw, body.password_from_inbox)
+        if raw is None or raw["address"].lower() != body.sender.lower() or not raw["_secret"]:
+            raise HTTPException(422, "no saved app password for this address yet: type it once")
+        pw = raw["_secret"]
+    try:
+        return await asyncio.to_thread(outbox.try_smtp, body.model_dump(exclude={"password_from_inbox"}) | {"password": pw})
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @app.post("/v1/outbox/smtp/check")
@@ -7959,6 +8203,11 @@ async def tenant_summary(x_venthora_platform: str | None = Header(default=None))
            "opened_accounts": sorted(airwallex_settings.AirwallexStore().own_ids()),
            "fco": next(({"name": u["name"], "email": u.get("email")} for u in app.state.org.list("user") if u.get("role") == "super_admin"), None),
            "users": len(app.state.org.list("user")), "balances_minor": {}, "transfers": {}, "deposits": {}, "error": None}
+    with contextlib.suppress(Exception):  # the company's AI use, last 30 days (tokens; cost only where it entered prices)
+        from . import ai_usage
+
+        t = (await asyncio.to_thread(ai_usage.summary, 30, 0))["total"]
+        out["ai"] = {k: t[k] for k in ("calls", "failed", "input_tokens", "output_tokens", "cost_usd", "priced")}
     if out["mode"] == "none":
         return out
     bank = _bank()
@@ -8663,7 +8912,7 @@ async def airwallex_stop_acting(role: str = "finance_manager", by: str = "dashbo
 
 # ---- Sign-in (auth.py): on SaaS every person signs in, and a request acts as that person, whatever it says ----------
 AUTH_OPEN_EXACT = {"/", "/index.html", "/health", "/favicon.ico", "/v1/tenant", "/v1/tenant/summary", "/v1/auth/login",
-                   "/v1/auth/accept", "/v1/auth/platform-invite", "/v1/auth/platform-lookup", "/v1/platform/company-profile", "/v1/platform/mailbox-owner",
+                   "/v1/auth/accept", "/v1/auth/platform-invite", "/v1/auth/platform-lookup", "/v1/platform/company-profile", "/v1/platform/mailbox-owner", "/v1/platform/mail-oauth", "/oauth/mail/callback",
                    "/v1/visa/tap/keys.json"}
 AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/")
 

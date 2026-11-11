@@ -266,6 +266,7 @@ dialog::backdrop{background:rgba(9,16,30,.45)}dialog h3{margin:0 0 14px;font-siz
 .mode input{margin-top:3px}.mode b{display:block;font-size:13.5px}.mode small{display:block;color:var(--ink2);font-size:12px;margin-top:2px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:600}
 code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.em-steps{display:grid;gap:12px}.em-step{padding:14px 16px}.em-h{display:flex;align-items:center;gap:10px;margin-bottom:4px}.em-n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent,#3b6);color:#fff;font-size:12px;font-weight:700}.em-sub{font-size:12px;color:var(--muted,#888);margin:0 0 10px 34px}.em-step>select,.em-step>div:not(.em-h):not(.em-sub){margin-left:34px}.em-more{margin-top:12px}.em-more[hidden],.em-step[hidden]{display:none!important}.em-steps-ol{margin:0;padding-left:20px;line-height:1.9}.em-steps-ol li{margin-bottom:6px}.em-cfg{border:1px solid var(--line,#ddd);border-radius:8px;padding:8px 10px;margin:8px 0;max-width:760px}.em-paste{display:block;width:100%;max-width:520px;margin:4px 0 0 18px;padding:7px 9px;border:1px dashed var(--accent,#2f6fe4);border-radius:6px}[data-var=m365] .em-only-personal,[data-var=personal] .em-only-m365{display:none!important}.em-fail{border:1px solid var(--critical,#c33);background:var(--critlt,#fdecec);border-radius:8px;padding:8px 10px;margin:0 0 10px;font-size:12.5px}.em-form{border-collapse:collapse;margin:6px 0 0;width:100%;max-width:760px}.em-form th,.em-form td{border:1px solid var(--line,#ddd);padding:5px 8px;text-align:left;vertical-align:top;line-height:1.5}.em-form th{background:var(--brandlt,#f3f6fb);font-weight:600}.em-form td:first-child{width:34%}.em-how{margin:4px 0 0;padding-left:18px;line-height:1.6;color:var(--muted,#777)}.em-how b{color:var(--ink,inherit)}.em-own{display:inline-block;font-weight:600;padding:4px 10px;border:1px solid var(--accent);border-radius:8px}.em-more>summary{cursor:pointer}.em-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:4px 14px}
 </style>
 </head>
 <body>
@@ -356,12 +357,11 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <a href="#/standards" data-nav="standards" title="Base currency, fiscal year, company name and the expense categories every report uses"><i>3</i>Finance standards</a>
    <a href="#/admins" data-nav="admins"><i>4</i>Admin team</a>
    <a href="#/placement-providers" data-nav="placement-providers" title="Term deposits, money market funds and Airwallex Yield idle cash may be placed with"><i>5</i>Placement providers</a>
+   <a href="#/budget-policy" data-nav="budget-policy" title="The reporting period, its cut-off and when budgets sync"><i>6</i>Period, cut-off &amp; sync</a>
+   <a href="#/doc-rules" data-nav="doc-rules" title="Which documents an invoice or claim needs before it may be paid"><i>7</i>Document validation</a>
   </div></div>
 
   <div class="mg" data-g="system" data-deny="developer"><button type="button" class="mh"><i>☷</i><span>System Setting</span><span class="cnt"></span><span class="chev">▸</span></button><div class="ms">
-   <div class="msh" title="The rules the agent works under: set these before the first payment">Required</div>
-   <a href="#/budget-policy" data-nav="budget-policy" title="The reporting period, its cut-off and when budgets sync"><i>1</i>Period, cut-off &amp; sync</a>
-   <a href="#/doc-rules" data-nav="doc-rules" title="Which documents an invoice or claim needs before it may be paid"><i>2</i>Document validation</a>
    <div class="msh" title="Use when the company needs it">Optional</div>
    <a href="#/sources-upload" data-nav="sources-upload" title="Load people, vendors, POs or bills from a CSV, Excel or PDF when there is no ERP connection"><i>⇪</i>Dataset upload</a>
    <a href="#/prices" data-nav="prices" title="Standard prices per item and unit that expense claims are checked against"><i>¤</i>Unit prices</a>
@@ -888,7 +888,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
     <div><b>Budgets.</b> Budget allocation follows this tree: a budget given to the head office covers every office under it; one given to a branch or unit covers that branch or unit only (Payment → Budget allocation).</div>
     <div><b>Who approves.</b> People belong to a unit (People and roles). An exception is routed to the approvers in the unit's chain whose approval limit covers it, nearest first; nobody approves outside their chain.</div>
     <div><b>How much the agent pays alone.</b> The payment limit of a unit (or of the nearest unit above it that sets one) is what VENTHORA may pay on its own for spending charged to that unit; above it a person approves.</div>
-    <div><b>Local currency and time zone.</b> The currency an office is budgeted and reports in, and its local time; the reporting cut-off itself is one for the organisation (System Setting → Period, cut-off &amp; sync).</div>
+    <div><b>Local currency and time zone.</b> The currency an office is budgeted and reports in, and its local time; the reporting cut-off itself is one for the organisation (FCO Authorize → Period, cut-off &amp; sync).</div>
     <div><b>Reports and segregation.</b> Spending, payment reports and allocations are added up per office, branch and unit, and an admin of one office manages only that office and the units under it.</div>
    </div>
    <div style="margin-top:12px;padding:12px 14px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#2f6fed,#7b5cff)">
@@ -961,11 +961,26 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span12 plain" data-view="sources-sync api-access"><div class="ptabs"><a href="#/api-access" data-tab="api-access">1 · API access · other apps call VENTHORA</a><a href="#/sources-sync" data-tab="sources-sync">2 · Sync API · VENTHORA syncs your finance app</a></div></section>
  <section class="span12" data-view="sources-sync">
+  <h2><span>Ready-made: ERPNext</span><span class="small muted">suppliers, customers, employees, projects, POs, open purchase and sales invoices, mapped already</span></h2>
+  <ol class="small em-how" style="margin-bottom:8px"><li>In ERPNext open <b>Users</b> → <b>User</b> → your own user (or <code>https://&lt;your-site&gt;/app/user</code>), open the <b>Settings</b> tab, scroll to the bottom and open <b>API Access</b> → <b>Generate Keys</b>. Copy the <b>API Key</b> and the <b>API Secret</b> (the secret is shown once).</li>
+   <li>Paste them here with your site address, then press <b>Connect</b>. VENTHORA signs in once to check; nothing is read until you press <b>Sync</b> in Connected applications below.</li></ol>
+  <div class="form"><label>ERPNext site<input id="erp-url" placeholder="https://your-site.frappe.cloud"></label>
+   <label>API Key<input id="erp-key" autocomplete="off" spellcheck="false"></label>
+   <label>API Secret<input id="erp-sec" type="password" autocomplete="new-password"></label>
+   <label>Charge code for POs (optional)<input id="erp-cc" placeholder="e.g. ID-300.OPS.003001"><span class="small muted" style="font-weight:normal">ERPNext keeps no charge code on a PO; POs read without one wait until one is given.</span></label></div>
+  <div class="row" style="margin-top:10px"><button class="primary" id="erpGo">Connect</button><span class="small" id="erpMsg"></span></div>
+ </section>
+ <section class="span12" data-view="sources-sync">
   <h2><span>Connect your finance application</span><span class="small muted">accounting, ERP or reporting tool with an API: one line, then tick what flows each way</span></h2>
   <div class="form" id="cnNew">
-   <label>Application<input id="cnx-name" maxlength="80" placeholder="e.g. Our accounting system"></label>
-   <label>Keep in sync<select id="cnx-sched"><option value="1" selected>Every minute (realtime)</option><option value="5">Every 5 minutes</option><option value="15">Every 15 minutes</option><option value="60">Every hour</option><option value="0">Only when I press Sync</option></select></label>
-   <label style="grid-column:1/-1">Connection (one line: base URL, then the key)<input id="cnx-line" type="password" autocomplete="off" spellcheck="false" placeholder="https://erp.example.com/api  Bearer eyJ…   ·   or   X-Api-Key: abc123   ·   or   https://user:password@host/api"></label>
+   <label>Application name<input id="cnx-name" maxlength="80" placeholder="e.g. Jurnal.id, Accurate, SAP Business One">
+    <span class="small muted" style="font-weight:normal">A name you recognise, shown in Connected applications and in the log of every synced record.</span></label>
+   <label>Keep in sync<select id="cnx-sched"><option value="1" selected>Every minute (realtime)</option><option value="5">Every 5 minutes</option><option value="15">Every 15 minutes</option><option value="60">Every hour</option><option value="0">Only when I press Sync</option></select>
+    <span class="small muted" style="font-weight:normal">How often VENTHORA reads new data and sends its own back. Choose "Only when I press Sync" for a first test.</span></label>
+   <label style="grid-column:1/-1">API address (base URL)<input id="cnx-url" autocomplete="off" spellcheck="false" placeholder="https://erp.example.com/api">
+    <span class="small muted" style="font-weight:normal">The address the application's API documentation gives, up to the part before the item names (for example before <code>/vendors</code> or <code>/invoices</code>). Starts with https://.</span></label>
+   <label style="grid-column:1/-1">API key or token<input id="cnx-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="eyJ…   ·   Bearer eyJ…   ·   X-Api-Key: abc123">
+    <span class="small muted" style="font-weight:normal">From the application's API or developer settings. Paste the token alone (sent as Bearer), or <b>Header-Name: value</b> when the documentation names a header. Leave empty if the API needs no key, or put <code>https://user:password@host/api</code> in the address for a user and password.</span></label>
   </div>
   <div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:12px">
    <div><div class="row" style="justify-content:space-between"><b>VENTHORA reads</b><span class="small"><a href="#" data-all="pull">all</a> · <a href="#" data-none="pull">none</a></span></div><div id="cnx-pull" class="small"></div></div>
@@ -999,48 +1014,33 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
  </section>
 
  <section class="span12" data-view="sources-email">
-  <h2><span>How email reaches VENTHORA</span><span class="small muted">three ways; use one or all of them</span></h2>
-  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · the mailbox password VENTHORA signs in with</summary><div class="small" style="margin-top:8px">VENTHORA reads the invoice mailbox over IMAP and sends notices over SMTP. Use a mailbox made for this (for example invoices@yourcompany.com), not a person's own.<ol style="margin:6px 0 0 18px;padding:0"><li><b>Gmail / Google Workspace:</b> turn on 2-Step Verification for the mailbox, then create an <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App password</a>. Server <span class="mono">imap.gmail.com</span> port 993, SMTP <span class="mono">smtp.gmail.com</span> port 587. In Workspace the admin may have to allow IMAP.</li><li><b>Microsoft 365 / Outlook:</b> IMAP must be allowed for the mailbox by the admin (<a href="https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/pop3-and-imap4/enable-or-disable-pop3-or-imap4-access" target="_blank" rel="noopener">how</a>); server <span class="mono">outlook.office365.com</span> port 993, SMTP <span class="mono">smtp.office365.com</span> port 587, with an app password where basic sign-in is still on.</li><li><b>Any other host (cPanel, Zoho, your own server):</b> the hosting panel shows the IMAP and SMTP server, port and password of the mailbox.</li><li>Fill them in below, press <b>Test</b>, then <b>Save</b>. The password is kept write-only.</li></ol></div></details>
-  <div id="emAddr" class="tile" style="margin:0 0 12px">loading…</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px" class="small">
-   <div class="tile"><b>1 · A mail service pushes it</b><div class="muted" style="margin-top:4px">Suppliers write to, or copy, an address the company sets for VENTHORA. The mail service (Postmark, Mailgun, SendGrid, Cloudflare, …) posts each email the moment it arrives. Realtime.</div></div>
-   <div class="tile"><b>2 · VENTHORA reads an inbox</b><div class="muted" style="margin-top:4px">Connect an existing mailbox (Gmail, Microsoft 365, Yahoo, iCloud, Zoho, any IMAP). VENTHORA reads new mail on a schedule, every minute by default, and marks or moves what it read.</div></div>
-   <div class="tile"><b>3 · Staff order payments by email</b><div class="muted" style="margin-top:4px">People ticked below may ask VENTHORA to pay a registered vendor by email. The order joins the queue and a different person approves it; email never pays by itself.</div></div>
+  <h2><span>Email</span><span class="small muted">four steps; VENTHORA fills in the servers</span></h2>
+  <div class="em-steps">
+   <div class="tile em-step"><div class="em-h"><span class="em-n">1</span><b>Mail provider</b><span id="em1-state"></span></div>
+    <div class="em-sub">Where the company's mailbox is.</div>
+    <select id="em-prov" style="width:100%;max-width:420px"></select>
+    <div id="em-prov-help" class="small muted" style="margin-top:6px"></div></div>
+   <div class="tile em-step"><div class="em-h"><span class="em-n">2</span><b>Where invoices arrive</b><span id="em2-state"></span></div>
+    <div class="em-sub">The address vendors already send invoices to. VENTHORA reads new mail every minute; attachments are read by the AI model.</div>
+    <div id="em2-body"></div>
+    <div id="em-next" class="small muted" style="margin:10px 0 0 34px">Steps 3 and 4 open after Test connect succeeds.</div></div>
+   <div class="tile em-step" id="em3" hidden><div class="em-h"><span class="em-n">3</span><b>Sender of confirmations</b><span id="em3-state"></span></div>
+    <div class="em-sub">VENTHORA's POs, RFQs and payment notices to vendors and staff go out from this address.</div>
+    <div id="em3-body"></div></div>
+   <div class="tile em-step" id="em4" hidden><div class="em-h"><span class="em-n">4</span><b>Who may send instructions</b><span id="em4-state"></span></div>
+    <div class="em-sub">A payment order by email is acted on only from these senders, and only after the receiving server authenticated them. Someone else still approves it; email never pays by itself.</div>
+    <div id="em4-body"></div></div>
   </div>
- </section>
- <section class="span12" data-view="sources-email">
-  <h2><span>Outgoing email and the outbox</span><span class="small muted">notices to vendors; the password is never shown</span></h2>
-  <div id="obBody" class="empty">loading…</div>
- </section>
- <section class="span12" data-view="sources-email">
-  <h2><span>Inboxes VENTHORA reads</span><span class="row"><span class="small muted">IMAP, with an app password or an OAuth 2.0 token</span><button class="primary" id="addInbox">Connect inbox</button></span></h2>
-  <div id="inboxTable" class="empty">loading…</div>
- </section>
- <section class="span8" data-view="sources-email">
-  <h2><span>Addresses mail services post to</span><span class="row"><span class="small muted">push: the address, what it takes and which service posts it</span><button class="primary" id="addBox">Add address</button></span></h2>
-  <div id="boxTable" class="empty">loading…</div>
- </section>
- <section class="span4" data-view="sources-email">
-  <h2>Connect a mail service</h2>
-  <label class="small" style="display:block;margin-bottom:8px">Service<select id="pushSvc" style="width:100%"></select></label>
-  <div id="boxHow" class="small"></div>
- </section>
- <section class="span12" data-view="sources-email">
-  <h2><span>Who may send what</span><span class="row"><button class="primary" id="polSave">Save</button><span class="small" id="polMsg"></span></span></h2>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px">
-   <div class="small">
-    <b>Vendors</b><div class="muted" id="vendSenders" style="margin:4px 0 12px"></div>
-    <b>Payment orders by email</b>
-    <label class="check" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" id="pol-orders"> People ticked below may order vendor payments by email</label>
-    <label style="display:block;margin:6px 0">Company domains (staff orders only from these; blank = any)<input id="pol-domains" placeholder="acme.com, acme.co.id" style="width:100%"></label>
-    <label class="check" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" id="pol-auth"> The receiving server must have authenticated the sender (SPF, DKIM or DMARC pass)</label>
-    <label style="display:block;margin:6px 0">Subject tag an order must carry (blank = none)<input id="pol-tag" maxlength="30" placeholder="[PAY]" style="width:100%"></label>
-    <label class="check" style="display:flex;gap:8px;margin:6px 0"><input type="checkbox" id="pol-unknown"> Flag mail sent to an address that is not configured</label>
-    <b style="display:block;margin-top:12px">Always, whatever is ticked</b>
-    <ul style="padding-left:18px;margin:4px 0;line-height:1.6" class="muted"><li>an unknown sender asking for money, or a forged one, is quarantined: visible, never payable</li><li>new bank details wait for a call-back on the registered number</li><li>an order by email is approved by someone other than who sent it</li><li>the same invoice is never paid twice</li></ul>
-   </div>
-   <div class="small"><b>People who may order vendor payments by email</b><div class="muted" style="margin:4px 0 6px">From User management; their own mailbox only. Tick to allow, untick to stop.</div><div id="staffOrders"></div></div>
-  </div>
+  <details class="tile em-more" hidden><summary><b>More addresses</b> <span class="small muted">optional: separate addresses for staff claims or customer remittances, or mail a service forwards</span></summary>
+   <div class="row" style="justify-content:space-between;margin:10px 0 6px"><b class="small">Mailboxes VENTHORA reads</b><button id="addInbox">Connect another inbox</button></div>
+   <div id="inboxTable" class="empty">loading…</div>
+   <div class="row" style="justify-content:space-between;margin:14px 0 6px"><b class="small">Addresses a mail service forwards</b><button id="addBox">Add address</button></div>
+   <div id="boxTable" class="empty">loading…</div>
+   <div style="margin-top:10px" class="small"><label>How a mail service forwards <select id="pushSvc"></select></label><div id="boxHow"></div></div>
+  </details>
+  <details class="tile em-more" hidden><summary><b>Sent emails</b> <span class="small muted">the outbox: what VENTHORA sent, or will send once step 3 is done</span></summary><div id="obBody" class="empty" style="margin-top:8px">loading…</div></details>
+  <details class="tile em-more" hidden><summary><b>Always protected</b> <span class="small muted">whatever is set above</span></summary>
+   <ul class="small muted" style="padding-left:18px;margin:8px 0 0;line-height:1.6"><li>mail from an unknown or forged sender asking for money is quarantined: visible, never payable</li><li>new bank details wait for a call-back on the registered number</li><li>an order by email is approved by someone other than who sent it</li><li>the same invoice is never paid twice</li><li>passwords are write-only: never shown again, only "saved"</li></ul></details>
  </section>
 
  <section class="span8" data-view="api-access">
@@ -1251,6 +1251,11 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
    <li>Keys are kept on this machine (git-ignored) and never shown again: only their last four characters.</li>
    <li>Nothing saved here: <code>MODEL_ENDPOINT</code> / <code>MODEL_NAME</code> in <code>.env</code> apply.</li>
   </ul>
+ </section>
+ <section class="span12" data-view="ai">
+  <h2><span>Usage</span><span class="row"><span class="small muted">every model call: tokens in and out; prompts and answers are never kept</span>
+   <select id="aiUseDays"><option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option></select></span></h2>
+  <div id="aiUsage" class="empty">loading…</div>
  </section>
 
  <section class="span12" data-view="mandate">
@@ -3910,12 +3915,17 @@ async function syncView(){try{const [cs,cat]=await Promise.all([api("/v1/sources
  mdView()}catch(e){$("#connList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 document.querySelectorAll("#cnNew ~ .grid2 [data-all],#cnNew ~ .grid2 [data-none]").forEach(a=>a.onclick=ev=>{ev.preventDefault();
  const dir=a.dataset.all||a.dataset.none;$(`#cnx-${dir}`).querySelectorAll("input").forEach(x=>x.checked=!!a.dataset.all)});
+$("#erpGo").onclick=async()=>{const url=$("#erp-url").value.trim();if(!url){$("#erpMsg").innerHTML='<span class="err">type the site address</span>';return}
+ $("#erpMsg").textContent="connecting…";
+ try{const r=await api(`/v1/sources/connectors/template/erpnext?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({site_url:url,api_key:$("#erp-key").value.trim(),api_secret:$("#erp-sec").value,default_charge_code:$("#erp-cc").value.trim()})});
+  $("#erp-sec").value="";$("#erpMsg").innerHTML=r.check.ok?`<span class="pill good">connected</span> ${esc(r.check.detail)}: press Sync on ERPNext below`:`<span class="err">Saved, but ${esc(r.check.detail)}</span>`;syncView()}
+ catch(e){$("#erpMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#cnxGo").onclick=async()=>{const pick=dir=>[...$(`#cnx-${dir}`).querySelectorAll("input:checked")].map(x=>x.dataset.key);
- const body={name:$("#cnx-name").value.trim(),connection:$("#cnx-line").value.trim(),pull:pick("pull"),push:pick("push"),schedule_minutes:+$("#cnx-sched").value};
+ const body={name:$("#cnx-name").value.trim(),connection:[$("#cnx-url").value.trim(),$("#cnx-key").value.trim()].filter(Boolean).join(" "),pull:pick("pull"),push:pick("push"),schedule_minutes:+$("#cnx-sched").value};
  if(!body.name){$("#cnxMsg").innerHTML='<span class="err">name the application</span>';return}
  $("#cnxMsg").textContent="connecting…";
  try{const c=await api(`/v1/sources/connectors?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
-  $("#cnx-line").value="";$("#cnxMsg").innerHTML=`<span class="pill good">CONNECTED</span> ${esc(c.name)}: finding its data and proposing the mapping…`;await syncView();
+  $("#cnx-key").value="";$("#cnxMsg").innerHTML=`<span class="pill good">CONNECTED</span> ${esc(c.name)}: finding its data and proposing the mapping…`;await syncView();
   discoverForm(c,SCAT)}
  catch(e){$("#cnxMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 // Discover & map: where each item is, which field maps to which, what the first record becomes; a person applies it
@@ -4014,86 +4024,225 @@ const IB_SCHED={0:"only on demand",1:"every minute",5:"every 5 min",15:"every 15
 const obPreset=k=>((EMAILCFG&&EMAILCFG.presets)||[]).find(p=>p.key===k);
 function obProvOpts(s){const ps=(EMAILCFG&&EMAILCFG.presets)||[];const cur=(ps.find(p=>p.smtp_host&&p.smtp_host===s.host)||{}).key||(s.host?"other":"gmail");
  return ps.map(p=>`<option value="${esc(p.key)}" ${p.key===cur?"selected":""}>${esc(p.key==="other"?"Other SMTP server":p.label)}</option>`).join("")}
-async function outboxView(){try{if(!EMAILCFG){try{EMAILCFG=await api("/v1/settings/email")}catch(e){}}const d=await api("/v1/outbox"),s=d.smtp;
- $("#obBody").classList.remove("empty");
- $("#obBody").innerHTML=`<div class="tile" style="margin-bottom:10px"><b>Outgoing email (SMTP)</b> ${s.configured?'<span class="pill good">set up</span>':'<span class="pill warn">not set up: notices wait queued</span>'}
-  <div class="small muted" style="margin:4px 0 8px">Choose the mail provider, then type the sending address and its app password: VENTHORA fills the server, port and security.</div>
-  <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><select id="obProv">${obProvOpts(s)}</select><input id="obFrom" type="email" placeholder="sender: payments@company.com" value="${esc(s.sender)}" style="width:230px"><input id="obPass" type="password" placeholder="${s.password.set?`app password kept (${esc(s.password.hint||"")})`:"app password"}" style="width:200px"><button class="primary" id="obSave">Save</button><button id="obCheck" ${s.configured?"":"disabled"}>Check the connection</button><span class="small" id="obMsg"></span></div>
-  <div id="obHelp" class="small muted" style="margin-top:6px"></div>
-  <details id="obAdv" style="margin-top:6px"><summary class="small">Advanced: server settings (filled in by VENTHORA for the providers above)</summary><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><input id="obHost" placeholder="smtp.example.com" value="${esc(s.host)}" style="width:190px"><input id="obPort" value="${esc(s.port)}" style="width:70px"><select id="obSec">${["starttls","ssl","none"].map(x=>`<option ${x===s.security?"selected":""}>${x}</option>`).join("")}</select><input id="obUser" placeholder="user (blank = the address)" value="${esc(s.user)}" style="width:210px"></div></details></div>
-  ${table([{h:"When",f:x=>`<span class="small">${esc(String(x.created_at).slice(0,16).replace("T"," "))}</span>`},{h:"For",f:x=>`<span class="mono small">${esc(x.ref||"")}</span>`},{h:"To",f:x=>esc((x.to||[]).join(", "))},{h:"Subject",f:x=>esc(x.subject)},
-   {h:"Status",f:x=>`<span class="pill ${x.status==="sent"?"good":x.status==="failed"?"critical":"warn"}">${esc(x.status)}</span>${x.error?`<div class="small muted">${esc(x.error)}</div>`:""}`},{h:"By",f:x=>`<span class="small">${esc(x.created_by)}</span>`},
-   {h:"",f:x=>x.status!=="sent"&&s.configured?`<button class="small" data-obsend="${esc(x._id)}">Send</button>`:""}],d.items,"nothing in the outbox yet")}`;
- const obFill=()=>{const p=obPreset($("#obProv").value);$("#obHelp").textContent=p?(p.help||""):"";const other=!p||!p.smtp_host;$("#obAdv").open=other;if(p&&p.smtp_host){$("#obHost").value=p.smtp_host;$("#obPort").value=p.smtp_port;$("#obSec").value=p.smtp_security;$("#obUser").value=""}};$("#obProv").onchange=obFill;obFill();
- $("#obSave").onclick=async()=>{const prov=$("#obProv").value,p=obPreset(prov);try{await api(`/v1/outbox/smtp?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({provider:p&&p.smtp_host?prov:"",host:$("#obHost").value.trim(),port:+$("#obPort").value||587,security:$("#obSec").value,user:$("#obUser").value.trim(),password:$("#obPass").value||null,sender:$("#obFrom").value.trim()})});toast("Outgoing email saved","good");outboxView()}catch(e){$("#obMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
- $("#obCheck").onclick=async()=>{$("#obMsg").textContent="connecting…";try{const r=await api(`/v1/outbox/smtp/check?${who()}`,{method:"POST"});$("#obMsg").innerHTML=`<span class="pill ${r.ok?"good":"critical"}">${r.ok?"ok":"failed"}</span> ${esc(r.detail)}`}catch(e){$("#obMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
- document.querySelectorAll("[data-obsend]").forEach(b=>b.onclick=async()=>{try{const r=await api(`/v1/outbox/${b.dataset.obsend}/send?${who()}`,{method:"POST"});toast(`Message ${r.status}`,r.status==="sent"?"good":"warn");outboxView()}catch(e){toast(esc(e.message),"serious")}});
-}catch(e){$("#obBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
-// ---- Email Sync → Company email addresses: entered twice (invoices + payments); one generic address may serve both ----
-function emAddrRender(cfg){const A=cfg.addresses||{},inv=A.invoices||{},pay=A.payments||{},ps=cfg.presets||[];
- const host=PUSHBASE?PUSHBASE.replace(/^https?:\/\//,""):"your VENTHORA address";
- const slot=(k,label,what,v,sends)=>`<div class="tile" style="margin-top:8px"><b>${label}</b> <span class="small muted">${what}</span>
-  <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center"><input id="ea-${k}-addr" type="email" required placeholder="${k==="inv"?"invoices@company.com":"pay@company.com"}" value="${esc(v.address||"")}" style="width:240px">
-   <select id="ea-${k}-recv"><option value="forwarded" ${v.receive==="forwarded"?"selected":""}>Forwarded by the mail service (Cloudflare, Postmark…)</option><option value="imap" ${v.receive==="imap"?"selected":""}>VENTHORA signs in (IMAP)</option></select>
-   <select id="ea-${k}-prov">${ps.map(p=>`<option value="${esc(p.key)}" ${p.key===(v.provider||"gmail")?"selected":""}>${esc(p.label)}</option>`).join("")}</select>
-   <input id="ea-${k}-pass" type="password" autocomplete="off" placeholder="app password (sign-in${sends?" and sending":""})" style="width:220px"></div>
-  <div id="ea-${k}-note" class="small muted" style="margin-top:4px"></div></div>`;
- $("#emAddr").innerHTML=`<b>Company email addresses</b> <span class="pill ${inv.address&&pay.address?"good":"warn"}">${inv.address&&pay.address?"both set":"required: fill in both"}</span>
-  <div class="small muted" style="margin-top:4px">VENTHORA needs two addresses: one where invoices arrive, one for payments (payment orders and remittances in, VENTHORA's RFQs, POs and notices out). A company may use one generic address for both: it is still entered for both roles.</div>
-  <label class="check small" style="margin-top:6px"><input type="checkbox" id="ea-same" ${A.same_for_both?"checked":""}> Use one generic address for both</label>
-  ${slot("inv","1 · Invoices address","vendor invoices, staff claims, purchase requests",inv,false)}${slot("pay","2 · Payments address","payment orders and customer remittances in; VENTHORA's emails out",pay,true)}
-  <label class="check small" style="margin-top:6px"><input type="checkbox" id="ea-send" ${A.send_from_payments!==false?"checked":""}> Send VENTHORA's emails (RFQs, POs, notices) from the payments address</label>
-  <div class="row" style="gap:8px;margin-top:8px"><button class="primary" id="eaSave">Save both addresses</button><span class="small" id="eaMsg"></span></div>`;
- const note=k=>{const recv=$(`#ea-${k}-recv`).value,p=ps.find(x=>x.key===$(`#ea-${k}-prov`).value)||{};const sends=k==="pay"&&$("#ea-send").checked;
-  $(`#ea-${k}-prov`).hidden=recv!=="imap"&&!sends;$(`#ea-${k}-pass`).hidden=recv!=="imap"&&!sends;
-  $(`#ea-${k}-note`).innerHTML=recv==="forwarded"?`The mail service forwards each email to <span class="mono">https://${esc(host)}/webhooks/email</span> with the inbound secret (see "Push forwarding" below); no password is kept.${sends?" "+esc(p.help||""):""}`:esc(p.help||"")};
- const same=()=>{const on=$("#ea-same").checked;["addr","recv","prov"].forEach(f=>{const a=$(`#ea-inv-${f}`),b=$(`#ea-pay-${f}`);if(on){b.value=a.value;b.disabled=true}else b.disabled=false});note("pay")};
- ["inv","pay"].forEach(k=>["recv","prov"].forEach(f=>$(`#ea-${k}-${f}`).onchange=()=>{note(k);same()}));$("#ea-inv-addr").oninput=same;$("#ea-same").onchange=same;$("#ea-send").onchange=()=>note("pay");note("inv");note("pay");same();
- $("#eaSave").onclick=async()=>{const g=(k,f)=>$(`#ea-${k}-${f}`).value.trim();const msg=[];
-  const body={invoices:{address:g("inv","addr"),receive:g("inv","recv"),provider:g("inv","prov")},payments:{address:g("pay","addr"),receive:g("pay","recv"),provider:g("pay","prov")},same_for_both:$("#ea-same").checked,send_from_payments:$("#ea-send").checked};
-  if(!body.invoices.address||!body.payments.address){$("#eaMsg").innerHTML='<span class="err">fill in both addresses (the same one twice is fine)</span>';return}
-  try{await api(`/v1/settings/email/addresses?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});msg.push("addresses saved");
-   const slots=[["inv","invoices"],["pay","payment_orders"]].filter(([k],i)=>!(i===1&&body.same_for_both));
-   for(const [k,purpose] of slots){const v=k==="inv"?body.invoices:body.payments;if(v.receive!=="imap")continue;const pw=$(`#ea-${k}-pass`).value;
-    const id=v.address.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40);
-    await api(`/v1/settings/email/inboxes/${id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({address:v.address.toLowerCase(),provider:v.provider,auth:"password",secret:pw||null,purpose:body.same_for_both?"any":purpose,schedule_minutes:1,active:true})});msg.push(`inbox ${v.address} saved`)}
-   if(body.send_from_payments){const pw=$("#ea-pay-pass").value||(body.same_for_both?$("#ea-inv-pass").value:"");const p=ps.find(x=>x.key===body.payments.provider)||{};
-    if(p.smtp_host&&pw){await api(`/v1/outbox/smtp?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({provider:body.payments.provider,sender:body.payments.address.toLowerCase(),password:pw})});msg.push(`sending from ${body.payments.address}`)}
-    else msg.push("sending: enter the payments address's app password to send VENTHORA's emails")}
-   $("#eaMsg").innerHTML=`<span class="pill good">saved</span> ${esc(msg.join(" · "))}`;toast("Company email addresses saved","good");emailView()}
-  catch(e){$("#eaMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
-async function emailView(){outboxView();try{const [b,st,cfg,users]=await Promise.all([api("/v1/org/mailboxes"),api("/v1/webhooks/status"),api("/v1/settings/email"),api("/v1/org/users")]);BOXES=b;EMAILCFG=cfg;try{emAddrRender(cfg)}catch(e){$("#emAddr").textContent=e.message}
- const sub=(st.subscriptions||[])[0];PUSHBASE=sub?new URL(sub.url).origin:"";
- // inboxes VENTHORA reads
- $("#inboxTable").innerHTML=table([{h:"Inbox",f:i=>`<b class="mono">${esc(i.address)}</b>${i.active?"":' <span class="small muted">paused</span>'}<div class="small muted">${esc((cfg.presets.find(p=>p.key===i.provider)||{}).label||i.provider)} · ${esc(i.resolved.host)}:${i.resolved.port} · ${esc(i.auth==="oauth2"?"OAuth 2.0":"app password")}${i.secret_set?" "+esc(i.secret_hint):' <span class="err">no secret</span>'}</div>`},
-  {h:"Reads",f:i=>`<span class="mono small">${esc(i.folder)}</span><div class="small muted">${i.only_unread?"unread":"all"} · then ${i.after==="move"?"move to "+esc(i.move_to):i.after==="leave"?"leave":"mark read"}</div>`},
-  {h:"Takes",f:i=>`<span class="chip">${esc((PURPOSES.find(x=>x[0]===i.purpose)||[,i.purpose])[1])}</span>`},{h:"When",f:i=>esc(IB_SCHED[i.schedule_minutes]||`every ${i.schedule_minutes} min`)},
-  {h:"Last read",f:i=>i.last_poll_at?`<span class="small">${esc(i.last_poll_at.slice(0,16).replace("T"," "))} UTC</span><div class="small ${i.last_report?.error?"err":"muted"}">${i.last_report?.error?esc(i.last_report.error):`${i.last_report?.fetched??0} new · ${(i.last_report?.queued||[]).length} queued`}</div>`:'<span class="small muted">never</span>'},
-  {h:"",f:i=>`<span class="row" style="flex-wrap:nowrap"><button data-ibtest="${esc(i.inbox_id)}">Test</button><button class="primary" data-ibfetch="${esc(i.inbox_id)}">Fetch now</button><button data-ibedit="${esc(i.inbox_id)}">Edit</button><button data-ibdel="${esc(i.inbox_id)}">Remove</button></span>`}],
-  cfg.inboxes,"no inbox yet: press Connect inbox to let VENTHORA read a mailbox");
- $("#inboxTable").querySelectorAll("[data-ibtest]").forEach(b=>b.onclick=async()=>{try{const r=await api(`/v1/settings/email/inboxes/${b.dataset.ibtest}/test`,{method:"POST"});toast(`Signed in: ${r.messages} message(s) in ${r.folder}, ${r.unread} unread`,"good")}catch(e){toast(e.message,"critical")}});
- $("#inboxTable").querySelectorAll("[data-ibfetch]").forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/v1/settings/email/inboxes/${b.dataset.ibfetch}/fetch?${who()}`,{method:"POST"});
-  toast(r.error?r.error:`${r.fetched} new email(s), ${r.queued.length} in the queue`,r.error?"critical":"good");emailView()}catch(e){toast(e.message,"critical")}finally{b.disabled=false}});
- $("#inboxTable").querySelectorAll("[data-ibedit]").forEach(b=>b.onclick=()=>inboxForm(cfg.inboxes.find(i=>i.inbox_id===b.dataset.ibedit)));
- $("#inboxTable").querySelectorAll("[data-ibdel]").forEach(b=>b.onclick=async()=>{if(!confirm("Stop reading this inbox? What was read stays in the queue."))return;
-  try{await api(`/v1/settings/email/inboxes/${b.dataset.ibdel}?${who()}`,{method:"DELETE"});toast("Inbox removed","good");emailView()}catch(e){toast(e.message,"critical")}});
- // who may send what
- const pol=cfg.policy;$("#pol-orders").checked=pol.orders_by_email;$("#pol-domains").value=pol.company_domains.join(", ");$("#pol-auth").checked=pol.require_authentication;
- $("#pol-tag").value=pol.order_tag;$("#pol-unknown").checked=pol.flag_unknown_mailbox;
- $("#vendSenders").innerHTML=`${cfg.senders.vendors_with_mailboxes} vendor(s) have registered mailboxes (vendor master: Sync API, upload or entry). Mail from any other address that asks for money is quarantined.`;
- $("#staffOrders").innerHTML=table([{h:"",f:u=>`<input type="checkbox" data-uorder="${esc(u.user_id)}" ${u.may_order_by_email?"checked":""}>`},{h:"Person",f:u=>`<b>${esc(u.name)}</b><div class="small muted mono">${esc(u.email)}</div>`},
-  {h:"Role",f:u=>esc((ROLES[u.role]||u.role))}],cfg.senders.staff,"no active person in User management");
- $("#staffOrders").querySelectorAll("[data-uorder]").forEach(x=>x.onchange=async()=>{const u=users.find(y=>y.user_id===x.dataset.uorder);
-  try{await api(`/v1/org/users?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...u,may_order_by_email:x.checked})});u.may_order_by_email=x.checked;
-   toast(`${u.name} ${x.checked?"may":"may no longer"} order vendor payments by email`,"good")}catch(e){x.checked=!x.checked;toast(e.message,"critical")}});
- // push services
+async function outboxView(){try{const d=await api("/v1/outbox");$("#obBody").classList.remove("empty");
+ $("#obBody").innerHTML=table([{h:"When",f:x=>`<span class="small">${esc(String(x.created_at).slice(0,16).replace("T"," "))}</span>`},{h:"For",f:x=>`<span class="mono small">${esc(x.ref||"")}</span>`},{h:"To",f:x=>esc((x.to||[]).join(", "))},{h:"Subject",f:x=>esc(x.subject)},
+  {h:"Status",f:x=>`<span class="pill ${x.status==="sent"?"good":x.status==="failed"?"critical":"warn"}">${esc(x.status)}</span>${x.error?`<div class="small muted">${esc(x.error)}</div>`:""}`},
+  {h:"",f:x=>x.status!=="sent"&&d.smtp.configured?`<button class="small" data-obsend="${esc(x._id)}">Send</button>`:""}],d.items,"nothing sent yet");
+ document.querySelectorAll("[data-obsend]").forEach(b=>b.onclick=async()=>{try{const r=await api(`/v1/outbox/${b.dataset.obsend}/send?${who()}`,{method:"POST"});toast(r.status==="sent"?"Sent":r.error||r.status,r.status==="sent"?"good":"critical");outboxView()}catch(e){toast(e.message,"critical")}})}
+ catch(e){$("#obBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+// ---- Email Sync: 1 provider · 2 where invoices arrive · 3 sender · 4 who may instruct ----
+// where each company creates its OWN credential, on the provider's own page (VENTHORA never makes one for it)
+const EM_OWN={gmail:["Create an app password in your Google account","https://myaccount.google.com/apppasswords"],
+ yahoo:["Create an app password in your Yahoo account","https://login.yahoo.com/account/security/app-passwords"],
+ icloud:["Create an app-specific password in your Apple account","https://account.apple.com/account/manage"],
+ zoho:["Create an application-specific password in Zoho","https://accounts.zoho.com/home#security/app_password"],
+ fastmail:["Create an app password in Fastmail","https://app.fastmail.com/settings/security/apps"],
+ yandex:["Create an app password in Yandex ID","https://id.yandex.com/security/app-passwords"],
+ aol:["Create an app password in your AOL account","https://login.aol.com/account/security/app-passwords"],
+ outlook:["Register VENTHORA as an app in your own Microsoft tenant","https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade"],
+ forward:["Open Email Routing in your Cloudflare account","https://dash.cloudflare.com/?to=/:account/:zone/email/routing/routes"]};
+// what the person sees on the provider's page, and what to do there (the page opens in a new tab)
+const EM_HOW={gmail:["Needs 2-Step Verification on the account; if the page says app passwords are not available, turn it on first.","In <b>App name</b> type <b>VENTHORA</b> and press <b>Create</b>.","Google shows a 16-letter password <b>once</b>: copy it (spaces do not matter) and paste it below."],
+ yahoo:["Press <b>Generate app password</b>, name it <b>VENTHORA</b>.","Copy the password Yahoo shows once and paste it below."],
+ icloud:["Sign-In and Security → <b>App-Specific Passwords</b> → <b>+</b>, name it <b>VENTHORA</b>.","Copy the password Apple shows once and paste it below."],
+ zoho:["Generate New Password, name it <b>VENTHORA</b>; IMAP access must be on in Zoho Mail settings.","Copy the password Zoho shows once and paste it below."],
+ fastmail:["New app password, access <b>IMAP and SMTP</b>, name it <b>VENTHORA</b>.","Copy it and paste it below."],
+ yandex:["Create an app password for <b>Mail</b>, name it <b>VENTHORA</b>.","Copy it and paste it below."],
+ aol:["Generate app password, name it <b>VENTHORA</b>.","Copy it and paste it below."]};
+const EM_FORWARD="forward";
+let EMPROV=null,EMVAR="m365",EMEDIT={2:false,3:false},EMAUTOTEST=false;
+const EM_SINCE=[[1,"Last 1 day"],[3,"Last 3 days"],[7,"Last 7 days"],[15,"Last 15 days"],[30,"Last 1 month"],[90,"Last 3 months"],[180,"Last 6 months"],[365,"Last 1 year"],[0,"All mail"]];
+const emSinceSel=(id,cur)=>`<label class="small">Read unread mail from <select id="${id}">${EM_SINCE.map(([v,l])=>`<option value="${v}" ${+v===+(cur??7)?"selected":""}>${l}</option>`).join("")}</select></label>`;
+const EM_PERSONAL=/@(outlook|hotmail|live|msn)\.[a-z.]+$/i;
+const emPill=(ok,txt)=>`<span class="pill ${ok?"good":"warn"}" style="margin-left:auto">${esc(txt)}</span>`;
+const emJson=(m,b)=>({method:m,headers:{"content-type":"application/json"},body:JSON.stringify(b)});
+const emSlug=a=>a.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40);
+const emOwnLink=k=>{const o=EM_OWN[k];return o?`<a class="em-own" href="${o[1]}" target="_blank" rel="noopener">${esc(o[0])} ↗</a>`:""};
+function emMainInbox(cfg){const inv=((cfg.addresses||{}).invoices||{}).address;
+ return cfg.inboxes.find(i=>i.address===inv)||cfg.inboxes.find(i=>["invoices","any"].includes(i.purpose))||null}
+async function emSaveAddresses(cfg,patch){const A=cfg.addresses||{};const cur=k=>A[k]&&A[k].address?A[k]:null;
+ const inv=patch.invoices||cur("invoices")||patch.payments,pay=patch.payments||cur("payments")||inv;if(!inv||!pay)return;
+ await api(`/v1/settings/email/addresses?${who()}`,emJson("PUT",{invoices:inv,payments:pay,same_for_both:inv.address===pay.address,send_from_payments:true}))}
+async function emailView(){{const hq=new URLSearchParams(location.hash.split("?")[1]||"");
+  if(hq.get("connected")){EMAUTOTEST=true;EMEDIT[2]=false;history.replaceState(null,"","#/sources-email")}
+  else if(hq.get("oauth_error")){toast(`Not connected: ${hq.get("oauth_error")}`,"critical");EMEDIT[2]=true;history.replaceState(null,"","#/sources-email")}}
+ outboxView();try{const [b,st,cfg,users,ob]=await Promise.all([api("/v1/org/mailboxes"),api("/v1/webhooks/status"),api("/v1/settings/email"),api("/v1/org/users"),api("/v1/outbox")]);
+ BOXES=b;EMAILCFG=cfg;cfg._smtp=ob.smtp;const sub=(st.subscriptions||[])[0];PUSHBASE=sub?new URL(sub.url).origin:"";READER=st.inbound_email.reader||"rules";
+ const main=emMainInbox(cfg),A=cfg.addresses||{};
+ if(!EMPROV){EMPROV=main?main.provider:((A.invoices||{}).receive==="forwarded"?EM_FORWARD:(A.invoices||{}).provider||"outlook");EMVAR=main&&EM_PERSONAL.test(main.address)?"personal":"m365"}
+ // 1 · provider
+ const first=["outlook","gmail","yahoo","other"],lbl=k=>(cfg.presets.find(x=>x.key===k)||{}).label||k;
+ const opts=[["outlook|m365","Microsoft 365 (work or school mailbox)"],["outlook|personal","Outlook.com / Hotmail (personal mailbox)"],[EM_FORWARD,"Cloudflare Email Routing (own domain, e.g. invoices@muwahid.org)"],["gmail",lbl("gmail")],["yahoo",lbl("yahoo")]].concat(cfg.presets.filter(p=>!first.includes(p.key)).map(p=>[p.key,p.label]),[["other","Other IMAP server (company mail host, cPanel …)"]]);
+ const curSel=EMPROV==="outlook"?`outlook|${EMVAR}`:EMPROV;
+ $("#em-prov").innerHTML=opts.map(([k,l])=>`<option value="${esc(k)}" ${k===curSel?"selected":""}>${esc(l)}</option>`).join("");
+ $("#em-prov-help").innerHTML=EMPROV===EM_FORWARD?"Your mail service forwards each email to VENTHORA the moment it arrives.":
+  "You create the sign-in yourself, in your own account at the provider: VENTHORA never makes or holds a master key for your mailbox.";
+ $("#em1-state").innerHTML=emPill(true,(opts.find(([k])=>k===curSel)||[,EMPROV])[1].replace(/ \(.*\)$/,""));
+ $("#em-prov").onchange=()=>{const [pv,vr]=$("#em-prov").value.split("|");EMPROV=pv;if(vr)EMVAR=vr;EMEDIT[2]=EMEDIT[3]=true;emailView()};
+ const rep=main&&main.last_report,inOk=EMPROV===EM_FORWARD?b.some(m=>["invoices","any"].includes(m.purpose)):!!(main&&main.secret_set&&!EMEDIT[2]&&!(rep&&rep.error));
+ const outOk=!!ob.smtp.configured&&!EMEDIT[3];
+ emStep2(cfg,main,b);$("#em3").hidden=!inOk;document.querySelectorAll(".em-more").forEach(x=>x.hidden=!inOk);
+ if(inOk)emStep3(cfg,main,ob.smtp);$("#em4").hidden=!(inOk&&outOk);if(inOk&&outOk)emStep4(cfg,users);if(inOk)emMore(cfg,b);
+ $("#em-next").hidden=inOk;
+ if(EMAUTOTEST&&main){EMAUTOTEST=false;try{const r=await api(`/v1/settings/email/inboxes/${main.inbox_id}/test`,{method:"POST"});toast(`Connected ${main.address}: signed in, ${r.unread} unread`,"good")}catch(e){toast(`Connected, but sign-in failed: ${e.message}`,"critical")}}}
+ catch(e){$("#em2-body").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+function emStep2(cfg,main,boxes){const p=cfg.presets.find(x=>x.key===EMPROV),A=cfg.addresses||{};
+ if(EMPROV===EM_FORWARD){const box=boxes.find(m=>["invoices","any"].includes(m.purpose));
+  $("#em2-state").innerHTML=emPill(!!box,box?"set":"to do");
+  const hook=`https://${esc(PUSHBASE?PUSHBASE.replace(/^https?:\/\//,""):"&lt;tunnel-host&gt;")}/webhooks/email`;
+  $("#em2-body").innerHTML=`<ol class="em-steps-ol"><li>${emOwnLink(EM_FORWARD)} (or your mail service's inbound settings) and forward the invoices address to <code>${hook}</code>.</li>
+   <li>Type that address here: <span class="row" style="gap:8px;display:inline-flex;flex-wrap:wrap"><input id="em2-addr" type="email" placeholder="invoices@company.com" value="${esc((box||{}).address||(A.invoices||{}).address||"")}" style="width:260px">
+   <button class="primary" id="em2-save">Save</button><span class="small" id="em2-msg"></span></span></li></ol>`;
+  $("#em2-save").onclick=async()=>{const a=$("#em2-addr").value.trim().toLowerCase();if(!a)return;try{
+   if(!box)await api(`/v1/org/mailboxes?${who()}`,emJson("POST",{address:a,purpose:"invoices",provider:"cloudflare",note:"invoices",active:true}));
+   await emSaveAddresses(cfg,{invoices:{address:a,receive:"forwarded",provider:"other"}});toast("Invoices address saved","good");emailView()}catch(e){$("#em2-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};return}
+ const ok=main&&main.secret_set,rep=main&&main.last_report;
+ $("#em2-state").innerHTML=emPill(ok&&!(rep&&rep.error)&&!EMEDIT[2],!main?"to do":!main.secret_set?"password missing":rep&&rep.error?"sign-in failed":EMEDIT[2]?"changing":"connected");
+ const reconnect=!!(main&&main.auth==="oauth2"&&rep&&rep.error&&/refused the sign-in|could not be renewed/.test(rep.error));
+ if(ok&&!EMEDIT[2]&&!reconnect){
+  $("#em2-body").innerHTML=`<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><b class="mono">${esc(main.address)}</b>${main.auth==="oauth2"?`<span class="chip">your own ${esc((((cfg.oauth||{}).providers||{})[main.provider]||{}).label||"")} app</span>`:'<span class="chip">your app password</span>'}
+   <span class="small muted">${main.last_poll_at?`last read ${esc(main.last_poll_at.slice(0,16).replace("T"," "))} UTC · ${rep&&rep.error?`<span class="err">${esc(rep.error)}</span>`:`${rep?.fetched??0} new, ${(rep?.queued||[]).length} to the queue`}`:"not read yet"}</span>
+   ${emSinceSel("em2-since",main.since_days)}<span class="row" style="gap:6px;margin-left:auto"><button id="em2-test">Check connection</button><button class="primary" id="em2-fetch">Read now</button><button id="em2-edit">Change</button></span></div><div class="small" id="em2-msg" style="margin-top:6px"></div>`;
+  $("#em2-test").onclick=async()=>{$("#em2-msg").textContent="signing in…";try{const r=await api(`/v1/settings/email/inboxes/${main.inbox_id}/test`,{method:"POST"});$("#em2-msg").innerHTML=`<span class="pill good">connected</span> ${r.messages} message(s) in ${esc(r.folder)}, ${r.unread} unread`}catch(e){$("#em2-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+  $("#em2-fetch").onclick=async()=>{$("#em2-msg").textContent="reading…";try{const r=await api(`/v1/settings/email/inboxes/${main.inbox_id}/fetch?${who()}`,{method:"POST"});toast(r.error?r.error:`${r.fetched} new email(s), ${r.queued.length} in the queue`,r.error?"critical":"good");emailView()}catch(e){$("#em2-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+  $("#em2-since").onchange=async()=>{const keep=["address","purpose","provider","host","port","security","username","auth","folder","only_unread","after","move_to","schedule_minutes","active"];
+   const body=Object.fromEntries(keep.map(k=>[k,main[k]]));body.since_days=+$("#em2-since").value;body.secret=null;
+   try{await api(`/v1/settings/email/inboxes/${main.inbox_id}?${who()}`,emJson("PUT",body));main.since_days=body.since_days;toast(`Reads unread mail from: ${$("#em2-since").selectedOptions[0].textContent.toLowerCase()}`,"good")}
+   catch(e){$("#em2-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+  $("#em2-edit").onclick=()=>{EMEDIT[2]=true;emailView()};return}
+ const cancel=main&&main.secret_set?'<button id="em2-cancel">Cancel</button>':"";
+ if(p.auth==="oauth2"){const o=((cfg.oauth||{}).providers||{})[EMPROV]||{},ru=(cfg.oauth||{}).redirect_uri||"";
+  const le=cfg.oauth_last_error,secPh=o.own_secret_is_id?"saved one is a Secret ID: paste the Value":o.own?"Value saved; blank keeps it":"paste the Value here";
+  $("#em2-body").innerHTML=`${reconnect?`<div class="em-fail"><b>${esc(main.address)} is saved, but Microsoft refuses its sign-in</b> (${esc(rep.error)}). Check the boxes below, then press <b>Test connect</b> at the bottom: it opens Microsoft so you can sign in again.</div>`:""}${le&&le.provider===EMPROV?`<div class="em-fail"><b>Last Test connect failed</b> (${esc(String(le.at).slice(0,16).replace("T"," "))} UTC): ${esc(le.error)}</div>`:""}<ol class="em-steps-ol">
+   <li><b>Register your app.</b> ${emOwnLink(EMPROV)} <span class="small muted">(opens in a new tab; Microsoft no longer accepts mailbox passwords for IMAP)</span>
+    <table class="small em-form"><thead><tr><th>Field on Microsoft's form</th><th>What to enter</th></tr></thead><tbody>
+     <tr><td><b>Name</b></td><td>Your company or app name, for example <b>Nusantara</b> (only a label)</td></tr>
+     <tr><td><b>Supported account types</b></td><td><b>Any Entra ID Tenant + Personal Microsoft accounts</b> works for every mailbox, including Outlook.com / Hotmail. <b>Single tenant only</b> works only for work mailboxes in that same directory.</td></tr>
+     <tr><td><b>Redirect URI</b>, left “Select a platform”</td><td><b>Web</b></td></tr>
+     <tr><td><b>Redirect URI</b>, right</td><td><code>${esc(ru)}</code> <button class="small" id="em2-copy">Copy</button></td></tr></tbody></table>
+    <div class="small" style="margin-top:6px">Press <b>Register</b>. Wait until the page redirects to your app's dashboard.</div></li>
+   <li><b>Configure your app.</b> <span class="small">Open <a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank" rel="noopener">App registrations ↗</a> → <b>All applications</b> → select your app. After making sure your app appears correctly, set these menus:</span>
+    <div class="em-cfg"><b>a · Overview</b> <span class="small muted">(the default page)</span>
+     <ul class="small em-how"><li>Copy <b>Application (client) ID</b> and paste it here:</li></ul>
+     <input id="em2-cid" class="mono em-paste" placeholder="Application (client) ID" value="${esc(o.own_client_id||"")}">
+     <details class="small em-only-m365" style="margin-top:4px" ${o.own_tenant?"open":""}><summary>Only for <b>Single tenant only</b> apps: Directory (tenant) ID</summary>${o.own_tenant?'<div class="em-fail" style="margin:6px 0 0">Filled in: sign-in goes through this one directory only. For an Outlook.com / Hotmail mailbox, <b>clear this box</b>; otherwise you sign in as a guest of the directory and the mailbox refuses VENTHORA.</div>':""}
+      <input id="em2-tid" class="mono em-paste" placeholder="Directory (tenant) ID; leave blank otherwise" value="${esc(o.own_tenant||"")}"></details></div>
+    <div class="em-cfg"><b>b · Client credentials</b> <span class="small muted">(on the Overview page)</span>
+     <ul class="small em-how"><li>Click <b>Add a certificate or secret</b>.</li><li>Click <b>New client secret</b>.</li>
+      <li>Type a <b>Description</b>, for example <b>Nusantara key</b>.</li><li>Select the <b>Expires</b> period.</li><li>Click <b>Add</b>.</li>
+      <li>Copy the <b>Value</b> to the clipboard (not the Secret ID; the Value is hidden once you leave the page) and paste it here:</li></ul>
+     <input id="em2-csec" class="em-paste" type="password" autocomplete="new-password" placeholder="${secPh}" ${o.own_secret_is_id?'style="border-color:var(--critical,#c33)"':""}></div>
+    <div class="em-cfg"><b>c · API permissions</b>
+     <ol class="small em-how"><li>On your app's left menu, under <b>Manage</b>, click <b>API permissions</b>.</li>
+      <li>Click <b>+ Add a permission</b>.</li>
+      <li>In the panel that opens, click <b>Microsoft Graph</b>, then <b>Delegated permissions</b>.</li>
+      <li>Tick (check box) under <b>OpenId permissions</b>: <b>email</b>, <b>offline_access</b> and <b>openid</b> (profile is not needed). Keep the panel open and go on with <b>d</b>.</li></ol></div>
+    <div class="em-cfg"><b>d · IMAP &amp; SMTP setting</b> <span class="small muted">(still in the same Request API permissions panel)</span>
+     <ol class="small em-how"><li>Scroll down, or use the search box above the list (<b>Select permissions</b>) and type <b>IMAP</b>.</li>
+      <li>Open the <b>IMAP</b> group and tick <b>IMAP.AccessAsUser.All</b> (VENTHORA reads the mailbox).</li>
+      <li>Clear the search box, type <b>SMTP</b>, open the <b>SMTP</b> group and tick <b>SMTP.Send</b> (VENTHORA sends confirmations).</li>
+      <li>Click <b>Add permissions</b> at the bottom of the panel. Your app's permission list should now show 5 permissions: <b>email</b>, <b>offline_access</b>, <b>openid</b>, <b>IMAP.AccessAsUser.All</b> and <b>SMTP.Send</b>, each with <b>Admin consent required: No</b> (User.Read, added by Microsoft itself, may also be listed; keep it).</li></ol></div>
+    <div class="em-cfg"><b>e · Allow IMAP in the mailbox</b> <span class="small muted">(not in Entra: in the mailbox's own settings)</span>
+     <div class="small" style="margin:4px 0 0 18px">The app is ready; the mailbox itself must also let apps in. Which menu depends on the mailbox:</div>
+     <ol class="small em-how"><li class="em-only-personal"><b>Outlook.com / Hotmail</b>, on outlook.live.com:
+       <ol type="a"><li>Open Outlook settings in the browser (Outlook on the web): <a href="https://outlook.live.com/mail/0/options/mail/forwarding" target="_blank" rel="noopener">https://outlook.live.com/mail/0/options/mail/forwarding ↗</a> The Outlook app on Windows shows only <b>Forwarding</b> there, without the IMAP switch: use the web page.</li>
+        <li>Go to <b>Mail</b> → <b>Forwarding and IMAP</b>.</li>
+        <li>Under <b>POP and IMAP</b>, turn on <b>Let devices and apps use IMAP</b>. If the page shows only a <b>POP</b> switch, IMAP is already allowed: leave it.</li><li>Click <b>Save</b>.</li></ol></li>
+      <li class="em-only-m365"><b>Microsoft 365 work mailbox</b>, done by the admin on admin.microsoft.com:
+       <ol type="a"><li>Open <a href="https://admin.microsoft.com/#/users" target="_blank" rel="noopener">Microsoft 365 admin center ↗</a> → <b>Users</b> → <b>Active users</b>.</li>
+        <li>Click the mailbox, open the <b>Mail</b> tab → <b>Manage email apps</b>.</li>
+        <li>Tick <b>IMAP</b> and <b>Authenticated SMTP</b>.</li><li>Click <b>Save changes</b>.</li></ol></li></ol></div></li>
+   <li><b>Test connect.</b> <span class="small">You sign in to your mailbox on Microsoft's page and press <b>Accept</b> for your own app.</span>
+    <div style="margin-top:4px">${emSinceSel("em2-since",(main||{}).since_days)}</div>
+    <label class="check small" style="margin-top:4px"><input type="checkbox" id="em2-send" checked> also send confirmations from this mailbox</label>
+    <div class="row" style="gap:8px;margin-top:6px"><button class="primary" id="em2-go">Test connect</button>${cancel}<span class="small" id="em2-msg"></span></div></li></ol>`;
+  $("#em2-body").dataset.var=EMVAR;
+  $("#em2-copy").onclick=()=>{navigator.clipboard.writeText(ru);$("#em2-copy").textContent="Copied"};
+  $("#em2-go").onclick=async()=>{const cid=$("#em2-cid").value.trim();if(!cid){$("#em2-msg").innerHTML='<span class="err">paste the client ID</span>';return}
+   $("#em2-msg").textContent="opening Microsoft…";
+   try{const r=await api(`/v1/settings/email/oauth/start?${who()}`,emJson("POST",{provider:EMPROV,client_id:cid,client_secret:$("#em2-csec").value||null,tenant_id:EMVAR==="personal"?"":($("#em2-tid")||{value:""}).value.trim(),since_days:+$("#em2-since").value,send_too:$("#em2-send").checked,login_hint:(main||{}).address||""}));location.href=r.url}
+   catch(e){$("#em2-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+ }else{const sm=EMAILCFG._smtp||{},addr=(main||{}).address||(A.invoices||{}).address||sm.sender||"";
+  const canReuse=sm.sender&&sm.password&&sm.password.set;
+  $("#em2-body").innerHTML=`<ol class="em-steps-ol">${EM_OWN[EMPROV]?`<li>${emOwnLink(EMPROV)} <span class="small muted">(opens in a new tab)</span>${EM_HOW[EMPROV]?`<ul class="small em-how">${EM_HOW[EMPROV].map(x=>`<li>${x}</li>`).join("")}</ul>`:`<div class="small muted">${esc(p.help||"")}</div>`}</li>`:`<li class="small muted">${esc(p.help||"")}</li>`}
+   <li>Type the address and paste the password you created: <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px"><input id="em2-addr" type="email" placeholder="invoices@company.com" value="${esc(addr)}" style="width:260px">
+    <input id="em2-pass" type="password" autocomplete="new-password" style="width:240px">
+    ${EMPROV==="other"?`<input id="em2-host" placeholder="IMAP server, e.g. mail.company.com" value="${esc((main||{}).host||"")}" style="width:240px"><input id="em2-port" type="number" value="${esc((main||{}).port||993)}" style="width:80px">`:""}</div></li>
+   <li>${emSinceSel("em2-since",(main||{}).since_days)}<div class="row" style="gap:8px;margin-top:6px"><button class="primary" id="em2-go">Test connect</button>${cancel}<span class="small" id="em2-msg"></span></div></li></ol>`;
+  const ph=()=>{const a=$("#em2-addr").value.trim().toLowerCase();$("#em2-pass").placeholder=main&&main.secret_set&&a===main.address?"saved; blank keeps it":canReuse&&a===sm.sender?"saved for sending; blank uses it":"app password"};
+  $("#em2-addr").oninput=ph;ph();
+  $("#em2-go").onclick=async()=>{const a=$("#em2-addr").value.trim().toLowerCase(),pw=$("#em2-pass").value;if(!a){$("#em2-msg").innerHTML='<span class="err">type the address</span>';return}
+   const keeps=main&&main.secret_set&&a===main.address,reuse=!pw&&!keeps&&canReuse&&a===sm.sender;
+   if(!pw&&!keeps&&!reuse){$("#em2-msg").innerHTML='<span class="err">paste the app password you created</span>';return}
+   const id=main&&main.address===a?main.inbox_id:emSlug(a);
+   const body={address:a,provider:EMPROV,auth:"password",secret:pw||null,secret_from_sender:reuse,purpose:"any",schedule_minutes:1,active:true,folder:"INBOX",only_unread:true,after:"mark_read",since_days:+$("#em2-since").value};
+   if(EMPROV==="other"){body.host=$("#em2-host").value.trim();body.port=+$("#em2-port").value||993}
+   $("#em2-msg").textContent="signing in…";
+   try{const r=await api(`/v1/settings/email/inboxes/${id}/check?${who()}`,emJson("POST",body));
+    await api(`/v1/settings/email/inboxes/${id}?${who()}`,emJson("PUT",body));await emSaveAddresses(cfg,{invoices:{address:a,receive:"imap",provider:EMPROV}});
+    toast(`Connected ${a}: ${r.unread} unread. Step 3 is open.`,"good");EMEDIT[2]=false;emailView()}
+   catch(e){$("#em2-msg").innerHTML=`<span class="err">Not connected: ${esc(e.message)}</span>`}}}
+ if($("#em2-cancel"))$("#em2-cancel").onclick=()=>{EMEDIT[2]=false;emailView()}}
+function emStep3(cfg,main,s){const sendProv=EMPROV===EM_FORWARD||EMPROV==="other"?null:EMPROV;
+ $("#em3-state").innerHTML=emPill(s.configured&&!EMEDIT[3],s.configured&&!EMEDIT[3]?"set":"to do");
+ if(s.configured&&!EMEDIT[3]){$("#em3-body").innerHTML=`<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center"><b class="mono">${esc(s.sender)}</b><span class="small muted">${esc(s.host)}:${esc(s.port)}</span>
+   <span class="row" style="gap:6px;margin-left:auto"><button id="em3-check">Check connection</button><button id="em3-edit">Change</button></span></div><div class="small" id="em3-msg" style="margin-top:6px"></div>`;
+  $("#em3-check").onclick=async()=>{$("#em3-msg").textContent="connecting…";try{const r=await api(`/v1/outbox/smtp/check?${who()}`,{method:"POST"});$("#em3-msg").innerHTML=`<span class="pill ${r.ok?"good":"critical"}">${r.ok?"connected":"failed"}</span> ${esc(r.detail)}`}catch(e){$("#em3-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+  $("#em3-edit").onclick=()=>{EMEDIT[3]=true;emailView()};return}
+ const same=main&&main.secret_set;
+ const provOpts=cfg.presets.filter(p=>p.smtp_host).map(p=>`<option value="${esc(p.key)}" ${p.key===(sendProv||"gmail")?"selected":""}>${esc(p.label)}</option>`).join("");
+ $("#em3-body").innerHTML=`${same?`<label class="check small" style="margin-bottom:6px"><input type="checkbox" id="em3-same" checked> Same mailbox as step 2 (${esc(main.address)})</label>`:""}
+  <div id="em3-own"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">${sendProv?"":`<select id="em3-prov">${provOpts}</select>`}<input id="em3-addr" type="email" placeholder="pay@company.com" value="${esc(s.sender&&s.sender!==(main||{}).address?s.sender:"")}" style="width:260px">
+   <input id="em3-pass" type="password" autocomplete="new-password" placeholder="app password of this address" style="width:220px"></div>
+   <div class="small muted" style="margin-top:4px">${emOwnLink(sendProv||"gmail")}</div></div>
+  <div class="row" style="gap:8px;margin-top:8px"><button class="primary" id="em3-go">Test connect</button>${s.configured?'<button id="em3-cancel">Cancel</button>':""}<span class="small" id="em3-msg"></span></div>`;
+ const toggle=()=>{$("#em3-own").hidden=!!($("#em3-same")&&$("#em3-same").checked)};if($("#em3-same"))$("#em3-same").onchange=toggle;toggle();
+ if($("#em3-cancel"))$("#em3-cancel").onclick=()=>{EMEDIT[3]=false;emailView()};
+ $("#em3-go").onclick=async()=>{const useSame=$("#em3-same")&&$("#em3-same").checked;const prov=sendProv||($("#em3-prov")||{}).value||"gmail";
+  const body=useSame?{provider:main.provider,sender:main.address,password:null,password_from_inbox:main.inbox_id}:{provider:prov,sender:$("#em3-addr").value.trim().toLowerCase(),password:$("#em3-pass").value||null};
+  if(!body.sender){$("#em3-msg").innerHTML='<span class="err">type the sending address</span>';return}
+  if(!useSame&&!body.password){$("#em3-msg").innerHTML='<span class="err">paste the app password of this address</span>';return}
+  $("#em3-msg").textContent="signing in…";
+  try{const r=await api(`/v1/outbox/smtp/try?${who()}`,emJson("POST",body));if(!r.ok){$("#em3-msg").innerHTML=`<span class="err">Not connected: ${esc(r.detail)}</span>`;return}
+   await api(`/v1/outbox/smtp?${who()}`,emJson("PUT",body));await emSaveAddresses(cfg,{payments:{address:body.sender,receive:useSame?"imap":"forwarded",provider:cfg.presets.some(p=>p.key===body.provider)?body.provider:"other"}});
+   toast(`Sending from ${body.sender}. Step 4 is open.`,"good");EMEDIT[3]=false;emailView()}
+  catch(e){$("#em3-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+function emStep4(cfg,users){const pol=cfg.policy,staff=cfg.senders.staff,doms={};
+ staff.forEach(u=>{const d=(u.email||"").split("@")[1];if(d)(doms[d]=doms[d]||[]).push(u)});
+ const byDom=new Set(pol.order_domains||[]),allowed=u=>u.may_order_by_email||byDom.has((u.email||"").split("@")[1]);
+ const n=staff.filter(allowed).length;$("#em4-state").innerHTML=emPill(pol.orders_by_email&&n>0,!pol.orders_by_email?"off":`${n} ${n===1?"person":"people"}`);
+ $("#em4-body").innerHTML=`<label class="check"><input type="checkbox" id="em4-on" ${pol.orders_by_email?"checked":""}> Accept payment orders by email</label>
+  <div id="em4-rest" ${pol.orders_by_email?"":"hidden"}>
+  <div class="small" style="margin:10px 0 4px"><b>Everyone at a company domain</b> <span class="muted">(people in User management with that address)</span></div>
+  <div class="row" style="gap:14px;flex-wrap:wrap">${Object.entries(doms).map(([d,us])=>`<label class="check small"><input type="checkbox" data-emdom="${esc(d)}" ${byDom.has(d)?"checked":""}> all @${esc(d)} <span class="muted">(${us.length})</span></label>`).join("")||'<span class="small muted">no people yet</span>'}</div>
+  <div class="small" style="margin:12px 0 4px"><b>Or one by one</b></div>
+  <div class="em-people">${staff.map(u=>{const viaDom=byDom.has((u.email||"").split("@")[1]);return `<label class="check small" title="${esc(u.email)}"><input type="checkbox" data-uorder="${esc(u.user_id)}" ${allowed(u)?"checked":""} ${viaDom?"disabled":""}> ${esc(u.name)} <span class="muted mono">${esc(u.email)}</span>${viaDom?' <span class="muted">(domain)</span>':""}</label>`}).join("")}</div>
+  <details style="margin-top:10px"><summary class="small">Extra rules</summary>
+   <label class="check small" style="margin-top:6px"><input type="checkbox" id="em4-auth" ${pol.require_authentication?"checked":""}> The receiving server must have authenticated the sender (SPF, DKIM or DMARC pass)</label>
+   <label class="small" style="display:block;margin-top:6px">Word the subject must carry (blank = none) <input id="em4-tag" maxlength="30" placeholder="[PAY]" value="${esc(pol.order_tag||"")}" style="width:120px"></label></details></div>
+  <div class="row" style="gap:8px;margin-top:10px"><button class="primary" id="em4-save">Save</button><span class="small" id="em4-msg"></span></div>`;
+ $("#em4-on").onchange=()=>{$("#em4-rest").hidden=!$("#em4-on").checked};
+ $("#em4-body").querySelectorAll("[data-emdom]").forEach(x=>x.onchange=()=>{const d=x.dataset.emdom;
+  $("#em4-body").querySelectorAll("[data-uorder]").forEach(c=>{const u=staff.find(y=>y.user_id===c.dataset.uorder);if((u.email||"").split("@")[1]===d){c.disabled=x.checked;c.checked=x.checked||u.may_order_by_email}})});
+ $("#em4-save").onclick=async()=>{$("#em4-msg").textContent="saving…";
+  try{const body={...pol,orders_by_email:$("#em4-on").checked,order_domains:[...$("#em4-body").querySelectorAll("[data-emdom]:checked")].map(x=>x.dataset.emdom),
+    require_authentication:$("#em4-auth").checked,order_tag:$("#em4-tag").value.trim()};
+   await api(`/v1/settings/email/policy?${who()}`,emJson("PUT",body));
+   for(const c of $("#em4-body").querySelectorAll("[data-uorder]:not(:disabled)")){const u=users.find(y=>y.user_id===c.dataset.uorder);if(u&&!!u.may_order_by_email!==c.checked)
+    await api(`/v1/org/users?${who()}`,emJson("POST",{...u,may_order_by_email:c.checked}))}
+   toast("Senders saved","good");emailView()}catch(e){$("#em4-msg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
+function emMore(cfg,b){
+ $("#inboxTable").innerHTML=table([{h:"Inbox",f:i=>`<b class="mono">${esc(i.address)}</b>${i.active?"":' <span class="small muted">paused</span>'}<div class="small muted">${esc((cfg.presets.find(p=>p.key===i.provider)||{}).label||i.provider)} · ${esc(i.auth==="oauth2"?"OAuth 2.0":"app password")} ${i.secret_set?"saved":'<span class="err">missing</span>'}</div>`},
+  {h:"Takes",f:i=>`<span class="chip">${esc((PURPOSES.find(x=>x[0]===i.purpose)||[,i.purpose])[1])}</span>`},
+  {h:"Last read",f:i=>i.last_poll_at?`<span class="small">${esc(i.last_poll_at.slice(0,16).replace("T"," "))} UTC</span><div class="small ${i.last_report?.error?"err":"muted"}">${i.last_report?.error?esc(i.last_report.error):`${i.last_report?.fetched??0} new`}</div>`:'<span class="small muted">never</span>'},
+  {h:"",f:i=>`<span class="row" style="flex-wrap:nowrap"><button data-ibedit="${esc(i.inbox_id)}">Settings</button><button data-ibdel="${esc(i.inbox_id)}">Remove</button></span>`}],cfg.inboxes,"none yet");
+ $("#inboxTable").querySelectorAll("[data-ibedit]").forEach(x=>x.onclick=()=>inboxForm(cfg.inboxes.find(i=>i.inbox_id===x.dataset.ibedit)));
+ $("#inboxTable").querySelectorAll("[data-ibdel]").forEach(x=>x.onclick=async()=>{if(!confirm("Stop reading this inbox? What was read stays in the queue."))return;
+  try{await api(`/v1/settings/email/inboxes/${x.dataset.ibdel}?${who()}`,{method:"DELETE"});toast("Inbox removed","good");emailView()}catch(e){toast(e.message,"critical")}});
  if(!$("#pushSvc").options.length){$("#pushSvc").innerHTML=cfg.push_providers.map(p=>`<option value="${esc(p.key)}">${esc(p.label)}</option>`).join("");$("#pushSvc").onchange=pushHow}
- 
- $("#boxTable").innerHTML=table([{h:"Address",f:m=>`<b class="mono">${esc(m.address)}</b>${m.active?"":' <span class="small muted">inactive</span>'}`},{h:"Takes",f:m=>`<span class="chip">${esc(m.purpose)}</span>`},
-  {h:"Service",f:m=>esc(m.provider)},{h:"Note",f:m=>`<span class="small">${esc(m.note||"")}</span>`},{h:"",f:m=>rowActs("mailboxes",m.mailbox_id)}],b,"no mailbox yet: every inbound email is read, and none is checked against an address");
- wireActs($("#boxTable"),"mailboxes",()=>BOXES,"mailbox_id",BOX_FIELDS,emailView);
- READER=st.inbound_email.reader||"rules";pushHow()}
- catch(e){$("#boxTable").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+ $("#boxTable").innerHTML=table([{h:"Address",f:m=>`<b class="mono">${esc(m.address)}</b>${m.active?"":' <span class="small muted">inactive</span>'}`},{h:"Takes",f:m=>`<span class="chip">${esc((PURPOSES.find(x=>x[0]===m.purpose)||[,m.purpose])[1])}</span>`},
+  {h:"Service",f:m=>esc(m.provider)},{h:"Note",f:m=>`<span class="small">${esc(m.note||"")}</span>`},{h:"",f:m=>rowActs("mailboxes",m.mailbox_id)}],b,"none yet");
+ wireActs($("#boxTable"),"mailboxes",()=>BOXES,"mailbox_id",BOX_FIELDS,emailView);pushHow()}
 let READER="rules";
 function pushHow(){if(!EMAILCFG)return;const p=EMAILCFG.push_providers.find(x=>x.key===$("#pushSvc").value)||EMAILCFG.push_providers[0];
  const host=PUSHBASE?PUSHBASE.replace(/^https?:\/\//,""):"&lt;tunnel-host&gt;";const plain=`https://${host}/webhooks/email`;
@@ -4140,10 +4289,6 @@ function inboxForm(i){const cfg=EMAILCFG,isNew=!i;i=i||{provider:"gmail",purpose
    if(isNew&&$("#ib-smtp").checked&&p&&p.smtp_host&&body.auth==="password"&&body.secret){try{await api(`/v1/outbox/smtp?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({provider:body.provider,sender:address,password:body.secret})});also=" · outgoing email set to the same address"}catch(e){also=` · outgoing email not set: ${esc(e.message)}`}}
    $("#dlg").close();toast(`Inbox saved: press Test to sign in${also}`,"good");emailView()}catch(e){$("#dlgErr").textContent=e.message}}}
 $("#addInbox").onclick=()=>{if(EMAILCFG)inboxForm(null)};
-$("#polSave").onclick=async()=>{const body={orders_by_email:$("#pol-orders").checked,company_domains:$("#pol-domains").value.split(/[,\s]+/).filter(Boolean),
-  require_authentication:$("#pol-auth").checked,order_tag:$("#pol-tag").value.trim(),flag_unknown_mailbox:$("#pol-unknown").checked};
- try{await api(`/v1/settings/email/policy?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});$("#polMsg").innerHTML='<span class="pill good">SAVED</span>';emailView()}
- catch(e){$("#polMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#addBox").onclick=()=>openForm("Add address",BOX_FIELDS(),{purpose:"invoices",provider:"postmark",active:true},"mailboxes",emailView);
 
 // ---- Platform Setup → App Integration ------------------------------------------------------------------------------------------
@@ -4583,7 +4728,34 @@ function maskField(id,isSet){const el=$("#"+id);el.value=isSet?SAVED_MASK:"";el.
 function aiBody(){const m=aiMode();return {mode:m,consent_external:$("#ai-consent").checked,
  self_hosted:{endpoint:$("#ai-endpoint").value.trim(),model:$("#ai-self-model").value.trim(),token:secretIn($("#ai-token").value)},
  provider:{name:$("#ai-provider").value,model:$("#ai-prov-model").value.trim(),api_key:secretIn($("#ai-key").value),workspace_id:$("#ai-ws").value.trim()}}}
-async function aiView(){try{AI=await api("/v1/settings/ai");
+// ---- AI usage: tokens per call, by day / feature / model; cost only from the company's own prices ----
+const tok=n=>Number(n||0).toLocaleString("en-US"),aiUsd=g=>g.priced&&(g.input_tokens+g.output_tokens)?`$${Number(g.cost_usd).toFixed(4)}`:'<span class="muted">no price</span>';
+async function aiUsageView(){const days=+($("#aiUseDays").value||30);try{const u=await api(`/v1/settings/ai/usage?days=${days}`),t=u.total;
+ const cols=h=>[{h,f:g=>esc(g.key)},{h:"Calls",num:1,f:g=>`${g.calls}${g.failed?` <span class="err small">(${g.failed} failed)</span>`:""}`},
+  {h:"Tokens in",num:1,f:g=>tok(g.input_tokens)},{h:"Tokens out",num:1,f:g=>tok(g.output_tokens)},{h:"Cost (est.)",num:1,f:g=>aiUsd(g)}];
+ $("#aiUsage").classList.remove("empty");
+ $("#aiUsage").innerHTML=`<div class="tiles" style="margin-bottom:12px">
+   <div class="tile"><div class="k">Calls</div><div class="v">${t.calls}</div><div class="small muted">${t.failed} failed</div></div>
+   <div class="tile"><div class="k">Tokens in</div><div class="v">${tok(t.input_tokens)}</div></div>
+   <div class="tile"><div class="k">Tokens out</div><div class="v">${tok(t.output_tokens)}</div></div>
+   <div class="tile"><div class="k">Cost (estimate)</div><div class="v">${t.calls?aiUsd(t):"$0"}</div><div class="small muted">from your prices below</div></div></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px">
+   <div><b class="small">By feature</b>${table(cols("Feature"),u.by_feature,"no model call yet")}</div>
+   <div><b class="small">By model</b> <span class="small muted">(the model that answered)</span>${table(cols("Model"),u.by_model,"no model call yet")}</div></div>
+  <details style="margin-top:12px"><summary class="small"><b>By day</b></summary>${table(cols("Day"),u.by_day,"no model call yet")}</details>
+  <details style="margin-top:8px"><summary class="small"><b>Latest calls</b></summary>${table([{h:"When (UTC)",f:r=>`<span class="small">${esc(r.at.slice(0,16).replace("T"," "))}</span>`},
+   {h:"Feature",f:r=>esc(r.feature)},{h:"Model",f:r=>`<span class="small">${esc(r.provider)} · ${esc(r.model)}</span>`},{h:"In",num:1,f:r=>tok(r.input_tokens)},{h:"Out",num:1,f:r=>tok(r.output_tokens)},
+   {h:"Time",num:1,f:r=>`${(r.ms/1000).toFixed(1)}s`},{h:"",f:r=>r.ok?'<span class="pill good">ok</span>':`<span class="pill critical">failed</span> <span class="small muted">${esc(r.error)}</span>`}],u.recent,"no model call yet")}</details>
+  <details style="margin-top:8px"><summary class="small"><b>Prices</b> <span class="muted">USD per 1 million tokens, from your provider's price list; VENTHORA ships none</span></summary>
+   ${table([{h:"Model",f:m=>esc(m)},{h:"Input / 1M",f:m=>`<input data-pin="${esc(m)}" type="number" min="0" step="0.01" style="width:100px" value="${u.prices[m]?u.prices[m].input_per_m:""}">`},
+    {h:"Output / 1M",f:m=>`<input data-pout="${esc(m)}" type="number" min="0" step="0.01" style="width:100px" value="${u.prices[m]?u.prices[m].output_per_m:""}">`},
+    {h:"",f:m=>`<button class="small" data-psave="${esc(m)}">Save</button>`}],[...new Set([...u.models_seen,...Object.keys(u.prices)])],"a model appears here after its first call")}</details>`;
+ $("#aiUsage").querySelectorAll("[data-psave]").forEach(b=>b.onclick=async()=>{const m=b.dataset.psave,v=s=>{const x=$("#aiUsage").querySelector(`[${s}="${CSS.escape(m)}"]`).value;return x===""?null:+x};
+  try{await api(`/v1/settings/ai/prices?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({model:m,input_per_m:v("data-pin"),output_per_m:v("data-pout")})});toast(`Price saved for ${m}`,"good");aiUsageView()}
+  catch(e){toast(e.message,"critical")}})}
+ catch(e){$("#aiUsage").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+$("#aiUseDays").onchange=aiUsageView;
+async function aiView(){aiUsageView();try{AI=await api("/v1/settings/ai");
  $("#ai-provider").innerHTML=Object.entries(AI.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join("");
  document.querySelectorAll('input[name="aiMode"]').forEach(r=>{r.checked=r.value===AI.mode;r.onchange=()=>{$("#aiMsg").textContent="";aiShow()}});
  $("#ai-endpoint").value=AI.self_hosted.endpoint||"";$("#ai-self-model").value=AI.self_hosted.model||"";

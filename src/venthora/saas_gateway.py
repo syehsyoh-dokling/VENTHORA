@@ -103,7 +103,7 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
         for aid in ([((s.get("account") or {}).get("id"))] + list(s.get("opened_accounts") or [])):
             if aid:
                 accounts[aid] = tid
-        return row | {k: s.get(k) for k in ("mode", "account", "opened_accounts", "fco", "users", "balances_minor", "transfers", "deposits", "error")}
+        return row | {k: s.get(k) for k in ("mode", "account", "opened_accounts", "fco", "users", "balances_minor", "transfers", "deposits", "ai", "error")}
 
     async def platform_account() -> dict:
         """The operator's own Airwallex account (the platform keys): its balances and the connected accounts under it."""
@@ -125,6 +125,61 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
             return {"configured": True, "error": str(exc)[:200]}
         finally:
             await bank.close()
+
+    # -- email sign-in apps (OAuth): Root keeps them; every company's VENTHORA is given the same ones ------------------
+    def mail_redirect() -> str:
+        from . import mail_oauth
+
+        return reg.mail_oauth().get("redirect_uri") or (env("VENTHORA_PUBLIC_URL") or "https://venthora.muwahid.org").rstrip("/") + mail_oauth.PATH
+
+    async def push_mail_oauth(t: dict) -> str:
+        from . import mail_oauth
+
+        apps = await asyncio.to_thread(reg.mail_oauth)
+        body = {p: ({"client_id": apps[p]["client_id"], "client_secret": apps[p]["client_secret"]} if p in apps else {"client_id": ""})
+                for p in mail_oauth.PROVIDERS} | {"redirect_uri": mail_redirect()}
+        try:
+            r = await client(t["tenant_id"]).put("/v1/platform/mail-oauth", json=body, headers={"x-venthora-platform": reg.token()}, timeout=20)
+            return "given" if r.status_code == 200 else f"HTTP {r.status_code}"
+        except httpx.HTTPError as exc:
+            return f"not reachable ({type(exc).__name__})"
+
+    async def mail_oauth_root(request: Request) -> Response:
+        """Root: VENTHORA's OAuth app per provider (client ID shown, secret write-only) and the callback to register."""
+        from . import mail_oauth
+
+        if not is_root(request):
+            return need_root()
+        pushed = None
+        if request.method == "PUT":
+            try:
+                b = await request.json()
+            except json.JSONDecodeError:
+                b = {}
+            if b.get("redirect_uri"):
+                await asyncio.to_thread(reg.set_mail_oauth, "_redirect", str(b["redirect_uri"]).strip(), "-")
+            for p in mail_oauth.PROVIDERS:
+                if isinstance(b.get(p), dict):
+                    await asyncio.to_thread(reg.set_mail_oauth, p, str(b[p].get("client_id") or "").strip(), str(b[p].get("client_secret") or "").strip() or None)
+            ts = reg.list()
+            pushed = dict(zip([t["name"] for t in ts], await asyncio.gather(*(push_mail_oauth(t) for t in ts)), strict=True))
+        apps = await asyncio.to_thread(reg.mail_oauth)
+        return JSONResponse({"redirect_uri": mail_redirect(), "pushed": pushed,
+                             "providers": {p: {"label": v["label"], "register": v["register"], "links": v.get("links", []), "client_id": (apps.get(p) or {}).get("client_id", ""),
+                                               "secret_set": bool((apps.get(p) or {}).get("client_secret")), "updated_at": (apps.get(p) or {}).get("updated_at")}
+                                           for p, v in mail_oauth.PROVIDERS.items()}})
+
+    async def mail_oauth_callback(request: Request) -> Response:
+        """The provider's return: the state names the company that started it; the code goes to that company only."""
+        tid = (request.query_params.get("state") or "").split(".", 1)[0]
+        if reg.get(tid) is None:
+            return HTMLResponse("<p>This sign-in link does not belong to a company here. Start again from Email Sync.</p>", status_code=400)
+        try:
+            r = await client(tid).get("/oauth/mail/callback", params=request.query_params.multi_items(), timeout=60)
+        except httpx.HTTPError:
+            return HTMLResponse("<p>The company's VENTHORA is not reachable; try again in a minute.</p>", status_code=502)
+        keep = {k: v for k, v in r.headers.items() if k.lower() in ("location", "content-type")}
+        return Response(r.content, status_code=r.status_code, headers=keep)
 
     # -- pages and the console's API ------------------------------------------------------------------------------
     async def page(request: Request) -> Response:
@@ -285,6 +340,7 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
                 start(t)
                 if not await ready(t["tenant_id"]):
                     return JSONResponse({"detail": f"{t['name']} was registered but its VENTHORA did not start: see its server.log"}, status_code=502)
+                await push_mail_oauth(t)
             profile = None
             if kyb:  # kept in the company's VENTHORA; its Airwallex account is opened once its FCO agrees to Airwallex's terms
                 try:
@@ -474,6 +530,7 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
         if spawn:
             await asyncio.gather(*(ensure(t) for t in reg.list()))
             await asyncio.gather(*(ready(t["tenant_id"]) for t in reg.list()))
+            await asyncio.gather(*(push_mail_oauth(t) for t in reg.list()))
             with contextlib.suppress(Exception):
                 await asyncio.gather(*(summary(t) for t in reg.list()))
         yield
@@ -494,4 +551,5 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
         Route("/platform/api/root/login", root_signin, methods=["POST"]), Route("/platform/api/root/logout", root_signout, methods=["POST"]),
         Route("/platform/api/tenants/{tenant}/fco-link", tenant_link, methods=["POST"]), Route("/platform/api/kyb", kyb_form),
         Route("/webhooks/airwallex", webhook, methods=["POST"]),
+        Route("/platform/api/mail-oauth", mail_oauth_root, methods=["GET", "PUT"]), Route("/oauth/mail/callback", mail_oauth_callback),
         Route("/{rest:path}", proxy, methods=every)], lifespan=lifespan)
