@@ -21,7 +21,10 @@ SCHEMA = """CREATE TABLE IF NOT EXISTS ai_usage (id INTEGER PRIMARY KEY AUTOINCR
   error TEXT NOT NULL DEFAULT '');
 CREATE INDEX IF NOT EXISTS ai_usage_at ON ai_usage (at);
 CREATE TABLE IF NOT EXISTS ai_price (model TEXT PRIMARY KEY, input_per_m REAL NOT NULL, output_per_m REAL NOT NULL, updated_at TEXT NOT NULL,
-  updated_by TEXT NOT NULL);"""
+  updated_by TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS ai_budget (id INTEGER PRIMARY KEY CHECK (id = 1), cap_usd REAL NOT NULL, since TEXT NOT NULL, until TEXT NOT NULL,
+  updated_at TEXT NOT NULL, updated_by TEXT NOT NULL);"""
+PAID_PROVIDERS = ("anthropic", "bedrock")  # a self-hosted model costs nothing per call and never counts against the budget
 
 # the module that asked -> the feature a person recognises
 FEATURES = {"venthora.intake.reader": "Invoice reader (email and PDF)", "venthora.intake.validation": "Document check (AI review)",
@@ -103,6 +106,72 @@ def _cost(p: dict | None, tin: int, tout: int) -> float | None:
     return None if p is None else round((tin * p["input_per_m"] + tout * p["output_per_m"]) / 1_000_000, 6)
 
 
+def _price_for(pr: dict[str, dict], model: str) -> dict | None:
+    """The entered price for a model; a Bedrock id (us.anthropic.claude-...-v1:0) also matches the plain model name."""
+    if model in pr:
+        return pr[model]
+    base = model.split(".", 2)[-1] if model.count(".") >= 2 else model
+    return next((p for m, p in pr.items() if base.startswith(m) or m.startswith(base)), None)
+
+
+# ---- the AI budget: a dollar cap on paid model calls over a period (e.g. USD 100 until Demo Day) ---------------------
+def budget() -> dict:
+    """The cap, what paid calls cost since it started, and whether calls are now stopped. Spend counts cache reads at
+    a tenth and cache writes at 1.25x the input price (the providers' usual rates); a paid model with tokens but no
+    entered price is reported in `unpriced`, so the figure is never silently low."""
+    pr = prices()
+    with _connect() as c:
+        row = c.execute("SELECT * FROM ai_budget WHERE id = 1").fetchone()
+        if row is None:
+            return {"set": False}
+        rows = c.execute("SELECT model, SUM(input_tokens) tin, SUM(output_tokens) tout, SUM(cache_read_tokens) cr, SUM(cache_write_tokens) cw"
+                         " FROM ai_usage WHERE at >= ? AND provider IN (?, ?) GROUP BY model", (row["since"], *PAID_PROVIDERS)).fetchall()
+    spent, unpriced = 0.0, []
+    for r in rows:
+        p = _price_for(pr, r["model"])
+        if p is None:
+            if (r["tin"] or 0) + (r["tout"] or 0):
+                unpriced.append(r["model"])
+            continue
+        spent += ((r["tin"] or 0) * p["input_per_m"] + (r["tout"] or 0) * p["output_per_m"]
+                  + (r["cr"] or 0) * p["input_per_m"] * 0.1 + (r["cw"] or 0) * p["input_per_m"] * 1.25) / 1_000_000
+    now = datetime.now(UTC).isoformat(timespec="seconds")
+    active = row["since"] <= now <= row["until"]
+    return {"set": True, "cap_usd": row["cap_usd"], "since": row["since"], "until": row["until"], "spent_usd": round(spent, 4),
+            "remaining_usd": round(max(0.0, row["cap_usd"] - spent), 4), "active": active, "stopped": active and spent >= row["cap_usd"],
+            "unpriced": unpriced, "updated_at": row["updated_at"], "updated_by": row["updated_by"]}
+
+
+def set_budget(cap_usd: float | None, since: str, until: str, by: str) -> dict:
+    """Set or replace the cap (cap None removes it). since/until are ISO times in UTC."""
+    with _LOCK, _connect() as c:
+        if cap_usd is None:
+            c.execute("DELETE FROM ai_budget WHERE id = 1")
+            return budget()
+        if cap_usd <= 0:
+            raise ValueError("the cap is more than zero")
+        s, u = datetime.fromisoformat(since).astimezone(UTC), datetime.fromisoformat(until).astimezone(UTC)
+        if u <= s:
+            raise ValueError("the budget must end after it starts")
+        c.execute("INSERT INTO ai_budget VALUES (1,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET cap_usd = excluded.cap_usd, since = excluded.since,"
+                  " until = excluded.until, updated_at = excluded.updated_at, updated_by = excluded.updated_by",
+                  (float(cap_usd), s.isoformat(timespec="seconds"), u.isoformat(timespec="seconds"),
+                   datetime.now(UTC).isoformat(timespec="seconds"), by))
+    return budget()
+
+
+def over_budget() -> str | None:
+    """Called before every paid model call: a reason to refuse it when the cap is spent, else None. Never raises."""
+    try:
+        b = budget()
+    except Exception:  # noqa: BLE001 - a broken usage log must not stop the AI; the provider's own limit still applies
+        return None
+    if b.get("stopped"):
+        return (f"the AI budget is spent: USD {b['spent_usd']:.2f} of USD {b['cap_usd']:.2f} until {b['until'][:10]} "
+                "(Platform Setup → Agent (AI & Model)); VENTHORA continues with its rules")
+    return None
+
+
 def summary(days: int = 30, recent: int = 30) -> dict:
     """Totals for the last `days` days, by day, by feature and by model, and the latest calls."""
     since = (datetime.now(UTC) - timedelta(days=days)).isoformat(timespec="seconds")
@@ -135,4 +204,4 @@ def summary(days: int = 30, recent: int = 30) -> dict:
             "recent": [{"at": r["at"], "feature": feature(r), "provider": r["provider"], "model": r["model"], "input_tokens": r["input_tokens"],
                         "output_tokens": r["output_tokens"], "ok": bool(r["ok"]), "ms": r["ms"], "error": r["error"],
                         "cost_usd": _cost(pr.get(r["model"]), r["input_tokens"], r["output_tokens"])} for r in rows[::-1][:recent]],
-            "models_seen": sorted({r["model"] for r in rows}), "prices": pr}
+            "models_seen": sorted({r["model"] for r in rows}), "prices": pr, "budget": budget()}

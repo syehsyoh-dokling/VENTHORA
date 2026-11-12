@@ -34,6 +34,15 @@ def _usage(provider: str, model: str, t0: float, module: str, *, tin: int = 0, t
                     cache_write=cwrite, ok=not error, ms=int((time.monotonic() - t0) * 1000), error=error)
 
 
+def _check_budget() -> None:
+    """Before a paid call (Anthropic, Bedrock): refuse it once the company's AI budget is spent (ai_usage.budget)."""
+    from .. import ai_usage
+
+    reason = ai_usage.over_budget()
+    if reason:
+        raise LLMUnavailable(reason)
+
+
 def framed(messages: list[dict]) -> list[dict]:
     if FRAMER is None:
         return [{k: v for k, v in m.items() if k != "frame"} for m in messages]
@@ -101,6 +110,7 @@ class BedrockModel:
     async def complete(self, messages: list[dict], max_tokens: int = 300) -> str:
         if not self.configured:
             raise LLMUnavailable("Bedrock API key, region or model not set")
+        _check_budget()
         from urllib.parse import quote
 
         messages = framed(messages)
@@ -158,6 +168,7 @@ class AnthropicModel:
     async def complete(self, messages: list[dict], max_tokens: int = 300) -> str:
         if not self.configured:
             raise LLMUnavailable("Anthropic API key or model not set")
+        _check_budget()
         try:
             import anthropic
         except ImportError as exc:
@@ -215,6 +226,7 @@ class AnthropicModel:
         A long search may pause (stop_reason pause_turn); the turn is resumed up to three times."""
         if not self.configured:
             raise LLMUnavailable("Anthropic API key or model not set")
+        _check_budget()
         try:
             import anthropic
         except ImportError as exc:

@@ -3347,6 +3347,35 @@ async def ai_price_put(body: AIPriceIn, role: str = "finance_manager", by: str =
     return out
 
 
+class AIBudgetIn(BaseModel):
+    cap_usd: float | None = Field(None, description="USD for paid model calls (Anthropic, Bedrock) over the period; null removes the cap")
+    since: str = Field(..., max_length=40, description="ISO time the period starts (counts calls from then)")
+    until: str = Field(..., max_length=40, description="ISO time the period ends")
+
+
+@app.get("/v1/settings/ai/budget")
+async def ai_budget_get():
+    """The AI budget: cap, spend since it started (from the entered prices), what is left, and whether calls are stopped."""
+    from . import ai_usage
+
+    return await asyncio.to_thread(ai_usage.budget)
+
+
+@app.put("/v1/settings/ai/budget")
+async def ai_budget_put(body: AIBudgetIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Set the AI budget. Once paid calls since `since` cost the cap, every paid call is refused until `until` and
+    VENTHORA continues with its deterministic rules; a self-hosted model is never counted."""
+    from . import ai_usage
+
+    who = _setup_writer(role, by)
+    try:
+        out = await asyncio.to_thread(ai_usage.set_budget, body.cap_usd, body.since, body.until, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "ai_budget_saved", {"by": who} | body.model_dump())
+    return out
+
+
 @app.get("/v1/settings/ai")
 async def ai_settings_get():
     """The current choice; secrets are never returned, only whether one is set and its last four characters."""
