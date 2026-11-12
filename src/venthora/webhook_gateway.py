@@ -30,7 +30,7 @@ import re
 import httpx
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
 
 PATH = "/webhooks/airwallex"
@@ -42,9 +42,11 @@ MAX_BODY = 256 * 1024
 MAX_EMAIL_BODY = 32 * 1024 * 1024
 FORWARDED = ("content-type", "x-timestamp", "x-signature")
 XENDIT_PATH = "/webhooks/xendit"
+SES_PATH = "/webhooks/ses"  # Amazon SES bounces and complaints through SNS (signed; the API verifies the signature)
 ROUTES = {PATH: (FORWARDED, MAX_BODY), EMAIL_PATH: (("content-type", "authorization"), MAX_EMAIL_BODY),
           REMOTE_AUTH_PATH: (("content-type", "x-signature", "x-nonce"), 64 * 1024),
-          XENDIT_PATH: (("content-type", "x-callback-token"), 64 * 1024)}
+          XENDIT_PATH: (("content-type", "x-callback-token"), 64 * 1024),
+          SES_PATH: (("content-type", "x-amz-sns-message-type", "x-amz-sns-topic-arn", "x-amz-sns-message-id"), 256 * 1024)}
 MAIL_SIGNIN_PATH = "/oauth/mail/callback"  # a mail provider returns here after the FCO allowed VENTHORA (mail_oauth.py)
 API_PREFIXES = ("/v1/", "/api/")
 API_EXACT = ("/openapi.json", "/health")
@@ -95,6 +97,14 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
 
     async def nothing(request: Request) -> Response:
         path = request.url.path
+        if path == "/" and request.method in ("GET", "HEAD"):
+            # the bare public address: the API host opens its documentation, every other host the sign-in form
+            host = (request.headers.get("host") or "").split(":")[0].lower()
+            if host.startswith("api-"):
+                return RedirectResponse("/developers", status_code=302)
+            import os
+
+            return RedirectResponse((os.environ.get("VENTHORA_APP_URL") or "https://app-venthora.muwahid.org").rstrip("/") + "/login", status_code=302)
         if not (api and (path.startswith(API_PREFIXES) or path in API_EXACT)):
             return JSONResponse({"detail": "not found"}, status_code=404)
         if not has_key(request.headers):
@@ -196,6 +206,7 @@ def create_app(upstream: str = "http://127.0.0.1:8001", client: httpx.AsyncClien
     every = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
     return Starlette(routes=[Route(PATH, forward, methods=["POST"]), Route(EMAIL_PATH, forward, methods=["POST"]),
                              Route(REMOTE_AUTH_PATH, forward, methods=["POST"]), Route(XENDIT_PATH, forward, methods=["POST"]),
+                             Route(SES_PATH, forward, methods=["POST"]),
                              Route(AGENT_KEYS_PATH, agent_keys, methods=["GET"]),
                              Route("/rfq/{token}", rfq, methods=["GET", "POST"]), Route("/rfq/{token}/data", rfq, methods=["GET"]),
                              Route("/approve/{token}", approve, methods=["GET", "POST"]),

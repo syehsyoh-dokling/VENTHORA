@@ -7580,6 +7580,129 @@ async def card_auth_test(body: CardChargeIn, card_id: str = Query(..., max_lengt
     return {"signature": why, "test_secret": test_secret, "request": req, "answer": cards.answer(req, decision, reason), "decision": rec_d}
 
 
+_SNS_CERTS: dict[str, bytes] = {}
+
+
+async def _sns_verified(msg: dict) -> bool:
+    """Amazon SNS message signature (SignatureVersion 1: SHA1, 2: SHA256) with the certificate from an AWS SNS host,
+    and the topic must be the one VENTHORA_SES_TOPIC_ARN names."""
+    import base64
+    import re as _re
+
+    import httpx
+    from urllib.parse import urlparse
+
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import padding
+
+    topic = env("VENTHORA_SES_TOPIC_ARN")
+    if not topic or msg.get("TopicArn") != topic:
+        return False
+    cert_url = str(msg.get("SigningCertURL") or "")
+    u = urlparse(cert_url)
+    if u.scheme != "https" or not _re.fullmatch(r"sns\.[a-z0-9-]+\.amazonaws\.com", u.hostname or "") or not u.path.endswith(".pem"):
+        return False
+    if cert_url not in _SNS_CERTS:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(cert_url)
+            r.raise_for_status()
+            _SNS_CERTS[cert_url] = r.content
+    keys = (["Message", "MessageId", "Subject", "Timestamp", "TopicArn", "Type"] if msg.get("Type") == "Notification"
+            else ["Message", "MessageId", "SubscribeURL", "Timestamp", "Token", "TopicArn", "Type"])
+    text = "".join(f"{k}\n{msg[k]}\n" for k in keys if k in msg and msg[k] is not None)
+    algo = hashes.SHA256() if str(msg.get("SignatureVersion")) == "2" else hashes.SHA1()
+    try:
+        x509.load_pem_x509_certificate(_SNS_CERTS[cert_url]).public_key().verify(
+            base64.b64decode(msg.get("Signature") or ""), text.encode("utf-8"), padding.PKCS1v15(), algo)
+        return True
+    except Exception:  # noqa: BLE001 - any failure is "not verified"
+        return False
+
+
+@app.post("/webhooks/ses", include_in_schema=True)
+async def ses_feedback(request: Request):
+    """Amazon SES bounces and complaints, delivered by Amazon SNS. The SNS signature and topic are checked; a
+    subscription is confirmed once; a bounce or complaint for one of this company's messages updates it in the outbox
+    (bounced, failed or complained) and records the address as an email issue. Not ours: 404 (the platform asks the
+    next company)."""
+    from urllib.parse import urlparse
+
+    import httpx
+
+    from . import outbox
+
+    try:
+        msg = json.loads(await request.body() or b"{}")
+    except ValueError as exc:
+        raise HTTPException(400, "not JSON") from exc
+    if not await _sns_verified(msg):
+        raise HTTPException(403, "not a verified Amazon SNS message for this topic")
+    if msg.get("Type") == "SubscriptionConfirmation":
+        url = str(msg.get("SubscribeURL") or "")
+        if not (url.startswith("https://") and (urlparse(url).hostname or "").endswith(".amazonaws.com")):
+            raise HTTPException(400, "unexpected SubscribeURL")
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.get(url)
+        await asyncio.to_thread(app.state.audit.append, "ses_subscription_confirmed", {"topic": msg.get("TopicArn"), "status": r.status_code})
+        return {"confirmed": r.status_code == 200}
+    if msg.get("Type") != "Notification":
+        return {"ignored": msg.get("Type")}
+    try:
+        note = json.loads(msg.get("Message") or "{}")
+    except ValueError as exc:
+        raise HTTPException(400, "SES message is not JSON") from exc
+    kind = note.get("notificationType") or note.get("eventType")
+    if kind not in ("Bounce", "Complaint"):
+        return {"ignored": kind}
+    mail = note.get("mail") or {}
+    msg_id = next((h.get("value") for h in mail.get("headers") or [] if str(h.get("name", "")).lower() == "x-venthora-outbox-id"), None)
+    if kind == "Bounce":
+        b = note.get("bounce") or {}
+        rcpts = b.get("bouncedRecipients") or []
+        permanent = b.get("bounceType") == "Permanent"
+        reason = "; ".join(filter(None, [b.get("bounceType"), b.get("bounceSubType")] + [r.get("diagnosticCode") or "" for r in rcpts]))
+    else:
+        c_ = note.get("complaint") or {}
+        rcpts = c_.get("complainedRecipients") or []
+        permanent = True
+        reason = c_.get("complaintFeedbackType") or "recipient marked the message as spam"
+    addresses = [r.get("emailAddress") for r in rcpts if r.get("emailAddress")]
+    rec = await asyncio.to_thread(outbox.apply_feedback, app.state.org, kind=kind, msg_id=msg_id, addresses=addresses, reason=reason, permanent=permanent)
+    if rec is None:
+        raise HTTPException(404, "not a message of this company")
+    await asyncio.to_thread(app.state.audit.append, "email_feedback", {"kind": kind, "permanent": permanent, "message": rec["_id"],
+                                                                        "addresses": addresses, "status": rec["status"], "reason": reason[:200]})
+    return {"message": rec["_id"], "status": rec["status"]}
+
+
+class ReaddressIn(BaseModel):
+    to: list[str] = Field(min_length=1, max_length=10)
+
+
+@app.post("/v1/outbox/{msg_id}/readdress")
+async def outbox_readdress(msg_id: str, body: ReaddressIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Correct the address of a bounced or failed message and send it again (the old address's issue is resolved)."""
+    from . import outbox
+
+    who = _writer(role, by)
+    try:
+        rec = await asyncio.to_thread(outbox.readdress, app.state.org, msg_id, body.to, who)
+    except KeyError as exc:
+        raise HTTPException(404, "no such message") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "email_readdressed", {"message": msg_id, "to": body.to, "status": rec["status"], "by": who})
+    return rec
+
+
+@app.get("/v1/outbox/issues")
+async def outbox_issues():
+    """Addresses that bounced or complained, open first: what the call-back needs to correct."""
+    rows = app.state.org.list("email_issue")
+    return sorted(rows, key=lambda r: (r.get("resolved", False), r.get("at", "")), reverse=False)
+
+
 @app.post("/webhooks/airwallex/remote-auth", include_in_schema=True)
 async def card_remote_auth(request: Request):
     """Airwallex asks whether a card charge may go. Answered from the mandate alone, well inside the 2.5 s limit."""

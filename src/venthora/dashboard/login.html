@@ -5,30 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign in · VENTHORA</title>
 <style>
-:root{--bg:#0b1020;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e5e9f2;--brand:#4f46e5;--bad:#b91c1c}
+:root{--bg:#0b1020;--card:#fff;--ink:#0f172a;--muted:#64748b;--line:#e5e9f2;--brand:#4f46e5;--bad:#b91c1c;--soft:#eef2ff}
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;
  background:radial-gradient(1200px 600px at 20% -10%,#1e2a5a,transparent),var(--bg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}
-.card{width:100%;max-width:400px;background:var(--card);border-radius:16px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
-.brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#4f46e5,#2563eb);display:grid;place-items:center}
-.brand b{font-size:17px;letter-spacing:.08em}.brand small{display:block;color:var(--muted);font-size:12px;letter-spacing:0}
+.card{width:100%;max-width:420px;background:var(--card);border-radius:16px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}.logo{width:34px;height:34px;flex:none;border-radius:9px;background:linear-gradient(135deg,#4f46e5,#2563eb);display:grid;place-items:center}
+.brand b{font-size:17px;letter-spacing:.08em}.brand small{display:block;color:var(--muted);font-size:12px;letter-spacing:0;line-height:1.35}
 h1{font-size:20px;margin:0 0 4px}.muted{color:var(--muted)}.small{font-size:12.5px}
 form{display:grid;gap:12px;margin-top:16px}label{display:grid;gap:5px;font-size:12.5px;color:var(--muted)}
-input{font:inherit;padding:10px 11px;border:1px solid var(--line);border-radius:9px;color:var(--ink)}input:focus{outline:2px solid #c7d2fe;border-color:var(--brand)}
+input{font:inherit;width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;color:var(--ink)}input:focus{outline:2px solid #c7d2fe;border-color:var(--brand)}
 button{font:inherit;border:0;border-radius:9px;padding:11px;background:var(--brand);color:#fff;font-weight:600;cursor:pointer}button:disabled{opacity:.6;cursor:wait}
 .err{color:var(--bad);min-height:18px}.choice{display:grid;gap:8px;margin-top:12px}.choice button{background:#fff;color:var(--ink);border:1px solid var(--line);text-align:left;font-weight:500}
 .choice button:hover{border-color:var(--brand)}
+.fresh{text-align:center;font-size:12.5px;color:var(--muted);line-height:1.45;margin-top:-4px}.fresh b{color:var(--ink);font-weight:600}
+.user{position:relative}.user input{padding-right:38px}
+.pick{position:absolute;right:4px;top:4px;width:30px;height:30px;padding:0;border-radius:7px;background:transparent;color:var(--muted);font-weight:400}
+.pick:hover{background:var(--soft);color:var(--brand)}
+.list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;background:#fff;border:1px solid var(--line);border-radius:10px;
+ box-shadow:0 12px 32px rgba(15,23,42,.16);max-height:320px;overflow:auto;padding:4px}
+.list .hd{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 9px 4px}
+.list button{display:grid;grid-template-columns:1fr auto;gap:2px 10px;width:100%;text-align:left;background:#fff;color:var(--ink);padding:8px 9px;border-radius:7px;font-weight:500}
+.list button:hover,.list button.on{background:var(--soft)}
+.list .lv{font-weight:600}.list .nm{color:var(--muted);font-size:12px;grid-column:1}.list .em{color:var(--muted);font-size:11.5px;grid-row:1/3;grid-column:2;align-self:center}
 </style>
 </head>
 <body>
 <div class="card">
  <div class="brand"><div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 5l8 14 8-14" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5h6" stroke="#9cc0ff" stroke-width="2.2" stroke-linecap="round"/></svg></div>
-  <div><b>VENTHORA</b><small>Treasury on Airwallex</small></div></div>
- <h1 id="title">Sign in</h1><div id="sub" class="small muted" hidden></div>
- <form id="f">
-  <label>Username<input id="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+  <div><b>VENTHORA</b><small>You Set the Rules. Your Agent Manages the Money</small></div></div>
+ <h1 id="title">Sign In (Staging-Demo version)</h1><div id="sub" class="small muted" hidden></div>
+ <form id="f" autocomplete="on">
+  <label>Username
+   <div class="user"><input id="email" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required aria-autocomplete="list" aria-controls="acc">
+    <button type="button" id="pick" class="pick" title="Demo accounts" aria-label="Show demo accounts" hidden>▾</button>
+    <div id="acc" class="list" role="listbox" hidden></div></div></label>
   <label>Password<input id="pw" type="password" autocomplete="current-password" required></label>
   <label id="pw2L" hidden>Repeat the password<input id="pw2" type="password" autocomplete="new-password"></label>
   <button id="go" type="submit">Sign in</button>
+  <div id="fresh" class="fresh"><b>Explore Freely. Start Fresh Daily.</b><br>All trial data is cleared at 11:59 PM UTC.</div>
   <div id="msg" class="small err"></div>
   <a href="#" id="help" class="small" style="text-align:center;color:var(--brand);text-decoration:none">Forgot password?</a>
   <div id="helpMsg" class="small muted" style="text-align:center" hidden>Ask your admin for a new sign-in link.</div>
@@ -38,7 +52,7 @@ button{font:inherit;border:0;border-radius:9px;padding:11px;background:var(--bra
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let SETUP=false;
+let SETUP=false,ACC=[],sel=-1;
 async function post(u,b){const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});const d=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(typeof d.detail==="string"&&d.detail?d.detail:r.status===429?"Too many attempts: wait a moment and try again.":"Please check the username and password.");return d}
 function go(d){if(d.redirect){$("#msg").className="small muted";$("#msg").textContent=d.company?`Opening ${d.company}…`:"Opening the console…";location.replace(d.redirect)}}
@@ -50,12 +64,32 @@ async function signIn(extra){const b={email:$("#email").value.trim(),password:$(
    $("#choose").innerHTML=d.choose.map(c=>`<button data-t="${esc(c.tenant_id)}"><b>${esc(c.name)}</b><div class="small muted">${esc((c.role||"").replace(/_/g," "))}</div></button>`).join("");
    document.querySelectorAll("[data-t]").forEach(x=>x.onclick=()=>signIn({tenant_id:x.dataset.t}));return}
   go(d)}catch(e){$("#msg").textContent=e.message}finally{$("#go").disabled=false}}
+
+/* demo accounts: one per level; picking one fills the username and password */
+function shown(){const q=$("#email").value.trim().toLowerCase();return ACC.filter(a=>!q||[a.level,a.name,a.email,a.role].join(" ").toLowerCase().includes(q))}
+function render(){const rows=shown();if(!rows.length){$("#acc").hidden=true;return}
+ $("#acc").innerHTML=`<div class="hd">Demo accounts · one per level</div>`+rows.map((a,i)=>`<button type="button" role="option" data-i="${ACC.indexOf(a)}" class="${i===sel?"on":""}">
+  <span class="lv">${esc(a.level)}</span><span class="nm">${esc(a.name)}</span><span class="em">${esc(a.email)}</span></button>`).join("");
+ $("#acc").querySelectorAll("[data-i]").forEach(b=>b.onmousedown=ev=>{ev.preventDefault();choose(ACC[+b.dataset.i])});$("#acc").hidden=false}
+function choose(a){$("#email").value=a.email;$("#pw").value=a.password;$("#acc").hidden=true;sel=-1;$("#msg").className="small muted";
+ $("#msg").textContent=`${a.level} · ${a.name}: press Sign in`;$("#go").focus()}
+function open(){if(ACC.length){sel=-1;render()}}
+$("#email").addEventListener("focus",open);$("#email").addEventListener("input",()=>{sel=-1;$("#pw").value="";render()});
+$("#email").addEventListener("blur",()=>setTimeout(()=>$("#acc").hidden=true,120));
+$("#email").addEventListener("keydown",ev=>{if($("#acc").hidden||!ACC.length)return;const rows=shown();
+ if(ev.key==="ArrowDown"){ev.preventDefault();sel=Math.min(rows.length-1,sel+1);render()}
+ else if(ev.key==="ArrowUp"){ev.preventDefault();sel=Math.max(0,sel-1);render()}
+ else if(ev.key==="Enter"&&sel>=0){ev.preventDefault();choose(rows[sel])}else if(ev.key==="Escape"){$("#acc").hidden=true}});
+$("#pick").onclick=()=>{if($("#acc").hidden){$("#email").value="";$("#email").focus();open()}else $("#acc").hidden=true};
+
 $("#f").onsubmit=ev=>{ev.preventDefault();signIn()};
 $("#help").onclick=ev=>{ev.preventDefault();$("#helpMsg").hidden=!$("#helpMsg").hidden};
 (async()=>{try{const s=await (await fetch("/login/api/state")).json();
  if(s.root){location.replace("/platform/console");return}
  if(!s.root_set){SETUP=true;$("#sub").hidden=false;$("#title").textContent="Set up the platform";$("#sub").textContent="First visit: choose Root's email and password (at least 10 characters, upper and lower case and a digit). Root runs the platform and adds the companies.";
-  $("#pw2L").hidden=false;$("#pw").autocomplete="new-password";$("#go").textContent="Create Root and sign in";$("#help").hidden=true}}catch(e){}
+  $("#pw2L").hidden=false;$("#pw").autocomplete="new-password";$("#go").textContent="Create Root and sign in";$("#help").hidden=true;$("#fresh").hidden=true}}catch(e){}
+ if(!SETUP){try{const d=await (await fetch("/login/api/demo-accounts",{cache:"no-store"})).json();ACC=(d.accounts||[]).filter(a=>a.email&&a.password);
+  if(ACC.length){$("#pick").hidden=false;$("#email").placeholder="Pick a demo account or type a username"}}catch(e){}}
  $("#email").focus()})();
 </script>
 </body>

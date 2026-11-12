@@ -31,11 +31,16 @@ class Org:
 def test_idle_cash_is_what_is_left_after_reserve_bills_commitments_and_buffer():
     pol = cash_placement.DEFAULT | {"buffer_pct": 10, "min_amount_minor": 100_000}
     c = cash_placement.compute(available_minor=10_000_000, reserve_floor_minor=1_000_000, bills_minor=500_000, commitments_minor=2_500_000, pol=pol)
-    assert c["buffer_minor"] == 400_000 and c["needed_minor"] == 4_400_000 and c["idle_minor"] == 5_600_000 and c["place_minor"] == 5_600_000
+    # the 500,000 of bills are inside the 2,500,000 of commitments: counted once
+    assert c["buffer_minor"] == 350_000 and c["needed_minor"] == 3_850_000 and c["idle_minor"] == 6_150_000 and c["place_minor"] == 6_150_000
+    assert c["bills_extra_minor"] == 0
     short = cash_placement.compute(available_minor=3_000_000, reserve_floor_minor=1_000_000, bills_minor=500_000, commitments_minor=2_500_000, pol=pol)
     assert short["idle_minor"] < 0 and short["place_minor"] == 0 and "nothing idle" in short["why"]
-    small = cash_placement.compute(available_minor=4_450_000, reserve_floor_minor=1_000_000, bills_minor=500_000, commitments_minor=2_500_000, pol=pol)
+    small = cash_placement.compute(available_minor=3_900_000, reserve_floor_minor=1_000_000, bills_minor=500_000, commitments_minor=2_500_000, pol=pol)
     assert small["idle_minor"] == 50_000 and small["place_minor"] == 0 and "below the minimum" in small["why"]
+    # bills the recap has not reached yet (above the commitments) still add, only the part above
+    ahead = cash_placement.compute(available_minor=10_000_000, reserve_floor_minor=1_000_000, bills_minor=800_000, commitments_minor=500_000, pol=pol)
+    assert ahead["bills_extra_minor"] == 300_000 and ahead["needed_minor"] == (1_000_000 + 500_000 + 300_000) * 110 // 100
 
 
 def test_a_placement_never_exceeds_idle_cash_and_needs_a_second_person():

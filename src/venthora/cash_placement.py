@@ -1,8 +1,8 @@
 # ruff: noqa: E501
 """Budget allocation -> Cash placement: the cash the organisation does not need, and where a person may place it.
 
-Needed = the reserve floor + approved bills not yet paid + every open commitment still owed (POs and contracts,
-payroll, requests, invoices waiting; the Total Spending recap) + a safety buffer on top. Money already leaving
+Needed = the reserve floor + every open commitment still owed (POs and contracts, payroll, requests, invoices
+waiting; the Total Spending recap, which already holds the approved bills not yet paid) + a safety buffer on top. Money already leaving
 (processing) is already out of the available balance. Idle = available − needed. Above the minimum, VENTHORA proposes
 a placement (a term deposit, a money market fund, another account). With a provider from FCO Authorize → Placement
 providers, the FCO's approval sends the money by Airwallex transfer to the provider's checked account, and the
@@ -56,7 +56,11 @@ def compute(*, available_minor: int, reserve_floor_minor: int, bills_minor: int,
             horizon: dict | None = None, placed_minor: int = 0) -> dict:
     """What must stay, what is idle, and what to place (all in the base currency, minor units). The FCO's ticked rules
     each cap or block the placement; every ticked rule must hold."""
-    base_need = max(reserve_floor_minor, 0) + max(bills_minor, 0) + max(commitments_minor, 0)
+    # Approved bills not yet paid are invoices, and every invoice is already a line of the Total Spending recap (on its
+    # own, or on its PO): they are part of the commitments, never added on top. Only a bill the recap has not reached
+    # yet (bills above the commitments) adds to what must stay.
+    bills_extra = max(max(bills_minor, 0) - max(commitments_minor, 0), 0)
+    base_need = max(reserve_floor_minor, 0) + max(commitments_minor, 0) + bills_extra
     buffer = (base_need * int(pol["buffer_pct"]) + 99) // 100  # rounded up: the buffer never comes out short
     needed = base_need + buffer
     idle = available_minor - needed
@@ -84,7 +88,7 @@ def compute(*, available_minor: int, reserve_floor_minor: int, bills_minor: int,
            f"below the minimum to place (limited by {limit_name})" if limit < int(pol["min_amount_minor"]) else
            f"a placement is proposed (limited by {limit_name})")
     return {"available_minor": available_minor, "reserve_floor_minor": reserve_floor_minor, "bills_minor": bills_minor,
-            "commitments_minor": commitments_minor, "buffer_minor": buffer, "needed_minor": needed, "idle_minor": idle,
+            "commitments_minor": commitments_minor, "bills_extra_minor": bills_extra, "buffer_minor": buffer, "needed_minor": needed, "idle_minor": idle,
             "place_minor": place, "why": why, "rules": rules, "horizon": horizon, "placed_minor": placed_minor}
 
 

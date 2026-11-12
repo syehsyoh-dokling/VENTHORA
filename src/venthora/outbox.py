@@ -134,6 +134,7 @@ def deliver(org, msg_id: str) -> dict:
     m = EmailMessage()
     m["From"], m["To"], m["Subject"] = s["sender"], ", ".join(rec["to"]), rec["subject"]
     m["X-Venthora-Notice"] = rec.get("kind") or "notice"  # the inbox reader skips VENTHORA's own mail (email_settings.fetch_new)
+    m["X-Venthora-Outbox-Id"] = rec["_id"]  # an SES bounce or complaint names this message (apply_feedback)
     m.set_content(rec["body"])
     rec["attempts"] = rec.get("attempts", 0) + 1
     try:
@@ -160,6 +161,50 @@ def flush(org, max_attempts: int = MAX_ATTEMPTS) -> list[dict]:
         if rec.get("status") in ("queued", "failed") and rec.get("attempts", 0) < max_attempts:
             done.append(deliver(org, rec["_id"]))
     return done
+
+
+def apply_feedback(org, *, kind: str, msg_id: str | None, addresses: list[str], reason: str, permanent: bool) -> dict | None:
+    """An SES bounce or complaint for one of our messages (found by its X-Venthora-Outbox-Id, else by recipient).
+    Permanent bounce: the message is "bounced" (never retried) until a person corrects the address; temporary bounce:
+    "failed", so the worker retries it; complaint: "complained", never sent to that address again. Each address is kept
+    as an email issue for the person to fix. Returns the message, or None when it is not ours."""
+    rec = org.get("outbox", msg_id) if msg_id else None
+    if rec is None and addresses:
+        low = {a.lower() for a in addresses}
+        mine = [r for r in org.list("outbox") if low & {t.lower() for t in r.get("to") or []} and r.get("status") == "sent"]
+        rec = max(mine, key=lambda r: r.get("sent_at") or "", default=None)
+    if rec is None:
+        return None
+    status = "complained" if kind == "Complaint" else ("bounced" if permanent else "failed")
+    rec |= {"status": status, "error": f"{kind}{'' if kind == 'Complaint' else ' (permanent)' if permanent else ' (temporary)'}: {reason}"[:300],
+            "feedback_at": _now(), "feedback_addresses": addresses}
+    org._put("outbox", rec, "Amazon SES feedback")
+    if permanent or kind == "Complaint":
+        for a in addresses:
+            issue = org.get("email_issue", a.lower()) or {"_id": a.lower(), "address": a, "messages": []}
+            issue |= {"kind": kind, "reason": reason[:300], "at": _now(), "resolved": False,
+                      "messages": sorted(set(issue.get("messages", [])) | {rec["_id"]})}
+            org._put("email_issue", issue, "Amazon SES feedback")
+    return rec
+
+
+def readdress(org, msg_id: str, to: list[str], by: str) -> dict:
+    """A person corrected the address of a bounced or failed message: it goes out again to the new address, and the
+    old address's issue is marked resolved (who fixed it and to what)."""
+    rec = org.get("outbox", msg_id)
+    if rec is None:
+        raise KeyError(msg_id)
+    clean = [t.strip() for t in to if t and "@" in t and "." in t.split("@")[-1]]
+    if not clean:
+        raise ValueError("enter a valid email address")
+    old = list(rec.get("to") or [])
+    rec |= {"to": clean, "status": "queued", "error": None, "attempts": 0, "readdressed_from": old, "readdressed_by": by, "readdressed_at": _now()}
+    org._put("outbox", rec, by)
+    for a in old:
+        issue = org.get("email_issue", a.lower())
+        if issue and not issue.get("resolved"):
+            org._put("email_issue", issue | {"resolved": True, "corrected_to": clean, "resolved_by": by, "resolved_at": _now()}, by)
+    return deliver(org, msg_id)
 
 
 def items(org, ref: str | None = None) -> list[dict]:

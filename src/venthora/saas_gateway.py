@@ -17,6 +17,7 @@ roles and keys itself. It only decides which company a request reaches, and a re
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 import contextlib
 import json
 import subprocess
@@ -42,7 +43,7 @@ PAGE = Path(__file__).with_name("dashboard") / "platform.html"
 LOGIN_PAGE = Path(__file__).with_name("dashboard") / "login.html"
 # reached from outside with no browser cookie, each owned by one company (see find_owner)
 PUBLIC_PREFIXES = ("/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/")
-PUBLIC_EXACT = ("/webhooks/xendit", "/webhooks/airwallex/remote-auth")
+PUBLIC_EXACT = ("/webhooks/xendit", "/webhooks/airwallex/remote-auth", "/webhooks/ses")
 
 
 def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
@@ -228,6 +229,23 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
     # -- /login: one door; who signs in decides where they land -------------------------------------------------------
     async def login_page(request: Request) -> Response:
         return HTMLResponse(LOGIN_PAGE.read_text(encoding="utf-8"), headers={"Cache-Control": "no-cache"})
+
+    async def demo_accounts(request: Request) -> Response:
+        """Staging-demo only (VENTHORA_DEMO_LOGIN=1): one sign-in per level from data/saas/demo_accounts.md, so a visitor
+        can pick Root, the FCO or a staff member and sign in at once. Off by default: then it answers an empty list."""
+        if env("VENTHORA_DEMO_LOGIN", "").strip().lower() not in ("1", "true", "yes"):
+            return JSONResponse({"enabled": False, "accounts": []})
+        from .config import ROOT
+
+        path = Path(env("VENTHORA_DEMO_ACCOUNTS") or ROOT / "data" / "saas" / "demo_accounts.md")
+        out = []
+        with contextlib.suppress(OSError):
+            for line in path.read_text(encoding="utf-8").splitlines():
+                cells = [c.strip().strip("`") for c in line.strip().strip("|").split("|")]
+                if len(cells) < 5 or "@" not in cells[2] or cells[0].lower() == "level":
+                    continue
+                out.append({"level": cells[0], "name": cells[1], "email": cells[2], "password": cells[3], "role": cells[4]})
+        return JSONResponse({"enabled": bool(out), "accounts": out}, headers={"Cache-Control": "no-store"})
 
     async def login_state(request: Request) -> Response:
         return JSONResponse({"root_set": await asyncio.to_thread(reg.root_set), "root": is_root(request)})
@@ -525,6 +543,113 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
                 out.raw_headers.append((k.lower().encode("latin-1"), v.encode("latin-1")))
         return out
 
+    # -- staging-demo data reset (demo_reset.py): Developer Console → Data reset --------------------------------------
+    reset_lock = asyncio.Lock()
+
+    async def reset_actor(request: Request) -> str | None:
+        """Who may switch or run the reset: Root, or a company's Super admin / Developer signed in on this browser."""
+        if is_root(request):
+            return "Root (VENTHORA platform)"
+        tid = request.cookies.get(COOKIE)
+        if not tid or reg.get(tid) is None:
+            return None
+        mine = "; ".join(f"{k}={v}" for k, v in request.cookies.items() if k not in PLATFORM_COOKIES)
+        with contextlib.suppress(httpx.HTTPError, ValueError):
+            r = await client(tid).get("/v1/auth/me", headers={"cookie": mine} if mine else {}, timeout=20)
+            if r.status_code == 200:
+                me = r.json()
+                if me.get("role") in ("super_admin", "developer"):
+                    return f"{me.get('name') or me.get('email')} ({me.get('role')}, {reg.get(tid)['name']})"
+        return None
+
+    async def stop_tenant(tid: str) -> bool:
+        p = procs.get(tid)
+        if p is None or p.poll() is not None:
+            return p is not None
+        p.terminate()
+        try:
+            await asyncio.to_thread(p.wait, 20)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            await asyncio.to_thread(p.wait, 10)
+        return True
+
+    async def run_reset(by: str, categories: list[str]) -> dict:
+        """The chosen categories back to the baseline in every company: stop its VENTHORA, replace those rows, start it
+        again and wait until it answers. "companies" removes companies registered after the baseline."""
+        from . import demo_reset
+
+        cats = [c for c in categories if c in demo_reset.CAT]
+        if not cats:
+            raise ValueError("choose at least one category to reset")
+        async with reset_lock:
+            base = set(demo_reset.baseline_tenants(reg.root))
+            if not base:
+                raise ValueError("no baseline saved yet")
+            data_cats = [c for c in cats if c != "companies"]
+            done, removed, problems = [], [], []
+            for t in list(reg.list()):
+                tid = t["tenant_id"]
+                extra = tid not in base
+                if extra and "companies" not in cats:
+                    continue
+                if not extra and not data_cats:
+                    continue
+                stopped = await stop_tenant(tid)
+                clients.pop(tid, None)
+                if extra:
+                    await asyncio.to_thread(demo_reset.remove_extra, reg.root, tid, reg.tenant_dir, reg.root / "platform.db")
+                    procs.pop(tid, None)
+                    removed.append(t["name"])
+                    continue
+                rows = await asyncio.to_thread(demo_reset.restore, reg.root, tid, reg.tenant_dir, data_cats)
+                if spawn:
+                    start(t)
+                    if not await ready(tid):
+                        problems.append(f"{t['name']} did not start again (see its server.log)")
+                    else:
+                        with contextlib.suppress(Exception):
+                            await push_mail_oauth(t)
+                done.append({"company": t["name"], "rows": rows, "was_running": stopped})
+            result = {"by": by, "reset": done, "removed": removed, "problems": problems}
+            return await asyncio.to_thread(demo_reset.record_run, reg.root, cats, result)
+
+    async def demo_reset_api(request: Request) -> Response:
+        from . import demo_reset
+
+        who = await reset_actor(request)
+        if who is None:
+            return JSONResponse({"detail": "only the Super admin, a Developer or Root may manage the data reset"}, status_code=403)
+        action = request.path_params.get("action", "")
+        try:
+            if request.method == "GET":
+                return JSONResponse(await asyncio.to_thread(demo_reset.settings, reg.root) | {"now_utc": datetime.now(UTC).isoformat(timespec="seconds")})
+            b = {}
+            with contextlib.suppress(json.JSONDecodeError):
+                b = await request.json()
+            if request.method == "PUT" and not action:
+                out = await asyncio.to_thread(demo_reset.configure, reg.root, bool(b.get("enabled")), list(b.get("categories") or []), who)
+            elif request.method == "POST" and action == "baseline":
+                out = await asyncio.to_thread(demo_reset.save_baseline, reg.root, reg.list(), reg.tenant_dir, who)
+            elif request.method == "POST" and action == "run":  # now: the categories named, else every category set to reset
+                cats = list(b.get("categories") or []) or await asyncio.to_thread(demo_reset.selected, reg.root)
+                out = await run_reset(who, cats)
+            else:
+                return JSONResponse({"detail": "not found"}, status_code=404)
+        except ValueError as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
+        return JSONResponse(out | {"now_utc": datetime.now(UTC).isoformat(timespec="seconds")})
+
+    async def reset_scheduler() -> None:
+        from . import demo_reset
+
+        while True:
+            await asyncio.sleep(30)
+            with contextlib.suppress(Exception):
+                cats = await asyncio.to_thread(demo_reset.due_categories, reg.root)
+                if cats:
+                    await run_reset("daily schedule", cats)
+
     @contextlib.asynccontextmanager
     async def lifespan(app):
         if spawn:
@@ -533,7 +658,9 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
             await asyncio.gather(*(push_mail_oauth(t) for t in reg.list()))
             with contextlib.suppress(Exception):
                 await asyncio.gather(*(summary(t) for t in reg.list()))
+        resetter = asyncio.create_task(reset_scheduler())
         yield
+        resetter.cancel()
         for c in clients.values():
             await c.aclose()
         for p in procs.values():
@@ -545,6 +672,9 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
     return Starlette(routes=[
         Route("/platform", to_login), Route("/platform/console", page), Route("/login", login_page),
         Route("/login/api", login, methods=["POST"]), Route("/login/api/state", login_state), Route("/login/api/root-setup", login_root_setup, methods=["POST"]),
+        Route("/login/api/demo-accounts", demo_accounts),
+        Route("/platform/demo-reset", demo_reset_api, methods=["GET", "PUT"]),
+        Route("/platform/demo-reset/{action}", demo_reset_api, methods=["POST"]),
         Route("/platform/api/companies", tenants_public), Route("/platform/api/tenants", tenants, methods=["GET", "POST"]),
         Route("/platform/api/account", platform), Route("/c/{tenant}", enter), Route("/platform/leave", leave),
         Route("/platform/api/root", root_state), Route("/platform/api/root/setup", root_signin, methods=["POST"]),
