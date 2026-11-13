@@ -460,6 +460,35 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
         keep = {k: v for k, v in last.headers.items() if k.lower() not in HOP and k.lower() != "content-encoding"}
         return Response(last.content, status_code=last.status_code, headers=keep)
 
+    # -- card remote authorization ----------------------------------------------------------------------------------
+    async def remote_auth(request: Request) -> Response:
+        """Airwallex asks whether a card charge may go. For cards of the companies' connected accounts Airwallex signs
+        with the PLATFORM's remote-auth secret (AWX_REMOTE_AUTH_SECRET, from the platform's issuing config): the
+        platform checks that signature once, then asks each company in turn, telling it the request is already
+        verified; the company that issued the card answers (others say 404). A request the platform secret does not
+        verify may still be signed by a company's own linked account: each company then checks its own secret."""
+        from . import cards
+
+        body = await request.body()
+        if len(body) > 64 * 1024:
+            return JSONResponse({"detail": "body too large"}, status_code=413)
+        ok, _why = cards.verify(request.headers.get("x-nonce"), request.headers.get("x-signature"), env("AWX_REMOTE_AUTH_SECRET") or "")
+        if not ok:
+            return await find_owner(request)
+        headers = {"content-type": request.headers.get("content-type", "application/json"), "x-venthora-platform": reg.token()}
+        for t in reg.list():
+            try:
+                res = await client(t["tenant_id"]).post(request.url.path, content=body, headers=headers, timeout=2.0)
+            except httpx.HTTPError:
+                continue
+            if res.status_code != 404:
+                return Response(res.content, status_code=res.status_code, media_type=res.headers.get("content-type"))
+        try:
+            req = json.loads(body or b"{}")
+        except ValueError:
+            return JSONResponse({"detail": "not JSON"}, status_code=400)
+        return JSONResponse(cards.answer(req, "DECLINED", "card not issued by any company on this platform"))
+
     def public(request: Request) -> bool:
         p = request.url.path
         keyed = (request.headers.get("authorization") or "").lower().startswith("bearer vth_") or bool(request.headers.get("x-api-key"))
@@ -681,5 +710,6 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
         Route("/platform/api/root/login", root_signin, methods=["POST"]), Route("/platform/api/root/logout", root_signout, methods=["POST"]),
         Route("/platform/api/tenants/{tenant}/fco-link", tenant_link, methods=["POST"]), Route("/platform/api/kyb", kyb_form),
         Route("/webhooks/airwallex", webhook, methods=["POST"]),
+        Route("/webhooks/airwallex/remote-auth", remote_auth, methods=["POST"]),
         Route("/platform/api/mail-oauth", mail_oauth_root, methods=["GET", "PUT"]), Route("/oauth/mail/callback", mail_oauth_callback),
         Route("/{rest:path}", proxy, methods=every)], lifespan=lifespan)

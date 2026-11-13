@@ -18,6 +18,7 @@ import base64
 import datetime as dt
 import hashlib
 import hmac
+import re
 import time
 import uuid
 from decimal import Decimal
@@ -170,6 +171,25 @@ def _month_spent(org, card_id: str) -> int:
                if d.get("card_id") == card_id and d.get("decision") == "AUTHORIZED" and str(d.get("at", "")).startswith(month))
 
 
+LEGAL_SUFFIXES = {"PTE", "LTD", "LIMITED", "LLC", "INC", "CORP", "CO", "COMPANY", "PLC", "GMBH", "AG", "SA", "BV", "SDN", "BHD", "PT", "TBK", "CV"}
+MIN_TRUNCATED = 12  # a cut-off descriptor is trusted only when this long (card networks cut names at about 22-25 characters)
+
+
+def _core(name: str) -> str:
+    """A merchant or vendor name as card networks print it: upper case, letters and digits only, no legal suffix."""
+    words = re.sub(r"[^A-Z0-9 ]+", " ", (name or "").upper()).split()
+    return " ".join(w for w in words if w not in LEGAL_SUFFIXES)
+
+
+def merchant_matches(vendor: str, descriptor: str) -> bool:
+    """The card's vendor is the merchant: the vendor's name appears in the descriptor, or the descriptor is the vendor's
+    name cut short by the card network (long enough to be unambiguous)."""
+    v, d = _core(vendor), _core(descriptor)
+    if not v or not d:
+        return False
+    return v in d or (len(d) >= MIN_TRUNCATED and v.startswith(d))
+
+
 def decide(org, req: dict) -> tuple[str, str]:
     """AUTHORIZED or DECLINED, with the reason Airwallex stores on the transaction."""
     card = org.get("card", req.get("card_id") or "")
@@ -198,8 +218,8 @@ def decide(org, req: dict) -> tuple[str, str]:
         return "DECLINED", f"above the mandate's single payout limit of USD {major(ceiling)}"
     if _month_spent(org, card["_id"]) + amount > card["monthly_minor"]:
         return "DECLINED", f"above the card's monthly limit of {card['currency']} {major(card['monthly_minor'])}"
-    merchant = ((req.get("merchant") or {}).get("name") or "").lower()
-    if card.get("merchant") and card["merchant"].lower() not in merchant:
+    merchant = (req.get("merchant") or {}).get("name") or ""
+    if card.get("merchant") and not merchant_matches(card["merchant"], merchant):
         return "DECLINED", f"merchant '{(req.get('merchant') or {}).get('name') or '-'}' is not the card's vendor ({card['merchant']})"
     if card.get("mcc") and str((req.get("merchant") or {}).get("category_code") or "") not in card["mcc"]:
         return "DECLINED", "merchant category not allowed on this card"

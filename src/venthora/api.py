@@ -7708,15 +7708,22 @@ async def card_remote_auth(request: Request):
     """Airwallex asks whether a card charge may go. Answered from the mandate alone, well inside the 2.5 s limit."""
     from . import cards, secret_values
 
+    import hmac
+
     raw = await request.body()
-    ok, why = cards.verify(request.headers.get("x-nonce"), request.headers.get("x-signature"), secret_values.get(cards.SECRET))
-    if not ok:
-        await asyncio.to_thread(app.state.audit.append, "card_authorization_refused", {"reason": why})
-        raise HTTPException(401, why)
+    token, given = env("VENTHORA_PLATFORM_TOKEN"), request.headers.get("x-venthora-platform")
+    by_platform = bool(token and given and hmac.compare_digest(token, given))  # SaaS: the platform already checked Airwallex's signature
+    if not by_platform:
+        ok, why = cards.verify(request.headers.get("x-nonce"), request.headers.get("x-signature"), secret_values.get(cards.SECRET))
+        if not ok:
+            await asyncio.to_thread(app.state.audit.append, "card_authorization_refused", {"reason": why})
+            raise HTTPException(401, why)
     try:
         req = json.loads(raw or b"{}")
     except ValueError as exc:
         raise HTTPException(400, "not JSON") from exc
+    if by_platform and app.state.org.get("card", req.get("card_id") or "") is None:
+        raise HTTPException(404, "not a card this company issued")  # the platform asks the next company
     decision, reason = cards.decide(app.state.org, req)
     rec = await asyncio.to_thread(cards.record_decision, app.state.org, req, decision, reason, source="airwallex")
     await asyncio.to_thread(app.state.audit.append, "card_authorization", {k: rec.get(k) for k in ("_id", "card_id", "payee", "amount_minor", "currency",
