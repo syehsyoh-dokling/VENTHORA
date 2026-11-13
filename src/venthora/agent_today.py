@@ -165,6 +165,16 @@ def coverage(state, rows: list[dict], available: int, floor: int, hours: int) ->
         cum += amt
         days.append({"day": d + 1, "from": lo.isoformat(timespec="minutes"), "to": hi.isoformat(timespec="minutes"), "count": len(due),
                      "due_minor": amt, "cumulative_minor": cum, "left_minor": spendable - cum})
+    # the same horizon by priority level (Standard Payment Priority Policy bands): what the balance covers, High first
+    levels, lcum = [], 0
+    for key, label in priority_sop.LEVELS.items():
+        top, floor_p = priority_sop.BANDS[key]
+        mine = [r for r in items if floor_p <= int(r.get("priority") or 1) <= top]
+        amt = sum(r["base_minor"] for r in mine)
+        lcum += amt
+        cats = sorted({r.get("category_label") or r.get("category") or "" for r in mine} - {""})
+        levels.append({"level": key, "label": label, "priorities": f"{top}–{floor_p}", "count": len(mine), "due_minor": amt,
+                       "cumulative_minor": lcum, "left_minor": spendable - lcum, "covered": lcum <= spendable, "categories": cats})
     run = 0
     for r in items:
         run += r["base_minor"]
@@ -183,7 +193,7 @@ def coverage(state, rows: list[dict], available: int, floor: int, hours: int) ->
     total = sum(r["base_minor"] for r in items)
     return {"hours": hours, "until": end.isoformat(timespec="minutes"), "total_minor": total, "count": len(items), "available_minor": available,
             "reserve_floor_minor": floor, "spendable_minor": spendable, "enough": total <= spendable, "short_minor": max(0, total - spendable),
-            "short_from": short_at, "days": days, "receipts": receipts, "receipts_minor": sum(x["base_minor"] for x in receipts),
+            "short_from": short_at, "days": days, "levels": levels, "receipts": receipts, "receipts_minor": sum(x["base_minor"] for x in receipts),
             "by_group": {g: sum(r["base_minor"] for r in items if _group(r) == g) for g in ("ready", "approval", "blocked")}}
 
 

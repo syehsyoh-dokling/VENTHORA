@@ -111,9 +111,10 @@ async def lifespan(app: FastAPI):
     syncer = asyncio.create_task(_sync_scheduler()) if env("VENTHORA_SYNC_SCHEDULER", "1") != "0" else None
     doa_pilot = asyncio.create_task(_doa_scheduler()) if env("VENTHORA_DOA_SCHEDULER", "1") != "0" else None
     mailer = asyncio.create_task(_outbox_worker()) if env("VENTHORA_OUTBOX_WORKER", "1") != "0" else None
+    books = asyncio.create_task(_t0_worker()) if env("VENTHORA_T0_AUTOPOST", "1") != "0" else None
     yield
     _llm.FRAMER = None  # the organisation's prompt leaves with the app
-    for task in (pending, scheduler, syncer, doa_pilot, mailer):
+    for task in (pending, scheduler, syncer, doa_pilot, mailer, books):
         if task is not None:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -132,6 +133,26 @@ async def _outbox_worker(every_s: int = 60) -> None:
             for rec in await asyncio.to_thread(outbox.flush, app.state.org):
                 await asyncio.to_thread(app.state.audit.append, "outbox_" + rec["status"], {"outbox_id": rec["_id"], "ref": rec.get("ref"),
                                                                                            "to": rec.get("to"), "attempts": rec.get("attempts")})
+
+
+async def _t0_worker(every_s: int = 300) -> None:
+    """The books' worker: every five minutes, once T:0 is connected (T0_API_KEY), post the money that moved and is
+    not in T:0 yet as journal entries (once each: T:0's idempotency key), then read them back and verify. A T:0 that is
+    down only leaves the entries pending; the next round posts them."""
+    from . import t0_books
+
+    while True:
+        await asyncio.sleep(every_s)
+        if not env("T0_API_KEY"):
+            continue
+        with contextlib.suppress(Exception):
+            entries = await asyncio.to_thread(app.state.executor.store.journal, None)
+            rep = await t0_books.post(app.state.org, entries, kinds=t0_books.PAID_KINDS)
+            if rep["posted"] or rep["refused"]:
+                ver = await t0_books.verify(app.state.org, only_unverified=True)
+                await asyncio.to_thread(app.state.audit.append, "t0_journal_posted", {"by": "VENTHORA (books worker)", "scope": "paid",
+                                                                                      "posted": len(rep["posted"]), "refused": len(rep["refused"]),
+                                                                                      "verified": ver.get("passed")})
 
 
 def _warm_horizon() -> None:
@@ -9167,9 +9188,15 @@ class BusinessDetailsIn(BaseModel):
 def _account_row(a: dict) -> dict:
     d = a.get("account_details") or {}
     bd, idv = d.get("business_details") or {}, d.get("individual_details") or {}
-    name = bd.get("business_name") or " ".join(filter(None, (idv.get("first_name"), idv.get("last_name")))) or "-"
+    from . import airwallex_settings
+
+    registered = bd.get("business_name") or " ".join(filter(None, (idv.get("first_name"), idv.get("last_name")))) or "-"
+    # SaaS: a company only ever sees its own accounts, so they carry the company's name; the name Airwallex holds
+    # (which a registry lookup on the sandbox can replace) stays visible as the registered name
+    t = airwallex_settings.tenant()
+    name = t["name"] if t and t.get("name") else registered
     country = ((bd.get("registration_address") or {}).get("country_code") or (idv.get("residential_address") or {}).get("country_code"))
-    return {"id": a.get("id"), "status": a.get("status"), "type": d.get("legal_entity_type"), "name": name, "country": country,
+    return {"id": a.get("id"), "status": a.get("status"), "type": d.get("legal_entity_type"), "name": name, "registered_name": registered, "country": country,
             "email": (a.get("primary_contact") or {}).get("email"), "created_at": a.get("created_at"),
             "next_action": (a.get("next_action") or {}).get("type") if isinstance(a.get("next_action"), dict) else a.get("next_action")}
 
