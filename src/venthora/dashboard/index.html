@@ -1220,7 +1220,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span8" data-view="ai-keys">
   <h2><span>AI API keys</span><span class="small muted" id="keyActive"></span></h2>
-  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · an AI provider key cannot be created from VENTHORA</summary><div class="small" style="margin-top:8px">Each provider issues its own key in its console; VENTHORA cannot create one for you.<ol style="margin:6px 0 0 18px;padding:0"><li>Open the provider's key page: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic</a> · <a href="https://build.nvidia.com/" target="_blank" rel="noopener">NVIDIA NIM</a> · <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> · <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google Gemini</a> · <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> · <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">OpenRouter</a>.</li><li>Sign in with the company's account and create a key (some ask for billing first).</li><li>Paste it in <b>AI API keys</b> for that provider and press <b>Save</b>, then <b>Test</b>. The key is kept write-only: VENTHORA shows only its last 4 characters.</li></ol>VENTHORA's rules work without a model; the model only reads documents and explains.</div></details>
+  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · an AI provider key cannot be created from VENTHORA</summary><div class="small" style="margin-top:8px">Each provider issues its own key in its console; VENTHORA cannot create one for you.<ol style="margin:6px 0 0 18px;padding:0"><li>Open the provider's key page: <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener">Amazon Bedrock</a> · <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic</a> ·<a href="https://build.nvidia.com/" target="_blank" rel="noopener">NVIDIA NIM</a> · <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> · <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google Gemini</a> · <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> · <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">OpenRouter</a>.</li><li>Sign in with the company's account and create a key (some ask for billing first).</li><li>Paste it in <b>AI API keys</b> for that provider and press <b>Save</b>, then <b>Test</b>. The key is kept write-only: VENTHORA shows only its last 4 characters.</li></ol>VENTHORA's rules work without a model; the model only reads documents and explains.</div></details>
   <div class="form">
    <label>Provider<select id="k-prov"></select></label>
    <label>Model<span class="mpick"><select id="k-model-sel"></select><input id="k-model" placeholder="model id" autocomplete="off" hidden></span></label>
@@ -1238,11 +1238,11 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span8" data-view="ai">
   <h2><span>AI model</span><span class="small muted" id="aiActive"></span></h2>
-  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · an AI provider key cannot be created from VENTHORA</summary><div class="small" style="margin-top:8px">Each provider issues its own key in its console; VENTHORA cannot create one for you.<ol style="margin:6px 0 0 18px;padding:0"><li>Open the provider's key page: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic</a> · <a href="https://build.nvidia.com/" target="_blank" rel="noopener">NVIDIA NIM</a> · <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> · <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google Gemini</a> · <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> · <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">OpenRouter</a>.</li><li>Sign in with the company's account and create a key (some ask for billing first).</li><li>Paste it in <b>AI API keys</b> for that provider and press <b>Save</b>, then <b>Test</b>. The key is kept write-only: VENTHORA shows only its last 4 characters.</li></ol>VENTHORA's rules work without a model; the model only reads documents and explains.</div></details>
+  <details class="tile" style="margin:0 0 12px"><summary style="cursor:pointer"><b>How to get the key</b> · an AI provider key cannot be created from VENTHORA</summary><div class="small" style="margin-top:8px">Each provider issues its own key in its console; VENTHORA cannot create one for you.<ol style="margin:6px 0 0 18px;padding:0"><li>Open the provider's key page: <a href="https://console.aws.amazon.com/bedrock/home#/api-keys" target="_blank" rel="noopener">Amazon Bedrock</a> · <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Anthropic</a> ·<a href="https://build.nvidia.com/" target="_blank" rel="noopener">NVIDIA NIM</a> · <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI</a> · <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Google Gemini</a> · <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq</a> · <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener">OpenRouter</a>.</li><li>Sign in with the company's account and create a key (some ask for billing first).</li><li>Paste it in <b>AI API keys</b> for that provider and press <b>Save</b>, then <b>Test</b>. The key is kept write-only: VENTHORA shows only its last 4 characters.</li></ol>VENTHORA's rules work without a model; the model only reads documents and explains.</div></details>
   <div class="modes" id="aiModes">
-   <label class="mode"><input type="radio" name="aiMode" value="rules"><span><b>Rules only</b><small>No model. The deterministic readers decide alone.</small></span></label>
+   <label class="mode"><input type="radio" name="aiMode" value="bedrock"><span><b>Amazon Bedrock</b><small>The models in your AWS account, listed live from Bedrock: Claude, Llama, Nova, Mistral, Qwen and more, with a Bedrock API key.</small></span></label>
    <label class="mode"><input type="radio" name="aiMode" value="self_hosted"><span><b>Self-hosted model</b><small>Qwen or any OpenAI-compatible server: this laptop, a GPU machine, vLLM, Ollama, LM Studio.</small></span></label>
-   <label class="mode"><input type="radio" name="aiMode" value="provider"><span><b>Hosted provider</b><small>Anthropic, OpenAI, Gemini, Mistral, DeepSeek, NVIDIA NIM, Qwen and more, with your own API key (keys: Settings → AI API keys).</small></span></label>
+   <label class="mode"><input type="radio" name="aiMode" value="apikey"><span><b>API key</b><small>Anthropic, OpenAI, Gemini, Mistral, DeepSeek, NVIDIA NIM, Qwen and more, with the provider's own API key.</small></span></label>
   </div>
   <div class="form" id="aiSelf" style="margin-top:14px">
    <label style="grid-column:1/-1">Server address<input id="ai-endpoint" placeholder="http://127.0.0.1:8003/v1  or  http://gpu-server:8000/v1"></label>
@@ -1250,9 +1250,10 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
    <label>Access token (optional)<input id="ai-token" type="password" autocomplete="off" placeholder="only if the server asks for one"></label>
   </div>
   <div class="form" id="aiProv" style="margin-top:14px">
-   <label>Provider<select id="ai-provider"></select></label>
-   <label>Model<span class="mpick"><select id="ai-model-sel"></select><input id="ai-prov-model" placeholder="model id" autocomplete="off" hidden></span></label>
-   <label style="grid-column:1/-1">Paste API key<input id="ai-key" type="password" autocomplete="off"></label>
+   <label id="ai-prov-l">Provider<select id="ai-provider"></select></label>
+   <label id="ai-region-l" hidden>AWS region<select id="ai-region"></select></label>
+   <label id="ai-key-l" style="grid-column:1/-1"><span id="ai-key-t">Paste API key</span><input id="ai-key" type="password" autocomplete="off"></label>
+   <label style="grid-column:1/-1">Model<span class="mpick"><select id="ai-model-sel"></select><input id="ai-prov-model" placeholder="model id" autocomplete="off" hidden></span></label>
    <label id="ai-ws-l" style="grid-column:1/-1">Workspace ID (only if the key belongs to no workspace)<input id="ai-ws" placeholder="wrkspc_… (Claude Console → Settings → Workspaces)"></label>
    <label class="check" style="grid-column:1/-1"><input type="checkbox" id="ai-consent"> <span id="ai-consent-text"></span></label>
   </div>
@@ -4304,21 +4305,11 @@ function emStep2(cfg,main,boxes){const p=cfg.presets.find(x=>x.key===EMPROV),A=c
       <li>Click <b>+ Add a permission</b>.</li>
       <li>In the panel that opens, click <b>Microsoft Graph</b>, then <b>Delegated permissions</b>.</li>
       <li>Tick (check box) under <b>OpenId permissions</b>: <b>email</b>, <b>offline_access</b> and <b>openid</b> (profile is not needed). Keep the panel open and go on with <b>d</b>.</li></ol></div>
-    <div class="em-cfg"><b>d · IMAP &amp; SMTP setting</b> <span class="small muted">(still in the same Request API permissions panel)</span>
-     <ol class="small em-how"><li>Scroll down, or use the search box above the list (<b>Select permissions</b>) and type <b>IMAP</b>.</li>
-      <li>Open the <b>IMAP</b> group and tick <b>IMAP.AccessAsUser.All</b> (VENTHORA reads the mailbox).</li>
-      <li>Clear the search box, type <b>SMTP</b>, open the <b>SMTP</b> group and tick <b>SMTP.Send</b> (VENTHORA sends confirmations).</li>
-      <li>Click <b>Add permissions</b> at the bottom of the panel. Your app's permission list should now show 5 permissions: <b>email</b>, <b>offline_access</b>, <b>openid</b>, <b>IMAP.AccessAsUser.All</b> and <b>SMTP.Send</b>, each with <b>Admin consent required: No</b> (User.Read, added by Microsoft itself, may also be listed; keep it).</li></ol></div>
-    <div class="em-cfg"><b>e · Allow IMAP in the mailbox</b> <span class="small muted">(not in Entra: in the mailbox's own settings)</span>
-     <div class="small" style="margin:4px 0 0 18px">The app is ready; the mailbox itself must also let apps in. Which menu depends on the mailbox:</div>
-     <ol class="small em-how"><li class="em-only-personal"><b>Outlook.com / Hotmail</b>, on outlook.live.com:
-       <ol type="a"><li>Open Outlook settings in the browser (Outlook on the web): <a href="https://outlook.live.com/mail/0/options/mail/forwarding" target="_blank" rel="noopener">https://outlook.live.com/mail/0/options/mail/forwarding ↗</a> The Outlook app on Windows shows only <b>Forwarding</b> there, without the IMAP switch: use the web page.</li>
-        <li>Go to <b>Mail</b> → <b>Forwarding and IMAP</b>.</li>
-        <li>Under <b>POP and IMAP</b>, turn on <b>Let devices and apps use IMAP</b>. If the page shows only a <b>POP</b> switch, IMAP is already allowed: leave it.</li><li>Click <b>Save</b>.</li></ol></li>
-      <li class="em-only-m365"><b>Microsoft 365 work mailbox</b>, done by the admin on admin.microsoft.com:
-       <ol type="a"><li>Open <a href="https://admin.microsoft.com/#/users" target="_blank" rel="noopener">Microsoft 365 admin center ↗</a> → <b>Users</b> → <b>Active users</b>.</li>
-        <li>Click the mailbox, open the <b>Mail</b> tab → <b>Manage email apps</b>.</li>
-        <li>Tick <b>IMAP</b> and <b>Authenticated SMTP</b>.</li><li>Click <b>Save changes</b>.</li></ol></li></ol></div></li>
+    <div class="em-cfg"><b>d · Mail permissions</b> <span class="small muted">(still in the same Request API permissions panel, Microsoft Graph · Delegated)</span>
+     <ol class="small em-how"><li>Use the search box above the list (<b>Select permissions</b>) and type <b>Mail.</b></li>
+      <li>Open the <b>Mail</b> group and tick <b>Mail.ReadWrite</b> (VENTHORA reads the inbox and marks what it has read) and <b>Mail.Send</b> (VENTHORA sends confirmations).</li>
+      <li>Click <b>Add permissions</b> at the bottom of the panel. Your app's permission list should now show <b>email</b>, <b>offline_access</b>, <b>openid</b>, <b>Mail.ReadWrite</b> and <b>Mail.Send</b>, each with <b>Admin consent required: No</b> (User.Read, added by Microsoft itself, may also be listed; keep it).</li></ol>
+     <div class="small muted" style="margin:4px 0 0 18px">VENTHORA reads and sends through Microsoft Graph, not IMAP/SMTP: Microsoft refuses IMAP sign-ins to Outlook.com mailboxes from cloud servers, Graph works from anywhere. No IMAP switch in the mailbox is needed.</div></div></li>
    <li><b>Test connect.</b> <span class="small">You sign in to your mailbox on Microsoft's page and press <b>Accept</b> for your own app.</span>
     <div style="margin-top:4px">${emSinceSel("em2-since",(main||{}).since_days)}</div>
     <label class="check small" style="margin-top:4px"><input type="checkbox" id="em2-send" checked> also send confirmations from this mailbox</label>
@@ -4882,11 +4873,18 @@ $("#kUse").onclick=async()=>{try{await aiSend("/v1/settings/ai",kBody("provider"
 
 // ---- Settings → AI model -----------------------------------------------------------------------------------------
 let AI=null;
-const aiMode=()=>(document.querySelector('input[name="aiMode"]:checked')||{}).value||"rules";
-function aiShow(){const m=aiMode();$("#ai-ws-l").hidden=$("#ai-provider").value!=="anthropic";$("#aiSelf").style.display=m==="self_hosted"?"":"none";$("#aiProv").style.display=m==="provider"?"":"none";
- const pv=$("#ai-provider").value,lab=(AI&&AI.providers[pv]||{}).label||pv;
+// three choices on the page (Amazon Bedrock · Self-hosted · API key); Bedrock is the "provider" mode with provider bedrock
+const aiUi=()=>(document.querySelector('input[name="aiMode"]:checked')||{}).value||"";
+const aiMode=()=>({bedrock:"provider",apikey:"provider",self_hosted:"self_hosted"})[aiUi()]||"rules";
+const aiProvName=()=>aiUi()==="bedrock"?"bedrock":$("#ai-provider").value;
+const brUrl=r=>`https://bedrock-runtime.${r}.amazonaws.com`;
+const brRegion=u=>((u||"").match(/bedrock-runtime\.([a-z0-9-]+)\./)||[])[1]||"us-east-1";
+function aiShow(){const u=aiUi(),br=u==="bedrock",pv=aiProvName();$("#ai-ws-l").hidden=pv!=="anthropic";$("#aiSelf").style.display=u==="self_hosted"?"":"none";
+ $("#aiProv").style.display=br||u==="apikey"?"":"none";$("#ai-prov-l").hidden=br;$("#ai-region-l").hidden=!br;
+ $("#ai-key-t").textContent=br?"Bedrock API key (AWS console → Amazon Bedrock → API keys)":"Paste API key";
+ const lab=(AI&&AI.providers[pv]||{}).label||pv;
  $("#ai-consent-text").textContent=`Email and PDF text will be sent to ${lab} to be read. I am allowed to share it.`;
- $("#aiList").style.display=$("#aiTest").style.display=m==="rules"?"none":""}
+ $("#aiList").style.display=$("#aiTest").style.display=u?"":"none"}
 // a saved secret shows as ******** (never its value); left as it is, the saved one is kept
 const SAVED_MASK="********";
 const secretIn=v=>!v||v===SAVED_MASK?null:v;
@@ -4894,7 +4892,8 @@ function maskField(id,isSet){const el=$("#"+id);el.value=isSet?SAVED_MASK:"";el.
  el.onfocus=()=>{if(el.value===SAVED_MASK)el.select()}}
 function aiBody(){const m=aiMode();return {mode:m,consent_external:$("#ai-consent").checked,
  self_hosted:{endpoint:$("#ai-endpoint").value.trim(),model:$("#ai-self-model").value.trim(),token:secretIn($("#ai-token").value)},
- provider:{name:$("#ai-provider").value,model:$("#ai-prov-model").value.trim(),api_key:secretIn($("#ai-key").value),workspace_id:$("#ai-ws").value.trim()}}}
+ provider:{name:aiProvName(),model:$("#ai-prov-model").value.trim(),api_key:secretIn($("#ai-key").value),workspace_id:$("#ai-ws").value.trim(),
+  base_url:aiUi()==="bedrock"?brUrl($("#ai-region").value):""}}}
 // ---- Books & ledger → T:0: post the journal, read it back, verify ----
 async function t0BooksView(){try{const d=await api("/v1/t0/books");$("#t0Books").classList.remove("empty");
  const usd=a=>a==null?"-":`$${(a/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}`;
@@ -4944,30 +4943,41 @@ async function aiUsageView(){const days=+($("#aiUseDays").value||30);try{const u
  catch(e){$("#aiUsage").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#aiUseDays").onchange=aiUsageView;
 async function aiView(){aiUsageView();try{AI=await api("/v1/settings/ai");
- $("#ai-provider").innerHTML=Object.entries(AI.providers).map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join("");
- document.querySelectorAll('input[name="aiMode"]').forEach(r=>{r.checked=r.value===AI.mode;r.onchange=()=>{$("#aiMsg").textContent="";aiShow()}});
+ $("#ai-provider").innerHTML=Object.entries(AI.providers).filter(([k])=>k!=="bedrock").map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join("");
+ $("#ai-region").innerHTML=((AI.providers.bedrock||{}).regions||["us-east-1"]).map(r=>`<option value="${r}">${r}</option>`).join("");
+ const onBr=AI.mode==="provider"&&AI.provider.name==="bedrock",ui=AI.mode==="self_hosted"?"self_hosted":AI.mode==="provider"?(onBr?"bedrock":"apikey"):"";
+ $("#ai-region").value=brRegion(onBr?AI.provider.base_url:((AI.keys||{}).bedrock||{}).base_url);
  $("#ai-endpoint").value=AI.self_hosted.endpoint||"";$("#ai-self-model").value=AI.self_hosted.model||"";
  maskField("ai-token",!!AI.self_hosted.token_set);$("#ai-token").placeholder="only if the server asks for one";
- $("#ai-ws").value=AI.provider.workspace_id||"";$("#ai-provider").value=AI.provider.name;pickModels("ai-model-sel","ai-prov-model",(AI.providers[AI.provider.name]||{}).suggested,AI.provider.model||"");
+ const firstKey=Object.keys(AI.keys||{}).find(k=>k!=="bedrock");
+ $("#ai-ws").value=AI.provider.workspace_id||"";$("#ai-provider").value=!onBr&&AI.mode==="provider"?AI.provider.name:(firstKey||"anthropic");
  const keySaved=p=>!!((AI.keys||{})[p]||{}).key_set||(p===AI.provider.name&&AI.provider.key_set);
- maskField("ai-key",keySaved(AI.provider.name));$("#ai-key").placeholder="paste your API key";
+ const savedModel=p=>p===AI.provider.name?AI.provider.model||"":((AI.keys||{})[p]||{}).model||"";
+ // switching between the three choices (or the provider): the key and model of that provider, live list for Bedrock
+ const aiSwitch=()=>{const p=aiProvName();maskField("ai-key",keySaved(p));$("#ai-key").placeholder=p==="bedrock"?"paste your Bedrock API key":"paste your API key";
+  $("#ai-ws").value=((AI.keys||{})[p]||{}).workspace_id||(p===AI.provider.name?AI.provider.workspace_id||"":"");
+  pickModels("ai-model-sel","ai-prov-model",(AI.providers[p]||{}).suggested,savedModel(p));aiShow();
+  if(p==="bedrock"&&aiUi()==="bedrock"&&keySaved(p))aiListModels()};
+ document.querySelectorAll('input[name="aiMode"]').forEach(r=>{r.checked=r.value===ui;r.onchange=()=>{$("#aiMsg").textContent="";aiSwitch()}});
  $("#ai-consent").checked=!!AI.consent_external;
- $("#ai-provider").onchange=()=>{const p=$("#ai-provider").value;maskField("ai-key",keySaved(p));$("#ai-ws").value=((AI.keys||{})[p]||{}).workspace_id||(p===AI.provider.name?AI.provider.workspace_id||"":"");
-  const pv=AI.providers[$("#ai-provider").value]||{};pickModels("ai-model-sel","ai-prov-model",pv.suggested,$("#ai-provider").value===AI.provider.name?AI.provider.model:"");aiShow()};
+ $("#ai-provider").onchange=aiSwitch;$("#ai-region").onchange=()=>{if(aiUi()==="bedrock")aiListModels()};
+ aiSwitch();
  $("#aiModelList").innerHTML=((AI.providers[AI.provider.name]||{}).suggested||[]).map(m=>`<option value="${esc(m)}">`).join("");
  $("#aiActive").textContent=`now reading with: ${AI.active}${AI.source==="env"?" (from .env)":""}${AI.updated_by?` · saved by ${AI.updated_by}`:""}`;
  $("#aiMsg").textContent="";aiShow()}catch(e){$("#aiActive").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
-function pickModels(selId,inpId,models,cur){const sel=$("#"+selId),inp=$("#"+inpId);const list=[...new Set((models||[]).filter(Boolean))];
- const has=!!cur&&list.includes(cur);
- sel.innerHTML=list.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("")+'<option value="__other">Other: type a model id…</option>';
+function pickModels(selId,inpId,models,cur,labels){const sel=$("#"+selId),inp=$("#"+inpId);const list=[...new Set((models||[]).filter(Boolean))];
+ const has=!!cur&&list.includes(cur);labels=labels||{};
+ sel.innerHTML=list.map(m=>`<option value="${esc(m)}">${esc(labels[m]?`${labels[m]} · ${m}`:m)}</option>`).join("")+'<option value="__other">Other: type a model id…</option>';
  if(has||(!cur&&list.length)){sel.value=has?cur:list[0];inp.value=sel.value;inp.hidden=true}else{sel.value="__other";inp.value=cur||"";inp.hidden=false}
  sel.onchange=()=>{if(sel.value==="__other"){inp.hidden=false;inp.value="";inp.focus()}else{inp.hidden=true;inp.value=sel.value}}}
 const aiPost=(path,method="POST")=>api(`${path}?${who()}`,{method,headers:{"content-type":"application/json"},body:JSON.stringify(aiBody())});
-$("#aiList").onclick=async()=>{$("#aiMsg").textContent="asking for the model list…";try{const r=await aiPost("/v1/settings/ai/models");
+async function aiListModels(){$("#aiMsg").textContent=aiUi()==="bedrock"?`reading the models of your AWS account in ${$("#ai-region").value}…`:"asking for the model list…";
+ try{const r=await aiPost("/v1/settings/ai/models");
  $("#aiModelList").innerHTML=r.models.map(m=>`<option value="${esc(m)}">`).join("");
- if(aiMode()==="provider")pickModels("ai-model-sel","ai-prov-model",[...r.models,...((AI.providers[$("#ai-provider").value]||{}).suggested||[])],$("#ai-prov-model").value.trim());
- $("#aiMsg").textContent=`${r.models.length} model(s) offered; pick one in the Model list`}
- catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+ if(aiMode()==="provider")pickModels("ai-model-sel","ai-prov-model",aiUi()==="bedrock"?r.models:[...r.models,...((AI.providers[aiProvName()]||{}).suggested||[])],$("#ai-prov-model").value.trim(),r.labels);
+ $("#aiMsg").textContent=aiUi()==="bedrock"?`${r.models.length} model(s) available in ${$("#ai-region").value}, read live from Amazon Bedrock; pick one in the Model list`:`${r.models.length} model(s) offered; pick one in the Model list`}
+ catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}}
+$("#aiList").onclick=aiListModels;
 $("#aiTest").onclick=async()=>{$("#aiMsg").textContent="testing…";try{const r=await aiPost("/v1/settings/ai/test");
  $("#aiMsg").innerHTML=r.ok?`<span class="pill good">CONNECTED</span> ${esc(r.model)} answered “${esc(r.reply)}” in ${r.latency_ms} ms`:`<span class="pill critical">FAILED</span> ${esc(r.error)}`}
  catch(e){$("#aiMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};

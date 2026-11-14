@@ -29,12 +29,13 @@ from .config import env
 PROVIDERS: dict[str, dict] = {
     "outlook": {"label": "Microsoft", "authorize": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
                 "token": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-                "scope": "openid email offline_access https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send",
+                # Microsoft Graph, not IMAP/SMTP: Microsoft refuses IMAP sign-ins to personal mailboxes from cloud servers (ms_graph.py)
+                "scope": "openid email offline_access https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Mail.Send",
                 "extra": {"prompt": "select_account"},
                 "links": [["New app registration", "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade"],
                           ["App registrations", "https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade"]],
                 "register": "https://entra.microsoft.com → App registrations → New registration (any organisational directory and personal accounts); "
-                            "API permissions: IMAP.AccessAsUser.All, SMTP.Send, offline_access; Certificates & secrets → New client secret"},
+                            "API permissions (Microsoft Graph, delegated): Mail.ReadWrite, Mail.Send, offline_access; Certificates & secrets → New client secret"},
     "gmail": {"label": "Google", "authorize": "https://accounts.google.com/o/oauth2/v2/auth", "token": "https://oauth2.googleapis.com/token",
               "scope": "openid email https://mail.google.com/", "extra": {"access_type": "offline", "prompt": "consent"},
               "links": [["New project", "https://console.cloud.google.com/projectcreate"], ["Consent screen", "https://console.cloud.google.com/auth/branding"],
@@ -220,7 +221,8 @@ def _token_call(provider: str, form: dict) -> dict:
 def _record(provider: str, body: dict, old: dict | None = None) -> dict:
     return {"kind": "oauth", "provider": provider, "access_token": body["access_token"],
             "refresh_token": body.get("refresh_token") or (old or {}).get("refresh_token", ""),
-            "expires_at": int(time.time()) + int(body.get("expires_in") or 3600)}
+            "expires_at": int(time.time()) + int(body.get("expires_in") or 3600),
+            "scope": body.get("scope") or (old or {}).get("scope", "")}  # what the token is for: Graph or IMAP/SMTP (ms_graph.is_graph)
 
 
 def finish(provider: str, code: str) -> tuple[str, str]:

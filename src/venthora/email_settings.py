@@ -281,8 +281,44 @@ def _quote(folder: str) -> str:
     return '"' + folder.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def _graph_token(raw: dict) -> str | None:
+    """For a mailbox connected through Microsoft Graph (ms_graph.py): a fresh access token; None for IMAP mailboxes."""
+    from . import mail_oauth, ms_graph
+
+    secret = raw.get("_secret") or ""
+    if raw.get("auth") != "oauth2" or not mail_oauth.is_oauth(secret) or not ms_graph.is_graph(secret):
+        return None
+    try:
+        return mail_oauth.fresh(secret, lambda s: EmailStore().set_secret(raw["inbox_id"], s))
+    except mail_oauth.OAuthError as exc:
+        raise MailboxError(f"the sign-in could not be renewed: {exc}; connect the mailbox again") from exc
+
+
+def _graph(fn, *a, **kw):
+    from . import ms_graph
+
+    try:
+        return fn(*a, **kw)
+    except ms_graph.GraphError as exc:
+        raise MailboxError(f"Microsoft Graph: {exc}") from exc
+
+
+def _own_notice(body: bytes) -> bool:
+    from email import policy as _pol
+    from email.parser import BytesParser
+
+    h = BytesParser(policy=_pol.default).parsebytes(body, headersonly=True)
+    return bool(h.get("X-Venthora-Notice") or str(h.get("Subject", "")).startswith("[VENTHORA]"))
+
+
 def test_inbox(raw: dict) -> dict:
     """Sign in and open the folder: how many messages it holds and how many are unread. Nothing is read or changed."""
+    token = _graph_token(raw)
+    if token:
+        from . import ms_graph
+
+        r = _graph(ms_graph.test, token, raw.get("folder") or "INBOX")
+        return {"ok": True, "folder": raw.get("folder") or "INBOX", "messages": r["messages"], "unread": r["unread"], "via": "Microsoft Graph"}
     conn = _connect_imap(raw)
     try:
         total = _select(conn, raw.get("folder") or "INBOX")
@@ -295,6 +331,23 @@ def test_inbox(raw: dict) -> dict:
 
 def fetch_new(raw: dict, seen: set[str], limit: int = 25) -> list[tuple[bytes, str, bytes]]:
     """New messages as (uid, message id, raw RFC 822), oldest first; read with BODY.PEEK so nothing is marked yet."""
+    token = _graph_token(raw)
+    if token:
+        from . import ms_graph
+
+        days = raw.get("since_days")
+        days = 7 if days is None else int(days)
+        out = []
+        for gid, mid in _graph(ms_graph.list_new, token, raw.get("folder") or "INBOX", since_days=days,
+                               only_unread=raw.get("only_unread", True), limit=max(limit * 2, 50)):
+            body = _graph(ms_graph.mime, token, gid)
+            mid = mid or message_id(body) or f"<graph-{gid[-24:]}@{raw['inbox_id']}>"
+            if mid in seen or _own_notice(body):
+                continue
+            out.append((gid.encode(), mid, body))
+            if len(out) >= limit:
+                break
+        return out
     conn = _connect_imap(raw)
     try:
         _select(conn, raw.get("folder") or "INBOX")
@@ -332,6 +385,15 @@ def finish(raw: dict, uids: list[bytes]) -> None:
     """After VENTHORA has read them: mark them read, move them to a folder, or leave them as they are."""
     after = raw.get("after", "mark_read")
     if not uids or after == "leave":
+        return
+    token = _graph_token(raw)
+    if token:
+        from . import ms_graph
+
+        ids = [u.decode() if isinstance(u, bytes) else str(u) for u in uids]
+        _graph(ms_graph.mark_read, token, ids)
+        if after == "move":
+            _graph(ms_graph.move, token, ids, raw.get("move_to") or "VENTHORA/Processed")
         return
     conn = _connect_imap(raw)
     try:

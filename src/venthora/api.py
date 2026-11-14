@@ -3470,6 +3470,8 @@ async def ai_settings_models(s: ai_settings.AISettings | None = None, role: str 
     _writer(role, "list")
     if s is not None and s.mode == "self_hosted" and s.self_hosted.endpoint and not s.self_hosted.model:
         s = s.model_copy(update={"self_hosted": s.self_hosted.model_copy(update={"model": "(listing)"})})  # listing is how the name is found
+    if s is not None and s.mode == "provider" and not s.provider.model:
+        s = s.model_copy(update={"provider": s.provider.model_copy(update={"model": "(listing)"})})
     try:
         model = _draft_model(s)
     except ValueError as exc:
@@ -3477,7 +3479,8 @@ async def ai_settings_models(s: ai_settings.AISettings | None = None, role: str 
     if not getattr(model, "endpoint", None) and not getattr(model, "api_key", None):
         raise HTTPException(422, "enter the server address or the API key first")
     try:
-        return {"models": (await ai_settings.list_models(model))[:300]}
+        ids, labels = await ai_settings.list_models_labeled(model)
+        return {"models": ids[:300], "labels": {k: v for k, v in labels.items() if k in set(ids[:300])}}
     except Exception as exc:  # noqa: BLE001 - the provider's reason, shown on the form
         raise HTTPException(502, f"could not list models: {type(exc).__name__}: {str(exc)[:200]}") from exc
 
@@ -9711,7 +9714,8 @@ async def airwallex_stop_acting(role: str = "finance_manager", by: str = "dashbo
 AUTH_OPEN_EXACT = {"/", "/index.html", "/health", "/favicon.ico", "/v1/tenant", "/v1/tenant/summary", "/v1/auth/login",
                    "/v1/auth/accept", "/v1/auth/platform-invite", "/v1/auth/platform-lookup", "/v1/platform/company-profile", "/v1/platform/mailbox-owner", "/v1/platform/mail-oauth", "/oauth/mail/callback",
                    "/v1/visa/tap/keys.json"}
-AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/")
+AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/",
+                    "/demo/legacy-erp/")  # the stand-in ERP plays an outside system: it checks its own X-Legacy-Key, not a sign-in
 
 
 def _login_required() -> bool:

@@ -322,12 +322,26 @@ def describe(model) -> str:
     return f"{model.model} at {model.endpoint}"
 
 
+BEDROCK_REGIONS = ["us-east-1", "us-east-2", "us-west-2", "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
+                   "eu-north-1", "ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ap-northeast-2", "ap-south-1", "sa-east-1"]
+PROVIDERS["bedrock"]["regions"] = BEDROCK_REGIONS
+
+
+async def list_models_labeled(model) -> tuple[list[str], dict[str, str]]:
+    """The ids, plus a readable name per id where the provider gives one (Bedrock: read live from the account)."""
+    if isinstance(model, BedrockModel):
+        items = await model.list_models()
+        return [i["id"] for i in items], {i["id"]: i["name"] for i in items}
+    return await list_models(model), {}
+
+
 async def list_models(model) -> list[str]:
-    """Model ids the server or provider offers (OpenAI-compatible GET /models; Anthropic's models list)."""
+    """Model ids the server or provider offers (OpenAI-compatible GET /models; Anthropic's models list; Bedrock's
+    foundation models and inference profiles, read live with the Bedrock API key)."""
     if isinstance(model, AnthropicModel):
         return await model.list_models()
-    if isinstance(model, BedrockModel):  # a Bedrock API key reaches the runtime only: offer the usual ids, Other takes any
-        return list(PROVIDERS["bedrock"]["suggested"])
+    if isinstance(model, BedrockModel):
+        return [i["id"] for i in await model.list_models()]
     import httpx
 
     base = model.endpoint if model.endpoint.endswith("/v1") or "/openai" in model.endpoint or model.endpoint.endswith("/api/v1") else f"{model.endpoint}/v1"

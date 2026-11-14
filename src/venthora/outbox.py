@@ -78,6 +78,21 @@ def save_smtp(org, body: dict, by: str) -> dict:
 
 
 def _connect(s: dict, timeout: float = 15.0, password: str | None = None):
+    if s["user"]:  # a mailbox connected through Microsoft Graph sends with Graph's sendMail, not SMTP (ms_graph.py)
+        from . import mail_oauth, ms_graph
+
+        secret = password if password is not None else secret_values.get(PASSWORD)
+        if mail_oauth.is_oauth(secret) and ms_graph.is_graph(secret):
+            try:
+                token = mail_oauth.fresh(secret, (lambda v: secret_values.put(PASSWORD, v, "VENTHORA (sign-in renewed)")) if password is None else None)
+            except mail_oauth.OAuthError as exc:
+                raise smtplib.SMTPAuthenticationError(535, f"the sign-in could not be renewed: {exc}".encode()) from exc
+            conn = ms_graph.SendConnection(token)
+            try:
+                conn.ehlo()
+            except ms_graph.GraphError as exc:
+                raise smtplib.SMTPAuthenticationError(535, str(exc).encode()) from exc
+            return conn
     if s["security"] == "ssl":
         conn = smtplib.SMTP_SSL(s["host"], s["port"], timeout=timeout, context=ssl.create_default_context())
     else:

@@ -107,6 +107,33 @@ class BedrockModel:
     def configured(self) -> bool:
         return bool(self.api_key and self.model and self.endpoint)
 
+    async def list_models(self) -> list[dict]:
+        """The text models this account can call now, read live from Bedrock's control plane with the same API key:
+        the inference profiles (us.…, global.…: the ids newer models need) and the foundation models that run on demand.
+        Each item: {"id", "name"}; profiles first, then models, each sorted by name."""
+        base = self.endpoint.replace("bedrock-runtime.", "bedrock.", 1)
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        client = self._client or httpx.AsyncClient(timeout=30)
+        try:
+            fm = await client.get(f"{base}/foundation-models", params={"byOutputModality": "TEXT"}, headers=headers)
+            ip = await client.get(f"{base}/inference-profiles", params={"maxResults": 1000, "typeEquals": "SYSTEM_DEFINED"}, headers=headers)
+        finally:
+            if self._client is None:
+                await client.aclose()
+        if fm.status_code in (401, 403):
+            raise LLMUnavailable("Bedrock refused the API key for the model list")
+        fm.raise_for_status()
+        models = [m for m in fm.json().get("modelSummaries", [])
+                  if (m.get("modelLifecycle") or {}).get("status", "ACTIVE") == "ACTIVE" and "TEXT" in (m.get("inputModalities") or ["TEXT"])]
+        names = {m["modelId"]: m.get("modelName") or m["modelId"] for m in models}
+        profiles = []
+        if ip.status_code == 200:
+            profiles = [{"id": p["inferenceProfileId"], "name": p.get("inferenceProfileName") or p["inferenceProfileId"]}
+                        for p in ip.json().get("inferenceProfileSummaries", [])
+                        if p.get("status", "ACTIVE") == "ACTIVE" and any(mid in (p.get("inferenceProfileId") or "") for mid in names)]
+        on_demand = [{"id": m["modelId"], "name": names[m["modelId"]]} for m in models if "ON_DEMAND" in (m.get("inferenceTypesSupported") or [])]
+        return sorted(profiles, key=lambda x: x["name"].lower()) + sorted(on_demand, key=lambda x: x["name"].lower())
+
     async def complete(self, messages: list[dict], max_tokens: int = 300) -> str:
         if not self.configured:
             raise LLMUnavailable("Bedrock API key, region or model not set")
