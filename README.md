@@ -20,6 +20,20 @@ VENTHORA is an autonomous treasury agent for cross-border businesses, built on A
 - **Timing**: invoices and bills are paid at the daily run (11:59 UTC here), so a person can change course each day; payroll and benefits
   on their pay date from 00:30 UTC.
 
+### Sponsors: what is live, what is a demo, what waits for access
+
+| Sponsor | In VENTHORA | Status |
+|---|---|---|
+| **Airwallex** | Balances, FX quotes and conversions, beneficiaries (schema, validation, name check), transfers, deposits, webhooks | **Live on the sandbox.** Every payment in the demo moves through it. Account opening and cards depend on what Airwallex has enabled for the sandbox account |
+| **Alta** | The audit-log head and every contract chain head anchored in one transaction (Platform Setup → Blockchain Record) | **Built and verified on Alta Testnet** (6 Nov 2026) with test tokens; money never moves on Alta |
+| **Xendit** | The holder's name of an Indonesian account before it is paid; payouts to Indonesian e-wallets (Platform Setup → Local Rails) | Sandbox. Without a Xendit key the name check answers as *simulated* and says so |
+| **Midtrans** | The connection (sandbox keys) and the list of rupiah collection products: QRIS, virtual accounts, cash at stores | **Connection only.** The products are marked *planned* on the page and collect nothing yet |
+| **Visa** | Agent Identity (TAP), Intelligent Commerce, the virtual card report, *Compare with Visa's daily rate* | **Demo mode.** Shown under *Developer · demo mode*; no card is charged |
+| **AWS** | The live demo runs on EC2; Amazon Bedrock is one of the model providers under Platform Setup → Agent | Hosting is live; Bedrock is a selectable provider |
+| **Airwallex MCP** | A page under *Developer · demo mode* | **Not used for money.** VENTHORA calls REST behind typed methods, which the guide allows |
+
+A page that is a demo or planned says so on the screen; nothing here is presented as more than it is.
+
 ---
 
 ## The problem
@@ -138,7 +152,13 @@ Autonomous FX limit USD 10,000 at forecast confidence 90%; conversions USD 7,528
 | FX conversion | the total exceeds the autonomous limit, which scales with forecast confidence (zero at ≤50%) |
 | Payout to a payee with a policy exception (e.g. changed bank details) | always; never auto-paid |
 | Obligation that cannot be funded before it is due | always (escalated) |
+| First payment to a payee that was just verified by call-back | always, once (*Approve & pay* in Agent plan); after one approved payment the agent pays it alone |
+| Payment over its budget allocation, or above a transfer limit the bank refused | always; it is left out of the plan and shown with the reason until the budget is raised or the payment is split |
 | Everything else in an `APPROVED` plan | never; executed within the mandate and proven by ProofCore |
+
+The three states above are the scripted scenario on clean books, where every payee is already active. On the live demo
+company the vendors are new, so the first payment to each one waits for a person; that is the payee lifecycle working,
+not the agent failing to act.
 
 ## Quick start
 

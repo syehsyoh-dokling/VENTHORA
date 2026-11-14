@@ -16,3 +16,6 @@ data/demo/
 data/saas/
 demo_video/
 data/procurement/
+
+# local tooling
+.claude/

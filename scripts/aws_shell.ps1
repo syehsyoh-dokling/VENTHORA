@@ -9,7 +9,8 @@
 #>
 param([switch]$Logs)
 $Aws = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
-$Instance = "i-0cd93eda104c04be7"
+$Instance = $env:VENTHORA_AWS_INSTANCE   # the server's EC2 instance id; set it in your own shell, never in the repo
+if (-not $Instance) { throw "Set VENTHORA_AWS_INSTANCE to the EC2 instance id of the VENTHORA server" }
 if ($Logs) {
     & $Aws ssm start-session --target $Instance --region us-east-1 --document-name AWS-StartInteractiveCommand `
         --parameters 'command=["sudo journalctl -u venthora-platform -u venthora-gateway -f -n 50"]'

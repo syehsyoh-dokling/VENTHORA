@@ -9,7 +9,8 @@
      restarts venthora-platform and venthora-gateway, and reports whether they are active.
   4. Removes the upload from the bucket.
 
-  Needs AWS CLI v2 signed in (`aws login`) with access to account 852168982659.
+  Needs AWS CLI v2 signed in (`aws login`) with access to the account that holds the server, and
+  VENTHORA_AWS_INSTANCE and VENTHORA_DEPLOY_BUCKET set in your shell.
 
 .EXAMPLE
   .\scripts\deploy_aws.ps1                       # deploy every changed file under src/
@@ -22,8 +23,9 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $Aws = "C:\Program Files\Amazon\AWSCLIV2\aws.exe"
-$Instance = "i-0cd93eda104c04be7"
-$Bucket = "venthora-deploy-852168982659"
+$Instance = $env:VENTHORA_AWS_INSTANCE   # the server's EC2 instance id
+$Bucket = $env:VENTHORA_DEPLOY_BUCKET    # the private deploy bucket
+if (-not $Instance -or -not $Bucket) { throw "Set VENTHORA_AWS_INSTANCE and VENTHORA_DEPLOY_BUCKET in your own shell (they are not kept in the repo)" }
 $Region = "us-east-1"
 $Repo = Split-Path -Parent $PSScriptRoot
 Set-Location $Repo
