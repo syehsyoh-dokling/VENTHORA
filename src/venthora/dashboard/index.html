@@ -3821,18 +3821,32 @@ async function pdCorr(id){const el=$("#rvCorr");if(!el)return;let d;try{d=await 
    <div class="small muted" style="margin:6px 0 2px">written by ${esc(m.by||"-")}${m.error?` · <span style="color:#dc2626">${esc(m.error)}</span>`:""}${m.status!=="sent"?` · recorded ${whenUTC(m.created_at)}, not sent yet`:""}</div><pre class="rv-pre">${esc(m.body||"")}</pre></details>`;
  const sec=(t,n,body,empty)=>`<div class="rv-sec"><div class="rv-sech"><b>${t}</b>${n!=null?` <span class="pill">${n}</span>`:""}</div>${body||`<div class="small muted">${empty}</div>`}</div>`;
  const fb=FB[d.feedback.state]||FB.none,CS=PD.callback||{};
+ const RES={sent:["#16a34a","✓ Sent"],queued:["#d97706","Waiting to send"],skipped:["#d97706","Not sent"],failed:["#dc2626","✗ Failed"],bounced:["#dc2626","✗ Bounced"],complained:["#dc2626","✗ Complaint"]};
+ const held=["NEEDS_REVIEW","QUARANTINED","REJECTED"].includes(PD.status);
+ // one table per recipient, newest first, every result written out: sent, failed or not sent, with its date and time
+ const histTable=(list,who,none)=>{const rows=[...list].sort((x,y)=>(y.created_at||"").localeCompare(x.created_at||""));const m0=rows[0],r0=m0&&(RES[m0.status]||["#94a3b8",m0.status]);
+  const head=m0?`<div class="rv-row small" style="align-items:center"><span class="pill" style="background:${r0[0]};color:#fff">${r0[1]}</span><span>Last email to the ${who}: <b>${whenUTC(m0.sent_at||m0.created_at)}</b>${m0.status!=="sent"&&m0.error?` · <span style="color:${r0[0]}">${esc(m0.error)}</span>`:""}</span></div>`
+   :`<div class="rv-row small" style="align-items:center"><span class="pill" style="background:#94a3b8;color:#fff">Never sent</span><span>${none}</span></div>`;
+  return head+(rows.length?`<div style="overflow-x:auto"><table class="rv-hist"><thead><tr><th>Date and time</th><th>Sent to</th><th>Email</th><th>Result</th><th></th></tr></thead><tbody>${rows.map((m,i)=>{const r=RES[m.status]||["#94a3b8",m.status],k=`${who}-${i}`;
+   return `<tr data-hist="${k}" style="cursor:pointer"><td style="white-space:nowrap"><b>${whenUTC(m.sent_at||m.created_at)}</b></td><td class="mono small">${esc((m.to||[]).join(", ")||"-")}</td>
+    <td><div>${esc(m.subject||"")}</div><div class="small muted">${KIND[m.kind]||"message"} · by ${esc(m.by||"-")}</div></td>
+    <td style="white-space:nowrap"><span class="pill" style="background:${r[0]};color:#fff">${r[1]}</span>${m.status==="sent"?"":`<div class="small" style="color:${r[0]};white-space:normal;max-width:220px">${esc(m.error||(m.status==="queued"?"in the queue: outgoing email is not set up, or it is about to go":""))}</div>`}</td>
+    <td class="small" style="white-space:nowrap;color:var(--accent,#2f6fed)">read ›</td></tr><tr data-histbody="${k}" hidden><td colspan="5"><pre class="rv-pre">${esc(m.body||"")}</pre></td></tr>`}).join("")}</tbody></table></div>`:"")};
+ const vendorHist=histTable(d.vendor_messages,"vendor",held?"No email has been sent to the vendor yet: the automatic answer is written within a minute of the request being held.":"No email was sent to the vendor: this request passed its checks, so there is nothing for the vendor to correct.");
+ const fcoHist=histTable(d.fco_messages,"FCO","No notice about this request has been sent to the FCO's mailbox. Press ✉ Email FCO to send one.");
  const kvc=(k,v)=>`<div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">${k}</div><div>${v}</div></div>`;
  el.innerHTML=`<style>#idlg .rv-sec{padding:10px 0;border-top:1px solid var(--line)}#idlg .rv-sec:first-of-type{border-top:0;padding-top:0}#idlg .rv-sech{margin-bottom:6px}
    #idlg .rv-msg{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px}#idlg .rv-msg>summary{cursor:pointer;list-style:none}#idlg .rv-msg>summary::after{content:"read ›";float:right;color:var(--accent,#2f6fed);font-size:12px}
    #idlg .rv-msg[open]>summary::after{content:"close"}#idlg .rv-pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:12.5px;margin:0;padding:8px 10px;border-radius:8px;background:var(--panel2,rgba(47,111,237,.06))}
+   #idlg .rv-hist{width:100%;border-collapse:collapse;font-size:12.5px}#idlg .rv-hist th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink2);padding:4px 8px}#idlg .rv-hist td{padding:7px 8px;border-top:1px solid var(--line);vertical-align:top}
    #idlg .rv-row{display:flex;gap:10px;flex-wrap:wrap;padding:7px 9px;border-radius:9px;margin-bottom:5px;background:var(--panel2,rgba(47,111,237,.05))}</style>
   <h4>Messages and call-backs <span class="small muted" style="font-weight:400">for the FCO: everything said about this request, with its date and time</span></h4>
   ${sec("Vendor feedback status",null,`<div class="rv-row" style="align-items:center"><span class="pill" style="background:${fb[0]};color:#fff">${fb[1]}</span><span class="small">${esc(d.feedback.text)}${d.feedback.since?` <span class="muted">(${whenUTC(d.feedback.since)})</span>`:""}</span></div>`)}
-  ${sec("Messages sent to the vendor",d.vendor_messages.length,d.vendor_messages.map(mail).join(""),"none sent yet: VENTHORA answers the vendor automatically when a request is held or rejected")}
+  ${sec("Emails to the vendor",d.vendor_messages.length,vendorHist)}
   ${sec("What came back from the vendor",d.submissions.length,d.submissions.map(s=>`<div class="rv-row"><div style="flex:1;min-width:220px"><span class="pill ${s.status==="VERIFIED"?"good":"critical"}">${esc(s.outcome)}</span> <b>${whenUTC(s.received_at)}</b>${s.dunning_level?` <span class="pill warn">reminder ${s.dunning_level}</span>`:""}
      <div class="small">${esc(s.subject||"")}</div><div class="small muted">${s.reasons.map(esc).join(" · ")}</div>${s.reviewer?`<div class="small">decided by ${esc(s.reviewer)}${s.review_note?`: ${esc(s.review_note)}`:""}</div>`:""}</div>
     <a class="small" href="javascript:void 0" data-rvopen="${esc(s.intake_id)}">open ›</a></div>`).join(""),"the vendor sent nothing else for this invoice")}
-  ${sec("Notices sent to the FCO's mailbox",d.fco_messages.length,d.fco_messages.map(mail).join(""),"none sent: press ✉ Email FCO to send one")}
+  ${sec("Emails to the FCO <span class=\"small muted\" style=\"font-weight:400\">a separate record: notices to the FCO's own mailbox</span>",d.fco_messages.length,fcoHist)}
   ${sec("Manual call-backs",d.callbacks.length,d.callbacks.map(c=>`<div class="rv-row"><div style="flex:1;min-width:220px"><b>${whenUTC(c.at)}</b> <span class="muted">recorded by ${esc(c.by)}</span>
      <div class="small">Spoke to <b>${esc(c.pic_name)}</b> · ${esc(c.company)} · <span class="mono">${esc(c.phone)}</span></div><div class="small"><span class="muted">To correct:</span> ${esc(c.revision)}</div></div></div>`).join(""),"none recorded: press ☎ Manual call-back for the call sheet")}
   <div id="rvCall" hidden class="rv-card" style="margin-top:10px;border-left:4px solid var(--accent,#2f6fed)"><h4>Call sheet <span class="small muted" style="font-weight:400">everything for the call on one screen: nothing to look up</span></h4>
@@ -3845,6 +3859,7 @@ async function pdCorr(id){const el=$("#rvCorr");if(!el)return;let d;try{d=await 
    <div class="small muted" style="margin-top:8px">As the vendor confirms each point, correct the field under <b>Details</b> above (the flagged ones are outlined). Then save: the corrections are checked again and the call is written to the log with its date and time.</div>
    <div class="row" style="gap:8px;margin-top:10px;align-items:center"><button class="primary" id="cbSave">Save corrections and log the call</button><button id="cbCancel">Close</button></div></div>`;
  el.querySelectorAll("[data-rvopen]").forEach(a=>a.onclick=()=>pdOpen(a.dataset.rvopen));
+ el.querySelectorAll("[data-hist]").forEach(tr=>tr.onclick=()=>{const b=el.querySelector(`[data-histbody="${tr.dataset.hist}"]`);b.hidden=!b.hidden;tr.lastElementChild.textContent=b.hidden?"read ›":"close"});
  const goField=k=>{const i=$(`#pd-${k}`);if(i){i.scrollIntoView({behavior:"smooth",block:"center"});i.focus()}};
  (CS.to_correct||[]).forEach(f=>{const i=f.field&&$(`#pd-${f.field}`);if(i)i.style.outline="2px solid #d97706"});
  el.querySelectorAll("[data-cbgo]").forEach(a=>a.onclick=()=>goField(a.dataset.cbgo));

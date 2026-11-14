@@ -1302,6 +1302,8 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
             await _scheduled_policy_run(tick)
         with contextlib.suppress(Exception):
             await _anchor_large_payments()
+        with contextlib.suppress(Exception):  # no held request is left without its answer to the vendor on record
+            await _vendor_feedback_sweep()
         try:
             from . import priority_sop as _sop
 
@@ -2125,6 +2127,22 @@ async def _vendor_feedback(req, *, simulated: bool = False, rejected: bool = Fal
     _note("Invoices & intake", f"Answer to the vendor ({', '.join(to) or 'no address'}): invoice {req.invoice_no or '-'} "
                                f"{'rejected' if rejected else 'held'} · email {rec.get('status')}{' · ' + skip if skip else ''}")
     return rec
+
+
+async def _vendor_feedback_sweep(limit: int = 25) -> int:
+    """Every request held in Pending payment has its answer to the vendor on record: the ones that were already
+    waiting before the automatic answer existed (or whose answer could not be written when they arrived) get it now,
+    oldest first, a few each minute. Never twice: _vendor_feedback keeps one answer per request and outcome."""
+    org = app.state.org
+    done = {m.get("ref") for m in org.list("outbox") if m.get("kind") == "vendor_hold"}
+    held = [q for q in await asyncio.to_thread(app.state.intake.store.list, 2000)
+            if q.status in ("NEEDS_REVIEW", "QUARANTINED") and not q.payment and q.kind in PAYABLE_KINDS and q.intake_id not in done]
+    n = 0
+    for q in sorted(held, key=lambda q: q.received_at)[:limit]:
+        with contextlib.suppress(Exception):
+            if await _vendor_feedback(q) is not None:
+                n += 1
+    return n
 
 
 async def _fco_notice(req, *, simulated: bool = False, force: bool = False) -> dict | None:

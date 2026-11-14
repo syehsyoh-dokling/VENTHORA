@@ -71,6 +71,13 @@ def test_a_manual_call_back_is_kept_on_the_request_with_its_time(client):
     assert len(m) == 1 and m[0]["kind"] == "vendor_hold" and m[0]["status"] == "skipped" and "test address" in m[0]["error"]
     assert "CB-1" in m[0]["subject"] and "received your invoice CB-1" in m[0]["body"] and "purchase order" in m[0]["body"]
     assert d["feedback"]["state"] == "undelivered"
+    import asyncio
+
+    from venthora import api
+
+    asyncio.run(api._vendor_feedback_sweep())  # the sweep answers what has no answer yet, and never answers twice
+    again = client.get(f"/v1/intake/requests/{rid}/correspondence").json()["vendor_messages"]
+    assert len(again) == 1
     sheet = client.get(f"/v1/intake/requests/{rid}").json()["callback"]
     assert sheet["company"] == "Callback Supplier Pte Ltd" and {f["field"] for f in sheet["to_correct"]} >= {"po_number"}
     assert client.get(f"/v1/intake/requests/{rid}").json()["status"] == "NEEDS_REVIEW"  # a call-back record changes no status
