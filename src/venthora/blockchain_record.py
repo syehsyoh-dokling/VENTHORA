@@ -1,7 +1,7 @@
 # ruff: noqa: E501
-"""Platform Setup → Blockchain Record (powered by Metal, the payments blockchain of Alta · Nexus Networks, Inc.).
+"""Platform Setup → Blockchain Record (powered by Alta, alta.finance: a payments blockchain).
 
-What the Finance Director sees and chooses: why the company would keep a blockchain record, what it costs, Metal's
+What the Finance Director sees and chooses: why the company would keep a blockchain record, what it costs, Alta's
 products and which of them VENTHORA uses, whether the company wants it, and which documents go on the record (all,
 or only those from a value up). Each chosen document kind gets its own digest in the anchor, next to the activity
 categories (controls.METAL_KINDS), so it can be proven on its own. Only digests go on chain: never a document.
@@ -12,9 +12,9 @@ import hashlib
 import json
 
 KIND, ID = "blockchain_record", "settings"
-PROVIDER = {"name": "Metal", "company": "Alta (Nexus Networks, Inc.)", "docs": "https://docs.metalntwx.com", "network": "Metal Testnet (chain 63825)"}
+PROVIDER = {"name": "Alta", "company": "Alta (alta.finance)", "site": "https://alta.finance", "docs": "https://docs.metalntwx.com", "network": "Alta Testnet (chain 63825)"}
 
-# the cost model, from Metal's published rates (docs.metalntwx.com → Network → Credits): RPC is prepaid in USD, no
+# the cost model, from Alta's published rates (docs.metalntwx.com → Network → Credits): RPC is prepaid in USD, no
 # subscription and no invoice, USD 0.05 per 1,000 base requests; gas is paid in USDZ (18 decimals) at 1 base unit
 # per gas, so an anchor's ~23,000 gas is a negligible fraction of a cent.
 RPC_PER_1000_USD = 0.05
@@ -27,7 +27,7 @@ def cost_estimate(anchors_per_day: int = 24) -> dict:
     return {"anchors_per_day": anchors_per_day, "per_month_usd": round(per_month, 2), "per_year_usd": round(per_month * 12, 2),
             "subscription": None, "gas_per_anchor_usdz": GAS_PER_ANCHOR / 10**18,
             "note": "prepaid, no subscription and no invoice: about USD 0.05 per 1,000 requests; gas is a negligible fraction of a cent. "
-                    "On Metal Testnet today the tokens come from the faucet: free."}
+                    "On Alta Testnet today the tokens come from the faucet: free."}
 
 
 BENEFITS = {
@@ -43,17 +43,17 @@ BENEFITS = {
     "transactions": ["Each payment's decision (checks passed, approver, mandate) is anchored within about a second of finality",
                      "Duplicate or altered invoices are provable against the anchored original",
                      "Money still moves on Airwallex: the blockchain proves, it does not hold funds"],
-    "promotions": ["Metal Testnet is free: VENTHORA tops up its own test tokens from the faucet and buys its RPC access itself (x402)",
+    "promotions": ["Alta Testnet is free: VENTHORA tops up its own test tokens from the faucet and buys its RPC access itself (x402)",
                    "No subscription: pay per use only when moving to the production network"],
 }
 
-# Metal's products, what each does, what it costs, and whether VENTHORA uses it today
+# Alta's products, what each does, what it costs, and whether VENTHORA uses it today
 PRODUCTS = [
     {"key": "proof_of_record", "label": "Proof of record (anchoring)", "status": "active",
-     "what": "The fingerprints of VENTHORA's records (audit chain, contracts, chosen documents) written on Metal in one transaction, final in about a second, readable by anyone on the explorer.",
+     "what": "The fingerprints of VENTHORA's records (audit chain, contracts, chosen documents) written on Alta in one transaction, final in about a second, readable by anyone on the explorer.",
      "cost": "About 6 RPC requests and 23,000 gas per anchor: roughly USD 0.22 a month at one anchor an hour."},
     {"key": "agent_payments", "label": "Agent payments (x402)", "status": "active",
-     "what": "The agent pays for its own services in USDZ stablecoin, without a card: VENTHORA already buys its Metal RPC access this way, under on-chain spending limits.",
+     "what": "The agent pays for its own services in USDZ stablecoin, without a card: VENTHORA already buys its Alta RPC access this way, under on-chain spending limits.",
      "cost": "A USD 1 credit pack per purchase; the facilitator pays the gas."},
     {"key": "payment_controls", "label": "Programmable payment controls", "status": "planned",
      "what": "Rules checked by the network during a transfer (limits, allowed payees); a refused transfer reverts or is quarantined. VENTHORA's mandate could be mirrored here.",

@@ -48,7 +48,7 @@ def test_the_page_shows_cost_products_and_refuses_unknown_choices():
     v = br.view(org)
     assert v["cost"]["subscription"] is None and 0 < v["cost"]["per_month_usd"] < 1
     assert {p["status"] for p in v["products"]} == {"active", "planned"}
-    assert v["provider"]["name"] == "Metal"
+    assert v["provider"]["name"] == "Alta"
     for bad in ({"product": "nft_mint"}, {"documents": {"invoice_scan": {"on": True}}}, {"documents": {"pr": {"on": True, "min_minor": -1}}}):
         try:
             br.save(org, bad, "fd")

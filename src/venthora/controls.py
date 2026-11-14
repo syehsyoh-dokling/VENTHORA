@@ -3,7 +3,7 @@
 
   visa    which Visa features VENTHORA may use (each refused by the server while it is off)
   airi    whether staff may check out with Airi, and within what limits
-  metal   which kinds of record are anchored on Metal
+  metal   which kinds of record are anchored on Alta
 
 The technical setup of the same services (keys, credentials, endpoints) is in the Developer Console; these are the
 company's choices. The FCO changes them; a Developer only reads them.
@@ -40,7 +40,7 @@ LABELS = {
               "bank_checks": "Bank checks and payee changes", "procurement": "Procurement (requests, RFQs, awards)",
               "settings_changes": "Settings changes (keys, connections, policies)"},
 }
-# the audit event kinds behind each Metal category (prefixes)
+# the audit event kinds behind each Alta category (prefixes)
 METAL_KINDS = {
     "payments": ("execution", "autonomous_execution", "agent_plan_executed", "payment_order", "paid_on_arrival", "intake_paid_from_pending",
                  "wallet_payout_", "cash_placement_sent", "card_account_"),
@@ -144,7 +144,7 @@ def visa_refusal(org, path: str) -> str | None:
 
 
 def metal_heads(org, audit, base: dict) -> dict:
-    """The heads Metal anchors, as the FCO chose them: the whole audit chain and the contract chains when selected,
+    """The heads Alta anchors, as the FCO chose them: the whole audit chain and the contract chains when selected,
     and one digest per selected category over its events' hashes (so a category can be proven on its own)."""
     sel = get(org, "metal")
     out = {"categories": {}}

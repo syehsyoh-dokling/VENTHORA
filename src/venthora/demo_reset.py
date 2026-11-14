@@ -44,7 +44,7 @@ CATEGORIES: list[dict] = [
                  ("org.db", "records", "kind", ["bank_check"]), ("master.db", "records", None, None), ("master.db", "runs", None, None)]},
     {"id": "cards", "label": "Cards", "covers": "Virtual cards and card authorization decisions",
      "targets": [("org.db", "records", "kind", ["card", "card_auth"])]},
-    {"id": "policies", "label": "Policies & controls", "covers": "Delegation of Authority, Payment Priority Policy, finance standards, document rules, budget policy, Visa/Airi/Metal switches, prices",
+    {"id": "policies", "label": "Policies & controls", "covers": "Delegation of Authority, Payment Priority Policy, finance standards, document rules, budget policy, Visa/Airi/Alta switches, prices",
      "targets": [("org.db", "records", "kind", ["standing_mandate", "priority_sop", "standards", "doc_rules", "budget_policy", "controls",
                                                 "policy_slot", "placement_provider", "price"])]},
     {"id": "activity", "label": "Activity logs", "covers": "Decision log, test log, call-backs, notices to the FCO, approve links, outbox, simulator runs",

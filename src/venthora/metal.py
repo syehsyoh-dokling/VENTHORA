@@ -1,19 +1,19 @@
 # ruff: noqa: E501
-"""Platform Setup -> Metal: VENTHORA's proof of record anchored on Metal Testnet (docs.metalntwx.com, EVM, chain 63825).
+"""Platform Setup -> Alta: VENTHORA's proof of record anchored on Alta Testnet (docs.metalntwx.com, EVM, chain 63825).
 
 VENTHORA keeps two kinds of hash chain: the audit log (every decision and execution) and one chain per contract
-(Reporting -> Contract blockchain). Anchoring writes their latest hashes on Metal in one transaction: the digest of
+(Reporting -> Contract blockchain). Anchoring writes their latest hashes on Alta in one transaction: the digest of
 {audit head, every contract head} goes in the transaction's data, from VENTHORA's own testnet address to itself, value 0
-(Metal refuses any native value). Anyone can read the transaction on the explorer and recompute the digest from
+(Alta refuses any native value). Anyone can read the transaction on the explorer and recompute the digest from
 VENTHORA's records: a past decision, invoice or payment changed after the anchor no longer matches what is on chain.
 
-Everything is done by the agent itself, with test tokens only (verified on Metal Testnet, 6 Nov 2026):
+Everything is done by the agent itself, with test tokens only (verified on Alta Testnet, 6 Nov 2026):
   1. the testnet key: created here, kept in the write-only secrets store; only the address is public;
-  2. gas: Metal pays gas in a stablecoin (USDZ, a MIP20 token), not a native coin; the faucet's API tops the address
+  2. gas: Alta pays gas in a stablecoin (USDZ, a MIP20 token), not a native coin; the faucet's API tops the address
      up to 100 USDZ (no captcha, no sign-in);
   3. the RPC: every request needs an endpoint. VENTHORA buys its own over x402 (the bare RPC answers 402; VENTHORA
      signs an EIP-3009 transfer of 1 USDZ and gets an endpoint URL owned by its address), or an admin pastes one made
-     in the Metal console. The URL is a credential: kept in the secrets store, shown masked;
+     in the Alta console. The URL is a credential: kept in the secrets store, shown masked;
   4. the anchor: an EIP-1559 transaction, about 23,000 gas at a gas price of 1 base unit, final in about a second.
 Money still moves on Airwallex.
 """
@@ -30,7 +30,7 @@ import httpx
 
 from . import secret_values
 
-NETWORK = "Metal Testnet"
+NETWORK = "Alta Testnet"
 RPC_BASE = "https://rpc-testnet.metalntwx.com/v1"
 CHAIN_ID = 63825
 EXPLORER = "https://testnet.metalntwx.com"
@@ -38,7 +38,7 @@ FAUCET = "https://faucet.metalntwx.com"
 GAS_TOKEN = {"symbol": "USDZ", "address": "0x000000000000000000000000000000000000B5d5", "decimals": 18}
 PRIVATE, ADDRESS, ENDPOINT = "metal.private_key", "metal.address", "metal.rpc_endpoint"
 TAG = b"VENTHORA-ANCHOR-1:"
-LEGACY_CHAIN_IDS = {381932}  # Metal Blockchain's "Tahoe": a different project, used by mistake before 6 Nov 2026
+LEGACY_CHAIN_IDS = {381932}  # Alta Blockchain's "Tahoe": a different project, used by mistake before 6 Nov 2026
 
 
 class MetalError(RuntimeError):
@@ -62,11 +62,11 @@ def settings(org) -> dict:
 
 
 def save_settings(org, body: dict, by: str) -> dict:
-    """An admin pastes an endpoint made in the Metal console (console-testnet.metalntwx.com → Endpoints)."""
+    """An admin pastes an endpoint made in the Alta console (console-testnet.metalntwx.com → Endpoints)."""
     url = str(body.get("rpc") or "").strip()
     if url:
         if not url.startswith(RPC_BASE + "/") or len(url) <= len(RPC_BASE) + 8:
-            raise ValueError(f"paste the endpoint URL from the Metal console: {RPC_BASE}/<endpoint id>")
+            raise ValueError(f"paste the endpoint URL from the Alta console: {RPC_BASE}/<endpoint id>")
         secret_values.put(ENDPOINT, url, by)
     org._put("metal", {"_id": "settings", "chain_id": CHAIN_ID, "explorer": EXPLORER, "updated_by": by}, by)
     return settings(org)
@@ -110,7 +110,7 @@ def _spent_today(org) -> float:
 
 async def _topup(org, url: str, body: dict, refused: httpx.Response, client) -> httpx.Response:
     """The endpoint answered 402 (no credit, or it lapsed): pay its x402 offer with VENTHORA's key and send the same
-    request again. Within MAX_TOPUP_PER_DAY; every top-up is recorded (Platform Setup -> Metal)."""
+    request again. Within MAX_TOPUP_PER_DAY; every top-up is recorded (Platform Setup -> Alta)."""
     key, addr = secret_values.get(PRIVATE), address()
     if not key or not addr or not refused.headers.get("payment-required"):
         raise MetalError("the RPC endpoint has no credit left, and VENTHORA cannot pay for more (no key or no x402 offer)")
@@ -119,7 +119,7 @@ async def _topup(org, url: str, body: dict, refused: httpx.Response, client) -> 
     price = int(req["amount"]) / 10 ** GAS_TOKEN["decimals"]
     if _spent_today(org) + price > MAX_TOPUP_PER_DAY:
         raise MetalError(f"the RPC endpoint needs more credit, but VENTHORA already paid {_spent_today(org):g} USDZ today "
-                         f"(its limit is {MAX_TOPUP_PER_DAY} a day): a person buys more on Platform Setup -> Metal")
+                         f"(its limit is {MAX_TOPUP_PER_DAY} a day): a person buys more on Platform Setup -> Alta")
     res = await _post(url, client, json=body, headers={"PAYMENT-SIGNATURE": header})
     if res.status_code == 402:
         raise MetalError(f"the x402 top-up was not accepted: {res.headers.get('payment-response') or res.text[:200]}")
@@ -137,7 +137,7 @@ async def rpc(url: str | None, method: str, params: list, client: httpx.AsyncCli
     """One JSON-RPC call. With `org`, an endpoint that runs out of credit is topped up over x402 on the spot (within
     the daily limit) and the call is sent again, so an anchor never fails for want of RPC credit."""
     if not url:
-        raise MetalError("no RPC endpoint yet: let VENTHORA buy one over x402 (1 USDZ), or paste one from the Metal console")
+        raise MetalError("no RPC endpoint yet: let VENTHORA buy one over x402 (1 USDZ), or paste one from the Alta console")
     body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
     res = await _post(url, client, json=body)
     if res.status_code == 402 and org is not None:
@@ -230,7 +230,7 @@ async def status(org, client: httpx.AsyncClient | None = None) -> dict:
     out = {"settings": st, "address": addr, "faucet": FAUCET, "key": secret_values.info(PRIVATE), "network": None, "balance_wei": None,
            "balance": None, "error": None}
     if not endpoint():
-        out["error"] = "no RPC endpoint yet: buy one over x402 (1 USDZ) or paste one from the Metal console"
+        out["error"] = "no RPC endpoint yet: buy one over x402 (1 USDZ) or paste one from the Alta console"
         return out
     try:
         url = endpoint()
@@ -238,7 +238,7 @@ async def status(org, client: httpx.AsyncClient | None = None) -> dict:
         block = int(await rpc(url, "eth_blockNumber", [], client, org), 16)
         out["network"] = {"chain_id": cid, "block": block, "matches": cid == CHAIN_ID, "name": NETWORK}
         if addr:
-            out["balance_wei"] = int(await rpc(url, "eth_getBalance", [addr, "latest"], client, org), 16)  # Metal answers in the gas token (USDZ)
+            out["balance_wei"] = int(await rpc(url, "eth_getBalance", [addr, "latest"], client, org), 16)  # Alta answers in the gas token (USDZ)
             out["balance"] = out["balance_wei"] / 10 ** GAS_TOKEN["decimals"]
     except MetalError as exc:
         out["error"] = str(exc)
@@ -261,7 +261,7 @@ async def anchor(org, heads: dict, by: str, client: httpx.AsyncClient | None = N
     nonce = int(await rpc(url, "eth_getTransactionCount", [addr, "pending"], client, org), 16)
     price = max(int(await rpc(url, "eth_gasPrice", [], client, org), 16), 1)
     gas = int(int(await rpc(url, "eth_estimateGas", [{"from": addr, "to": addr, "value": "0x0", "data": data}], client, org), 16) * 1.2) + 1000
-    fee = price * 2  # Metal: effective price = min(maxFee, maxPriority); the base fee is zero
+    fee = price * 2  # Alta: effective price = min(maxFee, maxPriority); the base fee is zero
     bal = int(await rpc(url, "eth_getBalance", [addr, "latest"], client, org), 16)
     if bal < gas * fee:
         raise MetalError("the testnet address has no USDZ for gas: fund it from the faucet first")
@@ -277,5 +277,5 @@ async def anchor(org, heads: dict, by: str, client: httpx.AsyncClient | None = N
 
 
 def anchors(org) -> list[dict]:
-    """Anchors on Metal Testnet (ones sent to the old, wrong network are left out)."""
+    """Anchors on Alta Testnet (ones sent to the old, wrong network are left out)."""
     return sorted((a for a in org.list("metal_anchor") if a.get("chain_id") not in LEGACY_CHAIN_IDS), key=lambda r: r.get("at", ""), reverse=True)

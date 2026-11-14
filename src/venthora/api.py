@@ -1105,7 +1105,7 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
 
 async def _anchor_large_payments(limit: int = 5) -> list[dict]:
     """Every payment made of the FCO's anchoring amount or more (FCO Authorize -> Delegation of Authority) gets its own
-    proof on Metal: the payment's facts and the audit head at that moment, in one transaction. A payment that could
+    proof on Alta: the payment's facts and the audit head at that moment, in one transaction. A payment that could
     not be anchored (no testnet key, no gas) is tried again after 30 minutes."""
     from . import mandate, metal
 
@@ -1128,10 +1128,10 @@ async def _anchor_large_payments(limit: int = 5) -> list[dict]:
             a = await metal.anchor(org, {"payment": pay, "audit_head": head}, "VENTHORA (anchoring rule)")
             rec |= {"status": "anchored", "tx_hash": a["tx_hash"], "digest": a["digest"], "explorer": a.get("explorer")}
             _note("Reports", f"Payment {r['obligation_id']} ({r['currency']} {r['amount_minor'] / 100:,.2f}, USD {r['base_cost_minor'] / 100:,.2f}) "
-                             f"anchored on Metal testnet: tx {a['tx_hash'][:18]}…, at or above the FCO's USD {th / 100:,.2f}")
+                             f"anchored on Alta testnet: tx {a['tx_hash'][:18]}…, at or above the FCO's USD {th / 100:,.2f}")
         except Exception as exc:  # noqa: BLE001 - the payment is made; its proof waits for the next try
             rec |= {"status": "failed", "error": str(exc)[:300]}
-            _note("Reports", f"Payment {r['obligation_id']} not anchored yet on Metal: {str(exc)[:200]}")
+            _note("Reports", f"Payment {r['obligation_id']} not anchored yet on Alta: {str(exc)[:200]}")
         await asyncio.to_thread(org._put, "metal_payment", rec, "VENTHORA (anchoring rule)")
         await asyncio.to_thread(app.state.audit.append, "metal_payment_anchor", {k: rec.get(k) for k in ("_id", "status", "tx_hash", "error")})
         out.append(rec)
@@ -4745,7 +4745,7 @@ async def procurement_award(pr_number: str, body: ProcAwardIn, role: str = "fina
 
 async def _register_contract(po_id: str, who: str) -> dict:
     """A new PO goes on the contract blockchain at once: its block 0 (what was agreed) is hashed and sealed, the seal
-    is written to the audit log, and the heads are anchored on Metal when Metal is set up (Developer Console)."""
+    is written to the audit log, and the heads are anchored on Alta when Alta is set up (Developer Console)."""
     from . import metal
 
     rep = await reports_contract_chain()
@@ -4759,7 +4759,7 @@ async def _register_contract(po_id: str, who: str) -> dict:
         await asyncio.to_thread(app.state.audit.append, "metal_anchor", {"tx_hash": rec.get("tx_hash"), "digest": rec.get("digest"), "by": who, "for": po_id})
     except metal.MetalError as exc:
         out["anchored"] = None
-        out["anchor_note"] = f"not anchored on Metal: {str(exc)[:160]}"
+        out["anchor_note"] = f"not anchored on Alta: {str(exc)[:160]}"
     return out
 
 
@@ -5288,7 +5288,7 @@ async def cash_placement_agreement(pid: str, role: str = "finance_manager", by: 
 
 @app.post("/v1/cash-placement/instructions/{pid}/agreement/accept")
 async def cash_placement_agreement_accept(pid: str, role: str = "super_admin", by: str = "dashboard"):
-    """The FCO accepts the agreement as written; its SHA-256 goes into the audit chain (and Metal, with placements)."""
+    """The FCO accepts the agreement as written; its SHA-256 goes into the audit chain (and Alta, with placements)."""
     from . import placement_providers
 
     who = _writer(role, by)
@@ -5441,7 +5441,7 @@ async def placement_providers_save(body: ProviderIn, role: str = "super_admin", 
 
 
 def _anchor_heads() -> dict:
-    """What Metal anchors: the categories the FCO chose (Platform Setup → Blockchain Record)."""
+    """What Alta anchors: the categories the FCO chose (Platform Setup → Blockchain Record)."""
     from . import controls
 
     org = app.state.org
@@ -5459,7 +5459,7 @@ def _anchor_heads() -> dict:
 
 @app.get("/v1/blockchain-record")
 async def blockchain_record_get():
-    """Platform Setup → Blockchain Record: why, what it costs, Metal's products, and what goes on the record."""
+    """Platform Setup → Blockchain Record: why, what it costs, Alta's products, and what goes on the record."""
     from . import blockchain_record
 
     return await asyncio.to_thread(blockchain_record.view, app.state.org, app.state.executor.store.list_payees())
@@ -5478,7 +5478,7 @@ async def blockchain_record_put(body: Annotated[dict, Body()], role: str = "supe
     return await asyncio.to_thread(blockchain_record.view, app.state.org, app.state.executor.store.list_payees())
 
 
-# ---- Platform Setup → Optional: the FCO's switches for Visa, Airi and Metal (controls.py) ----
+# ---- Platform Setup → Optional: the FCO's switches for Visa, Airi and Alta (controls.py) ----
 @app.middleware("http")
 async def visa_switches(request: Request, call_next):
     """A Visa feature the FCO switched off is refused here, whoever calls it."""
@@ -5493,7 +5493,7 @@ async def visa_switches(request: Request, call_next):
 
 @app.get("/v1/controls/{group}")
 async def controls_get(group: str = PathParam(pattern="^(visa|airi|metal)$")):
-    """The FCO's current choices for Visa, Airi or Metal, with their defaults and labels."""
+    """The FCO's current choices for Visa, Airi or Alta, with their defaults and labels."""
     from . import controls
 
     return await asyncio.to_thread(controls.view, app.state.org, group)
@@ -5873,7 +5873,7 @@ async def mcp_docs_ask(body: DocsQuestion, role: str = "finance_manager", by: st
 
 @app.get("/v1/metal")
 async def metal_view():
-    """Platform Setup -> Metal: the testnet, VENTHORA's address and its balance (the key is never shown), the heads
+    """Platform Setup -> Alta: the testnet, VENTHORA's address and its balance (the key is never shown), the heads
     an anchor would write now, and every anchor sent with its explorer link."""
     from . import metal
 
@@ -5906,7 +5906,7 @@ async def metal_key(role: str = "super_admin", by: str = "dashboard"):
 
 @app.post("/v1/metal/fund")
 async def metal_fund(role: str = "super_admin", by: str = "dashboard"):
-    """Top VENTHORA's testnet address up to 100 test USDZ (Metal's gas token) from the faucet."""
+    """Top VENTHORA's testnet address up to 100 test USDZ (Alta's gas token) from the faucet."""
     from . import metal
 
     who = _setup_writer(role, by)
@@ -5920,7 +5920,7 @@ async def metal_fund(role: str = "super_admin", by: str = "dashboard"):
 
 @app.post("/v1/metal/endpoint")
 async def metal_endpoint(role: str = "super_admin", by: str = "dashboard"):
-    """VENTHORA buys its own Metal RPC endpoint over x402 (1 test USDZ, signed with its key); the URL is kept as a secret."""
+    """VENTHORA buys its own Alta RPC endpoint over x402 (1 test USDZ, signed with its key); the URL is kept as a secret."""
     from . import metal
 
     who = _setup_writer(role, by)
@@ -5934,7 +5934,7 @@ async def metal_endpoint(role: str = "super_admin", by: str = "dashboard"):
 
 @app.post("/v1/metal/anchor")
 async def metal_anchor(role: str = "finance_manager", by: str = "dashboard"):
-    """Write the digest of the audit head and every contract head on Metal, in one transaction."""
+    """Write the digest of the audit head and every contract head on Alta, in one transaction."""
     from . import metal
 
     who = _writer(role, by)

@@ -50,7 +50,7 @@
     ]},
     {"id": "sponsors", "title": "Sponsor technology", "items": [
       {"ref": "C1", "item": "Claude as the model", "status": "done", "screen": "#/ai", "probe": "/v1/settings/ai", "proof": "Claude Opus 5.5 reads, plans, explains, searches vendors and checks quotations"},
-      {"ref": "M1", "item": "Metal: anchor the audit head and every contract head on testnet", "status": "done", "screen": "#/metal", "probe": "/v1/metal", "proof": "Metal Testnet (chain 63825): VENTHORA bought its own RPC endpoint over x402 (1 USDZ, EIP-3009), funded gas from the faucet API and anchored 10 contracts + 212 audit events in one transaction (status 1, 23,000 gas, final in about a second)"},
+      {"ref": "M1", "item": "Alta: anchor the audit head and every contract head on testnet", "status": "done", "screen": "#/metal", "probe": "/v1/metal", "proof": "Alta Testnet (chain 63825): VENTHORA bought its own RPC endpoint over x402 (1 USDZ, EIP-3009), funded gas from the faucet API and anchored 10 contracts + 212 audit events in one transaction (status 1, 23,000 gas, final in about a second)"},
       {"ref": "A1", "item": "AWS Bedrock as a model provider", "status": "blocked", "screen": "#/ai", "proof": "Bedrock Converse provider built", "waiting": "an AWS account"},
       {"ref": "X1", "item": "Airwallex MCP servers", "status": "partial", "screen": "#/mcp", "probe": "/v1/mcp", "proof": "docs server connected; the developer server needs OAuth (REST is allowed by the guide)"},
       {"ref": "K9", "item": "Kit 09 shopping agent (Airi CLI)", "status": "blocked", "screen": "#/proc-sourcing", "proof": "the procurement agent uses the same idea (approval bound to vendor, items and total) without real orders", "waiting": "Airi CLI allowlist"},

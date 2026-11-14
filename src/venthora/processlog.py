@@ -22,7 +22,7 @@ PAGES = [("/v1/settings/ai", "Agent (AI & Model)"), ("/v1/settings/email", "Emai
          ("/v1/budget", "Period, cut-off & sync"), ("/v1/reporting/config", "Period, cut-off & sync"), ("/v1/doc-rules", "Document validation"),
          ("/v1/org/prices", "Unit prices"), ("/v1/org/users", "People & roles"), ("/v1/org/units", "Branches & units"), ("/v1/org", "Organisation"),
          ("/v1/payees", "Payee lifecycle"), ("/v1/beneficiaries", "Vendors"), ("/v1/intake", "Intake"), ("/v1/agent-plan", "Agent plan"),
-         ("/api/sandbox/deposits", "Sandbox deposit"), ("/v1/t0", "Books & ledger · T:0"), ("/v1/metal", "Metal (blockchain)"), ("/v1/cards", "Cards"),
+         ("/api/sandbox/deposits", "Sandbox deposit"), ("/v1/t0", "Books & ledger · T:0"), ("/v1/metal", "Alta (blockchain)"), ("/v1/cards", "Cards"),
          ("/v1/visa", "Visa"), ("/v1/treasury", "Treasury"), ("/v1/demo/simulate", "Agent plan · simulation"), ("/v1/demo", "Demo"), ("/v1/auth", "Sign-in"), ("/login", "Sign-in"), ("/webhooks/airwallex", "Airwallex webhook"), ("/approve/", "FCO email approval"), ("/v1/fco-notify", "Notices to the FCO")]
 
 
@@ -146,7 +146,7 @@ def describe(method: str, path: str, req: dict, resp: dict, status: int) -> str:
         line = (f"Invoice simulation {r.get('run')} started: {r.get('count')} supplier emails from {', '.join(r.get('vendors') or [])}; "
                 f"re-plan every {r.get('batch')} emails; the first {p.get('ai_sample', 2)} read by the AI model") if status < 300 else "Invoice simulation not started"
     elif path == "/v1/metal/anchor-payments":
-        line = f"Payments anchored on Metal now: {len(r.get('anchored') or [])} anchored, {len(r.get('failed') or [])} not yet (from USD {(r.get('threshold_minor') or 0) / 100:,.2f})"
+        line = f"Payments anchored on Alta now: {len(r.get('anchored') or [])} anchored, {len(r.get('failed') or [])} not yet (from USD {(r.get('threshold_minor') or 0) / 100:,.2f})"
     elif path == "/v1/priority-sop" and method == "PUT":
         pol = p.get("policy") or {}
         times = pol.get("run_times") or []
@@ -158,7 +158,7 @@ def describe(method: str, path: str, req: dict, resp: dict, status: int) -> str:
     elif path == "/v1/mandate" and method == "PUT":
         bk = p.get("book") or {}
         first = "; ".join(f"{lab}: {'USD ' + format(bk[k] / 100, ',.2f') if bk[k] else 'off'}" for k, lab in
-                          (("card_max_minor", "virtual card up to"), ("anchor_from_minor", "anchor each payment on Metal from")) if k in bk)
+                          (("card_max_minor", "virtual card up to"), ("anchor_from_minor", "anchor each payment on Alta from")) if k in bk)
         vals = p.get("values") or {}
         line = "Delegation of Authority saved: " + "; ".join(x for x in (
             f"agent pays alone up to USD {vals['pay_single'] / 100:,.2f} a payment" if isinstance(vals.get("pay_single"), int) else "", first,

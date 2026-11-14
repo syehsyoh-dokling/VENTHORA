@@ -144,8 +144,8 @@ BOOK_LIMITS: dict[str, tuple[str, str, str, int, int, str]] = {
     "zero_limit_below_bp": ("No conversions on the agent's own authority when confidence is below", "pct", "liquidity", 0, 9_999, "the limit falls to zero"),
     "card_max_minor": ("Pay by virtual card (Visa) up to", "usd", "authority", 0, 10**13,
                        "a cash advance, petty cash or ODC card is issued only up to this amount; above it the payment goes by bank transfer; 0 = no cards"),
-    "anchor_from_minor": ("Anchor each payment on the blockchain (Metal) from", "usd", "authority", 0, 10**13,
-                          "every payment made of this amount or more gets its own proof on Metal testnet within a minute; 0 = by category only"),
+    "anchor_from_minor": ("Anchor each payment on the blockchain (Alta) from", "usd", "authority", 0, 10**13,
+                          "every payment made of this amount or more gets its own proof on Alta testnet within a minute; 0 = by category only"),
 }
 
 
