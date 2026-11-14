@@ -171,7 +171,12 @@ def _month_spent(org, card_id: str) -> int:
                if d.get("card_id") == card_id and d.get("decision") == "AUTHORIZED" and str(d.get("at", "")).startswith(month))
 
 
-LEGAL_SUFFIXES = {"PTE", "LTD", "LIMITED", "LLC", "INC", "CORP", "CO", "COMPANY", "PLC", "GMBH", "AG", "SA", "BV", "SDN", "BHD", "PT", "TBK", "CV"}
+def _spent_since(org, card_id: str, since: str) -> int:
+    return sum(d["amount_minor"] for d in org.list("card_auth")
+               if d.get("card_id") == card_id and d.get("decision") == "AUTHORIZED" and str(d.get("at", "")) >= since[:19])
+
+
+LEGAL_SUFFIXES ={"PTE", "LTD", "LIMITED", "LLC", "INC", "CORP", "CO", "COMPANY", "PLC", "GMBH", "AG", "SA", "BV", "SDN", "BHD", "PT", "TBK", "CV"}
 MIN_TRUNCATED = 12  # a cut-off descriptor is trusted only when this long (card networks cut names at about 22-25 characters)
 
 
@@ -209,6 +214,18 @@ def decide(org, req: dict) -> tuple[str, str]:
         if billed is None:
             return "DECLINED", f"charge in {ccy} with no amount in the card currency {card['currency']}"
         amount = to_minor(billed.get("amount"))
+    if card.get("kind") == "staff":  # a person's staff card: only an approved advance, inside its window and the program's merchants
+        from . import card_program
+
+        prog = card_program.get(org)
+        st = card_program.state(card, lambda since: _spent_since(org, card["_id"], since))
+        if not st["advances"]:
+            return "DECLINED", "no approved advance is open on this staff card"
+        if amount > st["remaining_minor"]:
+            return "DECLINED", f"above what the approved advance still holds ({card['currency']} {major(st['remaining_minor'])})"
+        ok, why = card_program.merchant_ok(prog, (req.get("merchant") or {}).get("name") or "", str((req.get("merchant") or {}).get("category_code") or ""), merchant_matches)
+        if not ok:
+            return "DECLINED", why
     if amount > card["per_tx_minor"]:
         return "DECLINED", f"above the card's per-transaction limit of {card['currency']} {major(card['per_tx_minor'])}"
     ceiling = mandate_ceiling(org)
@@ -216,14 +233,14 @@ def decide(org, req: dict) -> tuple[str, str]:
         return "DECLINED", "the mandate revokes payouts on the agent's own"
     if card["currency"] == "USD" and amount > ceiling:
         return "DECLINED", f"above the mandate's single payout limit of USD {major(ceiling)}"
-    if _month_spent(org, card["_id"]) + amount > card["monthly_minor"]:
+    if card.get("kind") != "staff" and _month_spent(org, card["_id"]) + amount > card["monthly_minor"]:
         return "DECLINED", f"above the card's monthly limit of {card['currency']} {major(card['monthly_minor'])}"
     merchant = (req.get("merchant") or {}).get("name") or ""
     if card.get("merchant") and not merchant_matches(card["merchant"], merchant):
         return "DECLINED", f"merchant '{(req.get('merchant') or {}).get('name') or '-'}' is not the card's vendor ({card['merchant']})"
     if card.get("mcc") and str((req.get("merchant") or {}).get("category_code") or "") not in card["mcc"]:
         return "DECLINED", "merchant category not allowed on this card"
-    return "AUTHORIZED", f"inside the mandate: {card['payee']}, {card['currency']} {major(amount)}"
+    return "AUTHORIZED", f"inside the mandate: {card.get('label') or card['payee']}, {card['currency']} {major(amount)}"
 
 
 def record_decision(org, req: dict, decision: str, reason: str, *, source: str) -> dict:

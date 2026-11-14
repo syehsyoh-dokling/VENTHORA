@@ -13,6 +13,7 @@ os.environ["VENTHORA_BUDGET_SCHEDULER"] = "0"  # the daily / monthly budget sync
 os.environ["VENTHORA_SYNC_SCHEDULER"] = "0"  # nor does the connector sync
 os.environ["VENTHORA_OUTBOX_WORKER"] = "0"  # nor does the outbox worker (tests call outbox.flush directly)
 os.environ["VENTHORA_T0_AUTOPOST"] = "0"  # nor does the T:0 books worker
+os.environ["VENTHORA_CARD_WINDOWS"] = "0"  # nor does the staff-card window worker
 
 SCENARIOS = Path(__file__).resolve().parents[1] / "data" / "scenarios"
 ISOLATED_ENV = ["AIRWALLEX_CLIENT_ID", "AIRWALLEX_API_KEY", "AIRWALLEX_BASE_URL", "AIRWALLEX_GLOBAL_ACCOUNT_ID",

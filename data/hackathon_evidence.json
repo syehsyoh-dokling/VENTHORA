@@ -40,7 +40,7 @@
     ]},
     {"id": "kit02", "title": "Kit 02 cards and the Visa award", "items": [
       {"ref": "K2-1", "item": "Issue virtual cards with limits inside the mandate", "status": "blocked", "screen": "#/cards", "probe": "/v1/cards", "proof": "built; Airwallex has not enabled the card program for the sandbox account", "waiting": "Airwallex card program"},
-      {"ref": "K2-2", "item": "Remote authorization: VENTHORA answers every charge", "status": "blocked", "screen": "#/card-auth", "probe": "/v1/card-authorization", "proof": "signed answers within 2.5 s, tested locally", "waiting": "Airwallex remote auth"},
+      {"ref": "K2-2", "item": "Remote authorization: VENTHORA answers every charge", "status": "blocked", "screen": "#/cards", "probe": "/v1/card-authorization", "proof": "signed answers within 2.5 s, tested locally", "waiting": "Airwallex remote auth"},
       {"ref": "K2-3", "item": "Freeze a card (agent revokes its own authority)", "status": "done", "screen": "#/cards", "proof": "POST issuing/cards/{id}/update card_status INACTIVE; still frozen in VENTHORA if Airwallex is unreachable"},
       {"ref": "K2-4", "item": "Read card limits and remaining", "status": "done", "screen": "#/cards", "proof": "GET issuing/cards/{id}/limits compared with the mandate; drift goes to the audit chain"},
       {"ref": "K2-5", "item": "Card spend report", "status": "done", "screen": "#/rep-card", "probe": "/v1/reports/virtual-cards", "proof": "every decision joined with Airwallex's authorization and clearing"},

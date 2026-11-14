@@ -17,11 +17,18 @@ KIND = "controls"
 DEFAULTS = {
     "visa": {"vic_purchase_instructions": True, "visa_fx_rate": True, "agent_signed_requests": True, "supplier_match": True},
     "airi": {"enabled": False, "staff_wallets_only": True, "currency": "USD", "max_per_checkout_minor": 50_000, "monthly_cap_minor": 200_000,
-             "fco_approval_above_minor": 20_000, "blocked_categories": ["gambling", "cash", "crypto"]},
+             "fco_approval_above_minor": 20_000, "blocked_categories": ["gambling", "cash", "crypto"],
+             "require_approved_pr": True, "price_within_pr": True, "require_vendor_invoice": True, "require_verified_vendor": True,
+             "same_vendor_as_pr": True},
     "metal": {"audit_chain": True, "contract_chains": True, "payments": True, "approvals": True, "cards": True, "placements": True,
               "bank_checks": False, "procurement": False, "settings_changes": False},
 }
 LABELS = {
+    "airi": {"require_approved_pr": "Airi pays only against an approved purchase request (PR number valid)",
+             "price_within_pr": "The checkout total may not exceed the PR's approved estimate",
+             "require_vendor_invoice": "A vendor invoice (or order confirmation) must be attached to the checkout",
+             "require_verified_vendor": "The vendor must be a verified payee (its bank details checked; none waiting for a call-back)",
+             "same_vendor_as_pr": "The vendor must be the PR's supplier, when the PR names one"},
     "visa": {"vic_purchase_instructions": "Visa Intelligent Commerce: turn a card mandate into Visa's purchase instruction",
              "visa_fx_rate": "Visa's daily FX rate in reports and checks",
              "agent_signed_requests": "Agent identity (TAP): the agent signs its requests to merchants",
@@ -89,6 +96,44 @@ def view(org, group: str) -> dict:
     rec = org.get(KIND, group) or {}
     return {"values": get(org, group), "defaults": DEFAULTS[group], "labels": LABELS.get(group, {}),
             "updated_by": rec.get("updated_by"), "updated_at": rec.get("updated_at")}
+
+
+def airi_check(org, co: dict, payee_status) -> dict:
+    """Whether VENTHORA approves one Airi checkout: the FCO's Airi rules, each with its reason. co: pr_number,
+    amount_minor, currency, vendor (payee id or name), invoice (a reference or file name), category. payee_status(id)
+    -> the payee's lifecycle status or None. Answers allowed, held for the FCO, or refused."""
+    r = get(org, "airi")
+    refused, notes = [], []
+    if not r["enabled"]:
+        return {"decision": "REFUSED", "reasons": ["Airi checkouts are switched off (Platform Setup → Airi usage)"]}
+    amount, ccy = int(co.get("amount_minor") or 0), str(co.get("currency") or r["currency"]).upper()
+    pr = org.get("pr", str(co.get("pr_number") or "")) if co.get("pr_number") else None
+    if r["require_approved_pr"]:
+        if pr is None:
+            refused.append("no valid PR number")
+        elif pr.get("status") not in ("APPROVED", "ORDERED"):
+            refused.append(f"PR {pr['pr_number']} is {str(pr.get('status')).lower()}, not approved")
+    if pr is not None and r["price_within_pr"] and pr.get("currency", "USD") == ccy and amount > int(pr.get("estimated_minor") or 0):
+        refused.append(f"{ccy} {amount / 100:,.2f} is above PR {pr['pr_number']}'s approved {ccy} {int(pr['estimated_minor']) / 100:,.2f}")
+    if r["require_vendor_invoice"] and not str(co.get("invoice") or "").strip():
+        refused.append("no vendor invoice attached")
+    vendor = str(co.get("vendor") or "").strip()
+    if r["same_vendor_as_pr"] and pr is not None and pr.get("supplier_id") and vendor and vendor != pr["supplier_id"]:
+        refused.append(f"the vendor is not PR {pr['pr_number']}'s supplier ({pr['supplier_id']})")
+    if r["require_verified_vendor"]:
+        st = payee_status(vendor) if vendor else None
+        if st not in ("VERIFIED", "ACTIVE"):
+            refused.append(f"the vendor is not a verified payee ({str(st or 'unknown').lower()})")
+    if str(co.get("category") or "").strip().lower() in r["blocked_categories"]:
+        refused.append(f"blocked merchant category {co['category']}")
+    if ccy == r["currency"] and amount > r["max_per_checkout_minor"]:
+        refused.append(f"above the limit per checkout ({ccy} {r['max_per_checkout_minor'] / 100:,.2f})")
+    if refused:
+        return {"decision": "REFUSED", "reasons": refused}
+    if ccy == r["currency"] and amount > r["fco_approval_above_minor"]:
+        notes.append(f"above {ccy} {r['fco_approval_above_minor'] / 100:,.2f}: the FCO approves it first")
+        return {"decision": "HELD_FOR_FCO", "reasons": notes}
+    return {"decision": "ALLOWED", "reasons": ["inside every Airi rule"]}
 
 
 def visa_refusal(org, path: str) -> str | None:

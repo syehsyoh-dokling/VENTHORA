@@ -343,7 +343,6 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
    <div class="msh" title="Turn on when the company needs it">Optional</div>
    <a href="#/api-access" data-nav="api-access" data-also="sources-sync" title="Sync people, vendors, POs and bills from your ERP; API keys for other apps"><i>⇅</i>App Integration</a>
    <a href="#/cards" data-nav="cards" data-ro="developer" title="Visa virtual cards for card-billed vendors"><i>▭</i>Airwallex Cards</a>
-   <a href="#/card-auth" data-nav="card-auth" data-ro="developer" title="VENTHORA approves or declines every card charge (after Airwallex Cards)"><i>✓</i>Card Authorization</a>
    <a href="#/visa-controls" data-nav="visa-controls" data-ro="developer" title="Which Visa features VENTHORA may use: on or off"><i>◆</i>Visa controls</a>
    <a href="#/airi-controls" data-nav="airi-controls" data-ro="developer" title="Whether staff may check out with Airi, and the limits"><i>◎</i>Airi usage</a>
    <a href="#/metal-scope" data-nav="metal-scope" data-ro="developer" title="Which kinds of record are anchored on Metal"><i>⬡</i>Metal categories</a>
@@ -405,7 +404,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
 <main>
  <div id="roNote" class="ro-note span12" hidden></div>
  <section class="span12" data-view="cards"><h2><span>Airwallex Cards</span><span class="small muted" id="cdMeta"></span></h2>
-  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"><b>Vendors paid by card, under the same mandate as transfers.</b> A software subscription or any vendor that only takes a card gets its own <b>Visa virtual card</b> from Airwallex Issuing. Its limits per transaction and per month come from the mandate and never go above the mandate's single payout limit; the card can be locked to the vendor's merchant name and category. VENTHORA keeps the card id and the masked number, never the full number. Every charge is decided in <a href="#/card-auth">Card Authorization</a>.</div>
+  <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"><b>Staff cards under the same mandate as transfers.</b> Each person can have one <b>Visa virtual card</b> from Airwallex Issuing, closed until an approved advance opens it: only for the purposes the Finance Director ticks, only inside its window and amount, and only at the merchants allowed. Every charge is asked first (remote authorization) and decided from the mandate and the card program alone. VENTHORA keeps the card id and the masked number, never the full number.</div>
   <div id="cdBody" class="empty">loading…</div></section>
  <section class="span12" data-view="card-auth"><h2><span>Card Authorization</span><span class="small muted" id="caMeta"></span></h2>
   <div class="small" style="padding:8px 10px;border-left:3px solid var(--accent,#2f6fed);background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px"><b>Airwallex asks VENTHORA before every card charge goes</b> (remote authorization): within 2.5 seconds VENTHORA answers <b>AUTHORIZED</b> or <b>DECLINED</b> from the mandate alone: a card it issued and has not frozen, the amount inside the card's limits and the mandate's single payout limit, the vendor's merchant, a charge not decided before. The request is signed with a shared secret Airwallex returns once; it is kept here and never shown. If VENTHORA does not answer in time, Airwallex applies the default action (set it to DECLINED).</div>
@@ -2603,46 +2602,80 @@ async function cdVsms(fresh){try{const d=await api(`/v1/visa/supplier-match/vend
 function cdVisaPick(){const id=$("#cdPayee")?.value,m=VSMS[id];if(!$("#cdVisa"))return;$("#cdVisa").innerHTML=m?`Visa: ${vsmsPill(m)}`:"";
  if(m&&m.ok&&m.accepts_visa&&m.mcc&&!$("#cdMcc").value)$("#cdMcc").value=m.mcc;if(m&&!$("#cdMerchant").value)$("#cdMerchant").value=m.name||""}
 async function cdView(){$("#cdBody").innerHTML='<div class="empty">reading Airwallex Issuing…</div>';
- try{const d=await api("/v1/cards"),c=d.config||{},h=d.cardholder;
+ try{const [d,au]=await Promise.all([api("/v1/cards"),api("/v1/card-authorization").catch(()=>({decisions:[]}))]),c=d.config||{},h=d.cardholder,cd=d.cardholder_default||{},pg=d.program||{};
+  const ch=pg.choices||{purposes:[],limits:[]},usd=m=>m==null?"No limit":`USD ${(m/100).toLocaleString("en-US")}`,sel=new Set(pg.purposes||[]);
   $("#cdMeta").textContent=d.error?d.error:`${(d.cards||[]).length} card(s) issued by VENTHORA`;
   const tile=(k,v,sub)=>`<div class="tile"><div class="k small muted">${k}</div><div style="font-size:16px;font-weight:700">${v}</div>${sub?`<div class="small muted">${sub}</div>`:""}</div>`;
+  const limSel=`<select id="cdLimit" style="font-size:15px;font-weight:700">${ch.limits.map(v=>`<option value="${v==null?"none":v}" ${(v??null)===(pg.card_max_minor??null)?"selected":""}>${usd(v)}</option>`).join("")}</select>`;
+  const raOn=(c.remote_auth&&c.remote_auth.enabled)||d.platform_remote_auth;
+  const dayOpt=(id,vals,cur,zero)=>`<select id="${id}">${vals.map(v=>`<option value="${v}" ${+cur===v?"selected":""}>${v===0?zero:`${v} day${v>1?"s":""}`}</option>`).join("")}</select>`;
+  const mrow=(m,i)=>`<div class="row" style="gap:6px;align-items:center;margin-top:4px" data-mrow="${i}">${inp(`cdM${i}c`,"MCC e.g. 5812",m.mcc||"",120)}${inp(`cdM${i}n`,"merchant name (optional)",m.name||"",240)}<button class="small" data-mdel="${i}">Remove</button></div>`;
+  let merchants=(pg.merchants||[]).slice();
+  const presets=[...new Set((pg.purposes||[]).flatMap(k=>((ch.purposes.find(p=>p.key===k)||{}).mcc)||[]))];
+  const staffNote=pg.staff_cards?`${pg.staff_total-pg.staff_without_card} of ${pg.staff_total} staff have a card`:"off";
   $("#cdBody").classList.remove("empty");
-  $("#cdBody").innerHTML=`<div class="tiles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px">
-   ${tile("Issuing on Airwallex",d.error?'<span class="pill critical">not reachable</span>':'<span class="pill good">open</span>',c.primary_currency?`primary ${esc(c.primary_currency)} · auto conversion ${c.enable_auto_conversion?"on":"off"}`:"")}
+  $("#cdBody").innerHTML=`<div class="tiles" style="margin-bottom:12px">
+   ${tile("Issuing on Airwallex",c.primary_currency?'<span class="pill good">open</span>':'<span class="pill warn">not reachable</span>',c.primary_currency?`primary ${esc(c.primary_currency)} · auto conversion ${c.enable_auto_conversion?"on":"off"}`:esc(d.error||""))}
    ${tile("Company cardholder",h?`${esc(h.name)}`:'<span class="pill warn">not created</span>',h?`${esc(h.status||"")} · ${esc(h.type||"")}`:"create it below")}
-   ${tile("Mandate ceiling per card charge",d.mandate_ceiling_minor!=null?usd(d.mandate_ceiling_minor):'<span class="pill critical">revoked</span>',"the mandate's single payout limit")}
-   ${tile("Remote authorization",c.remote_auth&&c.remote_auth.enabled?'<span class="pill good">on</span>':'<span class="pill warn">off</span>',`<a href="#/card-auth">Card Authorization ›</a>`)}</div>
-  ${h?"":`<div class="tile" style="margin-bottom:12px"><b>1 · Company cardholder</b><div class="small muted" style="margin:4px 0 8px">The person who answers for VENTHORA's cards (an Airwallex DELEGATE cardholder). Use the finance officer's details.</div>
-   <div class="row" style="gap:8px;flex-wrap:wrap">${inp("chFirst","first name")}${inp("chLast","last name")}${inp("chEmail","email","",220)}${inp("chDob","date of birth","",150,"date")}${inp("chLine1","street address","",220)}${inp("chCity","city","",130)}${inp("chPost","postcode","",100)}${inp("chCountry","country (2 letters)","",130)}
+   ${tile("Card limit per charge",limSel,"the Finance Director's card limit, inside the single payout limit")}
+   ${tile("Remote authorization",raOn?'<span class="pill good">on</span>':'<span class="pill warn">off</span>',raOn&&!(c.remote_auth&&c.remote_auth.enabled)?"via the VENTHORA platform: every charge is asked first":"every charge is asked first")}</div>
+  ${h?"":`<div class="tile" style="margin-bottom:12px"><b>1 · Company cardholder</b><div class="small muted" style="margin:4px 0 8px">The person who answers for VENTHORA's cards (an Airwallex DELEGATE cardholder), filled from the company's registration: change anything, then create it.</div>
+   <div class="row" style="gap:8px;flex-wrap:wrap">${inp("chFirst","first name",cd.first_name||"")}${inp("chLast","last name",cd.last_name||"")}${inp("chEmail","email",cd.email||"",220)}${cd.date_of_birth?`<input type="hidden" id="chDob" value="${esc(cd.date_of_birth)}">`:inp("chDob","date of birth","",150,"date")}${inp("chLine1","street address",(cd.address||{}).line1||"",220)}${inp("chCity","city",(cd.address||{}).city||"",130)}${inp("chPost","postcode",(cd.address||{}).postcode||"",100)}${inp("chCountry","country (2 letters)",(cd.address||{}).country||"",130)}
    <button class="primary" id="chCreate">Create cardholder</button><span class="small" id="chMsg"></span></div></div>`}
-  <div class="tile" style="margin-bottom:12px"><b>${h?"1":"2"} · Issue a virtual card for a vendor</b><div class="small muted" style="margin:4px 0 8px">Limits inside the mandate; lock the card to the vendor's merchant name, and to its merchant category (5734 = software) when you know it.</div>
-   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><select id="cdPayee">${d.payees.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("")}</select><span class="small" id="cdVisa"></span>
-   <label class="small">per charge (USD) ${inp("cdPer","e.g. 500","500",100)}</label><label class="small">per month (USD) ${inp("cdMonth","e.g. 800","800",100)}</label>
-   <label class="small">merchant name ${inp("cdMerchant","the payee's name","",160)}</label><label class="small">categories ${inp("cdMcc","5734","",90)}</label>
-   <select id="cdPurpose">${d.purposes.map(x=>`<option>${x}</option>`).join("")}</select><button class="primary" id="cdIssue" ${h?"":"disabled"}>Issue card</button><span class="small" id="cdMsg"></span></div></div>
+  <div class="tile" style="margin-bottom:12px"><b>${h?"1":"2"} · Card program</b><div class="small muted" style="margin:4px 0 8px">What staff cards are for, when they open and close, and where they may be used. An approved advance whose purpose is ticked goes on the requester's own card; anything else is declined at the card network.</div>
+   <label class="check"><input type="checkbox" id="cdStaff" ${pg.staff_cards?"checked":""}> <b>Each staff has a virtual card</b> <span class="small muted">one Visa virtual card per person, labelled with the employee number (Airwallex, the issuer, sets the card number) · ${esc(staffNote)}</span></label>
+   <div class="small" style="margin:10px 0 4px"><b>Card purpose</b> <span class="muted">(apply to all that are ticked)</span></div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 12px">${ch.purposes.map(p=>`<label class="check small"><input type="checkbox" data-cdp="${p.key}" ${sel.has(p.key)?"checked":""}> ${esc(p.label)}</label>`).join("")}</div>
+   <div class="row" style="gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px">
+    <label class="small">Auto-activated ${dayOpt("cdOn",[0,1,2,3,5,7],pg.activate_after_days,"when the advance is approved")} after the advance is approved</label>
+    <label class="small">Auto-deactivated ${dayOpt("cdOff",[0,1,3,7,14,30,60,90],pg.deactivate_after_days,"at the advance's settle-by date")} after it opens</label></div>
+   <div class="small" style="margin:10px 0 4px"><b>Merchants</b></div>
+   <label class="check small"><input type="radio" name="cdMm" value="all" ${pg.merchant_mode!=="selected"?"checked":""}> All merchants: anywhere on the Visa network</label>
+   <label class="check small"><input type="radio" name="cdMm" value="selected" ${pg.merchant_mode==="selected"?"checked":""}> Only selected merchants: any other is declined</label>
+   <div id="cdMsel" ${pg.merchant_mode==="selected"?"":"hidden"} style="margin:6px 0 0 24px"><div id="cdMrows"></div><button class="small" id="cdMadd" style="margin-top:6px">+ Add merchant</button>
+    <div class="small muted" style="margin-top:4px">The ticked purposes also allow their usual categories: ${presets.length?esc(presets.join(", ")):"none"}.</div></div>
+   <div class="row" style="gap:8px;margin-top:12px;align-items:center"><button class="primary" id="cdSave">Save card program</button>${pg.staff_cards?`<button id="cdIssueStaff" ${h&&pg.staff_without_card?"":"disabled"}>Issue staff cards${pg.staff_without_card?` (${pg.staff_without_card})`:""}</button>`:""}<span class="small" id="cdPMsg"></span></div></div>
   <h3 class="small muted" style="margin:0 0 6px">Cards issued by VENTHORA</h3>
-  ${table([{h:"Vendor",f:x=>`<b>${esc(x.payee)}</b><div class="small muted">locked to ${esc(x.merchant||"-")}${(x.mcc||[]).length?` · ${esc(x.mcc.join(", "))}`:""}</div>`},{h:"Card",f:x=>`<span class="mono">${esc(x.masked||"")}</span> <span class="small muted">${esc(x.brand||"")}</span>`},
-    {h:"Status",f:x=>`<span class="pill ${x.frozen?"warn":x.status==="ACTIVE"?"good":""}">${x.frozen?"frozen in VENTHORA":esc(x.status||"-")}</span>`},{h:"Per charge",num:1,f:x=>fmt(x.per_tx_minor,x.currency)},{h:"Per month",num:1,f:x=>fmt(x.monthly_minor,x.currency)},
+  ${table([{h:"Card for",f:x=>`<b>${esc(x.label||x.payee)}</b><div class="small muted">${x.kind==="staff"?"staff card":x.fund_request?`advance ${esc(x.fund_request)}`:`vendor · locked to ${esc(x.merchant||"-")}`}</div>`},{h:"Card",f:x=>`<span class="mono">${esc(x.masked||"")}</span> <span class="small muted">${esc(x.brand||"")}</span>`},
+    {h:"Status",f:x=>`<span class="pill ${x.frozen?"warn":x.status==="ACTIVE"?"good":""}">${x.frozen?"frozen in VENTHORA":esc(x.status||"-")}</span>`},
+    {h:"Open advance",f:x=>{const s=(pg.staff_state||{})[x._id];return x.kind!=="staff"?`<span class="small muted">per charge ${fmt(x.per_tx_minor,x.currency)}</span>`:s&&s.advances.length?`<span class="small">${esc(s.advances.join(", "))} · left ${fmt(s.remaining_minor,x.currency)}</span>`:'<span class="small muted">none: card closed</span>'}},
     {h:"",f:x=>`<div class="acts"><button class="small dev" data-cdsim="${esc(x._id)}">Simulate a charge</button><button class="small" data-cdlim="${esc(x._id)}" title="Read the limits Airwallex enforces and compare them with the mandate">Check limits</button><button class="small" data-cdfreeze="${esc(x._id)}" data-frozen="${x.frozen?1:0}">${x.frozen?"Unfreeze":"Freeze"}</button></div>`}],d.cards||[],"no card issued yet")}
   <div id="cdSimOut" class="small" style="margin-top:8px"></div>
+  <div class="tile" style="margin:14px 0 12px"><b>Card authorization</b> <span class="small muted">Airwallex asks VENTHORA before every charge; VENTHORA answers within 2.5 s from the mandate and this program alone</span>
+   <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><select id="caCard">${(d.cards||[]).map(x=>`<option value="${esc(x._id)}">${esc(x.label||x.payee)} ${esc(x.masked||"")}</option>`).join("")||"<option value=''>issue a card first</option>"}</select>
+    <label class="small">amount (USD) ${inp("caAmt","120.00","120.00",90)}</label><label class="small">merchant ${inp("caMerchant","the merchant's name","",170)}</label><label class="small">MCC ${inp("caMcc","5812","",70)}</label><button id="caTest">Test a decision</button></div><div id="caTestOut" class="small" style="margin-top:6px"></div>
+   <div style="margin-top:10px">${table([{h:"When",f:x=>`<span class="small">${esc(String(x.at).slice(0,16).replace("T"," "))}</span>`},{h:"Card for",f:x=>esc(x.payee||"-")},{h:"Merchant",f:x=>`${esc(x.merchant||"-")}${x.mcc?` <span class="small muted">${esc(x.mcc)}</span>`:""}`},{h:"Amount",num:1,f:x=>fmt(x.amount_minor,x.currency||"USD")},
+    {h:"Decision",f:x=>`<span class="pill ${x.decision==="AUTHORIZED"?"good":"critical"}">${esc(x.decision)}</span>`},{h:"Reason",f:x=>`<span class="small">${esc(x.reason)}</span>`}],(au.decisions||[]).slice(0,20),"no card charge decided yet")}</div></div>
   <h3 class="small muted" style="margin:16px 0 6px">Which vendors take Visa cards <span class="pill info">Visa Supplier Matching</span></h3>
   <div class="small muted" style="margin-bottom:6px">VENTHORA asks Visa whether each vendor is a Visa merchant. A match with high or medium confidence means the bill can go on a Visa virtual card locked to the merchant category Visa reports; otherwise it is a bank transfer. Answers are kept 30 days. <button class="small" id="cdVsmsFresh">Ask Visa again</button></div>
   <div id="cdVsms" class="empty">asking Visa…</div>`;
+  const drawM=()=>{$("#cdMrows").innerHTML=merchants.map(mrow).join("")||'<div class="small muted">no merchant yet</div>';
+   document.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{readM();merchants.splice(+b.dataset.mdel,1);drawM()})};
+  const readM=()=>{merchants=merchants.map((m,i)=>({mcc:($(`#cdM${i}c`)||{}).value||"",name:($(`#cdM${i}n`)||{}).value||""}))};
+  drawM();
+  $("#cdMadd").onclick=()=>{readM();merchants.push({mcc:"",name:""});drawM()};
+  document.querySelectorAll('input[name="cdMm"]').forEach(r=>r.onchange=()=>{$("#cdMsel").hidden=r.value!=="selected"||!r.checked});
   cdVsms(false);
   $("#cdVsmsFresh").onclick=()=>cdVsms(true);
-  $("#cdPayee").onchange=cdVisaPick;
+  const progPut=b=>api(`/v1/cards/program?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(b)});
+  $("#cdLimit").onchange=async()=>{const v=$("#cdLimit").value;try{await progPut({card_max_minor:v==="none"?null:+v});toast(`Card limit per charge: ${v==="none"?"no limit":usd(+v)}`,"good");cdView()}catch(e){toast(esc(e.message),"serious");cdView()}};
+  $("#cdSave").onclick=async()=>{readM();$("#cdPMsg").textContent="saving…";
+   try{await progPut({staff_cards:$("#cdStaff").checked,purposes:[...document.querySelectorAll("[data-cdp]:checked")].map(x=>x.dataset.cdp),
+    activate_after_days:+$("#cdOn").value,deactivate_after_days:+$("#cdOff").value,merchant_mode:(document.querySelector('input[name="cdMm"]:checked')||{}).value||"all",merchants});
+    toast("Card program saved","good");cdView()}catch(e){$("#cdPMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+  if($("#cdIssueStaff"))$("#cdIssueStaff").onclick=async()=>{$("#cdPMsg").textContent="issuing on Airwallex, one card per person…";
+   try{const r=await api(`/v1/cards/staff?${who()}`,{method:"POST"});toast(`${r.issued.length} staff card(s) issued${r.failed.length?`, ${r.failed.length} refused`:""}`,r.failed.length?"serious":"good");cdView()}catch(e){$("#cdPMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
   if($("#chCreate"))$("#chCreate").onclick=async()=>{const v=id=>$(id).value.trim();$("#chMsg").textContent="creating on Airwallex…";
    try{await api(`/v1/cards/cardholder?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({first_name:v("#chFirst"),last_name:v("#chLast"),email:v("#chEmail"),date_of_birth:v("#chDob"),address:{line1:v("#chLine1"),city:v("#chCity"),postcode:v("#chPost"),country:v("#chCountry").toUpperCase()}})});toast("Cardholder created","good");cdView()}catch(e){$("#chMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
-  $("#cdIssue").onclick=async()=>{$("#cdMsg").textContent="issuing on Airwallex…";
-   try{const r=await api(`/v1/cards?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({payee_id:$("#cdPayee").value,per_transaction_minor:toMinor($("#cdPer").value),monthly_minor:toMinor($("#cdMonth").value),merchant:$("#cdMerchant").value,merchant_category_codes:$("#cdMcc").value.split(",").map(x=>x.trim()).filter(Boolean),purpose:$("#cdPurpose").value})});
-    toast(`Card ${r.masked||""} issued`,"good");cdView()}catch(e){$("#cdMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+  $("#caTest").onclick=async()=>{if(!$("#caCard").value)return;try{const r=await api(`/v1/card-authorization/test?card_id=${encodeURIComponent($("#caCard").value)}&${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({amount_minor:toMinor($("#caAmt").value),currency:"USD",merchant:$("#caMerchant").value.trim(),merchant_category_code:$("#caMcc").value.trim()||null})});
+   $("#caTestOut").innerHTML=`<span class="pill ${r.answer.response_status==="AUTHORIZED"?"good":"critical"}">${esc(r.answer.response_status)}</span> ${esc(r.answer.status_reason)}`;setTimeout(cdView,1500)}catch(e){$("#caTestOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
   document.querySelectorAll("[data-cdlim]").forEach(b=>b.onclick=async()=>{try{const j=await api(`/v1/cards/${encodeURIComponent(b.dataset.cdlim)}/limits`);
    const lines=j.limits.map(l=>`${esc(l.interval.toLowerCase().replace("_"," "))}: ${fmt(l.amount_minor,l.currency)}${l.remaining_minor!=null?` (left ${fmt(l.remaining_minor,l.currency)})`:""}`).join("<br>")||"no limit on Airwallex";
    toast(`<b>Airwallex limits</b><br>${lines}${j.ok?'<br>✔ same as VENTHORA issued':`<br>⚠ ${j.drift.map(esc).join("<br>⚠ ")}`}`,j.ok?"good":"serious")}catch(e){toast(esc(e.message),"serious")}});
   document.querySelectorAll("[data-cdfreeze]").forEach(b=>b.onclick=async()=>{try{await api(`/v1/cards/${b.dataset.cdfreeze}/freeze?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({frozen:b.dataset.frozen!=="1"})});cdView()}catch(e){toast(esc(e.message),"serious")}});
-  document.querySelectorAll("[data-cdsim]").forEach(b=>b.onclick=async()=>{const amt=prompt("Charge amount (USD) the vendor takes:","120.00");if(!amt)return;$("#cdSimOut").textContent="the vendor charges the card on the sandbox…";
+  document.querySelectorAll("[data-cdsim]").forEach(b=>b.onclick=async()=>{const amt=prompt("Charge amount (USD) the merchant takes:","120.00");if(!amt)return;$("#cdSimOut").textContent="the merchant charges the card on the sandbox…";
    try{const r=await api(`/v1/cards/${b.dataset.cdsim}/simulate?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({amount_minor:toMinor(amt),currency:"USD"})});
-    $("#cdSimOut").innerHTML=`Charge <b>${esc(r.status||"-")}</b> · ${esc(r.transaction_id||"")} ${r.failure_reason?`· ${esc(r.failure_reason)}`:""} · the decision is in <a href="#/card-auth">Card Authorization</a>`}catch(e){$("#cdSimOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}});
+    $("#cdSimOut").innerHTML=`Charge <b>${esc(r.status||"-")}</b> · ${esc(r.transaction_id||"")} ${r.failure_reason?`· ${esc(r.failure_reason)}`:""} · the decision is in Card authorization above`;setTimeout(cdView,2000)}catch(e){$("#cdSimOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}});
  }catch(e){$("#cdBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 // ---- Platform Setup -> Card Authorization
 async function caView(){$("#caBody").innerHTML='<div class="empty">reading the remote authorization settings…</div>';

@@ -112,9 +112,10 @@ async def lifespan(app: FastAPI):
     doa_pilot = asyncio.create_task(_doa_scheduler()) if env("VENTHORA_DOA_SCHEDULER", "1") != "0" else None
     mailer = asyncio.create_task(_outbox_worker()) if env("VENTHORA_OUTBOX_WORKER", "1") != "0" else None
     books = asyncio.create_task(_t0_worker()) if env("VENTHORA_T0_AUTOPOST", "1") != "0" else None
+    windows = asyncio.create_task(_card_window_worker()) if env("VENTHORA_CARD_WINDOWS", "1") != "0" else None
     yield
     _llm.FRAMER = None  # the organisation's prompt leaves with the app
-    for task in (pending, scheduler, syncer, doa_pilot, mailer, books):
+    for task in (pending, scheduler, syncer, doa_pilot, mailer, books, windows):
         if task is not None:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -5775,6 +5776,18 @@ async def t0_status():
     return await t0.status()
 
 
+@app.post("/v1/airi/check")
+async def airi_check(body: Annotated[dict, Body()]):
+    """Whether VENTHORA approves an Airi checkout under the FCO's Airi rules (Platform Setup → Airi usage): an approved
+    PR, the price inside it, the vendor's invoice, a verified vendor that is the PR's supplier, the limits. Nothing is bought here."""
+    from . import controls
+
+    out = await asyncio.to_thread(controls.airi_check, app.state.org, body, _payee_status)
+    await asyncio.to_thread(app.state.audit.append, "airi_checkout_checked", {"pr": body.get("pr_number"), "amount_minor": body.get("amount_minor"),
+                                                                              "vendor": body.get("vendor"), "decision": out["decision"]})
+    return out
+
+
 @app.get("/v1/airi/status")
 async def airi_status():
     """Developer Console → Airi: whether the Airi CLI is installed on this server, signed in, and how many payment
@@ -6906,6 +6919,35 @@ async def _remote_auth_url() -> str | None:
     return f"https://{urlparse(url).netloc}{REMOTE_AUTH_PATH}" if url else None
 
 
+def _card_program_view(org) -> dict:
+    """The card program, the FCO's card limit as saved (no limit shown as None), and each staff card's open window."""
+    from . import card_program, cards, mandate
+
+    book = mandate.standing(org).get("book") or {}
+    cmax = book.get("card_max_minor", mandate.BOOK_DEFAULTS["card_max_minor"])
+    staff = {}
+    for c in org.list("card"):
+        if c.get("kind") == "staff":
+            staff[c["_id"]] = card_program.state(c, lambda since, cid=c["_id"]: cards._spent_since(org, cid, since))
+    users = [u for u in org.list("user") if u.get("active", True)]
+    return card_program.public(card_program.get(org)) | {
+        "card_max_minor": None if cmax is None or cmax >= card_program.NO_LIMIT else cmax, "staff_state": staff,
+        "staff_total": len(users), "staff_without_card": sum(1 for u in users if not card_program.staff_card(org, u["user_id"]))}
+
+
+def _cardholder_default(org) -> dict:
+    """The company cardholder as the company already knows it: its Finance Director (the director in the Airwallex
+    registration, else the Super admin) with the registered address, so creating the cardholder is one click."""
+    from . import airwallex_onboarding as ob
+
+    prof, fco, hq = org.get(*ob.PROFILE) or {}, ob._fco(org), ob._hq(org)
+    first, _, last = (fco.get("name") or "").strip().partition(" ")
+    return {"first_name": prof.get("director_first_name") or first, "last_name": prof.get("director_last_name") or last or first,
+            "email": fco.get("email") or prof.get("contact_email") or "", "date_of_birth": prof.get("director_date_of_birth") or "",
+            "address": {"line1": prof.get("address_line1") or "", "city": prof.get("suburb") or "", "postcode": prof.get("postcode") or "",
+                        "country": prof.get("country_code") or hq.get("country") or ""}}
+
+
 @app.get("/v1/cards")
 async def cards_list():
     """Airwallex Cards: the issuing configuration, the company cardholder, VENTHORA's cards (live status from Airwallex),
@@ -6916,6 +6958,10 @@ async def cards_list():
     out = {"cardholder": org.get("issuing", "cardholder"), "cards": org.list("card"), "mandate_ceiling_minor": cards.mandate_ceiling(org),
            "purposes": list(cards.PURPOSES), "payees": [{"id": k, "name": v.get("name"), "currency": v.get("currency"), "kind": v.get("kind")}
                                                        for k, v in app.state.intake.registry.payees.items() if v.get("kind") != "employee"],
+           "cardholder_default": _cardholder_default(org),
+           "program": _card_program_view(org), "card_limit_minor": _card_limit(org),
+           # on the SaaS platform Airwallex asks the platform, which checks the signature and asks this company (its token)
+           "platform_remote_auth": bool(env("VENTHORA_PLATFORM_TOKEN")),
            "config": None, "error": None}
     try:
         bank = _bank()
@@ -6981,6 +7027,126 @@ async def cards_issue(body: CardIn, role: str = "finance_manager", by: str = "da
                                   monthly_minor=body.monthly_minor, currency=body.currency.upper(), merchant=merchant, mcc=body.merchant_category_codes, by=who)
     await asyncio.to_thread(app.state.audit.append, "card_issued", {k: rec.get(k) for k in ("_id", "payee_id", "per_tx_minor", "monthly_minor", "currency", "brand", "issued_by")})
     return rec
+
+
+def _card_limit(org) -> int:
+    """What one card charge may be: the FCO's card limit, inside the mandate's single payout limit."""
+    from . import cards, mandate
+
+    cmax = (mandate.standing(org).get("book") or {}).get("card_max_minor", mandate.BOOK_DEFAULTS["card_max_minor"])
+    ceiling = cards.mandate_ceiling(org) or 0
+    return min(x for x in (cmax, ceiling) if x is not None) if cmax is not None else ceiling
+
+
+@app.get("/v1/cards/program")
+async def cards_program_get():
+    from . import card_program
+
+    return card_program.public(card_program.get(app.state.org))
+
+
+@app.put("/v1/cards/program")
+async def cards_program_put(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
+    """The card program (purposes, staff cards, activation window, merchants): the Finance Director's choice."""
+    from . import card_program
+
+    from . import mandate
+
+    who = _setup_writer(role, by)
+    org = app.state.org
+    if "card_max_minor" in body:  # the card limit per charge is the mandate's "pay by virtual card up to" (one source)
+        v = body.pop("card_max_minor")
+        v = card_program.NO_LIMIT if v is None else int(v)
+        if not 0 <= v <= card_program.NO_LIMIT:
+            raise HTTPException(422, "the card limit is 0 or more")
+        st = mandate.standing(org)
+        req = {"values": st["values"], "enabled": st["enabled"], "book": st["book"] | {"card_max_minor": v}, "checks": st["checks"]}
+        setup = live_session.defaults("demo_live", app.state.executor, st)
+        try:
+            try:
+                await asyncio.to_thread(mandate.save, org, req, who, role=role, setup=setup)
+            except mandate.NeedsAcknowledgement as exc:  # the Finance Director chose this limit here, on purpose
+                await asyncio.to_thread(mandate.save, org, req | {"acknowledged": [w["key"] for w in exc.warnings]}, who, role=role, setup=setup)
+        except mandate.AuthorityError as exc:
+            raise HTTPException(403, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+    try:
+        out = await asyncio.to_thread(card_program.save, org, body, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "card_program_saved", {"by": who} | out)
+    return _card_program_view(org)
+
+
+@app.post("/v1/cards/staff")
+async def cards_issue_staff(role: str = "super_admin", by: str = "dashboard"):
+    """Each staff has a virtual card: one Visa virtual card per active person who has none yet, labelled with the
+    employee number (Airwallex, the issuer, sets the card number), kept inactive until an approved advance opens it."""
+    from . import card_program, cards
+
+    who = _setup_writer(role, by)
+    org = app.state.org
+    prog = card_program.get(org)
+    if not prog["staff_cards"]:
+        raise HTTPException(409, "tick \"Each staff has a virtual card\" and save the card program first")
+    holder = org.get("issuing", "cardholder")
+    if not holder or not holder.get("cardholder_id"):
+        raise HTTPException(409, "create the company cardholder first")
+    limit = _card_limit(org)
+    if limit <= 0:
+        raise HTTPException(422, "the card limit is zero: no card may be issued")
+    codes = card_program.allowed_codes(prog)
+    issued, failed = [], []
+    bank = _bank()
+    for u in org.list("user"):
+        if not u.get("active", True) or card_program.staff_card(org, u["user_id"]):
+            continue
+        lbl = card_program.label(u)
+        payee = {"_id": f"staff:{u['user_id']}", "name": lbl}
+        req = cards.card_body(cardholder_id=holder["cardholder_id"], payee=payee, per_tx_minor=limit, monthly_minor=limit, currency="USD", by=who,
+                              purpose="BUSINESS_EXPENSES", mcc=sorted(codes) if codes else None, nick_name=f"Staff {lbl}")
+        try:
+            resp = await bank.create_card(req)
+        except AirwallexError as exc:
+            failed.append({"user_id": u["user_id"], "name": u.get("name"), "error": str(exc)[:200]})
+            continue
+        with contextlib.suppress(AirwallexError):  # inactive until an approved advance opens it
+            await bank.set_card_status(resp["card_id"], "INACTIVE")
+        rec = await asyncio.to_thread(cards.record_card, org, resp, payee=payee, per_tx_minor=limit, monthly_minor=limit, currency="USD",
+                                      merchant="", mcc=sorted(codes) if codes else [], by=who)
+        rec = rec | {"kind": "staff", "user_id": u["user_id"], "label": lbl, "status": "INACTIVE", "allowances": []}
+        await asyncio.to_thread(org._put, "card", rec, who)
+        issued.append({"user_id": u["user_id"], "label": lbl, "masked": rec.get("masked")})
+    await asyncio.to_thread(app.state.audit.append, "staff_cards_issued", {"by": who, "issued": len(issued), "failed": len(failed)})
+    return {"issued": issued, "failed": failed}
+
+
+async def _staff_card_window(card: dict, who: str) -> dict:
+    """Open or close a staff card on Airwallex to match its approved advances (active only inside a window, while
+    the advance still holds money)."""
+    from . import card_program, cards
+
+    org = app.state.org
+    st = card_program.state(card, lambda since: cards._spent_since(org, card["_id"], since))
+    want = "ACTIVE" if st["active"] and not card.get("frozen") else "INACTIVE"
+    if card.get("status") != want:
+        with contextlib.suppress(HTTPException, AirwallexError):
+            await _bank().set_card_status(card["_id"], want)
+            card = card | {"status": want}
+            org._put("card", card, who)
+    return card
+
+
+async def _card_window_worker(every_s: int = 60) -> None:
+    """Every minute: each staff card is active only while an approved advance is open on it (auto-activate N days
+    after approval, auto-deactivate M days later or at its settle-by date, or once it is spent)."""
+    while True:
+        await asyncio.sleep(every_s)
+        with contextlib.suppress(Exception):
+            for c in await asyncio.to_thread(app.state.org.list, "card"):
+                if c.get("kind") == "staff":
+                    await _staff_card_window(c, "VENTHORA (card window)")
 
 
 @app.post("/v1/cards/{card_id}/freeze")
@@ -7400,6 +7566,21 @@ async def _issue_advance_card(number: str, who: str) -> dict:
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     person = org.get("user", fr["requested_by"]) or {}
+    from . import card_program
+
+    prog = card_program.get(org)
+    staff = card_program.staff_card(org, fr["requested_by"]) if card_program.applies(prog, fr) else None
+    if staff is not None:  # the card program: the advance opens the person's own staff card for its window
+        start, until = card_program.window(fr.get("decided_at") or fr.get("approved_at"), fr.get("settle_by"), prog)
+        funding = await _fund_card_account(number, fr, who)
+        staff = card_program.attach(staff, ref=number, amount_minor=fr["amount_minor"], start=start, until=until, purpose=card_program.purpose_of(fr))
+        await asyncio.to_thread(org._put, "card", staff, who)
+        staff = await _staff_card_window(staff, who)
+        paid = fr | {"status": "IN_PAYMENT", "paid_by": "staff_card", "card_id": staff["_id"], "card_masked": staff.get("masked"),
+                     "card_window": {"from": start, "until": until}, "paid_at": datetime.now(UTC).isoformat(timespec="seconds"), "funding": funding}
+        await asyncio.to_thread(org._put, "fund_request", paid, who)
+        await asyncio.to_thread(app.state.audit.append, "advance_on_staff_card", {"request": number, "card_id": staff["_id"], "from": start, "until": until, "by": who})
+        return paid | {"card": {k: staff.get(k) for k in ("_id", "masked", "brand", "status", "label")} | {"window": {"from": start, "until": until}}}
     label = f"{person.get('name') or fr['requested_by']} · {number}"
     payee = {"_id": f"fr:{number}", "name": label}
     is_travel = fr["kind"] == "cash_advance" and any(w in (fr.get("purpose", "") + fr.get("activity", "")).lower() for w in ("travel", "trip", "flight", "hotel", "transport"))
