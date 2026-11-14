@@ -6,7 +6,7 @@ VENTHORA is an autonomous treasury agent for cross-border businesses, built on A
 
 > Airwallex Agentic Banking Hackathon 2026 · Track **Treasury & Ops** · Starter Kit 01 **Adaptive Treasury Controller**
 
-**Live demo:** https://app-venthora.muwahid.org (the Airwallex sandbox; no real money moves). Run it yourself: [Quick start](#quick-start).
+**Live demo:** https://app-venthora.muwahid.org (the Airwallex sandbox; no real money moves). Run it yourself: [Quick start](#quick-start). Menu by menu: [How to Use VENTHORA](docs/WALKTHROUGH.md).
 
 ### On the screen for Kit 01
 
