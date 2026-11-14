@@ -6,6 +6,20 @@ VENTHORA is an autonomous treasury agent for cross-border businesses, built on A
 
 > Airwallex Agentic Banking Hackathon 2026 · Track **Treasury & Ops** · Starter Kit 01 **Adaptive Treasury Controller**
 
+**Live demo:** https://app-venthora.muwahid.org (the Airwallex sandbox; no real money moves). Run it yourself: [Quick start](#quick-start).
+
+### On the screen for Kit 01
+
+- **Agent plan → Today's plan**: every payment due in the next 72 hours in one line-up, High priority first, against the cash above the
+  reserve floor. Green: the cash covers it. Yellow: the last one it covers. Blue line: the reserve floor. Red: waits, whatever its
+  level, because the line is never crossed to pay a cheaper, lower one. Payments beyond the twelve one plan proves wait for the next round.
+- **Autopilot Console**: the Kit 01 checklist read from the live plan (currencies, partial cover, the critical supplier, the minimum
+  conversion, the deferral, the escalation, the forecast-based limit, the re-plan after a deposit), then the five-step run.
+- **Pending payment → Review**: one form per request with the checks and their evidence, the PO and what is left on it, the emails sent
+  to the vendor and to the FCO (date, result, text), the vendor's other submissions, and a call sheet for the call-back.
+- **Timing**: invoices and bills are paid at the daily run (11:59 UTC here), so a person can change course each day; payroll and benefits
+  on their pay date from 00:30 UTC.
+
 ---
 
 ## The problem
@@ -477,7 +491,7 @@ The side menu shows only its main items:
 - **Platform Setup**, in setup order. *Required*: 1 Airwallex Global Account, 2 Airwallex webhooks, 3 Agent
   (AI & Model), 4 Email Sync, 5 Setup Checklist. *Optional*: App Integration, API Catalog (a public, read-only
   developer page to share: `/developers`, with OpenAPI and Postman files), Airwallex Cards, Card Authorization.
-  *Developer · demo mode*: Visa Agent Identity (TAP), Visa Intelligent Commerce, Airwallex MCP, Metal (testnet anchoring).
+  *Developer · demo mode*: Visa Agent Identity (TAP), Visa Intelligent Commerce, Airwallex MCP, Blockchain Record on Alta (testnet anchoring).
 
 **Two views, one switch (Platform Setup → Setup Checklist → Edition · Demo mode).** Demo mode **ON is the developer
 view** (the alpha-sandbox): every menu, with Workflow, the technical setup, *Tools & evidence* and the demo buttons and
@@ -722,7 +736,7 @@ data/beneficiaries.json  approved payee registry (sandbox)
 docs/            architecture, hackathon compliance, demo script
 ```
 
-## Roadmap to submission (13 Nov 2026)
+## Roadmap to submission (15 Nov 2026)
 
 - [x] Airwallex execution tools: FX quote → conversion → transfer, single-use quotes, persisted `request_id`
 - [x] Sandbox simulation: deposit + transfer transition; post-execution reconciliation
@@ -733,7 +747,9 @@ docs/            architecture, hackathon compliance, demo script
 - [x] 72-hour discrete-event reserve simulation (probabilistic proof) with a policy tolerance
 - [x] Treasury dashboard for the demo video (`python scripts/demo_server.py`), storyboard and narration in docs/
 - [x] Finance controls: budget mandate, book ledger, reporting periods, limits and velocity, payee lifecycle, approval matrix, FX exposure, aging and dunning, tenant segregation; 323 ground-truth cases in 12 suites
-- [ ] Record the video walkthrough (under five minutes) and submit on HackerEarth
+- [x] Local Rails (Xendit, Midtrans connection), the 72-hour payment line-up, the review form with the vendor and FCO email histories
+- [x] Record the video walkthrough (under five minutes)
+- [ ] Submit on HackerEarth
 
 Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). Adversarial audit, oracle hunt and known limitations: [docs/AUDIT.md](docs/AUDIT.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).
 
