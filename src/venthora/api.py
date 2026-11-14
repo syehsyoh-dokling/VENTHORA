@@ -5446,9 +5446,36 @@ def _anchor_heads() -> dict:
 
     org = app.state.org
     audit = app.state.audit.verify()
+    from . import blockchain_record
+
     base = {"audit": {"head": audit.get("head"), "events": audit.get("checked"), "verified": audit.get("verified")},
             "contracts": {r["_id"]: r.get("head") for r in sorted(org.list("contract_seal"), key=lambda r: r["_id"])}}
-    return controls.metal_heads(org, app.state.audit, base)
+    heads = controls.metal_heads(org, app.state.audit, base)
+    docs = blockchain_record.document_heads(org, app.state.executor.store.list_payees())
+    if docs:  # the documents the Finance Director chose (Platform Setup → Blockchain Record), each provable on its own
+        heads["documents"] = {k: {"records": v["records"], "min_minor": v["min_minor"], "digest": v["digest"]} for k, v in docs.items()}
+    return heads
+
+
+@app.get("/v1/blockchain-record")
+async def blockchain_record_get():
+    """Platform Setup → Blockchain Record: why, what it costs, Metal's products, and what goes on the record."""
+    from . import blockchain_record
+
+    return await asyncio.to_thread(blockchain_record.view, app.state.org, app.state.executor.store.list_payees())
+
+
+@app.put("/v1/blockchain-record")
+async def blockchain_record_put(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
+    from . import blockchain_record
+
+    who = _setup_writer(role, by)
+    try:
+        out = await asyncio.to_thread(blockchain_record.save, app.state.org, body, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "blockchain_record_saved", {"by": who} | out)
+    return await asyncio.to_thread(blockchain_record.view, app.state.org, app.state.executor.store.list_payees())
 
 
 # ---- Platform Setup → Optional: the FCO's switches for Visa, Airi and Metal (controls.py) ----
