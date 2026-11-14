@@ -12,6 +12,64 @@ Four things, all read from what VENTHORA already keeps (nothing is inferred from
 """
 from __future__ import annotations
 
+VENDOR_KINDS = (None, "vendor_notice", "vendor_hold", "vendor_reject")
+# addresses that can never receive mail (reserved for tests and examples, RFC 2606): recorded, never sent
+TEST_DOMAINS = (".example", ".test", ".invalid", ".localhost", "example.com", "example.org", "example.net")
+INTERNAL = ("from the company's own system", "corrected by", "registered mailbox of", "reviewed by")
+FLAG_FIELD = {"po_missing": ("po_number", "PO number", "the invoice quotes no purchase order"), "po_unknown": ("po_number", "PO number", "the PO quoted does not exist"),
+              "po_not_open": ("po_number", "PO number", "the PO is closed or cancelled"), "po_expired": ("po_number", "PO number", "the PO has expired"),
+              "po_supplier_mismatch": ("po_number", "PO number", "the PO is with another supplier"), "po_currency_mismatch": ("currency", "Currency", "the PO is in another currency"),
+              "po_exceeded": ("amount_minor", "Amount", "the amount is above what the PO has left"), "po_term_mismatch": ("amount_minor", "Amount", "no PO term has this amount"),
+              "payee_unknown": ("counterparty_id", "Pay to", "the payee is not registered"), "payee_currency_mismatch": ("currency", "Currency", "the payee is paid in another currency"),
+              "duplicate_invoice": ("invoice_no", "Invoice / reference", "this invoice number is already in the queue")}
+
+
+def is_test_address(addr: str) -> bool:
+    dom = str(addr or "").rsplit("@", 1)[-1].lower()
+    return not dom or any(dom == d.lstrip(".") or dom.endswith(d) for d in TEST_DOMAINS)
+
+
+def vendor_reasons(req) -> list[str]:
+    """Why the request is not paid, in words the vendor can act on (no internal notes)."""
+    out = [r for r in (req.reasons or []) if not any(r.startswith(p) for p in INTERNAL) and "matched as its next payment" not in r]
+    out += [f"{c.label}: {c.detail}" for c in (req.checks or []) if c.status == "fail" and c.mode == "required"]
+    return list(dict.fromkeys(out))[:6] or ["it is held for a person to check"]
+
+
+def compose_vendor(req, company: str, checked_at: str, rejected: bool = False) -> tuple[str, str]:
+    """(subject, body) of the automatic answer to the vendor: which invoice, when it was received and checked, what is
+    missing, and what to do."""
+    inv = req.invoice_no or (req.subject or "your request")[:60]
+    amt = f"{req.currency or ''} {(req.amount_minor or 0) / 100:,.2f}".strip()
+    when = lambda t: f"{t[:10]} {t[11:16]} UTC" if t else "-"  # noqa: E731
+    why = "\n".join(f"  - {r}" for r in vendor_reasons(req))
+    verdict = "was rejected and will not be paid" if rejected else "cannot be paid as it stands"
+    subject = f"Invoice {inv}: {'rejected' if rejected else 'received, not accepted for payment yet'}"
+    body = (f"Dear {req.counterparty_name or req.display_name or 'Sir or Madam'},\n\n"
+            f"{company or 'We'} received your invoice {inv} ({amt}) on {when(req.received_at)}. It was checked on {when(checked_at)} and {verdict}:\n\n{why}\n\n"
+            + ("Please send a new invoice if the amount is still owed.\n" if rejected else
+               f"Please send a corrected invoice to the same address, quoting invoice number {inv}. Nothing is paid until the points above are settled.\n")
+            + f"\nThis is an automatic message from VENTHORA on behalf of {company or 'the company'}. A change of bank details is only ever confirmed by a call to your registered phone number.\n")
+    return subject, body
+
+
+def callback_sheet(req, payee: dict, phone: str) -> dict:
+    """What the person who calls the vendor needs on one screen: the company, the person on the invoice, the registered
+    number to call, and the fields to settle (from the flags and the failed checks)."""
+    fields, seen = [], set()
+    for f in req.flags or []:
+        if f in FLAG_FIELD and f not in seen:
+            seen.add(f)
+            k, label, why = FLAG_FIELD[f]
+            fields.append({"field": k, "label": label, "why": why})
+    for c in req.checks or []:
+        if c.status == "fail":
+            fields.append({"field": None, "label": c.label, "why": c.detail})
+    person = "" if req.trust == "system_of_record" else (req.display_name or "")
+    return {"company": payee.get("name") or req.counterparty_name or req.claimed_name or "", "pic": person, "pic_email": "" if req.trust == "system_of_record" else req.sender,
+            "phone": phone or "", "contacts": payee.get("contacts") or [], "to_correct": fields}
+
+
 ACCEPTED = ("VERIFIED",)
 REFUSED = {"REJECTED": "rejected", "DUPLICATE": "refused as a duplicate", "QUARANTINED": "quarantined", "NEEDS_REVIEW": "held for a person"}
 
@@ -41,7 +99,7 @@ def build(req, requests: list, outbox_items: list[dict]) -> dict:
 
     def about_vendor(m: dict) -> bool:
         ref = str(m.get("ref") or "")
-        return m.get("kind") in (None, "vendor_notice") and (ref in ids or (oid is not None and (ref == oid or ref.startswith(oid + "-"))))
+        return m.get("kind") in VENDOR_KINDS and (ref in ids or (oid is not None and (ref == oid or ref.startswith(oid + "-"))))
 
     vendor = sorted((_msg(m) for m in outbox_items if about_vendor(m)), key=lambda m: m["created_at"] or "")
     fco = sorted((_msg(m) for m in outbox_items if m.get("kind") == "fco_notice" and str(m.get("ref") or "").split(":", 1)[-1] in ids),

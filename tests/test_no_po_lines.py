@@ -64,5 +64,13 @@ def test_a_manual_call_back_is_kept_on_the_request_with_its_time(client):
         "pic_name": "Budi Hartono", "company": "Callback Supplier Pte Ltd", "phone": "+65 6123 4567", "revision": "quote the purchase order"})
     assert r.status_code == 200 and r.json()["at"] and r.json()["by"].startswith("Fitri")
     d = client.get(f"/v1/intake/requests/{rid}/correspondence").json()
-    assert [c["pic_name"] for c in d["callbacks"]] == ["Budi Hartono"] and d["feedback"]["state"] == "none"
+    assert [c["pic_name"] for c in d["callbacks"]] == ["Budi Hartono"]
+    # the held bill was answered automatically: which invoice, received and checked when, what is missing; on the log,
+    # and not sent because the vendor's address is a reserved test domain
+    m = d["vendor_messages"]
+    assert len(m) == 1 and m[0]["kind"] == "vendor_hold" and m[0]["status"] == "skipped" and "test address" in m[0]["error"]
+    assert "CB-1" in m[0]["subject"] and "received your invoice CB-1" in m[0]["body"] and "purchase order" in m[0]["body"]
+    assert d["feedback"]["state"] == "undelivered"
+    sheet = client.get(f"/v1/intake/requests/{rid}").json()["callback"]
+    assert sheet["company"] == "Callback Supplier Pte Ltd" and {f["field"] for f in sheet["to_correct"]} >= {"po_number"}
     assert client.get(f"/v1/intake/requests/{rid}").json()["status"] == "NEEDS_REVIEW"  # a call-back record changes no status

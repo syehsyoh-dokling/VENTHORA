@@ -2067,6 +2067,8 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, 
             _after_intake(req)  # verified and inside the mandate: paid now, when the standing mandate says so
         with contextlib.suppress(Exception):  # the FCO's notice: one email per request that needs a person or a first payment
             await _fco_notice(req, simulated=simulate)
+        with contextlib.suppress(Exception):  # the vendor's answer: why its invoice is held, sent and logged at once
+            await _vendor_feedback(req, simulated=simulate)
     return req
 
 
@@ -2085,6 +2087,44 @@ def _notice_kind(req) -> str | None:
         if p.get("status") == "VERIFIED" and not p.get("paid_count"):
             return "first_payment"
     return None
+
+
+async def _vendor_feedback(req, *, simulated: bool = False, rejected: bool = False) -> dict | None:
+    """The automatic answer to the vendor when its request is held (or rejected by a person): which invoice, when it was
+    received and checked, and what is missing. Once per request and outcome, to the vendor's REGISTERED mailbox only
+    (never to an unverified sender); a simulation or a test address is recorded and not sent. Always on the log."""
+    from . import correspondence, fco_notify, outbox
+
+    org = app.state.org
+    if req is None or req.payment or req.kind not in PAYABLE_KINDS or not fco_notify.settings(org).get("vendor_feedback", True):
+        return None
+    if not rejected and req.status not in ("NEEDS_REVIEW", "QUARANTINED"):
+        return None
+    kind = "vendor_reject" if rejected else "vendor_hold"
+    if any(m.get("kind") == kind and m.get("ref") == req.intake_id for m in org.list("outbox")):
+        return None
+    payee = app.state.intake.registry.payees.get(req.counterparty_id or "") or {}
+    to = [a for a in (payee.get("contacts") or []) if a]
+    company = org.standards().get("company_name", "")
+    subject, body = correspondence.compose_vendor(req, company, datetime.now(UTC).isoformat(timespec="seconds"), rejected=rejected)
+    skip = None
+    if not to:
+        skip, to = "the sender is not a registered vendor: no answer is sent to an unverified address", [req.sender] if req.sender and "@" in req.sender else []
+    elif simulated or "[SIMULATION]" in (req.subject or ""):
+        skip = "a simulated request: recorded, not sent"
+    elif all(correspondence.is_test_address(a) for a in to):
+        skip = "a test address (reserved example domain): recorded, not sent"
+    rec = await asyncio.to_thread(outbox.queue, org, to=to, subject=subject, body=body, ref=req.intake_id, by="VENTHORA (automatic answer)", kind=kind)
+    if skip:
+        rec |= {"status": "skipped", "error": skip}
+        await asyncio.to_thread(org._put, "outbox", rec, "VENTHORA (automatic answer)")
+    else:
+        rec = await asyncio.to_thread(outbox.deliver, org, rec["_id"])
+    await asyncio.to_thread(app.state.audit.append, "vendor_feedback", {"intake_id": req.intake_id, "invoice_no": req.invoice_no, "kind": kind, "to": to,
+                                                                        "status": rec.get("status"), "note": skip, "outbox_id": rec["_id"]})
+    _note("Invoices & intake", f"Answer to the vendor ({', '.join(to) or 'no address'}): invoice {req.invoice_no or '-'} "
+                               f"{'rejected' if rejected else 'held'} · email {rec.get('status')}{' · ' + skip if skip else ''}")
+    return rec
 
 
 async def _fco_notice(req, *, simulated: bool = False, force: bool = False) -> dict | None:
@@ -2940,7 +2980,14 @@ async def intake_get(intake_id: str):
         raise HTTPException(404, "unknown intake request")
     po = procurement.status(app.state.org, app.state.executor.store, req.po_number) if req.po_number else None
     payees = app.state.intake.registry.payees
-    return req.model_dump() | {"po": po and {"po_id": po["po"]["po_id"], "total_minor": po["po"]["total_minor"], "currency": po["po"]["currency"],
+    from . import correspondence
+    from .masterdata import MasterStore
+
+    cid = req.counterparty_id or ""
+    life = app.state.executor.store.payee(cid) or {}
+    master = ((_ingest_ctx().get("master") or MasterStore()).get("vendor", cid) or {}) if cid else {}
+    sheet = correspondence.callback_sheet(req, payees.get(cid) or {}, life.get("registered_phone") or master.get("registered_phone") or "")
+    return req.model_dump() | {"callback": sheet, "po": po and {"po_id": po["po"]["po_id"], "total_minor": po["po"]["total_minor"], "currency": po["po"]["currency"],
                                              "paid_minor": po["paid_minor"], "remaining_minor": po["remaining_minor"], "supplier_id": po["po"]["supplier_id"]},
                                "payees": [{"id": k, "name": v["name"], "currency": v.get("currency")} for k, v in sorted(payees.items(), key=lambda x: x[1]["name"])],
                                "open_pos": [{"po_id": p["po_id"], "supplier_id": p["supplier_id"], "currency": p["currency"]} for p in app.state.org.list("po")
@@ -3070,6 +3117,9 @@ async def review_intake(intake_id: str, review: ReviewRequest):
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
     await asyncio.to_thread(app.state.audit.append, "intake_review", {"intake_id": intake_id, **review.model_dump()})
+    if review.decision == "reject":
+        with contextlib.suppress(Exception):  # the vendor is told its invoice was rejected, and why
+            await _vendor_feedback(req, rejected=True)
     return req
 
 
@@ -4299,7 +4349,13 @@ async def upload_preview(upload_id: str, req: UploadMapping):
 @app.post("/v1/sources/uploads/{upload_id}/commit")
 async def upload_commit(upload_id: str, req: UploadMapping, role: str = "finance_manager", by: str = "dashboard"):
     who = _writer(role, by)
+    started = datetime.now(UTC).isoformat()
     report = await _upload_apply(upload_id, req, dry_run=False)
+    if report.get("entity") == "bill":  # an uploaded bill that is held gets the same answer to its vendor as an emailed one
+        for q in await asyncio.to_thread(app.state.intake.store.list, 500):
+            if q.received_at >= started[:19]:
+                with contextlib.suppress(Exception):
+                    await _vendor_feedback(q)
     app.state.position_cache = None
     await asyncio.to_thread(app.state.audit.append, "upload_committed", {"upload_id": upload_id, "by": who, "entity": report["entity"],
                                                                          "created": len(report["created"]), "updated": len(report["updated"]),

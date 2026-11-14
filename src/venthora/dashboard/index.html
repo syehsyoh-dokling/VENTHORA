@@ -1337,7 +1337,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="mdtDlgOk" value="ok" disabled>Apply changes</button></div></form></dialog>
 <dialog id="idlg" style="width:min(860px,calc(100vw - 32px))"><h3 id="idlgTitle"></h3><div id="idlgBody"></div>
  <div id="idlgOut" class="small" style="margin-top:10px"></div>
- <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px;flex-wrap:wrap"><button id="idlgFco" title="Email the FCO about this one: what stops it, or an Approve &amp; pay link">✉ Email FCO</button><button id="idlgCall" title="Record a call-back you made to the vendor: who, which number, what must be corrected">☎ Manual call-back</button><span style="flex:1"></span><button id="idlgClose">Close</button><button id="idlgReject">Reject</button><button id="idlgSave">Save</button><button id="idlgVerify">Verify</button><button class="primary" id="idlgPay">Approve &amp; pay</button></div></dialog>
+ <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px;flex-wrap:wrap"><button id="idlgFco" title="Email the FCO about this one: what stops it, or an Approve &amp; pay link">✉ Email FCO</button><button id="idlgCall" title="The call sheet: company, person, registered phone and the fields to settle; correct them on the call and save">☎ Manual call-back</button><span style="flex:1"></span><button id="idlgClose">Close</button><button id="idlgReject">Reject</button><button id="idlgSave">Save</button><button id="idlgVerify">Verify</button><button class="primary" id="idlgPay">Approve &amp; pay</button></div></dialog>
 <dialog id="sdlg" style="width:min(680px,calc(100vw - 32px))"><h3 id="sdlgTitle"></h3><div id="sdlgBody"></div>
  <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button id="sdlgClose">Close</button></div></dialog>
 <dialog id="pdlg"><h3 id="pdlgTitle"></h3><div id="pdlgBody"></div>
@@ -3593,7 +3593,7 @@ async function fcoNotifyView(){const el=$("#sopNotify");if(!el)return;let d;try{
   <div class="small muted" style="margin:4px 0 8px">One email per request, from the company's sender (${esc(d.sender||"Email Sync step 3 not set")}). A first payment carries an <b>Approve &amp; pay</b> link: it opens a confirmation page, works once for 72 hours, and the payment still passes every check, the reserve floor and the limits.</div>
   <div class="row" style="gap:14px;flex-wrap:wrap;align-items:flex-end"><label class="small"><b>FCO's email</b><br><input id="fnTo" value="${esc(s.to||"")}" style="width:260px" ${dis}></label>
    <label class="small"><b>At most</b><br><input id="fnMax" type="number" min="1" max="200" value="${s.max_per_hour}" style="width:70px" ${dis}> per hour</label>
-   <div>${ck("enabled","Send notices")}${ck("needs_review","Each request that needs a person (held for review, quarantined)")}${ck("first_payment","Each first payment to a new payee, with an Approve & pay link")}${ck("include_simulations","Also for simulated invoices (demo)")}</div>
+   <div>${ck("enabled","Send notices")}${ck("needs_review","Each request that needs a person (held for review, quarantined)")}${ck("first_payment","Each first payment to a new payee, with an Approve & pay link")}${ck("vendor_feedback","Answer the vendor automatically when its invoice is held or rejected: which invoice, received and checked when, what is missing")}${ck("include_simulations","Also for simulated invoices (demo)")}</div>
    <button class="primary" id="fnSave" ${dis}>Save</button><span class="small" id="fnMsg"></span></div>
   ${d.recent.length?`<div class="small" style="margin-top:10px"><b>Last notices</b> · ${d.sent_last_hour} in the last hour${d.recent.map(r=>`<div class="muted">${esc(String(r.created_at).slice(0,16).replace("T"," "))} UTC · <span class="pill ${r.status==="sent"?"good":r.status==="failed"?"critical":"warn"}">${esc(r.status)}</span> ${esc(r.subject)}${r.error?` · ${esc(r.error)}`:""}</div>`).join("")}</div>`:""}`;
  if(!can)return;
@@ -3815,35 +3815,50 @@ const whenUTC=t=>t?`${t.slice(8,10)}/${t.slice(5,7)}/${t.slice(0,4)} ${t.slice(1
 async function pdCorr(id){const el=$("#rvCorr");if(!el)return;let d;try{d=await api(`/v1/intake/requests/${encodeURIComponent(id)}/correspondence`)}catch(e){el.innerHTML=`<h4>Messages and call-backs</h4><div class="err small">${esc(e.message)}</div>`;return}
  if(!PD||PD.intake_id!==id)return;
  const FB={none:["#94a3b8","Not contacted"],undelivered:["#dc2626","Not delivered"],waiting:["#d97706","Waiting for the vendor"],accepted:["#16a34a","Answered · accepted"],refused_again:["#dc2626","Answered · refused again"]};
- const ST={sent:"good",queued:"warn",failed:"critical",bounced:"critical",complained:"critical"};
- const mail=m=>`<details class="rv-msg"><summary><span class="pill ${ST[m.status]||""}">${esc(m.status)}</span> <b>${whenUTC(m.sent_at||m.created_at)}</b> <span class="muted">to ${esc((m.to||[]).join(", "))}</span><div class="small" style="margin:2px 0 0 2px">${esc(m.subject||"")}</div></summary>
+ const ST={sent:"good",queued:"warn",skipped:"warn",failed:"critical",bounced:"critical",complained:"critical"};
+ const KIND={vendor_hold:"automatic answer: held",vendor_reject:"automatic answer: rejected",vendor_notice:"written by a person",fco_notice:"notice to the FCO"};
+ const mail=m=>`<details class="rv-msg"><summary><span class="pill ${ST[m.status]||""}">${esc(m.status)}</span> <b>${whenUTC(m.sent_at||m.created_at)}</b> <span class="muted">to ${esc((m.to||[]).join(", "))}</span>${KIND[m.kind]?` <span class="chip">${KIND[m.kind]}</span>`:""}<div class="small" style="margin:2px 0 0 2px">${esc(m.subject||"")}</div></summary>
    <div class="small muted" style="margin:6px 0 2px">written by ${esc(m.by||"-")}${m.error?` · <span style="color:#dc2626">${esc(m.error)}</span>`:""}${m.status!=="sent"?` · recorded ${whenUTC(m.created_at)}, not sent yet`:""}</div><pre class="rv-pre">${esc(m.body||"")}</pre></details>`;
  const sec=(t,n,body,empty)=>`<div class="rv-sec"><div class="rv-sech"><b>${t}</b>${n!=null?` <span class="pill">${n}</span>`:""}</div>${body||`<div class="small muted">${empty}</div>`}</div>`;
- const fb=FB[d.feedback.state]||FB.none;
+ const fb=FB[d.feedback.state]||FB.none,CS=PD.callback||{};
+ const kvc=(k,v)=>`<div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">${k}</div><div>${v}</div></div>`;
  el.innerHTML=`<style>#idlg .rv-sec{padding:10px 0;border-top:1px solid var(--line)}#idlg .rv-sec:first-of-type{border-top:0;padding-top:0}#idlg .rv-sech{margin-bottom:6px}
    #idlg .rv-msg{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px}#idlg .rv-msg>summary{cursor:pointer;list-style:none}#idlg .rv-msg>summary::after{content:"read ›";float:right;color:var(--accent,#2f6fed);font-size:12px}
    #idlg .rv-msg[open]>summary::after{content:"close"}#idlg .rv-pre{white-space:pre-wrap;word-break:break-word;font:inherit;font-size:12.5px;margin:0;padding:8px 10px;border-radius:8px;background:var(--panel2,rgba(47,111,237,.06))}
    #idlg .rv-row{display:flex;gap:10px;flex-wrap:wrap;padding:7px 9px;border-radius:9px;margin-bottom:5px;background:var(--panel2,rgba(47,111,237,.05))}</style>
   <h4>Messages and call-backs <span class="small muted" style="font-weight:400">for the FCO: everything said about this request, with its date and time</span></h4>
   ${sec("Vendor feedback status",null,`<div class="rv-row" style="align-items:center"><span class="pill" style="background:${fb[0]};color:#fff">${fb[1]}</span><span class="small">${esc(d.feedback.text)}${d.feedback.since?` <span class="muted">(${whenUTC(d.feedback.since)})</span>`:""}</span></div>`)}
-  ${sec("Messages sent to the vendor",d.vendor_messages.length,d.vendor_messages.map(mail).join(""),"none sent yet")}
+  ${sec("Messages sent to the vendor",d.vendor_messages.length,d.vendor_messages.map(mail).join(""),"none sent yet: VENTHORA answers the vendor automatically when a request is held or rejected")}
   ${sec("What came back from the vendor",d.submissions.length,d.submissions.map(s=>`<div class="rv-row"><div style="flex:1;min-width:220px"><span class="pill ${s.status==="VERIFIED"?"good":"critical"}">${esc(s.outcome)}</span> <b>${whenUTC(s.received_at)}</b>${s.dunning_level?` <span class="pill warn">reminder ${s.dunning_level}</span>`:""}
      <div class="small">${esc(s.subject||"")}</div><div class="small muted">${s.reasons.map(esc).join(" · ")}</div>${s.reviewer?`<div class="small">decided by ${esc(s.reviewer)}${s.review_note?`: ${esc(s.review_note)}`:""}</div>`:""}</div>
     <a class="small" href="javascript:void 0" data-rvopen="${esc(s.intake_id)}">open ›</a></div>`).join(""),"the vendor sent nothing else for this invoice")}
   ${sec("Notices sent to the FCO's mailbox",d.fco_messages.length,d.fco_messages.map(mail).join(""),"none sent: press ✉ Email FCO to send one")}
   ${sec("Manual call-backs",d.callbacks.length,d.callbacks.map(c=>`<div class="rv-row"><div style="flex:1;min-width:220px"><b>${whenUTC(c.at)}</b> <span class="muted">recorded by ${esc(c.by)}</span>
-     <div class="small">Spoke to <b>${esc(c.pic_name)}</b> · ${esc(c.company)} · <span class="mono">${esc(c.phone)}</span></div><div class="small"><span class="muted">To correct:</span> ${esc(c.revision)}</div></div></div>`).join(""),"none recorded: press ☎ Manual call-back")}
-  <div id="rvCall" hidden class="rv-card" style="margin-top:10px;border-left:4px solid var(--accent,#2f6fed)"><h4>Record a manual call-back</h4>
-   <div class="form" style="grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))">
-    <label>Name of the person spoken to (PIC)<input id="cb-pic" maxlength="120"></label><label>Company<input id="cb-co" maxlength="160" value="${esc(PD.counterparty_name||PD.claimed_name||PD.display_name||"")}"></label>
-    <label>Phone number called<input id="cb-phone" maxlength="40" placeholder="+62 …"></label>
-    <label style="grid-column:1/-1">What must be corrected<textarea id="cb-rev" rows="3" maxlength="1000" placeholder="e.g. the invoice must quote PO PUR-ORD-2026-00001 and be addressed to Nusantara Trading Pte Ltd"></textarea></label></div>
-   <div class="row" style="gap:8px;margin-top:10px;align-items:center"><button class="primary" id="cbSave">Save to the log</button><button id="cbCancel">Cancel</button><span class="small muted">the date and time are recorded when you save; it changes no status by itself</span></div></div>`;
+     <div class="small">Spoke to <b>${esc(c.pic_name)}</b> · ${esc(c.company)} · <span class="mono">${esc(c.phone)}</span></div><div class="small"><span class="muted">To correct:</span> ${esc(c.revision)}</div></div></div>`).join(""),"none recorded: press ☎ Manual call-back for the call sheet")}
+  <div id="rvCall" hidden class="rv-card" style="margin-top:10px;border-left:4px solid var(--accent,#2f6fed)"><h4>Call sheet <span class="small muted" style="font-weight:400">everything for the call on one screen: nothing to look up</span></h4>
+   <div class="rv-src small">${kvc("Company",`<b style="font-size:14px">${esc(CS.company||"-")}</b>`)}${kvc("Person on the invoice",CS.pic?`<b>${esc(CS.pic)}</b>${CS.pic_email?`<div class="mono muted">${esc(CS.pic_email)}</div>`:""}`:'<span class="muted">not named (the bill came from the company\'s own system)</span>')}
+    ${kvc("Registered phone",CS.phone?`<a href="tel:${esc(CS.phone.replace(/[^+\d]/g,""))}" style="font-size:18px;font-weight:800;white-space:nowrap">☎ ${esc(CS.phone)}</a>`:'<span style="color:#dc2626">none on file: add it in Users &amp; Beneficiaries</span>')}${kvc("Registered mailbox",(CS.contacts||[]).map(esc).join("<br>")||"-")}</div>
+   <div class="small" style="margin-top:10px"><b>To settle on the call</b> ${(CS.to_correct||[]).length?"":'<span class="muted">nothing is flagged: confirm the details only</span>'}</div>
+   ${(CS.to_correct||[]).map(f=>`<div class="rv-row" style="align-items:center"><span style="flex:1;min-width:200px"><b>${esc(f.label)}</b> <span class="muted">${esc(f.why)}</span></span>${f.field?`<a class="small" href="javascript:void 0" data-cbgo="${esc(f.field)}">correct this field ›</a>`:""}</div>`).join("")}
+   <div class="form" style="grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));margin-top:10px">
+    <label>Person spoken to<input id="cb-pic" maxlength="120" value="${esc(CS.pic||"")}"></label><label>Number called<input id="cb-phone" maxlength="40" value="${esc(CS.phone||"")}" placeholder="+62 …"></label></div>
+   <div class="small muted" style="margin-top:8px">As the vendor confirms each point, correct the field under <b>Details</b> above (the flagged ones are outlined). Then save: the corrections are checked again and the call is written to the log with its date and time.</div>
+   <div class="row" style="gap:8px;margin-top:10px;align-items:center"><button class="primary" id="cbSave">Save corrections and log the call</button><button id="cbCancel">Close</button></div></div>`;
  el.querySelectorAll("[data-rvopen]").forEach(a=>a.onclick=()=>pdOpen(a.dataset.rvopen));
+ const goField=k=>{const i=$(`#pd-${k}`);if(i){i.scrollIntoView({behavior:"smooth",block:"center"});i.focus()}};
+ (CS.to_correct||[]).forEach(f=>{const i=f.field&&$(`#pd-${f.field}`);if(i)i.style.outline="2px solid #d97706"});
+ el.querySelectorAll("[data-cbgo]").forEach(a=>a.onclick=()=>goField(a.dataset.cbgo));
  $("#cbCancel").onclick=()=>{$("#rvCall").hidden=true};
- $("#cbSave").onclick=async()=>{const b={pic_name:$("#cb-pic").value.trim(),company:$("#cb-co").value.trim(),phone:$("#cb-phone").value.trim(),revision:$("#cb-rev").value.trim()};
-  if(b.pic_name.length<2||b.company.length<2||b.phone.length<5||b.revision.length<3){toast("Fill in the person, the company, the phone number and what must be corrected","warn");return}
-  try{const c=await api(`/v1/intake/requests/${encodeURIComponent(id)}/callbacks?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});toast(`Call-back recorded ${whenUTC(c.at)}`,"good");pdCorr(id)}catch(e){toast(esc(e.message),"serious")}}}
+ $("#cbSave").onclick=async()=>{const pic=$("#cb-pic").value.trim(),phone=$("#cb-phone").value.trim();
+  if(pic.length<2||phone.length<5){toast("Enter the person spoken to and the number called","warn");return}
+  const LBL={counterparty_id:"payee",invoice_no:"invoice",amount_minor:"amount",currency:"currency",due_date:"due date",po_number:"PO number",account_code:"account code",category:"category"};
+  const body=pdBody(),changed=Object.keys(body).filter(k=>k!=="note");
+  const what=changed.length?"corrected on the call: "+changed.map(k=>`${LBL[k]||k} → ${k==="amount_minor"?(body[k]/100).toFixed(2):body[k]===""?"none":body[k]}`).join("; "):"details confirmed by phone; nothing changed";
+  body.note=[`call-back with ${pic} on ${phone}`,body.note].filter(Boolean).join(" · ");
+  $("#idlgOut").textContent="saving, checking again and logging the call…";
+  try{const r=await api(`/v1/intake/requests/${encodeURIComponent(id)}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+   const c=await api(`/v1/intake/requests/${encodeURIComponent(id)}/callbacks?${who()}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({pic_name:pic,company:CS.company||PD.display_name||"-",phone,revision:what})});
+   await pdOpen(id);pdShow(r.problems,`Saved and logged ${whenUTC(c.at)}. Every check passes: it waits for an approval, or press Verify.`);intake()}catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}}}
 function pdBody(){const v=id=>$(`#pd-${id}`);const b={note:v("note").value.trim()};const r=PD;
  const cid=v("counterparty_id").value;if(cid!==(r.counterparty_id||""))b.counterparty_id=cid||null;
  for(const k of ["invoice_no","currency","due_date","account_code","category"]){const el=v(k);if(el&&el.value.trim()!==(r[k]||""))b[k]=el.value.trim()||null}
@@ -3859,7 +3874,7 @@ const pdReview=async d=>{const id=PD.intake_id,a=actor(),note=($("#pd-note")||{}
  try{await api(`/v1/intake/${id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:d,reviewer:a.name,role:a.role,note})});
   await pdOpen(id);pdShow(null,d==="verify"?"Verified: it waits for an approval, or the next payment run.":"Rejected: it will not be paid.");intake();notifications()}
  catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
-$("#idlgCall").onclick=()=>{const f=$("#rvCall");if(!f)return;f.hidden=false;f.scrollIntoView({behavior:"smooth",block:"center"});$("#cb-pic").focus()};
+$("#idlgCall").onclick=()=>{const f=$("#rvCall");if(!f)return;f.hidden=false;f.scrollIntoView({behavior:"smooth",block:"center"})};
 $("#idlgVerify").onclick=()=>pdReview("verify");$("#idlgReject").onclick=()=>pdReview("reject");
 $("#idlgFco").onclick=async()=>{try{const n=await api(`/v1/fco-notify/send/${PD.intake_id}?${who()}`,{method:"POST"});pdShow(null,`Email to the FCO (${(n.to||[]).join(", ")}): ${n.status}${n.error?" · "+n.error:""}`);pdCorr(PD.intake_id)}catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#idlgSave").onclick=async()=>{const id=PD.intake_id;$("#idlgOut").textContent="saving and checking again…";

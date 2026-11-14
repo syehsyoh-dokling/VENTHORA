@@ -18,7 +18,7 @@ import hmac
 import secrets
 
 KIND, LINK, SECRET_ID = "fco_notify", "approve_link", "approve_secret"
-DEFAULTS = {"enabled": True, "to": "", "needs_review": True, "first_payment": True, "include_simulations": False, "max_per_hour": 20}
+DEFAULTS = {"enabled": True, "to": "", "needs_review": True, "first_payment": True, "include_simulations": False, "max_per_hour": 20, "vendor_feedback": True}
 LINK_HOURS = 72
 
 
@@ -37,7 +37,7 @@ def save(org, body: dict, by: str) -> dict:
     if new["to"] and ("@" not in new["to"] or " " in new["to"]):
         raise ValueError("the FCO's email address is not valid")
     new["max_per_hour"] = max(1, min(int(new["max_per_hour"] or 20), 200))
-    for k in ("enabled", "needs_review", "first_payment", "include_simulations"):
+    for k in ("enabled", "needs_review", "first_payment", "include_simulations", "vendor_feedback"):
         new[k] = bool(new[k])
     org._put(KIND, {"_id": "settings"} | new | {"updated_by": by, "updated_at": _now()}, by)
     return settings(org)
