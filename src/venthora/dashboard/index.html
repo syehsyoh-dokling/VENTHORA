@@ -1337,7 +1337,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
  <div class="row" style="justify-content:flex-end;margin-top:14px"><button value="cancel" formnovalidate>Cancel</button><button class="primary" id="mdtDlgOk" value="ok" disabled>Apply changes</button></div></form></dialog>
 <dialog id="idlg" style="width:min(860px,calc(100vw - 32px))"><h3 id="idlgTitle"></h3><div id="idlgBody"></div>
  <div id="idlgOut" class="small" style="margin-top:10px"></div>
- <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button id="idlgClose">Close</button><button id="idlgSave">Save</button><button class="primary" id="idlgPay">Pay</button></div></dialog>
+ <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px;flex-wrap:wrap"><button id="idlgFco" title="Email the FCO about this one: what stops it, or an Approve &amp; pay link">✉ Email FCO</button><span style="flex:1"></span><button id="idlgClose">Close</button><button id="idlgReject">Reject</button><button id="idlgSave">Save</button><button id="idlgVerify">Verify</button><button class="primary" id="idlgPay">Approve &amp; pay</button></div></dialog>
 <dialog id="sdlg" style="width:min(680px,calc(100vw - 32px))"><h3 id="sdlgTitle"></h3><div id="sdlgBody"></div>
  <div class="row" style="justify-content:flex-end;margin-top:14px;gap:8px"><button id="sdlgClose">Close</button></div></dialog>
 <dialog id="pdlg"><h3 id="pdlgTitle"></h3><div id="pdlgBody"></div>
@@ -1426,17 +1426,19 @@ async function intake(){try{const every=await api("/v1/intake");const needs=loca
  const pages=Math.max(1,Math.ceil(filtered.length/PEND_SIZE));if(PEND.page>=pages)PEND.page=pages-1;
  const rows=filtered.slice(PEND.page*PEND_SIZE,(PEND.page+1)*PEND_SIZE);try{INTAKE_PEOPLE=Object.fromEntries((await api("/v1/org/users")).map(u=>[u.user_id,u]))}catch(e){}const c={};all.forEach(r=>{const k=r.payment?"PAID":r.status;c[k]=(c[k]||0)+1});
  $("#intakeMeta").innerHTML=esc(Object.entries(c).map(([k,v])=>`${v} ${k.toLowerCase()}`).join(" · "))+(needs?` · <span class="pill warn">showing what needs a person</span> <a href="#/pending">show all</a>`:"")+` · <a href="#/rep-goods">paid items are in Reporting ›</a>`;
- $("#intake").innerHTML=table([{h:"Status",f:r=>r.payment?`<span class="pill good">PAID</span><div class="small muted">${fmt(r.payment.amount_minor,r.payment.currency)} · ${esc((r.payment.paid_at||"").slice(0,10))}</div>`:pill(r.status)},{h:"From",f:r=>`<div>${esc(r.display_name)}</div><div class="mono muted">${esc(r.sender)}</div>`},
-  {h:"Trust",f:r=>`<span class="small">${esc(r.trust)}${r.counterparty_name?` · ${esc(r.counterparty_name)}`:r.claimed_name?` · claims ${esc(r.claimed_name)}`:""}</span>`},
-  {h:"Kind",f:r=>`${esc(r.kind.replaceAll("_"," "))}${r.category?`<div class="small muted">${esc(r.category)}${r.expense_date?` · spent ${esc(r.expense_date)}`:""}</div>`:""}`},
-  {h:"Amount",num:1,f:r=>fmt(r.amount_minor,r.currency)},{h:"Invoice",f:r=>`${esc(r.invoice_no||"-")}${r.po_number?`<div class="small"><span class="chip">${esc(r.po_number)}${r.installment?` · ${esc(r.installment)}`:""}</span></div>${r.account_code?`<div class="mono muted">${esc(r.account_code)}</div>`:""}`:""}`},{h:"Due",f:r=>esc(r.due_date||"-")},
-  {h:"Read from",f:r=>`<span class="small">${(r.attachments||[]).map(a=>`<div title="${esc(a.problem||`${a.pages} page(s) read`)}">${a.read?"📄":"⚠"} ${esc(a.name)}</div>`).join("")||"email body"}
-   <div class="muted">${r.reader==="model+rules"?"model + rules":"rules"}${Object.keys(r.authentication||{}).length?` · ${Object.entries(r.authentication).map(([k,v])=>`${k} ${v}`).join(", ")}`:""}</div></span>`},
-  {h:"Checks",f:r=>docChecks(r.checks||[])},
-  {h:"Why / quotes",f:r=>`<details><summary class="small">${esc(r.reasons[0]||r.flags.join(", ")||"details")}</summary>${r.reasons.slice(1).map(x=>`<div class="small">· ${esc(x)}</div>`).join("")}${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}${r.reviewer?`<div class="small">reviewed by ${esc(r.reviewer)}${r.review_note?": "+esc(r.review_note):""}</div>`:""}${(r.approvers||[]).length?`<div class="small">approvers: ${r.approvers.map(id=>esc((INTAKE_PEOPLE[id]||{}).name||id)).join(", ")}</div>`:""}</details>`},
-  {h:"",f:r=>(["NEEDS_REVIEW","QUARANTINED"].includes(r.status)?`<input data-note="${r.intake_id}" placeholder="note (e.g. call-back done)" style="width:170px;margin-bottom:4px"><div class="row"><button data-id="${r.intake_id}" data-d="verify" ${r.counterparty_id?"":"disabled title='sender not registered for any counterparty'"}>Verify</button><button data-id="${r.intake_id}" data-d="reject">Reject</button></div>`
-   :r.status==="VERIFIED"&&PAYABLE_KIND.includes(r.kind)?`<button class="primary" data-pay="${r.intake_id}" title="Approve this payment as ${esc(actor().name)} and pay it now: the plan still checks the balance, the reserve floor and the limits">Approve &amp; pay</button>`:"")
-   +(["NEEDS_REVIEW","QUARANTINED","VERIFIED"].includes(r.status)?`<button class="small" data-fco="${r.intake_id}" style="margin-top:4px" title="Email the FCO about this one: what stops it, or (first payment) an Approve & pay link">✉ Email FCO</button>`:"")}],
+ const chk=cs=>{if(!cs.length)return '<span class="small muted">-</span>';const n=s=>cs.filter(c=>c.status===s).length,held=cs.some(c=>c.status==="fail"&&c.mode==="required");
+  return `<span class="pill ${held?"critical":n("fail")+n("warn")?"warn":"good"}" style="white-space:nowrap">${n("pass")}/${cs.filter(c=>c.status!=="skip").length}</span>${n("fail")?`<div class="small muted" style="white-space:nowrap">${n("fail")} failed</div>`:""}`};
+ const cut=(s,n)=>{s=String(s||"");return s.length>n?s.slice(0,n-1)+"…":s};
+ $("#intake").innerHTML=`<style>#intake table td{vertical-align:middle}#intake .pwhy{max-width:340px}@media(max-width:900px){#intake .phide{display:none}}</style>`+table([
+  {h:"Status",f:r=>pill(r.status)},
+  {h:"Payee",f:r=>`<b>${esc(r.counterparty_name||r.claimed_name||r.display_name)}</b><div class="mono muted small">${esc(cut(r.sender,38))}</div>`},
+  {h:"Kind",f:r=>`<span class="small phide">${esc(r.kind.replaceAll("_"," "))}</span>`},
+  {h:"Amount",num:1,f:r=>`<b style="white-space:nowrap">${fmt(r.amount_minor,r.currency)}</b>`},
+  {h:"Invoice",f:r=>`<span class="mono small" style="white-space:nowrap">${esc(r.invoice_no||"-")}</span>${r.po_number?`<div class="small" style="white-space:nowrap"><span class="chip">${esc(r.po_number)}</span></div>`:""}`},
+  {h:"Due",f:r=>`<span style="white-space:nowrap">${esc(r.due_date||"-")}</span>`},
+  {h:"Checks",f:r=>chk(r.checks||[])},
+  {h:"Why",f:r=>`<div class="small pwhy phide" title="${esc(r.reasons.join(" · "))}">${esc(cut(r.status==="VERIFIED"?"every check passed: waits for an approval or the next run":(r.reasons.find(x=>!/^from the company's own system/.test(x)&&!/^corrected by/.test(x))||r.reasons[0]||r.flags.join(", ")),110))}</div>`},
+  {h:"",f:r=>`<div class="acts" style="white-space:nowrap"><button class="small" data-rev="${r.intake_id}">Review ›</button>${r.status==="VERIFIED"&&PAYABLE_KIND.includes(r.kind)?` <button class="small primary" data-pay="${r.intake_id}" title="Approve this payment as ${esc(actor().name)} and pay it now: the plan still checks the balance, the reserve floor and the limits">Approve &amp; pay</button>`:""}</div>`}],
   rows,filtered.length?"":all.length?"Nothing matches this filter.":"Nothing is waiting for payment. Invoices and claims emailed to the inbound address appear here the moment they arrive; what is paid moves to Reporting.");
  const opt=(v,l)=>`<option value="${v}" ${st===v?"selected":""}>${l}</option>`;
  $("#intake").insertAdjacentHTML("afterbegin",`<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
@@ -1455,6 +1457,7 @@ async function intake(){try{const every=await api("/v1/intake");const needs=loca
    if(!res.ok)throw new Error(typeof j.detail==="string"?j.detail:(j.detail&&j.detail.message)||JSON.stringify(j.detail||j));
    toast(j.paid?`Paid: ${esc((j.execution||{}).status||"")} · ${esc((j.execution||{}).execution_id||"")}`:esc(j.message||"approved; not paid now"),j.paid?"good":"warn");intake();notifications()}
   catch(e){toast(esc(e.message),"serious");b.disabled=false;b.textContent="Approve & pay"}});
+ $("#intake").querySelectorAll("[data-rev]").forEach(b=>b.onclick=ev=>{ev.stopPropagation();pdOpen(b.dataset.rev)});
  // a click on a row opens the request in full, to correct and pay it
  $("#intake").querySelectorAll("tbody tr").forEach((tr,i)=>{tr.style.cursor="pointer";tr.title="Open the request to correct it, save or pay";
   tr.onclick=ev=>{if(ev.target.closest("button,details,summary,a,input,select"))return;pdOpen(rows[i].intake_id)}});
@@ -3763,27 +3766,46 @@ const PD_FIELDS=[["counterparty_id","Pay to (registered payee)"],["invoice_no","
 async function pdOpen(id){try{PD=await api(`/v1/intake/requests/${encodeURIComponent(id)}`)}catch(e){toast(esc(e.message),"serious");return}
  const r=PD,paid=!!r.payment,locked=paid||["REJECTED"].includes(r.status);const dis=locked?"disabled":"";
  $("#idlgTitle").textContent=`${r.kind.replaceAll("_"," ")} · ${r.invoice_no||r.intake_id.slice(0,8)} · ${paid?"PAID":r.status.replace("_"," ")}`;
- const flagTxt=f=>({po_missing:"no purchase order quoted",po_unknown:"the PO does not exist",po_not_open:"the PO is closed or cancelled",po_supplier_mismatch:"the PO is with another supplier",po_currency_mismatch:"the PO is in another currency",po_exceeded:"above what the PO has left",po_term_mismatch:"no PO term of this amount",po_expired:"the PO has expired",payee_unknown:"the payee is not registered",payee_currency_mismatch:"the payee is paid in another currency",duplicate_invoice:"already in the queue"})[f]||f.replaceAll("_"," ");
- $("#idlgBody").innerHTML=`<div class="cm-kv small" style="margin-bottom:10px"><div><span class="muted">From</span> ${esc(r.display_name)} <span class="mono muted">${esc(r.sender)}</span></div><div><span class="muted">Received</span> ${esc((r.received_at||"").slice(0,16).replace("T"," "))}</div>
-   <div><span class="muted">Trust</span> ${esc(r.trust)}</div><div><span class="muted">Subject</span> ${esc(r.subject)}</div><div><span class="muted">Read by</span> ${r.reader==="model+rules"?"model + rules":"rules"}</div>${r.reviewer?`<div><span class="muted">Reviewed by</span> ${esc(r.reviewer)}</div>`:""}</div>
-  ${paid?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--goodlt);margin-bottom:8px">Paid ${fmt(r.payment.amount_minor,r.payment.currency)} on ${esc((r.payment.paid_at||"").slice(0,10))}: it no longer changes.</div>`:""}
-  <div class="form" style="grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr))">
-   <label>Pay to (registered payee)<select id="pd-counterparty_id" ${dis}><option value="">not registered: choose one</option>${r.payees.map(p=>`<option value="${esc(p.id)}" ${p.id===r.counterparty_id?"selected":""}>${esc(p.name)}${p.currency?` · ${esc(p.currency)}`:""}</option>`).join("")}</select></label>
-   <label>Invoice / reference<input id="pd-invoice_no" value="${esc(r.invoice_no||"")}" ${dis}></label>
-   <label>Amount<input id="pd-amount_minor" type="number" step="0.01" min="0.01" value="${r.amount_minor!=null?(r.amount_minor/100).toFixed(2):""}" ${dis}></label>
-   <label>Currency<input id="pd-currency" maxlength="3" value="${esc(r.currency||"")}" ${dis}></label>
-   <label>Due date<input id="pd-due_date" type="date" value="${esc(r.due_date||"")}" ${dis}></label>
-   <label>PO number<input id="pd-po_number" list="pd-pos" value="${esc(r.po_number||"")}" placeholder="none" ${dis}><datalist id="pd-pos">${r.open_pos.map(p=>`<option value="${esc(p.po_id)}">${esc(p.supplier_id)} · ${esc(p.currency)}</option>`).join("")}</datalist></label>
-   <label>Account code<input id="pd-account_code" value="${esc(r.account_code||"")}" placeholder="from the PO" ${dis}></label>
-   ${r.kind==="expense_claim"?`<label>Category<input id="pd-category" value="${esc(r.category||"")}" ${dis}></label>`:""}
-   <label style="grid-column:1/-1">Note for the record<input id="pd-note" placeholder="what was corrected and why (e.g. invoice number misread, PO added)" ${dis}></label></div>
-  ${r.po?`<div class="small" style="margin-top:6px">PO <b class="mono">${esc(r.po.po_id)}</b>: ${fmt(r.po.total_minor,r.po.currency)} · paid ${fmt(r.po.paid_minor,r.po.currency)} · left ${fmt(r.po.remaining_minor,r.po.currency)}</div>`:""}
-  <h4 class="small muted" style="margin:12px 0 4px">What the checks found</h4>
-  <div class="small">${r.flags.length?r.flags.map(f=>`<span class="pill ${["po_missing","po_unknown","po_exceeded","payee_unknown","duplicate_invoice","po_expired"].includes(f)?"critical":"warn"}" style="margin:2px">${esc(flagTxt(f))}</span>`).join(" "):'<span class="pill good">no flag</span>'}</div>
-  <div class="small" style="margin-top:6px">${r.reasons.map(x=>`<div>· ${esc(x)}</div>`).join("")}</div>
-  ${(r.checks||[]).length?`<h4 class="small muted" style="margin:12px 0 4px">Documents</h4>${docChecks(r.checks)}`:""}
-  ${(r.attachments||[]).length?`<div class="small" style="margin-top:4px">${r.attachments.map(a=>`${a.read?"📄":"⚠"} ${esc(a.name)}${a.problem?` <span class="muted">(${esc(a.problem)})</span>`:""}`).join(" · ")}</div>`:""}
-  ${r.quotes.length?`<details style="margin-top:8px"><summary class="small">Evidence quoted (${r.quotes.length})</summary>${r.quotes.map(q=>`<div class="quote">${esc(q.field)}: “${esc(q.quote)}”</div>`).join("")}</details>`:""}`;
+ const flagTxt=f=>({po_missing:"no purchase order quoted",po_unknown:"the PO does not exist",po_not_open:"the PO is closed or cancelled",po_supplier_mismatch:"the PO is with another supplier",po_currency_mismatch:"the PO is in another currency",po_exceeded:"above what the PO has left",po_term_mismatch:"no PO term of this amount",po_expired:"the PO has expired",payee_unknown:"the payee is not registered",payee_currency_mismatch:"the payee is paid in another currency",duplicate_invoice:"already in the queue"})[f]||f.replace(/^doc:/,"").replaceAll("_"," ");
+ const cs=r.checks||[],cn=s=>cs.filter(c=>c.status===s).length,needs=["NEEDS_REVIEW","QUARANTINED"].includes(r.status)&&!paid;
+ const TONE={pass:["#16a34a","rgba(22,163,74,.10)","✓"],fail:["#dc2626","rgba(220,38,38,.10)","✗"],warn:["#d97706","rgba(217,119,6,.12)","!"],skip:["#94a3b8","transparent","–"]};
+ const why=r.reasons.filter(x=>!/^from the company's own system/.test(x));
+ const kv=(k,v)=>v?`<div><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">${k}</div><div>${v}</div></div>`:"";
+ $("#idlgBody").innerHTML=`<style>#idlg{width:min(1040px,calc(100vw - 24px));max-height:92vh;overflow:auto}#idlg .rv-head{display:flex;gap:14px 22px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-radius:12px;background:var(--panel2,rgba(47,111,237,.06));margin-bottom:12px}
+   #idlg .rv-amt{font-size:24px;font-weight:800;white-space:nowrap}#idlg .rv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:14px}#idlg .rv-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+   #idlg .rv-card>h4{margin:0 0 8px;font-size:13px}#idlg .rv-chk{display:flex;gap:10px;padding:7px 9px;border-radius:9px;margin-bottom:5px}#idlg .rv-chk i{font-style:normal;font-weight:800;width:18px;text-align:center;flex:0 0 auto}
+   #idlg .rv-src{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:8px 16px}</style>
+  <div class="rv-head"><div><div class="small muted">${esc(r.kind.replaceAll("_"," "))} · ${esc(r.invoice_no||r.intake_id.slice(0,8))}</div><div style="font-size:16px;font-weight:700">${esc(r.counterparty_name||r.claimed_name||r.display_name)}</div></div>
+   <div class="rv-amt">${fmt(r.amount_minor,r.currency)}</div><div><div class="small muted">Due</div><b>${esc(r.due_date||"-")}</b></div>
+   <div>${paid?'<span class="pill good">PAID</span>':pill(r.status)}</div>${cs.length?`<div><div class="small muted">Checks</div><b>${cn("pass")} of ${cs.filter(c=>c.status!=="skip").length} passed</b>${cn("fail")?` · <span style="color:#dc2626">${cn("fail")} failed</span>`:""}</div>`:""}</div>
+  ${paid?`<div class="small" style="padding:8px 10px;border-radius:8px;background:var(--goodlt);margin-bottom:10px">Paid ${fmt(r.payment.amount_minor,r.payment.currency)} on ${esc((r.payment.paid_at||"").slice(0,10))}: it no longer changes.</div>`:""}
+  ${!paid&&(r.flags.length||needs)?`<div class="rv-card" style="border-left:4px solid ${needs?"#dc2626":"#d97706"};margin-bottom:12px"><h4>${needs?"Why it waits for a person":"What the checks noted"}</h4>
+   <div>${r.flags.map(f=>`<span class="pill ${["po_missing","po_unknown","po_exceeded","payee_unknown","duplicate_invoice","po_expired"].includes(f)?"critical":"warn"}" style="margin:0 4px 4px 0">${esc(flagTxt(f))}</span>`).join("")}</div>
+   <div class="small" style="line-height:1.6">${why.map(x=>`<div>· ${esc(x)}</div>`).join("")||"no reason recorded"}</div></div>`:""}
+  <div class="rv-grid">
+   <div class="rv-card"><h4>Details <span class="small muted" style="font-weight:400">correct what was misread, then Save: the checks run again</span></h4>
+    <div class="form" style="grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr))">
+     <label style="grid-column:1/-1">Pay to (registered payee)<select id="pd-counterparty_id" ${dis}><option value="">not registered: choose one</option>${r.payees.map(p=>`<option value="${esc(p.id)}" ${p.id===r.counterparty_id?"selected":""}>${esc(p.name)}${p.currency?` · ${esc(p.currency)}`:""}</option>`).join("")}</select></label>
+     <label>Invoice / reference<input id="pd-invoice_no" value="${esc(r.invoice_no||"")}" ${dis}></label>
+     <label>Due date<input id="pd-due_date" type="date" value="${esc(r.due_date||"")}" ${dis}></label>
+     <label>Amount<input id="pd-amount_minor" type="number" step="0.01" min="0.01" value="${r.amount_minor!=null?(r.amount_minor/100).toFixed(2):""}" ${dis}></label>
+     <label>Currency<input id="pd-currency" maxlength="3" value="${esc(r.currency||"")}" ${dis}></label>
+     <label>PO number<input id="pd-po_number" list="pd-pos" value="${esc(r.po_number||"")}" placeholder="none" ${dis}><datalist id="pd-pos">${r.open_pos.map(p=>`<option value="${esc(p.po_id)}">${esc(p.supplier_id)} · ${esc(p.currency)}</option>`).join("")}</datalist></label>
+     <label>Account code<input id="pd-account_code" value="${esc(r.account_code||"")}" placeholder="from the PO" ${dis}></label>
+     ${r.kind==="expense_claim"?`<label>Category<input id="pd-category" value="${esc(r.category||"")}" ${dis}></label>`:""}
+     <label style="grid-column:1/-1">Note for the record<input id="pd-note" placeholder="e.g. call-back done on the registered number; PO added" ${dis}></label></div>
+    ${r.po?`<div class="small" style="margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--panel2,rgba(47,111,237,.06))">PO <b class="mono">${esc(r.po.po_id)}</b>: total ${fmt(r.po.total_minor,r.po.currency)} · paid ${fmt(r.po.paid_minor,r.po.currency)} · <b>left ${fmt(r.po.remaining_minor,r.po.currency)}</b></div>`:""}</div>
+   <div class="rv-card"><h4>Checks <span class="small muted" style="font-weight:400">${cs.length?"each one with what it found":"none recorded for this request"}</span></h4>
+    ${cs.map(c=>{const t=TONE[c.status]||TONE.skip;return `<div class="rv-chk" style="background:${t[1]}"><i style="color:${t[0]}">${t[2]}</i><div style="min-width:0"><div><b>${esc(c.label)}</b> <span class="small muted">${c.mode==="required"?"required":"advisory"}${c.source!=="rules"?` · ${esc(c.source)}`:""}</span></div>
+      <div class="small muted">${esc(c.detail)}</div>${c.evidence?`<div class="quote" style="margin:4px 0 0">“${esc(c.evidence)}”</div>`:""}</div></div>`}).join("")}</div>
+  </div>
+  <div class="rv-card" style="margin-top:14px"><h4>Where it came from</h4><div class="rv-src small">
+    ${kv("From",`${esc(r.display_name)}<div class="mono muted">${esc(r.sender)}</div>`)}${kv("Trust",esc(r.trust))}${kv("Received",esc((r.received_at||"").slice(0,16).replace("T"," ")))}${kv("Subject",esc(r.subject))}
+    ${kv("Read by",r.reader==="model+rules"?"AI model + rules":"rules")}${kv("Mail checks",Object.entries(r.authentication||{}).map(([k,v])=>`${esc(k)} ${esc(v)}`).join(" · "))}
+    ${kv("Files",(r.attachments||[]).map(a=>`${a.read?"📄":"⚠"} ${esc(a.name)}${a.problem?` <span class="muted">(${esc(a.problem)})</span>`:""}`).join("<br>")||"email body")}${kv("Reviewed by",r.reviewer?`${esc(r.reviewer)}${r.review_note?`<div class="muted">${esc(r.review_note)}</div>`:""}`:"")}</div>
+   ${r.quotes.length?`<details style="margin-top:10px"><summary class="small" style="cursor:pointer"><b>Evidence quoted word for word</b> (${r.quotes.length})</summary>${r.quotes.map(q=>`<div class="quote"><b>${esc(q.field)}</b>: “${esc(q.quote)}”</div>`).join("")}</details>`:""}</div>`;
+ $("#idlgVerify").hidden=$("#idlgReject").hidden=!needs;$("#idlgVerify").disabled=!r.counterparty_id;$("#idlgVerify").title=r.counterparty_id?"The checks run again; when they pass it is verified and waits for an approval or the next run":"choose the registered payee and Save first";
+ $("#idlgFco").hidden=paid||r.status==="REJECTED";$("#idlgPay").textContent="Approve & pay";
  $("#idlgOut").innerHTML="";$("#idlgSave").disabled=$("#idlgPay").disabled=locked;if(!$("#idlg").open)$("#idlg").showModal()}
 function pdBody(){const v=id=>$(`#pd-${id}`);const b={note:v("note").value.trim()};const r=PD;
  const cid=v("counterparty_id").value;if(cid!==(r.counterparty_id||""))b.counterparty_id=cid||null;
@@ -3794,6 +3816,14 @@ function pdBody(){const v=id=>$(`#pd-${id}`);const b={note:v("note").value.trim(
 function pdShow(problems,ok){$("#idlgOut").innerHTML=problems&&problems.length?`<div style="padding:8px 10px;border-radius:8px;background:var(--critlt)"><b>Still stops it:</b>${problems.map(x=>`<div>· ${esc(x)}</div>`).join("")}</div>`:
  `<div style="padding:8px 10px;border-radius:8px;background:var(--goodlt)">${esc(ok)}</div>`}
 $("#idlgClose").onclick=()=>$("#idlg").close();
+const pdReview=async d=>{const id=PD.intake_id,a=actor(),note=($("#pd-note")||{}).value||"";
+ if(d==="reject"&&!confirm(`Reject ${PD.invoice_no||"this request"}? A rejected request is never paid; this cannot be undone.`))return;
+ $("#idlgOut").textContent=d==="verify"?"running the checks again…":"rejecting…";
+ try{await api(`/v1/intake/${id}/review`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({decision:d,reviewer:a.name,role:a.role,note})});
+  await pdOpen(id);pdShow(null,d==="verify"?"Verified: it waits for an approval, or the next payment run.":"Rejected: it will not be paid.");intake();notifications()}
+ catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
+$("#idlgVerify").onclick=()=>pdReview("verify");$("#idlgReject").onclick=()=>pdReview("reject");
+$("#idlgFco").onclick=async()=>{try{const n=await api(`/v1/fco-notify/send/${PD.intake_id}?${who()}`,{method:"POST"});pdShow(null,`Email to the FCO (${(n.to||[]).join(", ")}): ${n.status}${n.error?" · "+n.error:""}`)}catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 $("#idlgSave").onclick=async()=>{const id=PD.intake_id;$("#idlgOut").textContent="saving and checking again…";
  try{const r=await api(`/v1/intake/requests/${id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(pdBody())});
   await pdOpen(id);pdShow(r.problems,"Saved. Every check passes: it waits for an approval, or press Pay.");intake()}catch(e){$("#idlgOut").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
