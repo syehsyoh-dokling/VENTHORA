@@ -4044,7 +4044,7 @@ const SCHED={0:"only on demand",1:"every minute",5:"every 5 min",15:"every 15 mi
 async function connSave(c){const body={name:c.name,base_url:c.base_url,entities:c.entities,push:c.push||{},schedule_minutes:c.schedule_minutes||0,
   auth:{type:c.auth.type,header_name:c.auth.header_name,username:c.auth.username,secret:null}};
  return api(`/v1/sources/connectors/${c.connector_id}?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(body)})}
-async function syncView(){try{const [cs,cat]=await Promise.all([api("/v1/sources/connectors"),SCAT?Promise.resolve(SCAT):api("/v1/sources/catalog")]);SCAT=cat;erpCard(cs);
+async function syncView(){try{const [cs,cat]=await Promise.all([api("/v1/sources/connectors"),SCAT?Promise.resolve(SCAT):api("/v1/sources/catalog")]);SCAT=cat;erpCard(cs);cnxDemoFill(cs);
  if(!$("#cnx-pull").children.length){$("#cnx-pull").innerHTML=cat.pull.map(it=>chkRow("pull",it,true)).join("");$("#cnx-push").innerHTML=cat.push.map(it=>chkRow("push",it,true)).join("")}
  $("#connList").innerHTML=cs.map(c=>`<div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><b>${esc(c.name)}</b>${c.enabled===false?' <span class="pill warn">disconnected</span>':""} <span class="mono small muted">${esc(c.base_url)}</span>
   <div class="small muted">auth ${esc(c.auth.type)}${c.auth.secret_set?` · key ${esc(c.auth.secret_hint)}`:""} · ${c.last_sync_at?`last sync ${esc(c.last_sync_at.slice(0,16).replace("T"," "))} UTC`:"never synced"}
@@ -4078,6 +4078,10 @@ async function syncView(){try{const [cs,cat]=await Promise.all([api("/v1/sources
  mdView()}catch(e){$("#connList").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 document.querySelectorAll("#cnNew ~ .grid2 [data-all],#cnNew ~ .grid2 [data-none]").forEach(a=>a.onclick=ev=>{ev.preventDefault();
  const dir=a.dataset.all||a.dataset.none;$(`#cnx-${dir}`).querySelectorAll("input").forEach(x=>x.checked=!!a.dataset.all)});
+// staging demo: the "Connect your finance application" form comes filled with the stand-in ERP (fictional data, a fake
+// key), so Connect works in one click; whatever a person types is never overwritten
+function cnxDemoFill(cs){const demo=(cs||[]).find(c=>c.connector_id==="legacy-erp-demo");if(!demo||$("#cnx-name").value||$("#cnx-url").value)return;
+ $("#cnx-name").value="Jurnal.id (demo)";$("#cnx-url").value=demo.base_url;$("#cnx-key").value="X-Legacy-Key: demo-legacy-key";$("#cnx-sched").value="0"}
 // the ERPNext card follows the saved connection: its site and a masked key; Connect ⇄ Disconnect (the key is kept)
 let ERPC=null;
 function erpCard(cs){ERPC=(cs||[]).find(c=>c.connector_id==="erpnext")||null;const on=!!ERPC&&ERPC.enabled!==false,b=$("#erpGo");
