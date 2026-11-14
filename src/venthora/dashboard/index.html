@@ -2707,14 +2707,19 @@ async function bcView(){try{const d=await api("/v1/blockchain-record"),st=d.sett
  const docs=()=>{$("#brDocs").innerHTML=d.documents.map(x=>{const v=st.documents[x.key]||{on:false,min_minor:0},pre=d.preview[x.key];
   return `<div class="row" style="gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px"><label class="check" style="min-width:330px"><input type="checkbox" data-brdoc="${x.key}" ${v.on?"checked":""} ${fd?"":"disabled"}> ${esc(x.label)}</label>
    ${x.by_value?`<select data-brall="${x.key}" ${fd?"":"disabled"}><option value="all" ${v.min_minor?"":"selected"}>all of them</option><option value="min" ${v.min_minor?"selected":""}>only from a value up</option></select>
-    <label class="small" data-brminl="${x.key}" ${v.min_minor?"":"hidden"}>from USD <input type="number" min="0" step="1" data-brmin="${x.key}" value="${v.min_minor?v.min_minor/100:1000}" style="width:110px" ${fd?"":"disabled"}></label>`:'<span class="small muted">every record</span>'}
+    <label class="small" data-brminl="${x.key}" ${v.min_minor?"":"hidden"}>from USD <input type="number" min="0" step="1" data-brmin="${x.key}" value="${v.min_minor?v.min_minor/100:1000}" style="width:110px" ${fd?"":"disabled"}></label>`
+   :x.key==="project"?`<select data-brpall ${fd?"":"disabled"}><option value="all" ${(v.only||[]).length?"":"selected"}>all projects</option><option value="some" ${(v.only||[]).length?"selected":""}>only the projects chosen</option></select>
+    <div data-brplist ${(v.only||[]).length?"":"hidden"} style="flex-basis:100%;margin:4px 0 0 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px 12px">${(d.projects||[]).map(p=>`<label class="check small"><input type="checkbox" data-brproj="${esc(p.code)}" ${(v.only||[]).includes(p.code)?"checked":""} ${fd?"":"disabled"}> ${esc(p.code)} · ${esc(p.name||"")}</label>`).join("")||'<span class="small muted">no project yet</span>'}</div>`
+   :'<span class="small muted">every record</span>'}
    <span class="small muted">${pre?`${pre.records} record(s) now`:""}</span></div>`}).join("");
-  document.querySelectorAll("[data-brall]").forEach(s=>s.onchange=()=>{document.querySelector(`[data-brminl="${s.dataset.brall}"]`).hidden=s.value!=="min"})};
+  document.querySelectorAll("[data-brall]").forEach(s=>s.onchange=()=>{document.querySelector(`[data-brminl="${s.dataset.brall}"]`).hidden=s.value!=="min"});
+  if($("[data-brpall]"))$("[data-brpall]").onchange=()=>{$("[data-brplist]").hidden=$("[data-brpall]").value!=="some"}};
  docs();$("#brSetup").hidden=!st.interested;if(st.interested)ctlView("metal");
  const put=b=>api(`/v1/blockchain-record?${who()}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(b)});
  document.querySelectorAll('input[name="brYes"]').forEach(r=>r.onchange=async()=>{try{await put({interested:r.value==="yes",product:(document.querySelector('input[name="brProd"]:checked')||{}).value});toast(r.value==="yes"?"Blockchain record on: choose what goes on it":"Blockchain record off","good");bcView()}catch(e){toast(esc(e.message),"serious")}});
  $("#brSave").onclick=async()=>{const body={};d.documents.forEach(x=>{const on=document.querySelector(`[data-brdoc="${x.key}"]`).checked,sel=document.querySelector(`[data-brall="${x.key}"]`),inp=document.querySelector(`[data-brmin="${x.key}"]`);
-   body[x.key]={on,min_minor:sel&&sel.value==="min"?Math.round(parseFloat(inp.value||"0")*100):0}});
+   body[x.key]={on,min_minor:sel&&sel.value==="min"?Math.round(parseFloat(inp.value||"0")*100):0,
+    only:x.key==="project"&&$("[data-brpall]")&&$("[data-brpall]").value==="some"?[...document.querySelectorAll("[data-brproj]:checked")].map(c=>c.dataset.brproj):[]}});
   $("#brMsg").textContent="saving…";try{await put({documents:body});toast("Documents on the record saved: the next anchor uses them","good");bcView()}catch(e){$("#brMsg").innerHTML=`<span class="err">${esc(e.message)}</span>`}};
 }catch(e){$("#brBody").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 // ---- Platform Setup -> Card Authorization

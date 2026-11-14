@@ -24,11 +24,23 @@ def test_nothing_is_recorded_until_the_company_says_yes_then_only_what_it_chose(
     assert br.document_heads(org) == {}
     br.save(org, {"interested": True, "documents": {"pr": {"on": True, "min_minor": 100_000}, "po": {"on": False}}}, "fd")
     heads = br.document_heads(org)
-    assert set(heads) == {"engagement", "pr"}  # contracts stay on by default; POs switched off
+    assert set(heads) == {"engagement", "pr", "project"}  # contracts and projects stay on by default; POs switched off
     assert heads["pr"]["records"] == 1 and heads["pr"]["digest"]  # only the PR from USD 1,000 up
     before = heads["pr"]["digest"]
     org._put("pr", {"_id": "PR-2", "pr_number": "PR-2", "estimated_minor": 500_001}, "t")  # an approved PR changed afterwards
     assert br.document_heads(org)["pr"]["digest"] != before
+
+
+def test_projects_all_or_only_the_ones_chosen_and_no_redundant_kinds():
+    org = Org()
+    for code in ("TPK", "JKT", "OPS"):
+        org._put("project", {"_id": code, "code": code, "name": f"Project {code}"}, "t")
+    br.save(org, {"interested": True, "documents": {"project": {"on": True}}}, "fd")
+    assert br.document_heads(org)["project"]["records"] == 3
+    br.save(org, {"documents": {"project": {"on": True, "only": ["tpk", "JKT"]}}}, "fd")
+    assert br.document_heads(org)["project"]["records"] == 2
+    assert [p["code"] for p in br.view(org)["projects"]] == ["JKT", "OPS", "TPK"]
+    assert not {"payee", "fund_request", "ta"} & set(br.DOC_LABEL)  # already proven elsewhere, or not worth a record
 
 
 def test_the_page_shows_cost_products_and_refuses_unknown_choices():

@@ -70,18 +70,17 @@ PRODUCTS = [
 ]
 
 # the documents VENTHORA keeps that can go on the record, the field their value is read from, and their label
+# only long-lived commitments: payees' bank changes, advances, card charges and payments are already proven by the
+# activity categories (controls.METAL_KINDS), so they are not offered twice here
 DOCUMENTS = [
     ("pr", "Purchase requests", "estimated_minor"),
     ("po", "Purchase orders", "total_minor"),
     ("engagement", "Consultant contracts", "fee_minor"),
-    ("ta", "Travel authorisations", "estimated_minor"),
-    ("fund_request", "Cash advances, petty cash and other direct costs", "amount_minor"),
-    ("payee", "Vendors and payees (bank details as approved)", None),
-    ("project", "Projects", None),
+    ("project", "Projects (with their contracts, long-running)", None),
 ]
 DOC_LABEL = {k: lbl for k, lbl, _ in DOCUMENTS}
 DEFAULT = {"interested": False, "product": "proof_of_record",
-           "documents": {k: {"on": k in ("po", "engagement"), "min_minor": 0} for k, *_ in DOCUMENTS}}
+           "documents": {k: {"on": k in ("po", "engagement", "project"), "min_minor": 0, "only": []} for k, *_ in DOCUMENTS}}
 
 
 def get(org) -> dict:
@@ -104,20 +103,15 @@ def save(org, body: dict, by: str) -> dict:
         m = int((v or {}).get("min_minor") or 0)
         if m < 0:
             raise ValueError("a value threshold cannot be negative")
-        cur["documents"][k] = {"on": bool((v or {}).get("on")), "min_minor": m}
+        only = [str(x).strip().upper() for x in (v or {}).get("only") or [] if str(x).strip()][:200]
+        cur["documents"][k] = {"on": bool((v or {}).get("on")), "min_minor": m, "only": only if k == "project" else []}
     org._put(KIND, {"_id": ID} | cur, by)
     return cur
 
 
-def _records(org, kind: str) -> list[dict]:
-    if kind == "payee":
-        return []  # filled by the caller from the payee store (not an org record kind)
-    return org.list(kind)
-
-
 def document_heads(org, payees: list[dict] | None = None) -> dict:
-    """One digest per chosen document kind, over the records at or above its value threshold (canonical JSON,
-    sorted), so each kind can be proven on its own. Nothing when the company is not interested."""
+    """One digest per chosen document kind, over the records at or above its value threshold (projects: all, or the
+    ones chosen), canonical JSON sorted, so each kind can be proven on its own. Nothing when the company is not interested."""
     s = get(org)
     if not s["interested"]:
         return {}
@@ -126,8 +120,9 @@ def document_heads(org, payees: list[dict] | None = None) -> dict:
         d = s["documents"].get(kind) or {}
         if not d.get("on"):
             continue
-        rows = payees if kind == "payee" else _records(org, kind)
-        rows = [r for r in rows or [] if not field or not d.get("min_minor") or int(r.get(field) or 0) >= d["min_minor"]]
+        rows = [r for r in org.list(kind) if not field or not d.get("min_minor") or int(r.get(field) or 0) >= d["min_minor"]]
+        if kind == "project" and d.get("only"):
+            rows = [r for r in rows if str(r.get("code") or "").upper() in set(d["only"])]
         blob = "".join(json.dumps(r, sort_keys=True, default=str) for r in sorted(rows, key=lambda r: json.dumps(r, sort_keys=True, default=str)))
         out[kind] = {"label": label, "records": len(rows), "min_minor": d.get("min_minor") or 0,
                      "digest": hashlib.sha256(blob.encode()).hexdigest() if rows else None}
@@ -135,6 +130,7 @@ def document_heads(org, payees: list[dict] | None = None) -> dict:
 
 
 def view(org, payees: list[dict] | None = None) -> dict:
+    projects = sorted(({"code": p.get("code"), "name": p.get("name")} for p in org.list("project") if p.get("code")), key=lambda p: p["code"])
     return {"provider": PROVIDER, "benefits": BENEFITS, "cost": cost_estimate(), "products": PRODUCTS,
-            "documents": [{"key": k, "label": lbl, "by_value": bool(f)} for k, lbl, f in DOCUMENTS],
+            "documents": [{"key": k, "label": lbl, "by_value": bool(f)} for k, lbl, f in DOCUMENTS], "projects": projects,
             "settings": get(org), "preview": document_heads(org, payees)}
