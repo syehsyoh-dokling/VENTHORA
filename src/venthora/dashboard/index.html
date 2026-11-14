@@ -2501,7 +2501,12 @@ async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on
   const due={h:"Due",f:x=>`<span style="white-space:nowrap">${x.due_date?dmy(x.due_date):x.due_in_hours!=null?`${x.due_in_hours} h`:"-"}</span>`};
   const box=(id,cls,title,sub,rows,cols,empty)=>{const tot=rows.reduce((a,r)=>a+(r.base_minor||0),0);
    $(id).innerHTML=`<div class="apbox ${cls}"><div class="aph"><h3>${title}</h3><span class="pill">${rows.length}</span>${rows.length?`<b>${fmt(tot,b)}</b>`:""}<span class="small muted sub">${sub}</span></div>${table(cols,num(rows),empty)}</div>`};
-  const wait=t.others.filter(x=>x.action!=="REJECT"),stop=t.others.filter(x=>x.action==="REJECT");
+  // today's tables hold only what falls inside the horizon and is in this round's plan, by priority then due date;
+  // what is due later and needs an approval is listed apart ("approve ahead"); the next round lives in the line-up only
+  const dueKey=x=>x.due_date||"9999-12-31",byPrio=(a,b)=>(b.priority-a.priority)||dueKey(a).localeCompare(dueKey(b))||String(a.obligation_id).localeCompare(String(b.obligation_id));
+  const inNow=x=>x.in_horizon!==false&&!x.next_round;
+  const wait=t.others.filter(x=>x.action!=="REJECT"&&inNow(x)).sort(byPrio),stop=t.others.filter(x=>x.action==="REJECT"&&inNow(x)).sort(byPrio);
+  const ahead=t.others.filter(x=>x.in_horizon===false&&!x.next_round&&x.action!=="REJECT").sort((a,b)=>dueKey(a).localeCompare(dueKey(b))||(b.priority-a.priority));
   box("#apReady","ready","Ready to pay","validated: every check passed and the plan proved it inside the mandate; paid at the time above unless you reject it or put it pending",t.ready,
    [{h:"No",num:1,f:x=>x.n},pay,who_,amt,{h:"Document check",f:x=>`<span class="pill good">${esc(x.document_check)}</span>`},
     {h:"Smoke test run",f:x=>`<span class="pill good" title="the plan proved it on its own: limits, budget, reserve floor, payee and duplicate checks">${esc(x.smoke_test)}</span>`},
@@ -2509,6 +2514,9 @@ async function apToday(){$("#apToday").innerHTML='<div class="empty">planning on
   box("#apWait","wait","Waiting for an approval","passed the checks; a person approves it once (a first salary, above a limit), then VENTHORA pays it",wait,
    [{h:"No",num:1,f:x=>x.n},pay,who_,amt,due,{h:"Why it waits",f:x=>`<span class="small">${esc(x.why)}</span>`},
     {h:"",f:x=>x.payroll?`<a class="small" href="#/executions">Approve ›</a>`:`<div class="acts">${x.intake_ref?`<button class="small primary" data-appay="${esc(x.intake_ref)}" data-oid="${esc(x.obligation_id)}" title="Approve this payment as ${esc(actor().name)} and pay it now">Approve &amp; pay</button>`:""}<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a></div>`}],"nothing waits for an approval");
+  if(ahead.length)$("#apWait").insertAdjacentHTML("beforeend",`<div class="apbox wait" style="margin-top:10px"><div class="aph"><h3>Approve ahead</h3><span class="pill">${ahead.length}</span><span class="small muted sub">due after the next ${H} hours, so not in today's plan; approve them before their date (a salary in Executions → Payroll changes)</span></div>${table(
+   [{h:"No",num:1,f:x=>x.n},pay,who_,amt,due,{h:"Why it waits",f:x=>`<span class="small">${esc(x.why)}</span>`},
+    {h:"",f:x=>x.payroll?`<a class="small" href="#/executions">Approve ›</a>`:`<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a>`}],num(ahead),"")}</div>`);
   box("#apOthers","stop","Stopped by a check","cannot be paid as it stands: correct it (in Pending payment) or reject it",stop,
    [{h:"No",num:1,f:x=>x.n},pay,who_,amt,due,{h:"Why VENTHORA does not pay it",f:x=>`<span class="small">${esc(x.why)}</span>`},
     {h:"",f:x=>`<a class="small" href="#/payment?id=${encodeURIComponent(x.obligation_id)}">View detail ›</a>`}],"nothing is stopped by a check");
