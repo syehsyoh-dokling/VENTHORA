@@ -1364,6 +1364,12 @@ async def _policy_run(now: datetime | None = None) -> dict:
         if not left:
             return out | {"skipped": "every payment is held by a person"}
         state = state.model_copy(update={"obligations": left})
+    from . import plan_gates
+
+    state, refused = plan_gates.apply(org, app.state.executor.store, state)  # what the executor would refuse is not batched
+    out["waiting"] += [{"obligation_id": o.obligation_id, "why": why} for o, why in refused]
+    if state is None:
+        return out | {"skipped": "every payment is over its budget allocation or the bank's transfer limit"}
     s = await autonomy.split(app.state.agent, state)
     by_id = {o.obligation_id: o for o in state.obligations}
     auto = [d for d in (s.auto_plan.obligations if s.auto_plan else []) if d.action in autonomy.PAYING]
@@ -6675,11 +6681,18 @@ async def agent_plan_today():
         if not left:
             return meta | {"plan": None, "split": None, "today": None}
         state = state.model_copy(update={"obligations": left})
+    from . import plan_gates
+
+    # what the executor would refuse (over its budget allocation, above the bank's transfer limit) is not planned as payable
+    state, refused = await asyncio.to_thread(plan_gates.apply, app.state.org, app.state.executor.store, state)
+    meta["refused"] = [{"obligation_id": o.obligation_id, "why": why} for o, why in refused]
+    if state is None:  # every payment is refused: nothing to plan; the reasons are in `refused`
+        return meta | {"plan": None, "split": None, "today": None}
     s = await autonomy.split(app.state.agent, state)
     from . import agent_today
 
     today = await asyncio.to_thread(agent_today.summary, state, source, s, app.state.org, app.state.intake.registry.payees,
-                                    meta["horizon_hours"], _next_policy_run(pol))
+                                    meta["horizon_hours"], _next_policy_run(pol), refused)
     try:  # the whole wallet (the plan uses the allocation ring-fenced from it): what a deposit changes first
         pos = await treasury_position()
         today["wallet_minor"] = pos["available"]["base_minor"]
@@ -6721,6 +6734,10 @@ async def agent_plan_execute(role: str = "finance_manager", by: str = "dashboard
     if state is not None and holds:
         left = [o for o in state.obligations if o.obligation_id not in holds]
         state = state.model_copy(update={"obligations": left}) if left else None
+    if state is not None:
+        from . import plan_gates
+
+        state, _ = await asyncio.to_thread(plan_gates.apply, app.state.org, app.state.executor.store, state)
     if state is None:
         raise HTTPException(409, "nothing waits for payment")
     if source["balances"] != "live Airwallex":

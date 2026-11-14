@@ -611,6 +611,12 @@ class Executor:
             self.store.settle_payout(payout_key, "FAILED", None)
             steps.append(Step(kind="transfer", key=o.obligation_id, status="FAILED", request_id=op["request_id"],
                               detail={"error": str(exc), "code": exc.code}))
+            try:  # an amount above the bank's maximum for the method is remembered: the next plan asks for a split
+                from ..plan_gates import learn_limit
+
+                learn_limit(self.org, o.currency, o.payout_method, o.amount_minor, str(exc))
+            except Exception:  # noqa: BLE001 - remembering the limit never changes how the failure is reported
+                pass
             raise Halt("FAILED", f"transfer {o.obligation_id} failed: {exc}") from exc
 
     async def _beneficiary(self, internal_id: str, steps: list[Step]) -> str:

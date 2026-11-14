@@ -45,7 +45,8 @@ def record_decisions(org, rows: list[dict]) -> None:
 
 # -- Today's plan ----------------------------------------------------------------------------------------------------
 
-def summary(state, source: dict, split, org, payees: dict, horizon: int, next_pay_at: str | None) -> dict:
+def summary(state, source: dict, split, org, payees: dict, horizon: int, next_pay_at: str | None, refused: list | None = None) -> dict:
+    """`refused`: (obligation, why) for what the executor would refuse now (plan_gates); shown, never ready."""
     from . import priority_sop
     from .domain.money import cost_in_base
 
@@ -73,6 +74,17 @@ def summary(state, source: dict, split, org, payees: dict, horizon: int, next_pa
                      "intake_ref": intake_ref(o), "in_horizon": o.due_in_hours <= horizon,
                      "document_check": "completed" if ready or d.action in PAYING else ("incomplete" if "evidence" in d.reason or "pending" in d.reason else "completed"),
                      "smoke_test": "succeeded" if ready else None})
+    for o, why in refused or []:  # over its budget allocation, or above the bank's transfer limit: a person acts first
+        try:
+            b = o.amount_minor if o.currency == base else cost_in_base(o.amount_minor, state.ppm_up(o.currency))
+        except (KeyError, TypeError):
+            b = None
+        cat = priority_sop.classify(o.model_dump(), payees)
+        rows.append({"obligation_id": o.obligation_id, "payee": o.payee_name or o.beneficiary_id, "amount_minor": o.amount_minor, "currency": o.currency,
+                     "base_minor": b, "due_in_hours": o.due_in_hours, "due_date": o.due_date, "category": cat,
+                     "category_label": priority_sop.ITEMS[cat][0], "priority": o.priority, "action": "ESCALATE", "ready": False, "why": why,
+                     "intake_ref": intake_ref(o), "in_horizon": o.due_in_hours <= horizon, "document_check": "completed", "smoke_test": None,
+                     "refused": True})
     pay_in_h = None
     if source.get("pay_date"):  # the salaries are due on the pay day: inside the horizon only when it is that close
         try:
