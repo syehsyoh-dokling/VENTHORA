@@ -53,8 +53,21 @@ DEADLINE_HOUR_UTC = 17  # a payment is due by 17:00 UTC on its due date: "3 h be
 DEEMED_BEFORE_H = 3  # no intervention this close to the deadline: the plan is deemed approved
 FX_BEFORE_H = 2  # currencies are bought this close to the deadline, at the planned rate or not at all
 POLICY_DEFAULT = {"mode": "priority", "horizon_hours": 72, "deemed_approval": False, "pay_what_fits": True,
-                  "notify_fco": True, "cascade": True, "fx_at_plan": False, "run_times": [], "run_days": "every"}
+                  "notify_fco": True, "cascade": True, "fx_at_plan": False, "run_times": [], "run_days": "every", "run_tz": "company"}
 RUN_DAYS = {"every": "Every day", "weekdays": "Monday to Friday"}
+RUN_TZ = {"company": "Company time", "UTC": "UTC"}
+# scheduled payments (payroll and benefits from People & roles, on their pay date) go out at this UTC time on that date;
+# everything else (invoices, bills, claims) waits for the policy's run times, so a person can change course each day
+SCHEDULED_PAY_UTC = (0, 30)
+
+
+def run_timezone(pol: dict, company_tz: str) -> str:
+    return "UTC" if pol.get("run_tz") == "UTC" else company_tz
+
+
+def scheduled_pay_open(now) -> bool:
+    """Scheduled lines are paid from SCHEDULED_PAY_UTC on their pay date (a later minute the same day, or a missed day, still pays)."""
+    return (now.hour, now.minute) >= SCHEDULED_PAY_UTC
 RUN_WINDOW_MIN = 60  # a run time missed (the server was off) is still run within this many minutes, never later
 
 
@@ -89,6 +102,8 @@ def check_policy(p: dict) -> dict:
     p["run_times"] = sorted(clean)
     if p["run_days"] not in RUN_DAYS:
         raise ValueError("payment runs are every day or Monday to Friday")
+    if p["run_tz"] not in RUN_TZ:
+        raise ValueError("payment run times are in company time or UTC")
     return p
 
 

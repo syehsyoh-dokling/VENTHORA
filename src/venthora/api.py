@@ -1303,7 +1303,10 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
         with contextlib.suppress(Exception):
             await _anchor_large_payments()
         try:
-            if doa.autopilot(app.state.org) and app.state.agent.proof.airwallex.configured:
+            from . import priority_sop as _sop
+
+            # scheduled lines (payroll, benefits) are paid on their pay date from 00:30 UTC, never in its first half hour
+            if doa.autopilot(app.state.org) and app.state.agent.proof.airwallex.configured and _sop.scheduled_pay_open(datetime.now(UTC)):
                 await _doa_run([], None, "finance_manager", "VENTHORA (autopilot)")
             from . import mandate
 
@@ -1325,7 +1328,7 @@ async def _scheduled_policy_run(tick: int) -> dict | None:
     pol = priority_sop.policy(org)
     if not pol.get("run_times"):
         return await _policy_run() if tick % 5 == 0 else None
-    tz = processlog.company_tz(org)
+    tz = priority_sop.run_timezone(pol, processlog.company_tz(org))
     done = {r["_id"] for r in org.list("policy_slot")}
     slot = priority_sop.due_slot(pol, datetime.now(UTC), tz, done)
     if slot is None:
@@ -6276,12 +6279,14 @@ def _run_info(org) -> dict:
 
     from . import priority_sop, processlog
 
-    tz = processlog.company_tz(org)
     pol = priority_sop.policy(org)
+    tz = priority_sop.run_timezone(pol, processlog.company_tz(org))
     at = priority_sop.next_run(pol, datetime.now(UTC), tz)
     zone = datetime.now(UTC).astimezone(ZoneInfo(tz)).tzname()
     last = sorted(org.list("policy_slot"), key=lambda r: r["_id"])[-5:]
-    return {"timezone": tz, "zone": zone, "days": priority_sop.RUN_DAYS, "window_min": priority_sop.RUN_WINDOW_MIN,
+    h, m = priority_sop.SCHEDULED_PAY_UTC
+    return {"timezone": tz, "zone": zone, "days": priority_sop.RUN_DAYS, "zones": priority_sop.RUN_TZ, "window_min": priority_sop.RUN_WINDOW_MIN,
+            "scheduled_at_utc": f"{h:02d}:{m:02d}",
             "next": at.strftime("%a %d %b %Y %H:%M") + f" {zone}" if at else None, "last": [r["_id"] for r in last]}
 
 
@@ -6581,7 +6586,7 @@ def _next_policy_run(pol: dict) -> str | None:
     if pol.get("run_times"):
         from . import processlog
 
-        at = priority_sop.next_run(pol, datetime.now(UTC), processlog.company_tz(app.state.org))
+        at = priority_sop.next_run(pol, datetime.now(UTC), priority_sop.run_timezone(pol, processlog.company_tz(app.state.org)))
         return at.isoformat(timespec="minutes") if at else None
     t0, period = getattr(app.state, "policy_clock", (datetime.now(UTC), 300.0))
     now = datetime.now(UTC)
