@@ -51,3 +51,18 @@ def test_the_book_keeps_the_most_urgent_twelve_not_the_oldest(client):
     book = app.state.intake.to_state(base, as_of=dt.date(2026, 12, 18), requests=queue)
     ids = [o.obligation_id for o in book.obligations]
     assert len(ids) == 12 and "REQ-PAYROLL-1" in ids
+
+
+def test_a_manual_call_back_is_kept_on_the_request_with_its_time(client):
+    _upload(client, "v.csv", "vendor",
+            "Vendor ID,Vendor name,Currency,Budget line,Email,Account number,SWIFT,Bank name,Bank country\n"
+            "cb-supplier,Callback Supplier Pte Ltd,SGD,suppliers,ar@cb.example,0123456789,DBSSSGSG,DBS Bank,SG\n")
+    _upload(client, "b.csv", "bill", "Bill ID,Supplier ID,Invoice number,Amount due,Currency,Due date\nC1,cb-supplier,CB-1,\"500.00\",SGD,2026-12-01\n")
+    rid = next(r["intake_id"] for r in client.get("/v1/intake?limit=1000").json() if r["invoice_no"] == "CB-1")
+    assert client.post(f"/v1/intake/requests/{rid}/callbacks?role=super_admin", json={"pic_name": "A", "company": "X", "phone": "1", "revision": "x"}).status_code == 422
+    r = client.post(f"/v1/intake/requests/{rid}/callbacks?role=super_admin&by=Fitri", json={
+        "pic_name": "Budi Hartono", "company": "Callback Supplier Pte Ltd", "phone": "+65 6123 4567", "revision": "quote the purchase order"})
+    assert r.status_code == 200 and r.json()["at"] and r.json()["by"].startswith("Fitri")
+    d = client.get(f"/v1/intake/requests/{rid}/correspondence").json()
+    assert [c["pic_name"] for c in d["callbacks"]] == ["Budi Hartono"] and d["feedback"]["state"] == "none"
+    assert client.get(f"/v1/intake/requests/{rid}").json()["status"] == "NEEDS_REVIEW"  # a call-back record changes no status

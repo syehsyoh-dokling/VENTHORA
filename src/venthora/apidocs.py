@@ -87,6 +87,8 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("PUT", "/v1/budget-lines/{period}"): ("Save the budget lines of a month", "Replaces the month's lines; a bypass needs its signatory; synced lines are read only."),
     ("GET", "/v1/intake/requests/{intake_id}"): ("Read a payment request", "One request in full: what was read, the checks, documents and history."),
     ("PUT", "/v1/intake/requests/{intake_id}"): ("Correct a payment request", "Save the corrections and run the payee, PO and duplicate checks again."),
+    ("GET", "/v1/intake/requests/{intake_id}/correspondence"): ("Messages about a request", "What was sent to the vendor and to the FCO (date, text, delivery), where the vendor's answer stands, its other submissions and the call-backs recorded."),
+    ("POST", "/v1/intake/requests/{intake_id}/callbacks"): ("Record a manual call-back", "Who was spoken to, at which company and number, and what must be corrected; kept on the request's log with its time."),
     ("POST", "/v1/intake/requests/{intake_id}/pay"): ("Correct and pay", "Save, check again, approve as this person and pay through the treasury proof."),
     ("GET", "/v1/fund-requests"): ("List cash advances, petty cash and ODC", "Requests with the person, payee, decision, payment order and settlement."),
     ("POST", "/v1/fund-requests/{number}/decision"): ("Decide a cash advance, petty cash or ODC request", "Never by the person asking; within the approver's limit."),

@@ -2947,6 +2947,45 @@ async def intake_get(intake_id: str):
                                             if p.get("status", "OPEN") == "OPEN"]}
 
 
+@app.get("/v1/intake/requests/{intake_id}/correspondence")
+async def intake_correspondence(intake_id: str):
+    """What was said about this request: the messages sent to the vendor (date, text, delivery), where the vendor's
+    answer stands, the vendor's other submissions of the same invoice with what was decided, and the notices sent to
+    the FCO's mailbox with their full text."""
+    from . import correspondence, outbox
+
+    req = app.state.intake.store.get(intake_id)
+    if req is None:
+        raise HTTPException(404, "unknown intake request")
+    every = await asyncio.to_thread(app.state.intake.store.list, 5000)
+    out = await asyncio.to_thread(correspondence.build, req, every, outbox.items(app.state.org))
+    ids = {intake_id} | {s["intake_id"] for s in out["submissions"]}
+    out["callbacks"] = sorted((c for c in app.state.org.list("callback_log") if c.get("intake_id") in ids), key=lambda c: c.get("at", ""))
+    return out
+
+
+class CallbackIn(BaseModel):
+    pic_name: str = Field(min_length=2, max_length=120, description="the person spoken to")
+    company: str = Field(min_length=2, max_length=160)
+    phone: str = Field(min_length=5, max_length=40, description="the number that was called")
+    revision: str = Field(min_length=3, max_length=1000, description="what the vendor must correct")
+
+
+@app.post("/v1/intake/requests/{intake_id}/callbacks")
+async def intake_callback(intake_id: str, body: CallbackIn, role: str = "finance_manager", by: str = "dashboard"):
+    """Record a call-back made by a person about this request: who was spoken to, at which company and number, and what
+    must be corrected. It is kept on the request's log with the time it was recorded; it changes no status by itself."""
+    import uuid
+
+    who = _writer(role, by)
+    if app.state.intake.store.get(intake_id) is None:
+        raise HTTPException(404, "unknown intake request")
+    rec = {"_id": str(uuid.uuid4()), "intake_id": intake_id, "at": datetime.now(UTC).isoformat(timespec="seconds"), "by": who} | body.model_dump()
+    await asyncio.to_thread(app.state.org._put, "callback_log", rec, who)
+    await asyncio.to_thread(app.state.audit.append, "manual_callback", rec)
+    return rec
+
+
 @app.put("/v1/intake/requests/{intake_id}")
 async def intake_correct(intake_id: str, body: CorrectionIn, role: str = "finance_manager", by: str = "dashboard"):
     """Save a person's corrections to a request in Pending payment and run its checks again (payee, currency, PO,
