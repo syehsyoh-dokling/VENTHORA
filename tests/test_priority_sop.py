@@ -25,7 +25,8 @@ def test_the_default_list_follows_the_standards_and_changes_nothing_until_saved(
     assert len(rows) == 12 and not d["saved"] and d["authority"]["you_may_change"] is True
     assert (rows["wages"]["level"], rows["wages"]["priority"]) == ("high", 10)
     assert [rows[k]["priority"] for k in ("statutory", "critical_suppliers", "fringe")] == [10, 9, 8]  # taxes share 10 with wages
-    assert rows["consultants"]["level"] == "medium" and rows["odc"]["priority"] == 4 and rows["deferrable"]["priority"] == 3
+    assert rows["consultants"]["level"] == "medium" and rows["odc"]["priority"] == 3 and rows["deferrable"]["priority"] == 2
+    assert (rows["cash_advance"]["level"], rows["cash_advance"]["priority"]) == ("low", 4)  # advances and slush funds wait first
     assert priority_sop.priorities(client.app.state.org) is None  # no SOP saved: each payee's own priority applies
 
 

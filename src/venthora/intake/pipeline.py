@@ -645,6 +645,9 @@ class Intake:
         mode = self._modes()
         found = procurement.find_po(text, subject)
         if found is None:
+            line = str((self.registry.payees.get(cid or "") or {}).get("budget_line") or "").lower()
+            if line in self.NO_PO_LINES:  # payroll, taxes, benefits, loans, rent, advances: owed by law or contract, never bought on a PO
+                return False
             if self.org.standards().get("require_po", True) and mode["po_open"] != "off":
                 flags.append("po_missing")
                 reasons.append("the invoice quotes no purchase order; the finance standards pay supplier invoices "
@@ -719,8 +722,11 @@ class Intake:
         self.store.save(req)
         return req
 
+    # budget lines whose bills are owed by law or contract, not bought: no purchase order is asked for them
+    NO_PO_LINES = frozenset({"payroll", "tax", "taxes", "social_security", "insurance", "pension", "benefits", "fringe", "loan", "debt",
+                             "rent", "utilities", "cash_advance", "petty_cash", "slush_fund"})
     # what a person may correct on a request in Pending payment, and the checks that are run again on it
-    CORRECTABLE = ("counterparty_id", "invoice_no", "amount_minor", "currency", "due_date", "po_number", "account_code", "category")
+    CORRECTABLE =("counterparty_id", "invoice_no", "amount_minor", "currency", "due_date", "po_number", "account_code", "category")
     RECHECKED = {"po_missing", "po_unknown", "po_not_open", "po_supplier_mismatch", "po_currency_mismatch", "po_exceeded", "po_term_mismatch",
                  "po_expired", "payee_unknown", "payee_currency_mismatch", "duplicate_invoice"}
 
@@ -1020,7 +1026,12 @@ class Intake:
                                         "evidence_ref": ref, "payer_history": payer.get("history")})
             data["evidence"].append({"ref": ref, "subject_id": rid, "source": ar["_source"], "status": "verified",
                                      "summary": f"open customer invoice {ar['invoice_no']} in the company's system, due {ar['due_date']}"})
-        data["obligations"] = data["obligations"][:12]
+        # one book holds at most 12: the payable ones first, then the highest priority, then the earliest due (never
+        # simply the oldest requests, which would keep a stale queue in the plan and push today's payroll out of it)
+        ok = {e["subject_id"] for e in data["evidence"] if e.get("status") == "verified"}
+        ranked = sorted(data["obligations"], key=lambda o: (o["obligation_id"] not in ok, -int(o.get("priority") or 5),
+                                                            int(o.get("due_in_hours") or 0), o["obligation_id"]))
+        data["obligations"], self.overflow = ranked[:12], ranked[12:]  # the rest waits for the next round, and is shown so
         # a payee in a currency the plan has no rate for (a synced AUD or INR bill): use the dashboard's rate snapshot
         # (00:01 / 11:59 UTC, same direction: base per unit); with none, the bill waits outside the plan instead of
         # failing the whole state

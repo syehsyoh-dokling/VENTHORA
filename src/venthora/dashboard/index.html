@@ -507,7 +507,7 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
  <section class="span12" data-view="fund"><h2><span>Top up the balance</span><span class="row" style="gap:8px"><a href="#/agent-plan?today" class="small">‹ Today's plan</a></span></h2><div id="fundBody" class="empty">loading…</div></section>
  <section class="span12" data-view="payment"><h2><span id="payTitle">Payment</span><span class="row" style="gap:8px"><a href="#/agent-plan?today" class="small">‹ Today's plan</a></span></h2><div id="payBody" class="empty">loading…</div></section>
  <!-- ===== pages of their own, inside the same menu and top bar ===== -->
- <section class="span12 plain" data-view="autopilot"><iframe id="frameAutopilot" title="Autopilot Console" style="width:100%;border:0;display:block;min-height:70vh;background:transparent"></iframe></section>
+ <section class="span12 plain" data-view="autopilot"><div id="apKit" style="margin-bottom:12px"></div><iframe id="frameAutopilot" title="Autopilot Console" style="width:100%;border:0;display:block;min-height:70vh;background:transparent"></iframe></section>
  <section class="span12 plain" data-view="workflow"><iframe id="frameWorkflow" title="Workflow" allow="fullscreen" style="width:min(100%,calc((100vh - 150px) * 16 / 9));margin:0 auto;border:0;display:block;aspect-ratio:16/9;border-radius:14px;background:#0b1530"></iframe></section>
  <!-- ===== Overview: charts and notifications only ===== -->
  <section class="span12 plain" data-view="overview">
@@ -1633,7 +1633,7 @@ const TITLES={overview:"Dashboard","data-reset":"Developer · Data reset","charg
  executions:"Executions & incidents",runs:"Run reports",users:"People & roles",allocation:"Budget allocation",offices:"Branches, units & country offices",prices:"Unit prices",
  standards:"Finance standards",receiving:"Balance received",airwallex:"Airwallex Account",admins:"Admin team","ai-local":"Agent · Local model (vLLM)","ai-keys":"Agent · Provider API keys","payment-reports":"Total Spending","rep-fx":"FX & transfer costs","budget-policy":"Budget period, cut-off & sync",ai:"Agent · Model in use",readiness:"Setup Checklist","sources-sync":"App Integration · Sync API","sources-upload":"Upload dataset","sources-email":"Email Sync","api-access":"App Integration · API access","doc-rules":"Document validation",pos:"Purchase orders",commitments:"Commitments",spending:"Spending",codes:"Projects & accounts",mandate:"Delegation of Authority",integrations:"Airwallex webhooks",assurance:"Checks & resilience"};
 const FRAME_V="20261106e";  // bump when flow.html or live.html changes: the frame then loads the new page, never a cached copy
-const ON_VIEW={overview:()=>overview(),"data-reset":()=>drView(),"charge-codes":()=>ccView(),"rep-staff":()=>ssView(),"dev-placement":()=>dpView(),transfers:()=>trView(),"dev-airwallex":()=>awxView(),"dev-xendit":()=>xdView(true),"dev-airi":()=>airiView(),"dev-t0":()=>t0View(),"visa-controls":()=>ctlView("visa"),"airi-controls":()=>ctlView("airi"),"metal-scope":()=>bcView(),"placement-providers":()=>ppView(),xendit:()=>xdView(),"wallet-payouts":()=>wpView(),testlog:()=>tlView(),"proc-shortlist":()=>slView(),"server-health":()=>shView(),sandbox:()=>sbView(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),"rep-chain":()=>chView(),"rep-card":()=>vcView(),"proc-sourcing":()=>psView(),"api-catalog":()=>acView(),evidence:()=>evView(),"proc-quotes":()=>pqView(),autopilot:()=>openFrame("#frameAutopilot","/live?v="+FRAME_V),payment:()=>payView(),fund:()=>fundView(),cards:()=>cdView(),"card-auth":()=>caView(),"visa-tap":()=>vtView(),"visa-vic":()=>vvView(),metal:()=>mtView(),mcp:()=>mcpView(),workflow:()=>openFrame("#frameWorkflow","/flow?v="+FRAME_V),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>rcView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
+const ON_VIEW={overview:()=>overview(),"data-reset":()=>drView(),"charge-codes":()=>ccView(),"rep-staff":()=>ssView(),"dev-placement":()=>dpView(),transfers:()=>trView(),"dev-airwallex":()=>awxView(),"dev-xendit":()=>xdView(true),"dev-airi":()=>airiView(),"dev-t0":()=>t0View(),"visa-controls":()=>ctlView("visa"),"airi-controls":()=>ctlView("airi"),"metal-scope":()=>bcView(),"placement-providers":()=>ppView(),xendit:()=>xdView(),"wallet-payouts":()=>wpView(),testlog:()=>tlView(),"proc-shortlist":()=>slView(),"server-health":()=>shView(),sandbox:()=>sbView(),users:()=>orgUsers(),allocation:()=>allocView(),receiving:()=>brView(),pending:()=>intake(),"agent-plan":()=>apTab(AP_OF()),"priority-sop":()=>sopView(),executions:()=>exView(),"rep-payroll":()=>spView("payroll"),"rep-fringe":()=>spView("fringe"),"rep-goods":()=>spView("goods_services"),"rep-operation":()=>spView("operation"),"rep-cash":()=>spView("cash_advance"),"rep-travel":()=>spView("travel"),"rep-odc":()=>spView("odc"),"rep-fx":()=>fxView(),"rep-chain":()=>chView(),"rep-card":()=>vcView(),"proc-sourcing":()=>psView(),"api-catalog":()=>acView(),evidence:()=>evView(),"proc-quotes":()=>pqView(),autopilot:()=>{apKitLoad();openFrame("#frameAutopilot","/live?v="+FRAME_V)},payment:()=>payView(),fund:()=>fundView(),cards:()=>cdView(),"card-auth":()=>caView(),"visa-tap":()=>vtView(),"visa-vic":()=>vvView(),metal:()=>mtView(),mcp:()=>mcpView(),workflow:()=>openFrame("#frameWorkflow","/flow?v="+FRAME_V),intake:()=>inTab(INTAB_OF()),airwallex:()=>awxView(),admins:()=>adminView(),"ai-local":()=>localView(),"ai-keys":()=>keysView(),"payment-reports":()=>rcView(),"budget-policy":()=>policyView(),offices:()=>officesView(),prices:()=>pricesView(),
  standards:()=>standardsView(),ai:()=>aiView(),readiness:()=>readinessView(),"sources-sync":()=>syncView(),"sources-upload":()=>uploadKinds(),"sources-email":()=>emailView(),"api-access":()=>{apiView();acView()},"doc-rules":()=>docRulesView(),commitments:()=>cmView(),spending:()=>{location.hash="#/payment-reports"},codes:()=>codesView(),mandate:()=>doaView(),ledger:()=>{tenants();lgOpts();t0BooksView()},travel:()=>travelView(),vendors:()=>benView("vendor"),consultants:()=>benView("consultant"),customers:()=>benView("customer"),integrations:()=>webhookView()};
 // Menus by role: Platform Setup (FCO + Developer), FCO Authorize (FCO only), Developer Console (Developer + FCO, not
 // on SaaS), Demo-Only (demo mode). data-roles lists who sees an item, data-deny who does not, data-ro who only reads it.
@@ -1653,6 +1653,7 @@ function roRender(v){const rl=roleNow(),a=navFor(v),ro=!!(a&&(a.dataset.ro||"").
  if(ro)n.innerHTML=rl==="developer"?"<b>View only for Developer.</b> The Airwallex account and the cards hold the company's money: only the FCO (Super admin) changes them."
   :"<b>View only for the FCO.</b> This is the Developer's one-time technical setup: a Developer (IT) changes it."}
 let ACTORS_READY=false;  // the guard judges a page only once the people list is in (else a deep link would use the placeholder actor)
+let ROUTED_HASH=null;
 function route(){applyRoles();{const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1]||"overview";if(ACTORS_READY&&!viewAllowed(v)){const home=ROLE_HOME[roleNow()]||"#/overview";if(location.hash!==home){location.hash=home;return}}}
 if(document.body.classList.contains("prod")){const v=(location.hash.match(/^#\/([\w-]+)/)||[])[1],a=v&&document.querySelector(`#mainNav a[data-nav="${v}"]`);if(a&&a.classList.contains("dev")){location.hash="#/overview";return}}
  const MOVED={budget:"#/payment-reports?budget",runs:"#/executions?runs",spending:"#/payment-reports",books:"#/ledger",payees:"#/rep-chain",plan:"#/agent-plan?proof",pos:"#/intake?po",travel:"#/intake?travel",payroll:"#/executions"};const v0=(location.hash.match(/^#\/([\w-]+)/)||[])[1];if(MOVED[v0]){location.hash=MOVED[v0];return}
@@ -1661,7 +1662,8 @@ if(document.body.classList.contains("prod")){const v=(location.hash.match(/^#\/(
  document.querySelectorAll(".ptabs [data-tab]").forEach(t=>t.classList.toggle("on",t.dataset.tab===view));
  const lit=a=>a.dataset.nav===view||(a.dataset.also||"").split(" ").includes(view);
  document.querySelectorAll("[data-nav]").forEach(a=>a.classList.toggle("on",lit(a)));
- document.querySelectorAll("#mainNav .mg").forEach(g=>{g.classList.toggle("cur",[...g.querySelectorAll("[data-nav]")].some(lit));g.classList.remove("open")});
+ const moved=ROUTED_HASH!==location.hash;ROUTED_HASH=location.hash;  // a re-render of the same page keeps the menu the user opened
+ document.querySelectorAll("#mainNav .mg").forEach(g=>{g.classList.toggle("cur",[...g.querySelectorAll("[data-nav]")].some(lit));if(moved)g.classList.remove("open")});
  $("#pageTitle").textContent=TITLES[view];$("#kspan").hidden=view!=="overview";document.title=`${TITLES[view]} · VENTHORA`;$("#nav").classList.remove("open");
  roRender(view);if(ON_VIEW[view])ON_VIEW[view]();window.scrollTo(0,0)}
 window.addEventListener("hashchange",route);
@@ -1709,12 +1711,12 @@ function wireSignIn(root,after){root.querySelectorAll("[data-signin]").forEach(b
  $("#dlgSave").textContent="Copy link";$("#dlg").addEventListener("close",()=>{$("#dlgSave").textContent="Save"},{once:true});
  $("#dlg").showModal();$("#dlgForm").onsubmit=ev=>{if(ev.submitter&&ev.submitter.value==="cancel")return;ev.preventDefault();copyText(url,"Sign-in link");$("#dlg").close()};
  if(after)after()}catch(e){toast(esc(e.message),"serious")}})}
-async function loadActors(){try{if(!(await authGate()))return;
+async function loadActors(quiet){try{if(!(await authGate()))return;
  if(ME){document.body.classList.add("login");$("#signOut").hidden=false;$("#tenantBar").hidden=false;try{localStorage.removeItem("venthora.actor.name")}catch(e){}}
  const us=ME?[ME]:(await api("/v1/org/users")).filter(u=>u.active!==false);const R={super_admin:"Super admin (FCO)",developer:"Developer (IT)",hq_admin:"HQ admin",country_admin:"Country office admin",branch_admin:"Branch admin",project_admin:"Project finance admin",cfo:"CFO",finance_manager:"Finance manager",treasury_analyst:"Treasury analyst",country_finance_lead:"Country finance lead",project_accountant:"Project accountant",procurement:"Procurement",requester:"Requester",auditor:"Auditor (read only)",admin:"Admin"};
  const rank=["super_admin","developer","cfo","finance_manager","hq_admin","country_admin","branch_admin","project_admin","country_finance_lead","project_accountant","treasury_analyst","requester","auditor","admin"];
  ACTORS=us.sort((a,b)=>rank.indexOf(a.role)-rank.indexOf(b.role)||a.name.localeCompare(b.name)).map(u=>({role:u.role,name:u.name,rl:R[u.role]||u.role,label:`${u.name} · ${R[u.role]||u.role}`}));
- if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();ACTORS_READY=true;route();if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()}catch(e){actorsFill();ACTORS_READY=true;route()}}
+ if(!ACTORS.length)ACTORS=[{role:"admin",name:"Platform admin",label:"Platform admin"}];actorsFill();ACTORS_READY=true;if(quiet)return;route();if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()}catch(e){actorsFill();ACTORS_READY=true;if(!quiet)route()}}
 actorsFill();loadActors();
 $("#actor").onchange=()=>{actorShow();route();try{localStorage.setItem("venthora.actor.name",actor().name)}catch(e){}if(location.hash==="#/mandate")doaView();if(location.hash.startsWith("#/priority-sop")&&SOP)sopRender()};
 const actor=()=>ACTORS[+$("#actor").value]||ACTORS[0];
@@ -2539,11 +2541,59 @@ function apCover(c,b){if(!c||!c.count){$("#apCover").innerHTML="";return}
   ${(c.levels||[]).length?table([{h:"Priority",f:l=>`<b>${esc(l.label)}</b> <span class="pill ${l.covered?"good":"critical"}">${l.covered?"covered":"waits"}</span><div class="small muted">priority ${esc(l.priorities)}${l.categories.length?` · ${esc(l.categories.join(", "))}`:""}</div>`},
    {h:"Due",num:1,f:l=>l.count?`${fmt(l.due_minor,b)}<div class="small muted">${l.count} payment(s)</div>`:'<span class="muted">nothing</span>'},
    {h:"Due so far",num:1,f:l=>fmt(l.cumulative_minor,b)},{h:"Balance left",num:1,f:l=>`<b style="color:${l.left_minor<0?"var(--critical,#dc2626)":"inherit"}">${fmt(l.left_minor,b)}</b>`}],c.levels):""}
+  ${apLineup(c,b)}
   ${(c.levels||[]).length?"":table([{h:"Day",f:d=>`<b>Day ${d.day}</b><div class="small muted">${dmy(d.from)} ${hm(d.from)} – ${dmy(d.to)} ${hm(d.to)}</div>`},{h:"Due",num:1,f:d=>d.count?`${fmt(d.due_minor,b)}<div class="small muted">${d.count} payment(s)</div>`:'<span class="muted">nothing</span>'},
    {h:"Due so far",num:1,f:d=>fmt(d.cumulative_minor,b)},{h:"Balance left",num:1,f:d=>`<b style="color:${d.left_minor<0?"var(--critical,#dc2626)":"inherit"}">${fmt(d.left_minor,b)}</b>`}],c.days)}
   ${apWallet(c,b)}
   <div class="small muted" style="margin-top:6px">${c.receipts.length?`Expected customer receipts in this horizon, not counted until Airwallex reports them settled: <b>${fmt(c.receipts_minor,b)}</b> from ${c.receipts.length} payer(s).`:"No customer receipt is expected in this horizon."}</div></div>`}
 let APT=null;
+// the line-up: every payment of the horizon in the order the policy pays it, against the money above the reserve floor
+// Autopilot Console → the hackathon's Kit 01 (Adaptive Treasury Controller), point by point, read from the live plan: never typed in
+async function apKitLoad(){const el=$("#apKit");if(!el)return;el.innerHTML='<div class="empty">reading the live plan…</div>';
+ try{const d=await api("/v1/agent-plan"),t=d.today;if(!d.plan||!t){el.innerHTML="";return}apKit(d,t,t.base_currency)}catch(e){el.innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
+function apKit(d,t,b){const el=$("#apKit");if(!el)return;const P=d.plan||{},c=t.coverage||{},L=c.lineup||[],O=P.obligations||[];
+ const ccys=[...new Set(L.map(x=>x.currency))],foreign=ccys.filter(x=>x!==b);
+ const crit=L.filter(x=>/critical/i.test(x.category||"")),critPaid=crit.filter(x=>x.status!=="waits");
+ const conv=P.conversions||[],defer=O.filter(o=>o.action==="DEFER"),esc_=O.filter(o=>o.action==="ESCALATE");
+ const held=((d.split||{}).held||[]).filter(h=>(h.reasons||[]).some(r=>/bank|payee_changed|cooling|call/i.test(r)));
+ const name=id=>{const r=L.find(x=>x.obligation_id===id)||(t.others||[]).find(x=>x.obligation_id===id)||{};return r.payee||id};
+ const conf=P.forecast_confidence_bp,lim=P.conversion_limit_minor;
+ const items=[
+  [L.length>=5&&ccys.length>=3,"Five obligations, three currencies, within 72 hours",`${L.length} payments due in the next ${c.hours||72} h in ${ccys.length} currencies: ${ccys.join(", ")}${foreign.length?` (${foreign.length} foreign)`:""}`],
+  [c.count>0&&!c.enough,"Cash covers only part above the reserve floor",c.count?`${fmt(c.spendable_minor,b)} above the floor of ${fmt(c.reserve_floor_minor,b)} against ${fmt(c.total_minor,b)} due: ${c.enough?"enough for everything":`${fmt(c.short_minor,b)} short`}`:"nothing due"],
+  [critPaid.length>0,"Fund the supplier whose non-payment stops operations",crit.length?`${crit.map(x=>`${esc(x.payee)} ${x.status==="waits"?"waits":"paid"}`).join(", ")}`:"no operations-critical supplier due"],
+  [conv.length>0,"Convert only the minimum for what is paid",conv.length?conv.map(x=>`buy ${fmt(x.buy_amount_minor,x.buy_currency)} for about ${fmt(x.estimated_sell_minor,x.sell_currency)}`).join(" · "):"no conversion needed by the payments that fit"],
+  [defer.length>0,"Defer the cheapest obligation to a reliable receipt",defer.length?defer.map(o=>`${esc(name(o.obligation_id))}: ${esc(o.reason||"")}`).join(" · "):`${(c.receipts||[]).length?`receipt expected: ${fmt(c.receipts_minor,b)}`:"no reliable receipt expected in the horizon"}`],
+  [esc_.length+held.length>0,"Escalate a policy exception to a person",esc_.length+held.length?[...esc_.map(o=>`${esc(name(o.obligation_id))}: ${esc(o.reason||"")}`),...held.map(h=>`${esc(name(h.obligation_id))}: ${esc(h.reasons.join(", "))}`)].slice(0,3).join(" · "):"no exception in this plan"],
+  [lim!=null,"Execution limit tied to forecast confidence",lim!=null?`autonomous FX limit ${fmt(lim,b)} at forecast confidence ${conf!=null?(conf/100).toFixed(0)+"%":"n/a (no open receipt)"}`:"-"],
+  [true,"A deposit re-plans only what it affects",`auto-refresh reads the Airwallex balance every 30 s; a settled deposit re-plans this page · <a href="#/fund">Top up ›</a>`]];
+ el.innerHTML=`<div class="tile" style="margin-bottom:12px;border-left:4px solid #7c3aed"><div class="row" style="gap:10px;align-items:baseline;flex-wrap:wrap"><b style="font-size:15px">Kit 01 · Adaptive Treasury Controller, on this live plan</b>
+   <span class="small muted">each line is read from the plan below, not typed in: ${items.filter(i=>i[0]).length} of ${items.length} shown now</span></div>
+  <table class="small" style="width:100%;margin-top:6px;border-collapse:collapse">${items.map(([ok,h,v])=>`<tr style="border-top:1px solid var(--line)"><td style="width:22px;padding:5px 4px;font-size:15px;color:${ok?"#16a34a":"#94a3b8"}">${ok?"✓":"○"}</td><td style="padding:5px 6px;white-space:nowrap"><b>${h}</b></td><td style="padding:5px 6px" class="${ok?"":"muted"}">${v}</td></tr>`).join("")}</table></div>`}
+function apLineup(c,b){const L=c.lineup||[];if(!L.length)return "";
+ const LV={high:["High","#7c3aed"],medium:["Medium","#0891b2"],low:["Low","#64748b"]};
+ const ST={paid:["Paid in the next "+c.hours+" h","rgba(22,163,74,.13)","#15803d"],boundary:["Last that fits","rgba(234,179,8,.30)","#a16207"],waits:["Waits: not enough cash","rgba(220,38,38,.10)","#b91c1c"]};
+ const n={paid:0,boundary:0,waits:0},sum={paid:0,boundary:0,waits:0};L.forEach(x=>{n[x.status]++;sum[x.status]+=x.base_minor});
+ const floorRow=`<tr><td colspan="8" style="padding:0"><div style="border-top:4px solid #2563eb;padding:6px 10px;background:rgba(37,99,235,.08);color:#1d4ed8;font-weight:700;font-size:13px">▲ paid · reserve floor ${fmt(c.reserve_floor_minor,b)} · nothing below this line is paid until money comes in ▼</div></td></tr>`;
+ const lastPaid=L.map(x=>x.status).lastIndexOf("boundary");
+ const row=(x,i)=>{const s=ST[x.status],lv=LV[x.level]||LV.low;
+  return `<tr style="background:${s[1]}"><td class="amt" style="font-weight:700">${i+1}</td>
+   <td><span class="pill" style="background:${lv[1]};color:#fff">${lv[0]}</span><div class="small muted">priority ${x.priority}</div></td>
+   <td><b>${esc(x.payee||"")}</b><div class="small muted">${esc(x.category||"")}</div></td>
+   <td class="small" style="white-space:nowrap">${dmy(x.due_at)}<div class="muted">${hm(x.due_at)}</div></td>
+   <td class="amt"><span style="font-size:16px;font-weight:800">${fmt(x.amount_minor,x.currency)}</span>${x.currency!==b?`<div class="small muted">${fmt(x.base_minor,b)}</div>`:""}</td>
+   <td class="amt small">${fmt(x.cumulative_minor,b)}</td>
+   <td class="amt"><b style="color:${x.left_minor<0?"#b91c1c":"inherit"}">${fmt(x.left_minor,b)}</b></td>
+   <td><span class="pill" style="background:${s[2]};color:#fff;white-space:nowrap" ${x.next_round?'title="one plan proves twelve payments, the most urgent first; this one waits for a place in the next round"':""}>${x.next_round?"Waits: next round":s[0]}</span></td></tr>`};
+ const body=L.map((x,i)=>row(x,i)+(i===lastPaid?floorRow:"")).join("");
+ return `<div style="margin-top:12px"><div class="row" style="gap:10px;flex-wrap:wrap;align-items:baseline;margin-bottom:6px"><b style="font-size:15px">Payment line-up · next ${c.hours} hours</b>
+   <span class="small muted">High first, then the earliest due, against ${fmt(c.spendable_minor,b)} above the reserve floor; the line is never crossed to pay a lower one</span></div>
+  <div class="row small" style="gap:14px;flex-wrap:wrap;margin-bottom:6px"><span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#16a34a;vertical-align:-2px"></i> paid ${n.paid+n.boundary} · ${fmt(sum.paid+sum.boundary,b)}</span>
+   <span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#eab308;vertical-align:-2px"></i> last that fits above the floor</span>
+   <span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#2563eb;vertical-align:-2px"></i> reserve floor ${fmt(c.reserve_floor_minor,b)}</span>
+   <span><i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#dc2626;vertical-align:-2px"></i> waits ${n.waits} · ${fmt(sum.waits,b)}</span></div>
+  <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th class="amt">#</th><th>Priority</th><th>Payee</th><th>Due</th><th class="amt">Amount</th><th class="amt">Due so far</th><th class="amt">Left above floor</th><th>In ${c.hours} h</th></tr></thead>
+  <tbody>${lastPaid<0?floorRow:""}${body}</tbody></table></div></div>`}
 function apWallet(c,b){const t=APT||{},w=t.wallet_minor;const extra=w!=null?w-c.available_minor:null;
  const line=w!=null&&extra>0?`<div class="small" style="margin-top:6px">The Airwallex wallet holds <b>${fmt(w,b)}</b>; VENTHORA may use <b>${fmt(c.available_minor,b)}</b> of it (the allocation ring-fenced in Treasury limits).</div>`:"";
  if(c.enough)return line;
@@ -4948,7 +4998,7 @@ async function adminView(){try{await loadOrg();await authStatus();
    {h:"Unit",f:u=>esc(unitName(u.unit_id))},{h:"Reach",f:u=>role==="super_admin"||role==="hq_admin"?"company-wide":`${esc(unitName(u.unit_id))} and the units under it`},...(ME?[{h:"Sign-in",f:u=>signCell(u)}]:[]),{h:"",f:u=>`<div class="acts">${signBtn(u)}${rowActs("users",u.user_id)}</div>`}],rows,"nobody yet")}).join("");
  wireActs($("#adminLevels"),"users",()=>ORG.users,"user_id",USER_FIELDS,adminView);wireSignIn($("#adminLevels"),()=>setTimeout(adminView,300));
  $("#roleGuide").innerHTML=table([{h:"Account",f:r=>`<b>${esc(r[0])}</b>`},{h:"Sits at",f:r=>esc(r[1])},{h:"May",f:r=>`<span class="small">${esc(r[2])}</span>`}],ROLE_GUIDE)+'<div class="small muted" style="margin-top:6px">Add people in User management; admins here.</div>';
- loadActors()}catch(e){$("#adminLevels").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+ loadActors(true)}catch(e){$("#adminLevels").innerHTML=`<div class="err">${esc(e.message)}</div>`}}
 $("#addAdmin").onclick=async()=>{await loadOrg();$("#dlgTitle").textContent="Add admin";$("#dlgErr").textContent="";
  $("#dlgBody").innerHTML=`<label>Level<select id="ad-level">${LEVELS.map(([r,l])=>`<option value="${r}">${esc(l)}</option>`).join("")}</select></label><label>Unit<select id="ad-unit"></select></label>
   <label>Full name<input id="ad-name" required></label><label>Email<input id="ad-email" type="email" required></label>`;

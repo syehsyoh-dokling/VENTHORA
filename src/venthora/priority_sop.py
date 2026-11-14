@@ -32,15 +32,16 @@ ITEMS: dict[str, tuple[str, str, str, str]] = {
     "suppliers": ("Suppliers and purchase orders", "goods and services against an open PO", "EU Directive 2011/7/EU: 30-60 day terms, interest when late", "medium"),
     "office": ("Office and operations", "rent, utilities, communications, software (DoA 05)", "continuity of the office", "medium"),
     "travel": ("Travel and transport", "travel claims and advances for approved trips (DoA 04)", "staff reimbursement", "medium"),
-    "cash_advance": ("Cash advance, petty cash and slush fund", "advances to staff and petty cash floats (DoA 06)", "staff and office floats", "medium"),
+    "cash_advance": ("Cash advance, petty cash and slush fund", "advances to staff and petty cash floats (DoA 06)", "staff and office floats: held first when cash is short", "low"),
     "odc": ("Other direct costs", "programme activity costs (DoA 07)", "activity plan", "low"),
-    "deferrable": ("Subscriptions and deferrable costs", "anything cheapest to defer (subscriptions, non-urgent services)", "least harm when late", "low"),
+    "deferrable": ("Subscriptions and deferrable costs", "anything cheapest to defer (subscriptions, team gatherings and staff events, non-urgent services)", "least harm when late", "low"),
 }
 DEFAULT_ORDER = list(ITEMS)
 DOA_KEY = {"personnel": "wages", "fringe": "fringe", "consultants": "consultants", "travel": "travel", "office": "office",
            "cash_advance": "cash_advance", "other_direct": "odc"}
 LINE_KEY = {"payroll": "wages", "tax": "statutory", "taxes": "statutory", "social_security": "statutory", "loan": "debt_service", "debt": "debt_service",
-            "contractors": "consultants", "consultants": "consultants", "saas": "deferrable", "subscriptions": "deferrable", "office": "office",
+            "contractors": "consultants", "consultants": "consultants", "saas": "deferrable", "subscriptions": "deferrable", "events": "deferrable", "team_events": "deferrable", "team_gathering": "deferrable",
+            "cash_advance": "cash_advance", "petty_cash": "cash_advance", "slush_fund": "cash_advance", "benefits": "fringe", "fringe": "fringe", "insurance": "fringe", "pension": "fringe", "office": "office",
             "rent": "office", "utilities": "critical_suppliers", "logistics": "suppliers", "suppliers": "suppliers", "travel": "travel", "odc": "odc"}
 ACCOUNT_KEY = {"2200": "statutory", "2300": "debt_service", "6010": "wages", "6020": "fringe", "6200": "consultants", "6300": "office", "6700": "office", "6400": "travel",
                "1400": "cash_advance", "6900": "odc", "6100": "suppliers", "6500": "suppliers", "6600": "consultants", "7100": "suppliers"}

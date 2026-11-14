@@ -6339,8 +6339,10 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     queue_waiting = len(queue)
     if len(queue) > QUEUE_PLAN_MAX:  # a book holds at most 100 pieces of evidence: the most urgent first, the rest next round
         queue = sorted(queue, key=lambda q: (q.status != "VERIFIED", q.due_date or "9999-12-31", q.received_at))[:QUEUE_PLAN_MAX]
+    overflow: list[dict] = []
     try:
         state = await asyncio.to_thread(app.state.intake.to_state, base, as_of=today, requests=queue) if queue else None
+        overflow = list(getattr(app.state.intake, "overflow", None) or []) if queue else []  # beyond one book of 12: next round
     except ValueError as exc:  # nothing in the queue that is a payable obligation (or a request the book refuses)
         state = None
         queue_error = str(exc)[:400]
@@ -6383,7 +6385,9 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     if len(data["obligations"]) > 12:  # one plan proves at most 12 obligations: the most urgent by the SOP now, the rest next round
         source["next_round"] = len(data["obligations"]) - 12
         ok = {e["subject_id"] for e in data.get("evidence", []) if e.get("status") == "verified"}  # payable first; stopped ones fill the rest
-        data["obligations"] = sorted(data["obligations"], key=lambda o: (o["obligation_id"] not in ok, -o["priority"], o["due_in_hours"], o["obligation_id"]))[:12]
+        ranked = sorted(data["obligations"], key=lambda o: (o["obligation_id"] not in ok, -o["priority"], o["due_in_hours"], o["obligation_id"]))
+        data["obligations"] = ranked[:12]
+        overflow = ranked[12:] + overflow
     # the ring fence is the FCO's "Allocation ring-fenced from the wallet" (Delegation of Authority) when it is set;
     # the scenario's balance only when it is not (a blank company starts with none, so the agent could pay nothing)
     book = mandate.standing(app.state.org).get("book") or {}
@@ -6397,6 +6401,7 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
     except (HTTPException, AirwallexError) as exc:
         source["balances_error"] = str(getattr(exc, "detail", exc))[:200]
     state, _ = apply_operational_facts(state, app.state.executor.store)
+    source["overflow"] = overflow  # shown on Agent plan as "waits: next round", never planned or paid this round
     return _with_budget(state), source
 
 

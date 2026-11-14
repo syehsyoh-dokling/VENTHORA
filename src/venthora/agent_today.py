@@ -90,7 +90,22 @@ def summary(state, source: dict, split, org, payees: dict, horizon: int, next_pa
                      "priority": 10, "action": "ESCALATE", "ready": False, "why": "; ".join(w["reasons"]), "intake_ref": None,
                      "in_horizon": pay_in_h is None or pay_in_h <= horizon,
                      "document_check": "completed", "smoke_test": None, "payroll": True})
-    record_decisions(org, [r for r in rows if not r.get("payroll")])
+    # beyond the twelve one plan proves: shown, ranked by the same policy, and waiting for the next round (never paid now)
+    as_of = dt.datetime.now(dt.UTC).date().isoformat()
+    for o in source.get("overflow") or []:
+        ccy = o.get("currency")
+        try:
+            b = o["amount_minor"] if ccy == base else cost_in_base(o["amount_minor"], state.ppm_up(ccy))
+        except (KeyError, TypeError):
+            continue
+        cat, prio, _ = priority_sop.priority_for(org, o, payees, as_of)
+        rows.append({"obligation_id": o["obligation_id"], "payee": o.get("payee_name") or o.get("beneficiary_id"), "amount_minor": o["amount_minor"],
+                     "currency": ccy, "base_minor": b, "due_in_hours": o.get("due_in_hours"), "due_date": o.get("due_date"), "category": cat,
+                     "category_label": priority_sop.ITEMS[cat][0], "priority": prio, "action": "DEFER", "ready": False,
+                     "why": "next round: one plan proves twelve payments, the most urgent first; this one waits for a place",
+                     "intake_ref": intake_ref(o), "in_horizon": (o.get("due_in_hours") or 0) <= horizon,
+                     "document_check": "completed", "smoke_test": None, "next_round": True})
+    record_decisions(org, [r for r in rows if not r.get("payroll") and not r.get("next_round")])
     ready = sorted([r for r in rows if r["ready"]], key=lambda r: (-r["priority"], r["due_in_hours"] or 0, r["obligation_id"]))
     others = sorted([r for r in rows if not r["ready"]], key=lambda r: (-r["priority"], r["due_in_hours"] if r["due_in_hours"] is not None else 0, r["obligation_id"]))
     horizon_rows = [r for r in rows if r["in_horizon"]]
@@ -175,6 +190,26 @@ def coverage(state, rows: list[dict], available: int, floor: int, hours: int) ->
         cats = sorted({r.get("category_label") or r.get("category") or "" for r in mine} - {""})
         levels.append({"level": key, "label": label, "priorities": f"{top}–{floor_p}", "count": len(mine), "due_minor": amt,
                        "cumulative_minor": lcum, "left_minor": spendable - lcum, "covered": lcum <= spendable, "categories": cats})
+    # the line-up: every payment of the horizon in the order the policy pays it (High first, then the earliest due),
+    # against the balance above the reserve floor. PAID while it fits, the last one that fits is the boundary,
+    # everything after it waits for money (red), whatever its level: the line is never crossed to pay a lower one.
+    level_of = {}
+    for key, (top, floor_p) in priority_sop.BANDS.items():
+        for p in range(floor_p, top + 1):
+            level_of[p] = key
+    lineup, run_l, crossed = [], 0, False
+    for r in sorted(items, key=lambda r: (bool(r.get("next_round")), -int(r.get("priority") or 1), r["due_at"])):
+        run_l += r["base_minor"]
+        fits = not crossed and not r.get("next_round") and run_l <= spendable  # a next-round payment is not in today's plan
+        crossed = crossed or not fits
+        lineup.append({"obligation_id": r.get("obligation_id"), "payee": r.get("payee"), "category": r.get("category_label") or r.get("category"),
+                       "priority": int(r.get("priority") or 1), "level": level_of.get(int(r.get("priority") or 1), "low"),
+                       "amount_minor": r.get("amount_minor"), "currency": r.get("currency"), "base_minor": r["base_minor"],
+                       "due_at": r["due_at"].isoformat(timespec="minutes"), "cumulative_minor": run_l, "left_minor": spendable - run_l,
+                       "status": "paid" if fits else "waits", "group": _group(r), "next_round": bool(r.get("next_round"))})
+    last_paid = max((i for i, x in enumerate(lineup) if x["status"] == "paid"), default=None)
+    if last_paid is not None:
+        lineup[last_paid]["status"] = "boundary"
     run = 0
     for r in items:
         run += r["base_minor"]
@@ -193,7 +228,7 @@ def coverage(state, rows: list[dict], available: int, floor: int, hours: int) ->
     total = sum(r["base_minor"] for r in items)
     return {"hours": hours, "until": end.isoformat(timespec="minutes"), "total_minor": total, "count": len(items), "available_minor": available,
             "reserve_floor_minor": floor, "spendable_minor": spendable, "enough": total <= spendable, "short_minor": max(0, total - spendable),
-            "short_from": short_at, "days": days, "levels": levels, "receipts": receipts, "receipts_minor": sum(x["base_minor"] for x in receipts),
+            "short_from": short_at, "days": days, "levels": levels, "lineup": lineup, "receipts": receipts, "receipts_minor": sum(x["base_minor"] for x in receipts),
             "by_group": {g: sum(r["base_minor"] for r in items if _group(r) == g) for g in ("ready", "approval", "blocked")}}
 
 
