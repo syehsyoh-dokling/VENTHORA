@@ -49,7 +49,7 @@ AREAS: dict[str, tuple[str, str, tuple[str, ...]]] = {
     "organisation": ("Organisation", "units, people and limits, projects, accounts, allocations, standards",
                      ("/v1/org",)),
     "sources": ("Data sources", "connectors, sync, uploads, master data, readiness", ("/v1/sources",)),
-    "settings": ("Settings and integrations", "AI model, webhook status and events", ("/v1/settings", "/v1/webhooks", "/v1/prompt-system", "/v1/visa", "/v1/outbox", "/v1/metal", "/v1/blockchain-record", "/v1/fco-notify", "/v1/mcp", "/v1/providers", "/v1/controls", "/v1/airi", "/v1/t0", "/v1/placement-connections", "/v1/company-account", "/v1/tenant", "/v1/funding-source")),
+    "settings": ("Settings and integrations", "AI model, webhook status and events", ("/v1/settings", "/v1/webhooks", "/v1/prompt-system", "/v1/visa", "/v1/outbox", "/v1/metal", "/v1/blockchain-record", "/v1/local-rails", "/v1/fco-notify", "/v1/mcp", "/v1/providers", "/v1/controls", "/v1/airi", "/v1/t0", "/v1/placement-connections", "/v1/company-account", "/v1/tenant", "/v1/funding-source")),
     "system": ("Health and evidence", "health, status, ground-truth suites, scenario matrix",
                ("/health", "/api/status", "/v1/status", "/v1/evidence", "/v1/demo")),
 }

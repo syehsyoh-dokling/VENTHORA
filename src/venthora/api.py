@@ -7377,6 +7377,10 @@ def _xendit_or_none():
     from . import wallet_payouts
     from .gateways.xendit import XenditError
 
+    from . import local_rails
+
+    if not local_rails.enabled(app.state.org, "xendit", "name_check"):  # turned off in Platform Setup -> Local Rails
+        return None
     try:
         x = wallet_payouts.client(app.state.org)
     except XenditError:
@@ -7434,6 +7438,100 @@ async def xendit_put(body: XenditSettingsIn, role: str = "super_admin", by: str 
     return out
 
 
+# ---- Local Rails (Platform Setup): what Airwallex, Visa and Alta do not cover in Indonesia; Xendit and Midtrans.
+# local_rails.py ----
+async def _local_rails_view() -> dict:
+    from . import local_rails
+
+    x = await xendit_get()
+    return await asyncio.to_thread(local_rails.view, app.state.org, x)
+
+
+@app.get("/v1/local-rails")
+async def local_rails_get():
+    """The gaps, the two providers with their connection state (never a key) and the products chosen."""
+    return await _local_rails_view()
+
+
+@app.put("/v1/local-rails/products")
+async def local_rails_products(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
+    """The Finance Director turns each local product on or off ({"xendit": {"ewallet_payout": true}, ...})."""
+    from . import local_rails
+
+    who = _setup_writer(role, by)
+    try:
+        out = await asyncio.to_thread(local_rails.save_products, app.state.org, body, who)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "local_rails_products", {"by": who} | out)
+    return await _local_rails_view()
+
+
+class MidtransSettingsIn(BaseModel):
+    mode: str = Field(pattern="^(off|sandbox)$")
+    merchant_id: str | None = Field(None, max_length=40)
+    server_key: str | None = Field(None, max_length=200, description="write-only; a sandbox key (SB-Mid-server-...)")
+    client_key: str | None = Field(None, max_length=200, description="write-only; a sandbox key (SB-Mid-client-...)")
+
+
+@app.get("/v1/providers/midtrans")
+async def midtrans_get():
+    from . import local_rails
+
+    return await asyncio.to_thread(local_rails.midtrans_settings, app.state.org)
+
+
+@app.put("/v1/providers/midtrans")
+async def midtrans_put(body: MidtransSettingsIn, role: str = "super_admin", by: str = "dashboard"):
+    from . import local_rails
+
+    who = _setup_writer(role, by)
+    try:
+        out = await asyncio.to_thread(local_rails.save_midtrans, app.state.org, body.mode, who, body.merchant_id, body.server_key, body.client_key)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "midtrans_settings", {"mode": body.mode, "by": who,  # never the keys
+                                                                          "server_key_changed": bool(body.server_key), "client_key_changed": bool(body.client_key)})
+    return out
+
+
+@app.get("/v1/providers/{provider}/test")
+async def provider_test(provider: str):
+    """Test a local provider's connection with its saved keys: nothing is created or paid."""
+    from . import local_rails
+    from .gateways.xendit import XenditError
+
+    if provider == "midtrans":
+        return await asyncio.to_thread(local_rails.midtrans_test)
+    if provider != "xendit":
+        raise HTTPException(404, "unknown provider")
+    try:
+        x = _xendit()
+        if x.mode == "off":
+            return {"ok": False, "detail": "Xendit is off: choose simulator or live first"}
+        bal = await x.balance()
+    except (XenditError, HTTPException) as exc:
+        return {"ok": False, "detail": getattr(exc, "detail", None) or str(exc)}
+    sim = " (simulator: no money exists)" if x.mode == "simulator" else ""
+    return {"ok": True, "detail": f"Xendit answered{sim}: balance IDR {bal:,}"}
+
+
+@app.post("/webhooks/midtrans", include_in_schema=True)
+async def midtrans_webhook(request: Request):
+    """Midtrans' payment notification, verified by its signature_key (SHA-512 with the server key) and recorded."""
+    from . import local_rails
+
+    try:
+        n = await request.json()
+    except ValueError as exc:
+        raise HTTPException(400, "not JSON") from exc
+    if not await asyncio.to_thread(local_rails.midtrans_signature_ok, n):
+        raise HTTPException(401, "signature missing or wrong")
+    await asyncio.to_thread(app.state.audit.append, "midtrans_notification", {k: n.get(k) for k in (
+        "order_id", "transaction_status", "payment_type", "gross_amount", "currency", "transaction_time")})
+    return {"received": True}
+
+
 class XenditTopupIn(BaseModel):
     amount_minor: int = Field(gt=0, le=10_000_000_000)
 
@@ -7474,7 +7572,11 @@ async def wallet_payouts_create(body: WalletPayoutIn, role: str = "finance_manag
     """Ask for an e-wallet payout: the holder's name is checked first; a second person approves before anything is sent."""
     from . import wallet_payouts
 
+    from . import local_rails
+
     who = _writer(role, by)
+    if not local_rails.enabled(app.state.org, "xendit", "ewallet_payout"):
+        raise HTTPException(409, "e-wallet payouts are turned off in Platform Setup -> Local Rails (Xendit)")
     try:
         rec = await wallet_payouts.create(app.state.org, _xendit(), body.model_dump(), who)
     except ValueError as exc:
