@@ -5441,7 +5441,7 @@ async def placement_providers_save(body: ProviderIn, role: str = "super_admin", 
 
 
 def _anchor_heads() -> dict:
-    """What Metal anchors: the categories the FCO chose (Platform Setup → Metal categories)."""
+    """What Metal anchors: the categories the FCO chose (Platform Setup → Blockchain Record)."""
     from . import controls
 
     org = app.state.org
