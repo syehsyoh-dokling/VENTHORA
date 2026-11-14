@@ -72,6 +72,7 @@ class Connector(BaseModel):
     entities: dict[str, EntityMap] = Field(default_factory=dict)
     push: dict[str, PushMap] = Field(default_factory=dict, description="what VENTHORA writes back (sync_catalog.PUSH)")
     schedule_minutes: int = Field(default=0, ge=0, le=1440, description="0 = only when a person presses Sync; 1 = every minute")
+    enabled: bool = Field(default=True, description="false = disconnected: kept with its key so Connect needs nothing typed again, never read or written")
 
     @field_validator("base_url")
     @classmethod

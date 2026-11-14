@@ -3709,6 +3709,24 @@ async def connectors_erpnext(body: ERPNextIn, role: str = "finance_manager", by:
     return {"connector": out, "check": check}
 
 
+@app.post("/v1/sources/connectors/{connector_id}/disconnect")
+async def connectors_disconnect(connector_id: str, role: str = "finance_manager", by: str = "dashboard"):
+    """Disconnect: nothing is read from or written to the application any more, but the connection and its key are kept,
+    so Connect works again without typing the key (the ERPNext template's Connect re-enables it)."""
+    from .connectors import Connector, ConnectorStore
+
+    who = _setup_writer(role, by)
+    store = ConnectorStore()
+    raw = store.get_raw(connector_id)
+    if raw is None:
+        raise HTTPException(404, "no such connector")
+    rec = {k: v for k, v in raw.items() if not k.startswith("_")}
+    rec["auth"] = {k: v for k, v in (rec.get("auth") or {}).items() if k not in ("secret_set", "secret_hint")}
+    out = store.save(Connector.model_validate(rec | {"enabled": False}))  # no secret given: the saved key is kept
+    await asyncio.to_thread(app.state.audit.append, "connector_disconnected", {"id": connector_id, "by": who})
+    return out
+
+
 @app.delete("/v1/sources/connectors/{connector_id}")
 async def connectors_delete(connector_id: str, role: str = "finance_manager", by: str = "dashboard"):
     from .connectors import ConnectorStore
@@ -3727,8 +3745,11 @@ async def connectors_sync(connector_id: str, dry_run: bool = False, entity: str 
     from .connectors import ConnectorStore
 
     who = _writer(role, by)
-    if ConnectorStore().get_raw(connector_id) is None:
+    raw = ConnectorStore().get_raw(connector_id)
+    if raw is None:
         raise HTTPException(404, "no such connector")
+    if raw.get("enabled", True) is False:
+        raise HTTPException(409, f"{raw['name']} is disconnected: press Connect first")
     reports = await _sync_connector(connector_id, dry_run, entity, who)
     return {"connector_id": connector_id, "dry_run": dry_run, "reports": reports}
 
@@ -3857,8 +3878,8 @@ async def _sync_scheduler(every_s: float = 60.0) -> None:
         with contextlib.suppress(Exception):  # a failed run is retried on the next tick; its report is on the page
             now = datetime.now(UTC)
             for c in await asyncio.to_thread(ConnectorStore().list):
-                minutes = c.get("schedule_minutes") or 0
-                last = datetime.fromisoformat(c["last_sync_at"]) if c.get("last_sync_at") else None
+                minutes = (c.get("schedule_minutes") or 0) if c.get("enabled", True) else 0  # a disconnected one is never read
+                last =datetime.fromisoformat(c["last_sync_at"]) if c.get("last_sync_at") else None
                 if minutes and (last is None or (now - last).total_seconds() >= minutes * 60 - 5):
                     await _sync_connector(c["connector_id"], False, None, "scheduler (sync)")
                     await _push_connector(c["connector_id"], False, None, "scheduler (sync)")
