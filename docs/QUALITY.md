@@ -12,7 +12,7 @@ names where each one lives, and lists what is still missing. Every row can be ch
 | A.5.15 Access control | Roles decide every write; menus and endpoints are refused by role on the server, not only hidden in the page | `access.py`, `api.py` (`menu_access`, `_writer`) |
 | A.5.17 Authentication information | Passwords hashed with scrypt; five wrong passwords in five minutes lock the email; a person sets their own password through a one-time link | `auth.py` |
 | A.5.18 Access rights | A signed-in person's role and name replace whatever the request claims; API keys carry scopes | `api.py` (`sessions`, `api_keys`), `apiaccess.py` |
-| A.8.5 Secure authentication | Session cookie is HttpOnly, SameSite=Lax and Secure over HTTPS; sign-in routes are rate limited per address | `hardening.py`, `api.py` |
+| A.8.5 Secure authentication | Session cookie is HttpOnly, SameSite=Lax and Secure over HTTPS; sign-in routes are rate limited per address; an optional second factor (a TOTP code, RFC 6238) that a person turns on for themselves: a code is never accepted twice, wrong codes lock the email, and it is not yet mandatory for approver roles | `hardening.py`, `totp.py`, `auth.py`, `tests/test_mfa.py`, `tests/test_gateway_login.py` |
 | A.8.15 Logging | Every decision, approval, execution and refusal is appended to a hash-chained audit log; a changed entry breaks the chain | `audit.py`, `GET /api/audit` |
 | A.8.16 Monitoring | Webhooks are verified by signature, then the object is re-read from Airwallex before anything is believed | `webhooks.py` |
 | A.8.20 Network security | Security headers on every answer (CSP, HSTS over HTTPS, frame, sniffing, referrer, permissions) | `hardening.py` |

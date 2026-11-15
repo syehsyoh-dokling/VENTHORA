@@ -15,6 +15,16 @@ from ..originals.theorem_qf import fx
 TOLERANCE_MINOR = 1  # the plan rounds each base cost up to a whole cent
 
 
+def tolerance(conversions: list[Conversion]) -> float:
+    """How far above Theorem's exact figure the plan's estimate may be. The plan rounds twice, both times up: the
+    rate to a billionth (domain/money.py, RATE_SCALE), then the cost to a whole cent. The first rounding grows with
+    the amount bought: on JPY 18,000,000 (1.8e9 minor units) a billionth of a rate is 1.8 cents, which a flat one
+    cent per conversion refused although nothing was wrong (found on the live demo, 15 Nov 2026)."""
+    from ..domain.money import RATE_SCALE
+
+    return sum(TOLERANCE_MINOR + c.buy_amount_minor / RATE_SCALE for c in conversions) or TOLERANCE_MINOR
+
+
 def check_conversion_legs(state: TreasuryState, conversions: list[Conversion]) -> tuple[bool, dict]:
     trades = [{"pair": f"{c.buy_currency}/{c.sell_currency}", "direction": "buy",
                "notional": c.buy_amount_minor / 100, "rate": float(Decimal(state.fx_to_base[c.buy_currency]))}
@@ -27,7 +37,7 @@ def check_conversion_legs(state: TreasuryState, conversions: list[Conversion]) -
             problems.append(f"{c.buy_currency} leg nets {bought}, plan buys {c.buy_amount_minor}")
     base_net = round(-net.get(state.base_currency, 0.0) * 100, 4)
     estimated = sum(c.estimated_sell_minor for c in conversions)
-    if not 0 <= estimated - base_net <= TOLERANCE_MINOR * max(1, len(conversions)):
+    if not 0 <= estimated - base_net <= tolerance(conversions):
         problems.append(f"{state.base_currency} leg nets {base_net}, plan estimates {estimated}")
     return not problems, {"theorem_net_exposure": {k: round(v, 6) for k, v in net.items()},
                           "plan_estimated_sell_minor": estimated, "problems": problems}

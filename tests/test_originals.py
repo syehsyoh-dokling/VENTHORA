@@ -39,6 +39,30 @@ def test_theorem_legs_check_passes_plan_and_catches_tampering():
     assert not ok and "USD leg" in detail["problems"][0]
 
 
+def test_theorem_legs_allow_the_rate_rounding_of_a_large_amount_and_nothing_more():
+    """Found on the live demo: JPY 18,000,000 next to a small EUR top-up. The plan rounds the rate up to a billionth,
+    which is 1.8 cents on 1.8e9 minor units; a flat cent per conversion called that a mismatch and blocked the plan."""
+    from venthora.domain.money import cost_in_base, rate_ppm
+
+    raw = scenario("kit01_baseline")
+    rates = {"JPY": "0.006303670156878556680414677108", "EUR": "1.109742"}
+    state = TreasuryState.model_validate(raw | {"fx_to_base": raw["fx_to_base"] | rates})
+
+    def conv(ccy, amount, extra=0):
+        return Conversion(sell_currency="USD", buy_currency=ccy, buy_amount_minor=amount,
+                          estimated_sell_minor=cost_in_base(amount, rate_ppm(rates[ccy], round_up=True)) + extra)
+
+    plan = [conv("EUR", 55_170), conv("JPY", 1_800_000_000)]
+    assert plan[1].estimated_sell_minor == 11_346_608  # the figure the live plan held
+    ok, detail = check_conversion_legs(state, plan)
+    assert ok, detail["problems"]
+    assert check_conversion_legs(state, [conv("JPY", 1_800_000_000)])[0]
+    # a real difference is still caught: five cents too many, or one cent too few
+    assert not check_conversion_legs(state, [conv("EUR", 55_170), conv("JPY", 1_800_000_000, extra=5)])[0]
+    assert not check_conversion_legs(state, [conv("JPY", 1_800_000_000, extra=-3)])[0]
+    assert not check_conversion_legs(state, [conv("EUR", 55_170, extra=2)])[0]  # a small amount keeps its one-cent tolerance
+
+
 def test_theorem_stage_runs_inside_proofcore():
     r = decide(scenario("kit01_baseline"))
     stage = next(s for s in r.stages if s.engine == "Theorem · FX legs")

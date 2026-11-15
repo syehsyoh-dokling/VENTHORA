@@ -777,6 +777,10 @@ deployment: [docs/QUALITY.md](docs/QUALITY.md). In short:
 
 - **Sign-in**: scrypt password hashes, a lock after five wrong passwords, a session cookie that is HttpOnly, SameSite and
   Secure over HTTPS, and a rate limit per address on the sign-in routes (`hardening.py`).
+- **Second factor**: any person may add a six-digit code from an authenticator app (RFC 6238, `totp.py`) under
+  *Second factor* beside Sign out. Once on, the password alone no longer signs in; a code is never accepted twice.
+- **Who may do what**: the settings of the delegation belong to whoever holds the mandate; the daily work it governs
+  (the payroll register, HR's approval step, travel requests) to the people who do it (`access.py`).
 - **Every answer** carries a Content-Security-Policy, frame, sniffing, referrer and permissions headers, and HSTS over HTTPS.
 - **Payments**: bank details checked at Airwallex before they are kept, a call-back on the registered number before a
   first payment, one payout per invoice, the reserve floor proven before execution, the budget allocation checked
@@ -788,6 +792,19 @@ deployment: [docs/QUALITY.md](docs/QUALITY.md). In short:
   `scripts/backup_stores.py` takes the backup while the service runs.
 - **No certification is claimed.** The page lists the gaps: no external penetration test, SQLite on one host, no
   bank-validated ISO 20022 files (a `pain.001` export and a `camt.053` reconciliation exist as an API).
+
+## What changed after the video was recorded
+
+The video shows the product as it was when recorded. Since then, on 14–15 Nov 2026:
+
+| Area | Change |
+|---|---|
+| Plan | A payment the executor would refuse (over its budget allocation, above a transfer limit the bank refused) is left out of the plan and shown with the reason. A paid request leaves the queue everywhere, so the unpaid ones behind it move up. Today's plan is kept for a few seconds and discarded by any change |
+| Money in | A customer's deposit that settles tops up the book by itself; a currency the book bought and still holds is used before a new conversion |
+| Access | The settings of the delegation are separated from the daily work it governs; a finance manager may freeze a card, only the FCO unfreezes one |
+| Security | Security headers, Secure cookies and HSTS over HTTPS, a rate limit per address, an optional second factor for sign-in |
+| Standards | A day's payments as ISO 20022 `pain.001`, a `camt.053` statement reconciled; a backup script with a tested restore; a control map (`docs/QUALITY.md`) |
+| Names | The blockchain sponsor is **Alta** (the video and some code names still say Metal). Visa pages are a demo; Midtrans is a connection with planned products |
 
 ## Roadmap to submission (15 Nov 2026)
 
