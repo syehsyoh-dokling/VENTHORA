@@ -23,6 +23,46 @@ def payout_key(obligation) -> str:
     return (f"invoice:{fp}" + (f"#{inst}" if inst else "")) if fp else f"obligation:{oid}"
 
 
+SWIFT_FEE_MARGIN = 2  # an estimated fee is doubled: too much stays in the book, too little fails the transfer
+
+
+def _estimate_swift_fees(data: dict) -> dict[str, int]:
+    """A SWIFT payout in a currency never paid by SWIFT before has no observed fee. Airwallex charges the fee in the
+    payout currency, so the plan must hold it there; the Kit's flat EUR 12.85 bought euros the transfer never used,
+    and the transfer then failed for a few pounds or yen (found on the live demo, 15 Nov 2026: CloudDesk in GBP, and
+    euros left over after each first SWIFT payment). Until the real fee is seen, the fee of a SWIFT corridor that WAS
+    seen is carried over at today's rates, with a margin. Without any observed SWIFT fee nothing is estimated: the
+    Kit's own rule stands."""
+    from decimal import ROUND_CEILING, Decimal
+
+    from ..fx_routes import pays_through
+
+    fees, base, fx = data["policy"]["payout_fees_minor"], data["base_currency"], data.get("fx_to_base") or {}
+
+    def rate(ccy: str) -> Decimal | None:
+        if ccy == base:
+            return Decimal(1)
+        try:
+            value = Decimal(str(fx[ccy]))
+        except (KeyError, ArithmeticError, ValueError):
+            return None
+        return value if value > 0 else None
+
+    seen = next(((k.split(":", 1)[1], v) for k, v in sorted(fees.items())
+                 if k.startswith("SWIFT:") and v > 0 and rate(k.split(":", 1)[1]) is not None), None)
+    if seen is None:
+        return {}
+    in_base = Decimal(seen[1]) * rate(seen[0])
+    out: dict[str, int] = {}
+    for o in data["obligations"]:
+        ccy, key = o["currency"], f"SWIFT:{o['currency']}"
+        if o.get("payout_method") != "SWIFT" or key in fees or pays_through(ccy, base) or rate(ccy) is None:
+            continue
+        out[key] = int((in_base / rate(ccy) * SWIFT_FEE_MARGIN).to_integral_value(rounding=ROUND_CEILING))
+        fees[key] = out[key]
+    return out
+
+
 def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tuple[TreasuryState, list[str]]:
     data = state.model_dump()
     notes: list[str] = []
@@ -32,6 +72,10 @@ def apply_operational_facts(state: TreasuryState, store: ExecutionStore) -> tupl
         data["policy"]["payout_fees_minor"] = merged
         notes.append("observed Airwallex fees: " + ", ".join(
             f"{k} {fmt(v, k.split(':')[1])}" for k, v in sorted(fees.items())))
+    estimated = _estimate_swift_fees(data)
+    if estimated:
+        notes.append("SWIFT fee not seen yet, estimated from the one that was: " + ", ".join(
+            f"{k} {fmt(v, k.split(':')[1])}" for k, v in sorted(estimated.items())))
     last = store.last_managed_budget(state.book_id)
     if store.has_book(state.book_id):
         # The book ledger is the book's truth: its own cash (not the shared wallet, not the last reconciliation's
