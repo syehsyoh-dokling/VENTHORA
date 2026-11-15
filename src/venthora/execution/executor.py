@@ -76,7 +76,8 @@ class Executor:
         self.store = store
         self.audit = audit
         self._beneficiaries = beneficiaries  # None: data/beneficiaries.json with the master data's vendors on top
-        self.bank_gate = None  # (payee_id, payload) -> (ok, why): the bank check (bankcheck.py) a payment needs; set by the API
+        self.bank_gate = None  # (payee_id, payload) -> (ok, why): the bank check (bankcheck.py) a payment needs
+        self.writer_gate = None  # () -> (ok, why): is this server the one that may pay (continuity/guard.py); set by the API
         # Payee lifecycle: the registry's onboarding records seed the store once; live records are never overwritten.
         with contextlib.suppress(OSError, KeyError, ValueError):
             self.store.seed_payees(onboarding_records())
@@ -102,6 +103,11 @@ class Executor:
 
     async def _execute(self, req: ExecutionRequest) -> ExecutionResult:
         steps: list[Step] = []
+        if self.writer_gate is not None:  # only the server that holds the writer lease pays (continuity/lease.py)
+            ok, why = self.writer_gate()
+            steps.append(Step(kind="preflight", key="writer", status="OK" if ok else "REFUSED", detail={"why": why}))
+            if not ok:
+                return ExecutionResult(execution_id=None, plan_hash=req.plan_hash, status="REFUSED", message=why, steps=steps)
         try:
             plan = await self._preflight(req, steps)
         except Halt as h:

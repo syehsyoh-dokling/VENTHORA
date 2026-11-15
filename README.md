@@ -790,6 +790,10 @@ deployment: [docs/QUALITY.md](docs/QUALITY.md). In short:
   `POST /v1/iso20022/camt.053` reconciles a bank statement with them by `EndToEndId` (`iso20022.py`).
 - **Operations**: backup, verified restore and what to do in an incident are in [docs/OPERATIONS.md](docs/OPERATIONS.md);
   `scripts/backup_stores.py` takes the backup while the service runs.
+- **Continuity**: one server at a time may pay (a writer lease the executor checks before money moves), safe mode
+  stops every automatic payment, and a standby takes over only after locking every transfer Airwallex already knows.
+  Safe mode works here; the standby is a design with code and tests, and no standby runs on this one-server demo, which
+  the `/continuity` page says: [docs/CONTINUITY.md](docs/CONTINUITY.md).
 - **No certification is claimed.** The page lists the gaps: no external penetration test, SQLite on one host, no
   bank-validated ISO 20022 files (a `pain.001` export and a `camt.053` reconciliation exist as an API).
 

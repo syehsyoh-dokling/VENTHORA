@@ -44,7 +44,7 @@ def _rx(*patterns: str) -> re.Pattern:
 # whoever holds the mandate authority (the FCO, until the FCO hands it on), never read by a Developer
 MANDATE = _rx(r"/v1/mandate", r"/v1/priority-sop", r"/v1/doa/policies/[^/]+", r"/v1/doa/custom(/.*)?", r"/v1/doa/settings")
 # FCO Authorize, the rest: changed by the FCO only
-FCO_AUTHORIZE = _rx(r"/v1/org/standards", r"/v1/placement-providers(/.*)?", r"/v1/doa/run")
+FCO_AUTHORIZE = _rx(r"/v1/org/standards", r"/v1/placement-providers(/.*)?", r"/v1/doa/run", r"/v1/continuity/.*")
 # The daily work under /v1/doa is NOT FCO Authorize: the payroll register (a finance manager prepares it, HR approves
 # its step, the FCO approves the last one) and travel requests. Each of those endpoints checks its own roles.
 # Freezing a card is a safety action a finance manager may take; the endpoint lets only the FCO unfreeze one.

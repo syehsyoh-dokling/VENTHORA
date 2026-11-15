@@ -389,6 +389,10 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("POST", "/v1/settings/email/oauth/start"): ("Connect a mailbox", "The provider's consent page for this company's mailbox (Microsoft, Google or Yahoo)."),
     ("GET", "/v1/iso20022/pain.001"): ("Payments as ISO 20022 pain.001", "The payments made on one day as a Customer Credit Transfer Initiation (pain.001.001.09); each EndToEndId is the obligation id. Moves no money."),
     ("POST", "/v1/iso20022/camt.053"): ("Reconcile a bank statement (camt.053)", "Read an ISO 20022 statement and reconcile its debits with VENTHORA's payments by EndToEndId, amount and currency. Changes nothing."),
+    ("GET", "/v1/continuity"): ("Continuity status", "Whether this server may pay and why, whether safe mode is on, who holds the writer lease, when the stores were last copied, and whether a standby is connected."),
+    ("PUT", "/v1/continuity/safe-mode"): ("Safe mode", "Stop every automatic payment until it is lifted, with the reason; a person can still approve and pay one request. FCO only."),
+    ("POST", "/v1/continuity/replicate"): ("Copy the stores to the replica", "Copy every store to the configured PostgreSQL replica now and check the row counts. Answers 409 where no replica is configured."),
+    ("POST", "/v1/continuity/takeover"): ("Take over as the writer", "Take the writer lease, switch safe mode on and lock every transfer Airwallex knows so nothing is paid twice. Refused while another server holds a live lease; answers 409 where no standby is connected."),
 }
 
 

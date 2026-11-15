@@ -97,6 +97,9 @@ async def lifespan(app: FastAPI):
     app.state.executor.bank_gate = lambda pid, payload: bankcheck.passed(app.state.org, pid, payload)
     app.state.org = OrgStore()
     app.state.executor.org = app.state.org  # payments with a charge code are held to their budget allocation
+    from .continuity import guard as _continuity
+
+    app.state.executor.writer_gate = _continuity.may_pay  # only the server holding the writer lease moves money
     from . import prompt_system
     from .evidence import llm as _llm
 
@@ -782,6 +785,9 @@ async def ledger_adjust(book_id: str, req: AdjustRequest):
 from .routers import iso20022 as _iso20022_routes  # noqa: E402
 
 app.include_router(_iso20022_routes.router)
+from .routers import continuity as _continuity_routes  # noqa: E402
+
+app.include_router(_continuity_routes.router)  # safe mode, the writer lease, the copy to PostgreSQL, taking over
 
 
 # -- payee lifecycle: NEW -> VERIFIED -> ACTIVE, cooling after a bank change, call-back mandatory -----------------
@@ -825,6 +831,12 @@ async def live_page():
 async def security_page():
     """The signed-in person's own second factor (dashboard/security.html, the /v1/auth/mfa endpoints)."""
     return FileResponse(DASHBOARD.parent / "security.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/continuity", include_in_schema=False)
+async def continuity_page():
+    """Who may pay, safe mode, the standby (dashboard/continuity.html, routers/continuity.py, docs/CONTINUITY.md)."""
+    return FileResponse(DASHBOARD.parent / "continuity.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/flow", include_in_schema=False)
@@ -1320,6 +1332,11 @@ async def _pay_on_arrival(intake_id: str, by: str = "VENTHORA (on arrival)") -> 
     try:
         if not mandate.pay_on_arrival(app.state.org) or not app.state.agent.proof.airwallex.configured:
             return {"paid": False, "reason": "pay on arrival is off or the bank is not connected"}
+        from .continuity import guard
+
+        allowed, why = guard.may_pay_automatically(app.state.org)  # safe mode, or this server is not the writer
+        if not allowed:
+            return {"paid": False, "reason": why}
         req = app.state.intake.store.get(intake_id)
         if req is None or req.status != "VERIFIED" or req.payment or req.kind not in PAYABLE_KINDS:
             return {"paid": False, "reason": "not a verified payable request"}
@@ -1377,6 +1394,10 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
             from . import priority_sop as _sop
 
             # scheduled lines (payroll, benefits) are paid on their pay date from 00:30 UTC, never in its first half hour
+            from .continuity import guard
+
+            if not guard.may_pay_automatically(app.state.org)[0]:  # safe mode, or another server is the writer
+                continue
             if doa.autopilot(app.state.org) and app.state.agent.proof.airwallex.configured and _sop.scheduled_pay_open(datetime.now(UTC)):
                 await _doa_run([], None, "finance_manager", "VENTHORA (autopilot)")
             from . import mandate
@@ -1424,6 +1445,11 @@ async def _policy_run(now: datetime | None = None) -> dict:
     out: dict = {"paid": [], "deemed": [], "waiting": [], "notices": []}
     if not (priority_sop.saved(org) or {}).get("policy") or pol["mode"] != "priority" or not app.state.agent.proof.airwallex.configured:
         return out | {"skipped": "the policy is not high priority first, or the bank is not connected"}
+    from .continuity import guard
+
+    allowed, why = guard.may_pay_automatically(org)  # safe mode, or this server is not the writer: nothing pays by itself
+    if not allowed:
+        return out | {"skipped": why}
     now = now or datetime.now(UTC)
     state, source = await _todays_state()
     if state is None:
