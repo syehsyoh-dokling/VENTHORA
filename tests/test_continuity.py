@@ -114,6 +114,29 @@ def test_a_single_server_always_pays_and_a_cut_off_one_never_does(tmp_path, monk
     assert ok is False and "cannot be read" in why  # a lease that cannot be read is a lease not held
 
 
+def test_paying_never_takes_another_servers_lease_not_even_an_expired_one(tmp_path, monkeypatch):
+    url, clock = str(tmp_path / "lease.db"), Clock()
+    primary, standby = WriterLease(url, "app-1", clock=clock), WriterLease(url, "app-2", clock=clock)
+    assert primary.keep() and not standby.keep()  # the first server takes a lease that was never taken; the second does not
+    clock.t += 10_000  # the primary was idle (or dead) long past its lease
+    assert not standby.keep() and standby.holder()["holder"] == "app-1"  # paying is not a takeover
+    assert primary.keep()  # nobody took it: the primary carries on
+    clock.t += 10_000
+    assert standby.acquire()  # the takeover, started by a person
+    assert not primary.keep() and standby.keep()  # the primary that comes back no longer pays
+    monkeypatch.setenv("VENTHORA_CONTINUITY_URL", url)
+    monkeypatch.setenv("VENTHORA_NODE", "app-3")
+    monkeypatch.setattr(guard, "_lease", None)
+    before = WriterLease(url, "x").holder()
+
+    class Org:
+        def get(self, kind, rid):
+            return None
+
+    s = guard.status(Org())
+    assert s["may_pay"] is False and "app-2 holds the lease" in s["why"] and WriterLease(url, "x").holder() == before  # reading the status changes nothing
+
+
 def test_safe_mode_stops_automatic_payments_only(monkeypatch):
     monkeypatch.delenv("VENTHORA_CONTINUITY_URL", raising=False)
     monkeypatch.setattr(guard, "_lease", None)

@@ -191,7 +191,6 @@ from .hardening import Hardening  # noqa: E402
 from .logs import setup as _setup_logs  # noqa: E402
 
 oplog = _setup_logs()  # the operator's log (stderr): failed background jobs, throttled addresses; never a secret
-app.add_middleware(Hardening)  # security headers, Secure cookies over HTTPS, a rate limit per address (hardening.py)
 
 
 @app.middleware("http")
@@ -618,9 +617,10 @@ class PeriodCloseRequest(BaseModel):
 
 
 @app.post("/v1/budgets/{period}/close")
-async def close_period(period: PeriodPath, req: PeriodCloseRequest):
+async def close_period(request: Request, period: PeriodPath, req: PeriodCloseRequest):
     """Period cut-off: issue the period's statement (plan, realized to the cut-off, open commitments, carry-forward,
     late-posted) and close it; later spend against it needs a person. Role-checked and audited."""
+    _acting(request, req, "reviewer", as_finance=True)
     if req.role != "finance_manager":
         raise HTTPException(403, f"role {req.role} may not close a period")
     data = json.loads(_scenario_file(req.scenario_id).read_text(encoding="utf-8"))
@@ -768,8 +768,9 @@ class AdjustRequest(BaseModel):
 
 
 @app.post("/v1/ledger/{book_id}/adjust")
-async def ledger_adjust(book_id: str, req: AdjustRequest):
+async def ledger_adjust(request: Request, book_id: str, req: AdjustRequest):
     """A person's correction to a book (an unreported bank charge, a manual top-up), against funding; audited."""
+    _acting(request, req, "reviewer", as_finance=True)
     if req.role != "finance_manager":
         raise HTTPException(403, f"role {req.role} may not adjust a book")
     store = app.state.executor.store
@@ -1240,9 +1241,10 @@ def _note(tab: str, line: str) -> None:
 
 
 @app.post("/v1/doa/run")
-async def doa_run(req: DoARunIn, by: str = "dashboard"):
+async def doa_run(request: Request, req: DoARunIn, by: str = "dashboard"):
     """Run the due lines now (the autopilot does the same on its own when it is on): every line ready is paid; a line
     that is blocked, or waits for a person, stays in Executions & incidents and stops nothing else."""
+    _acting(request, req, "approver", as_finance=True)
     from . import doa
 
     p = doa.pending(app.state.org, _payee_status, app.state.intake.registry.payees, datetime.now(UTC).date())
@@ -1578,7 +1580,8 @@ async def live_get(sid: str):
 
 
 @app.post("/api/live/{sid}/step")
-async def live_step(sid: str, req: LiveStep):
+async def live_step(request: Request, sid: str, req: LiveStep):
+    _acting(request, req, "approver", as_finance=True)
     s = _live(sid)
     try:
         return await live_session.step(s, app.state.executor, app.state.audit, approver=req.approver, role=req.role)
@@ -1700,9 +1703,10 @@ def _payee_event(beneficiary_id: str, event: dict, cooling_hours: int):
 
 
 @app.post("/v1/payees/{beneficiary_id}/verify")
-async def verify_payee(beneficiary_id: str, req: CallbackRequest, cooling_hours: int = Query(72, ge=0, le=2160)):
+async def verify_payee(request: Request, beneficiary_id: str, req: CallbackRequest, cooling_hours: int = Query(72, ge=0, le=2160)):
     """The mandatory call-back: a finance manager confirms the bank details on the REGISTERED number. Refused on any other
     number, by any other role, or when nothing is pending. From CHANGED the cooling period stays."""
+    _acting(request, req, "by", as_finance=True)
     rec = _payee_event(beneficiary_id, {"kind": "verify", "by": req.by, "role": req.role, "called_number": req.called_number,
                                         "note": req.note}, cooling_hours)
     await asyncio.to_thread(app.state.audit.append, "payee_verified",
@@ -1746,11 +1750,12 @@ async def payee_callback_view(beneficiary_id: str):
 
 
 @app.post("/v1/payees/{beneficiary_id}/callback")
-async def payee_callback(beneficiary_id: str, req: CallbackRecordIn, cooling_hours: int = Query(72, ge=0, le=2160)):
+async def payee_callback(request: Request, beneficiary_id: str, req: CallbackRecordIn, cooling_hours: int = Query(72, ge=0, le=2160)):
     """Record a call-back on the registered number and what it found. Confirmed: the payee is verified. Corrected: what the
     payee said is right replaces the details on file (a new account starts the cooling period; a new phone number must
     itself be called back before any payment), then the account is verified on this call. Denied: the payee is suspended.
     Unreachable: nothing changes; the attempt is logged. Every call is kept, with who called, the number and the outcome."""
+    _acting(request, req, "by")
     from . import ingestion
 
     store = app.state.executor.store
@@ -1820,15 +1825,17 @@ async def payee_bank_change(beneficiary_id: str, req: BankChangeRequest, cooling
 
 
 @app.post("/v1/payees/{beneficiary_id}/suspend")
-async def suspend_payee(beneficiary_id: str, req: PayeeAction):
+async def suspend_payee(request: Request, beneficiary_id: str, req: PayeeAction):
+    _acting(request, req, "by", as_finance=True)
     rec = _payee_event(beneficiary_id, {"kind": "suspend", **req.model_dump()}, 72)
     await asyncio.to_thread(app.state.audit.append, "payee_suspended", {"beneficiary_id": beneficiary_id, **req.model_dump()})
     return rec
 
 
 @app.post("/v1/payees/{beneficiary_id}/reinstate")
-async def reinstate_payee(beneficiary_id: str, req: PayeeAction):
+async def reinstate_payee(request: Request, beneficiary_id: str, req: PayeeAction):
     """Back to NEW: another call-back is required before any payment."""
+    _acting(request, req, "by", as_finance=True)
     rec = _payee_event(beneficiary_id, {"kind": "reinstate", **req.model_dump()}, 72)
     await asyncio.to_thread(app.state.audit.append, "payee_reinstated", {"beneficiary_id": beneficiary_id, **req.model_dump()})
     return rec
@@ -1910,8 +1917,9 @@ class GrantRequest(BaseModel):
 
 
 @app.post("/v1/budgets/{period}/{line}/grant")
-async def grant_budget(period: PeriodPath, line: str, req: GrantRequest):
+async def grant_budget(request: Request, period: PeriodPath, line: str, req: GrantRequest):
     """A person answers a budget request by raising a line's mandate. Role-checked, audited; the agent never grants."""
+    _acting(request, req, "approver", as_finance=True)
     budget = load_budget(period)
     if budget is None or budget.line(line) is None:
         raise HTTPException(404, "unknown period or line")
@@ -1982,9 +1990,10 @@ async def live_state(scenario_id: str):
 
 
 @app.post("/v1/executions", response_model=ExecutionResult)
-async def execute(req: ExecutionRequest):
-    """Execute an approved plan: quote -> conversion -> transfers -> settlement -> reconciliation."""
-    return await app.state.executor.execute(req)
+async def execute(req: ExecutionRequest, role: str | None = None):
+    """Execute an approved plan: quote -> conversion -> transfers -> settlement -> reconciliation. The plan is the
+    caller's, so two things are the server's: who may run it, and the reserve floor of the FCO's mandate."""
+    return await app.state.executor.execute(_bound_execution(req, role))
 
 
 class AutonomousIn(BaseModel):
@@ -2004,11 +2013,12 @@ async def plan_split(state: TreasuryState):
 
 
 @app.post("/v1/executions/autonomous")
-async def execute_autonomous(req: AutonomousIn):
+async def execute_autonomous(req: AutonomousIn, role: str | None = None):
     """Execute the part of the plan inside the mandate, without an approval, and return what is held: the held
     obligations stay in `remaining_state`, which a person approves through POST /v1/executions as usual."""
     from . import autonomy
 
+    req = _bound_execution(req, role)  # who may run it, and the mandate's reserve floor (the plan itself is the caller's)
     s = await autonomy.split(app.state.agent, req.state)
     out = s.summary() | {"remaining_state": s.remaining_state.model_dump() if s.remaining_state else None, "execution": None}
     if s.auto_plan is not None and any(d.action in autonomy.PAYING for d in s.auto_plan.obligations):
@@ -2021,7 +2031,9 @@ async def execute_autonomous(req: AutonomousIn):
 
 
 @app.post("/v1/executions/{execution_id}/resume", response_model=ExecutionResult)
-async def resume_execution(execution_id: str):
+async def resume_execution(execution_id: str, role: str | None = None):
+    _may_execute(role)
+    await _writer_or_409()
     try:
         return await app.state.executor.resume(execution_id)
     except KeyError as exc:
@@ -2130,7 +2142,8 @@ async def ingest_email(raw: bytes = Body(..., media_type="message/rfc822"), dry_
 MAX_EMAIL_BYTES = 12 * 1024 * 1024  # an invoice PDF or two; Postmark caps inbound mail at 35 MB
 
 
-async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, simulate: bool = False, use_model: bool = True) -> IntakeRequest:
+async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, simulate: bool = False, use_model: bool = True,
+                  hold: list[str] | None = None) -> IntakeRequest:
     """One email through the model reader (when configured) and the rules; queued, audited and pushed to the dashboards."""
     from .intake import reader
     from .intake.pipeline import parse_eml
@@ -2167,6 +2180,11 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, 
     if "po_unknown" in req.flags and req.po_number and not dry_run:
         req = await _po_from_sources(req, raw, fps, proposals)
     req = await _validate_documents(req, raw, model, save=not dry_run)
+    if hold and not dry_run and req.status == "VERIFIED":
+        # the caller already knows why a person must look (a winner's invoice that differs from its purchase order):
+        # held before anything is published or paid on arrival, never after
+        req = req.model_copy(update={"status": "NEEDS_REVIEW", "reasons": [*req.reasons, *hold], "flags": [*req.flags, "held_by_caller"]})
+        await asyncio.to_thread(app.state.intake.store.save, req)
     if not dry_run:
         app.state.position_cache = None  # a new bill or remittance changes the position
         app.state.hub.publish("intake", {"channel": channel} | req.model_dump(include={
@@ -2565,6 +2583,8 @@ async def _pr_from_email(req: IntakeRequest, model) -> IntakeRequest:
     # the award is still bound by the approved estimate); a person's own email only submits it
     fcos = {u["email"].lower(): u for u in org.list("user") if u.get("active", True) and u["role"] == "super_admin"}
     fwd = advance_flow.forwarded_approval(text, set(fcos)) if person["role"] != "super_admin" else None
+    # the FCO's own email approves a request the FCO raises for the organisation; it is still never the FCO who awards
+    # it (sourcing.award: the requester cannot award), and the agent's award is bound by the estimate and the rule
     approved_by = (f"{person['name']} (super_admin, by email)" if person["role"] == "super_admin"
                    else f"{fcos[fwd['from']]['name']} (super_admin, email forwarded by {person['name']})" if fwd else None)
     try:
@@ -2696,6 +2716,9 @@ async def _allocate_advance(number: str, who: str) -> dict:
             if o.due_in_hours <= horizon:
                 with contextlib.suppress(KeyError, TypeError, ValueError):
                     due_minor += in_base(o.amount_minor, o.currency)
+        for other in org.list("fund_request"):  # what was already promised to other advances is no longer free
+            if other["request_number"] != number and other.get("status") == "APPROVED" and (other.get("allocation") or {}).get("status") == "ALLOCATED":
+                due_minor += in_base(other["amount_minor"], other["currency"])
         ok, why = advance_flow.green(cost_base_minor=in_base(fr["amount_minor"], fr["currency"]), base_balance_minor=book.balances.get(book.base_currency, 0),
                                      floor_minor=book.policy.reserve_floor_minor, due_base_minor=due_minor, horizon_hours=horizon, base=book.base_currency)
     except Exception as exc:  # noqa: BLE001 - nothing is promised on a book that cannot be read
@@ -2738,9 +2761,9 @@ async def _advances_due(now: datetime | None = None) -> list[dict]:
         try:
             paid = await _issue_advance_card(num, "VENTHORA (23:59 advance run)")
             out.append({"request": num, "paid": True, "card": (paid.get("card") or {}).get("masked")})
-        except HTTPException as exc:
+        except Exception as exc:  # noqa: BLE001 - one advance that fails is counted and never stops the others
             cur = org.get("fund_request", num) or fr
-            a = cur["allocation"] | {"attempts": cur["allocation"].get("attempts", 0) + 1, "error": str(exc.detail)[:200]}
+            a = cur["allocation"] | {"attempts": cur["allocation"].get("attempts", 0) + 1, "error": str(getattr(exc, "detail", None) or f"{type(exc).__name__}: {exc}")[:200]}
             if a["attempts"] >= advance_flow.MAX_ATTEMPTS:
                 a["status"] = "FAILED"
             await asyncio.to_thread(org._put, "fund_request", cur | {"allocation": a}, "VENTHORA (23:59 advance run)")
@@ -3440,6 +3463,10 @@ async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_ma
 
 
 @app.post("/v1/intake/{intake_id}/review", response_model=IntakeRequest)
+async def review_intake_route(request: Request, intake_id: str, review: ReviewRequest):
+    return await review_intake(intake_id, _acting(request, review, "reviewer"))
+
+
 async def review_intake(intake_id: str, review: ReviewRequest):
     if review.decision == "verify":
         # a request that failed a check when it arrived (above what was left on its PO, an unknown PO, a duplicate...)
@@ -4974,8 +5001,10 @@ async def purchase_request_decide(pr_number: str, body: PRDecisionIn, role: str 
         raise HTTPException(409, f"{pr_number} is {pr['status'].lower()}; only a submitted request is decided")
     if role not in PR_DECIDERS:
         raise HTTPException(403, f"role {role} may not decide a purchase request")
+    from .organisation import same_person
+
     me = by.strip().lower()
-    if me == pr["requested_by"].strip().lower():
+    if same_person(org, by, pr["requested_by"]):
         raise HTTPException(403, "the requester cannot decide their own purchase request")
     person = next((u for u in org.list("user") if me in (u["name"].lower(), u["email"].lower())), None)
     limit = (person or {}).get("approval_limit_minor")
@@ -5184,6 +5213,31 @@ async def procurement_award(pr_number: str, body: ProcAwardIn, role: str = "fina
 
 
 AGENT = "VENTHORA agent"
+EXECUTE_ROLES = ("finance_manager", "cfo", "super_admin", "hq_admin", "admin")  # who may run a plan on the bank
+
+
+def _acting(request: Request, req, name: str, *, as_finance: bool = False):
+    """A signed-in person's own name and role replace whatever the body of the request claims: nobody approves,
+    verifies or records a call-back under another person's name or role. `as_finance`: the endpoint knows only the
+    finance manager's role, which the CFO and the FCO also hold. Without sign-in (a self-hosted VENTHORA on its own
+    machine) the body stands, as before."""
+    user = getattr(request.state, "user", None)
+    if user is None or getattr(req, name, None) is None:  # nobody is named: an agent's own run, not a person's act
+        return req
+    role = user["role"]
+    req.role = "finance_manager" if as_finance and role in ("cfo", "super_admin") else role
+    setattr(req, name, user["name"])
+    return req
+
+
+async def _writer_or_409() -> None:
+    """Every path that moves money outside the executor asks the same question the executor asks: is this server the
+    writer (continuity/guard.py)? On a single server the answer is always yes."""
+    from .continuity import guard
+
+    ok, why = await asyncio.to_thread(guard.may_pay)
+    if not ok:
+        raise HTTPException(409, why)
 
 
 async def _procurement_decide(pr_number: str) -> dict:
@@ -5198,6 +5252,9 @@ async def _procurement_decide(pr_number: str) -> dict:
     d = await asyncio.to_thread(sourcing.decide, org, pr_number)
     if d["action"] == "wait":
         return d
+    told = (sourcing.rfq(org, pr_number) or {}).get("agent_decision") or {}
+    if told and not any(q["submitted_at"] > told.get("at", "") for q in sourcing.quotes(org, pr_number)):
+        return told  # a person was already told and no quotation changed since: the model is not asked again every minute
     await sourcing.review(org, pr_number, active_model())  # a "complies" its own remark contradicts is not met
     d = await asyncio.to_thread(sourcing.decide, org, pr_number)
     if d["action"] == "award":
@@ -5337,10 +5394,8 @@ async def _winner_invoice(f: dict, po: dict, vendor: dict, body: VendorDetailsIn
     msg.set_content(f"Invoice entered by {f['vendor']} on its own supplier form (purchase order {f['po_id']}, {f['pr_number']}).\n\n"
                     f"Invoice number: {body.invoice_no}\nInvoice date: {body.invoice_date or datetime.now(UTC).date().isoformat()}\n"
                     f"Purchase order: {f['po_id']}\nAmount due: {ccy} {max(amount, 0) / 100:,.2f}\nDelivery date: {body.delivery_date or '-'}\n")
-    req = await _ingest(msg.as_bytes(), None, False, channel="api")
-    if differs and req.status == "VERIFIED":  # it does not agree with what was awarded: a person, never a payment
-        req = req.model_copy(update={"status": "NEEDS_REVIEW", "reasons": [*req.reasons, *differs], "flags": [*req.flags, "winner_invoice_differs"]})
-        await asyncio.to_thread(app.state.intake.store.save, req)
+    # what does not agree with the award is held inside the intake itself, before pay-on-arrival can see it
+    req = await _ingest(msg.as_bytes(), None, False, channel="api", hold=differs or None)
     await asyncio.to_thread(app.state.audit.append, "winner_invoice", {"po": f["po_id"], "invoice": body.invoice_no, "status": req.status, "differs": differs})
     return {"intake_id": req.intake_id, "status": req.status, "reasons": (differs or req.reasons)[:4],
             "message": ("Your invoice matches the purchase order and is queued for payment." if req.status == "VERIFIED"
@@ -5459,9 +5514,10 @@ async def fund_request_decide(number: str, body: PRDecisionIn, role: str = "fina
         raise HTTPException(409, f"{number} is {fr['status'].lower()}; only a submitted request is decided")
     if role not in PR_DECIDERS:
         raise HTTPException(403, f"role {role} may not decide this request")
+    from .organisation import same_person
+
     me = by.strip().lower()
-    asker = org.get("user", fr["requested_by"]) or {}
-    if me in ((asker.get("name") or "").lower(), (asker.get("email") or "").lower(), fr["requested_by"].lower()):
+    if same_person(org, by, fr["requested_by"]):
         raise HTTPException(403, "the person asking cannot decide their own request")
     person = next((u for u in org.list("user") if me in (u["name"].lower(), u["email"].lower())), None)
     limit = (person or {}).get("approval_limit_minor")
@@ -6250,6 +6306,8 @@ async def _internal_move(src: str | None, dst: str | None, amount_minor: int, cc
 async def transfers_approve(tid: str, role: str = "super_admin", by: str = "dashboard"):
     """The FCO approves (never the person who asked) and the transfer is sent at once."""
     from . import bankcheck, manual_transfers
+
+    await _writer_or_409()
     from .fx_routes import pays_through
 
     who = _writer(role, by)
@@ -6890,6 +6948,26 @@ async def priority_sop_put(body: PrioritySopIn, role: str = "super_admin", by: s
 
 QUEUE_PLAN_MAX = 90  # requests read into one book (TreasuryState keeps at most 100 pieces of evidence)
 APPROVER_ROLES = ("finance_manager", "cfo")
+
+
+def _may_execute(role: str | None) -> None:
+    """A signed-in person or an API key always has a role (the session or the key sets it; the request cannot): only a
+    finance role runs a plan on the bank. A request with no role at all is the local dashboard of a self-hosted
+    VENTHORA without sign-in, which is not narrowed anywhere."""
+    if role is not None and role not in EXECUTE_ROLES:
+        raise HTTPException(403, f"role {role} may not execute a plan: a finance manager, the CFO or the FCO does")
+
+
+def _bound_execution(req, role: str | None):
+    """The request's own state, with what the caller may not choose put back: the reserve floor is never below the
+    one in the FCO's standing mandate."""
+    from . import mandate
+
+    _may_execute(role)
+    floor = (mandate.standing(app.state.org).get("book") or {}).get("reserve_floor_minor")
+    if floor is not None and req.state.policy.reserve_floor_minor < int(floor):
+        req = req.model_copy(update={"state": req.state.model_copy(update={"policy": req.state.policy.model_copy(update={"reserve_floor_minor": int(floor)})})})
+    return req
 
 
 def _with_mandate(state: TreasuryState) -> TreasuryState:
@@ -8266,6 +8344,8 @@ async def wallet_payouts_approve(pid: str, role: str = "super_admin", by: str = 
     """The second person approves; the payout goes to Xendit at once, with its Idempotency-key kept first."""
     from . import wallet_payouts
 
+    await _writer_or_409()
+
     who = _writer(role, by)
     return await _wallet_step(pid, lambda: wallet_payouts.approve_and_send(app.state.org, _xendit(), pid, role, by, who), "wallet_payout_approved", who)
 
@@ -8323,6 +8403,7 @@ async def _issue_advance_card(number: str, who: str) -> dict:
     from . import cards
     from .organisation import FUND_KINDS
 
+    await _writer_or_409()  # the card account is funded here: only the writer does that
     org = app.state.org
     fr = org.get("fund_request", number)
     if fr is None:
@@ -8367,8 +8448,7 @@ async def _issue_advance_card(number: str, who: str) -> dict:
         resp = await _bank().create_card(req)
     except AirwallexError as exc:
         if funding and funding.get("transfer_id"):  # no card: the money goes back to the main account
-            with contextlib.suppress(Exception):
-                await _return_from_card_account(number, fr["amount_minor"], fr["currency"], who)
+            await _unfund_card_account(number, fr, who)
         raise HTTPException(502, f"Airwallex refused the card: {exc}") from exc
     rec = await asyncio.to_thread(cards.record_card, org, resp, payee=payee, per_tx_minor=fr["amount_minor"], monthly_minor=fr["amount_minor"],
                                   currency=fr["currency"], merchant="", mcc=[], by=who)
@@ -8392,16 +8472,43 @@ async def _fund_card_account(number: str, fr: dict, who: str) -> dict | None:
     acct = card_account_for()
     if not acct:
         return None
+    org = app.state.org
+    cur = org.get("fund_request", number) or fr
+    if (cur.get("funding") or {}).get("transfer_id"):  # funded on an earlier attempt and not returned: never funded twice
+        return cur["funding"]
+    # one request id per funding round: a retry of the same round is the same transfer at Airwallex, and a new round
+    # starts only after the money of the last one was returned
+    request_id = f"fund-{number}-{cur.get('funding_round', 0)}"
     try:
         t = await _bank().fund_connected_account(account_id=acct, amount_minor=fr["amount_minor"], currency=fr["currency"],
-                                                 reference=f"VENTHORA {number} card funding", request_id=f"fund-{number}-{secrets.token_hex(4)}")
+                                                 reference=f"VENTHORA {number} card funding", request_id=request_id)
     except AirwallexError as exc:
         raise HTTPException(409, f"the card account could not be funded from the main account ({exc}): top up the main account's "
                                  f"{fr['currency']} balance first") from exc
     out = {"to": acct, "transfer_id": t.get("id"), "status": t.get("status"), "amount_minor": fr["amount_minor"], "currency": fr["currency"],
-           "fee": t.get("fee", 0), "at": datetime.now(UTC).isoformat(timespec="seconds")}
+           "fee": t.get("fee", 0), "at": datetime.now(UTC).isoformat(timespec="seconds"), "request_id": request_id}
+    # kept on the request before the card is made: whatever fails next, the next attempt finds the money already there
+    await asyncio.to_thread(org._put, "fund_request", (org.get("fund_request", number) or fr) | {"funding": out}, who)
     await asyncio.to_thread(app.state.audit.append, "card_account_funded", {"request": number, **out, "by": who})
     return out
+
+
+async def _unfund_card_account(number: str, fr: dict, who: str) -> None:
+    """No card could be made for a funded advance: the money goes back to the main account, and only then is the
+    funding taken off the request. When it cannot be returned the funding stays on the request (the next attempt
+    does not fund again) and the failure is on the audit chain for a person."""
+    back = None
+    try:
+        back = await _return_from_card_account(number, fr["amount_minor"], fr["currency"], who)
+    except Exception as exc:  # noqa: BLE001 - recorded below, never swallowed
+        back = {"returned_minor": 0, "note": f"not returned: {type(exc).__name__}"}
+    org = app.state.org
+    cur = org.get("fund_request", number) or fr
+    if back and back.get("returned_minor", 0) >= fr["amount_minor"]:
+        cur = {k: v for k, v in cur.items() if k != "funding"} | {"funding_round": cur.get("funding_round", 0) + 1}
+        await asyncio.to_thread(org._put, "fund_request", cur, who)
+    else:
+        await asyncio.to_thread(app.state.audit.append, "card_funding_not_returned", {"request": number, "result": back, "by": who})
 
 
 async def _return_from_card_account(number: str, amount_minor: int, currency: str, who: str) -> dict | None:
@@ -8414,8 +8521,8 @@ async def _return_from_card_account(number: str, amount_minor: int, currency: st
         return None
     try:
         held = (await _bank().balances_of(acct)).get(currency, 0)
-    except AirwallexError:
-        held = amount_minor
+    except AirwallexError as exc:  # what the account holds is not known: nothing is charged on a guess
+        return {"returned_minor": 0, "note": f"not returned: the card account's balance could not be read ({exc})"}
     back = min(amount_minor, held)
     if back <= 0:
         return {"returned_minor": 0, "note": f"the card account holds no {currency}"}
@@ -10979,4 +11086,7 @@ async def auth_status():
     return await asyncio.to_thread(auth.AuthStore().status)
 
 
+# Added after every other middleware, so it is the outermost: the security headers and the rate limit also cover the
+# answers the sign-in, API-key and menu-access middlewares give themselves (401, 403, 409), not only the endpoints'.
+app.add_middleware(Hardening)  # security headers, Secure cookies over HTTPS, a rate limit per address (hardening.py)
 apidocs.publish(app)  # last: one /v1 prefix, written docs, internal endpoints out of the schema

@@ -57,21 +57,9 @@ def _labelled(body: str) -> dict:
 
 
 def _num(v) -> float | None:
-    if v in (None, ""):
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    s = re.sub(r"[^\d.,]", "", str(v))
-    if s.count(",") and s.count("."):
-        s = s.replace(",", "")
-    elif s.count(",") == 1 and len(s.split(",")[1]) != 3:
-        s = s.replace(",", ".")
-    else:
-        s = s.replace(",", "")
-    try:
-        return float(s)
-    except ValueError:
-        return None
+    from .amounts import parse_amount
+
+    return parse_amount(v)  # one reader for every email that asks for money (amounts.py)
 
 
 async def read(model, subject: str, body: str) -> tuple[dict, str]:
@@ -92,8 +80,9 @@ async def read(model, subject: str, body: str) -> tuple[dict, str]:
     return fields, basis
 
 
-PR_SHAPE = re.compile(r"\b(PR[-/][A-Z0-9][A-Z0-9/-]{1,27})\b")
-PR_LABEL = re.compile(r"\b(?:purchase\s+request|pr|request)\s*(?:no\.?|number|nomor|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9/-]{2,30})\b", re.I)
+PR_SHAPE = re.compile(r"\b(PR[-/](?=[A-Z0-9/-]*\d)[A-Z0-9][A-Z0-9/-]{1,27})\b")  # "PR-..." with a digit in it, never "PR-team"
+PR_LABEL = re.compile(r"\b(?:purchase\s+request|pr)\s+(?:no\.?|number|nomor|#)(?=[\s:#])\s*[:#]?\s*([A-Z0-9][A-Z0-9/-]{2,30})\b", re.I)
+PR_NOT = re.compile(r"^(\d{4}-\d{2}-\d{2}|[A-Z]{3}\d[\d.,]*|\d[\d.,]*[A-Z]{3})$")  # a date or an amount is not a number
 INVITE = 5  # vendors asked for a quotation on a request raised by email
 
 
@@ -104,8 +93,11 @@ def pr_number(subject: str, body: str) -> str | None:
     m = PR_SHAPE.search(text.upper())
     if m:
         return m.group(1)
-    m = PR_LABEL.search(text)
-    return m.group(1).upper() if m and any(ch.isdigit() for ch in m.group(1)) else None
+    for m in PR_LABEL.finditer(text):
+        n = m.group(1).upper().rstrip("-/")
+        if len(n) >= 3 and any(ch.isdigit() for ch in n) and not PR_NOT.match(n):
+            return n
+    return None
 
 
 def to_pr(fields: dict, person: dict, org, *, number: str | None = None, approved_by: str | None = None, note: str = "") -> dict:

@@ -50,13 +50,15 @@ def is_https(scope) -> bool:
 
 
 def client_ip(scope) -> str | None:
-    """The address that asked: the first hop the proxy recorded, else the socket's. None for the gateway's own loopback
-    calls, which are never limited."""
-    fwd = _header(scope, b"x-forwarded-for").split(",")[0].strip()
-    if fwd:
-        return fwd
+    """The address that asked. A caller that connects directly is its own socket address, whatever headers it sends:
+    X-Forwarded-For is the caller's to write, so it is believed only from a proxy on this machine (the tunnel, the
+    gateway), and then the LAST hop is taken, the one the nearest proxy added (the first ones are the caller's own
+    claim). None for the gateway's own loopback calls, which are never limited."""
     host = (scope.get("client") or ("",))[0]
-    return None if host in LOCAL or not host else host
+    if host and host not in LOCAL:
+        return host
+    hops = [h.strip() for h in _header(scope, b"x-forwarded-for").split(",") if h.strip()]
+    return hops[-1] if hops else None
 
 
 class Limiter:

@@ -183,6 +183,19 @@ class TravelAuthorisation(BaseModel):
         return _ccy(v)
 
 
+def same_person(org, by: str, requested_by: str) -> bool:
+    """Whether the person deciding is the person who asked. A request names its requester by user id (raised by
+    email), by name or by email (typed on the dashboard); the person deciding is known by name or email. One rule
+    for every decision, so nobody approves or awards their own request whichever way it was raised."""
+    me, asked = (by or "").strip().lower(), (requested_by or "").strip().lower()
+    if not me or not asked:
+        return False
+    if me == asked:
+        return True
+    names = lambda u: {u["user_id"].lower(), u["name"].lower(), u["email"].lower()}  # noqa: E731
+    return any(me in names(u) and asked in names(u) for u in org.list("user"))
+
+
 FUND_KINDS = {"cash_advance": ("CA", "Cash advance"), "petty_cash": ("PC", "Petty cash / slush fund"), "odc": ("ODC", "Other direct cost")}
 
 

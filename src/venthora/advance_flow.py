@@ -34,61 +34,78 @@ from zoneinfo import ZoneInfo
 FORWARD_MARK = re.compile(r"(-{2,}\s*forwarded message\s*-{2,}|begin forwarded message|-{3,}\s*original message\s*-{3,}|^\s*>?\s*from:\s)", re.I | re.M)
 FROM_LINE = re.compile(r"^\s*>?\s*(?:from|dari)\s*:\s*(.+)$", re.I | re.M)
 ADDRESS = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+HEADER = re.compile(r"^\s*(?:from|dari|to|kepada|cc|date|tanggal|sent|subject|perihal)\s*:", re.I)
+EARLIER = re.compile(r"^\s*(?:on .{0,120} wrote:|pada .{0,120} menulis:|-{2,}\s*(?:forwarded|original) message\s*-{2,}|begin forwarded message)", re.I)
 APPROVED = re.compile(r"\b(approved|i approve|approve this|ok to pay|go ahead|disetujui|setuju|saya setujui)\b", re.I)
-REFUSED = re.compile(r"\b(not approved|do not approve|cannot approve|rejected|declined|tidak disetujui|tidak setuju|ditolak)\b", re.I)
-TA_LABEL = re.compile(r"\b(?:travel\s+(?:authori[sz]ation|clearance)|ta|tc)\s*(?:no\.?|number|nomor|#)?\s*[:#]?\s*([A-Z0-9][A-Z0-9/-]{2,30})\b", re.I)
-TA_SHAPE = re.compile(r"\b((?:TA|TC)[-/][A-Z0-9][A-Z0-9/-]{1,27})\b")
+# anything that takes the approval back, in the same sentence: "not yet approved", "I can't approve", "once approved",
+# "will not approve without receipts", "tidak disetujui"
+REFUSED = re.compile(r"(\b(not|never|cannot|can't|cant|won't|wont|don't|dont|didn't|until|once|if|unless|before|pending|without|after)\b[^.!?\n]{0,60}\b(approv|go ahead|ok to pay)"
+                     r"|\b(approv\w*|go ahead)\b[^.!?\n]{0,40}\b(not|never|unless|until|only if|without)\b"
+                     r"|\b(rejected|declined|refused|tidak|belum|ditolak|jangan)\b|\?)", re.I)
 PAY_HOUR, PAY_MINUTE = 23, 59
 MAX_ATTEMPTS = 3
+NO_WORD = r"(?:no\.?|number|nomor|#)(?=[\s:#])\s*[:#]?\s*"
+VALUE = r"([A-Z0-9][A-Z0-9/-]{2,30})\b"
+TA_SHAPE = re.compile(r"\b((?:TA|TC)[-/](?=[A-Z0-9/-]*\d)[A-Z0-9][A-Z0-9/-]{1,27})\b")
+TA_LABEL = re.compile(r"\b(?:travel\s+(?:authori[sz]ation|clearance)\s*(?:" + NO_WORD + r"|[:#]\s*)|(?:ta|tc)\s+" + NO_WORD + r")" + VALUE, re.I)
+REQUEST_NO = re.compile(r"\b(?:cash\s+advance|travel\s+advance|advance|petty\s+cash|slush\s+fund)\s+(?:request\s+)?" + NO_WORD + VALUE, re.I)
+NOT_A_NUMBER = re.compile(r"^(\d{4}-\d{2}-\d{2}|[A-Z]{3}\d[\d.,]*|\d[\d.,]*[A-Z]{3}|PR[-/].*)$")
+
+
+def _reference(value: str) -> str | None:
+    """A reference number as it is kept: upper case, with a digit in it, and not a date, an amount or a PR number."""
+    n = value.upper().rstrip("-/")
+    return n if len(n) >= 3 and any(ch.isdigit() for ch in n) and not NOT_A_NUMBER.match(n) else None
 
 
 def forwarded_approval(body: str, fco_emails: set[str]) -> dict | None:
     """The FCO's approval inside a forwarded email: {"from": the FCO's address, "quote": the approving line}. None when
-    the email forwards nothing from the FCO, or what the FCO wrote does not approve."""
+    the email forwards nothing from the FCO, or what the FCO wrote does not plainly approve.
+
+    Only the FCO's own words count: the lines after the FCO's From line, up to the next earlier message, without the
+    lines the FCO quoted (">"). A sentence that takes the approval back ("not yet approved", "I can't approve this",
+    "once approved by the board", a question) approves nothing; a person decides that request."""
     text = body or ""
     mark = FORWARD_MARK.search(text)
     if mark is None:
         return None
-    part = text[mark.start():]
     wanted = {e.lower() for e in fco_emails}
-    sender = next((a.lower() for line in FROM_LINE.findall(part) for a in ADDRESS.findall(line) if a.lower() in wanted), None)
-    if sender is None:
+    lines = text[mark.start():].splitlines()
+    start = next((i for i, ln in enumerate(lines) if FROM_LINE.match(ln) and any(a.lower() in wanted for a in ADDRESS.findall(ln))), None)
+    if start is None:
         return None
-    said = part[part.lower().find(sender):]  # what follows the FCO's From line
-    if REFUSED.search(said):
-        return None
+    sender = next(a.lower() for a in ADDRESS.findall(lines[start]) if a.lower() in wanted)
+    own = []
+    for ln in lines[start + 1:]:
+        if EARLIER.match(ln) or (FROM_LINE.match(ln) and own):  # an earlier message begins: no longer the FCO's words
+            break
+        if ln.lstrip().startswith(">") or HEADER.match(ln):
+            continue
+        own.append(ln.strip())
+    said = "\n".join(own)
     hit = APPROVED.search(said)
-    if hit is None:
+    if hit is None or REFUSED.search(said):
         return None
-    line = next((ln.strip(" >\t") for ln in said.splitlines() if hit.group(0).lower() in ln.lower()), hit.group(0))
+    line = next((ln for ln in own if hit.group(0).lower() in ln.lower()), hit.group(0))
     return {"from": sender, "quote": line[:200]}
 
 
 def ta_number(subject: str, body: str) -> str | None:
-    """The Travel Authorisation (Travel Clearance) number an email carries, upper case; None when it carries none."""
+    """The Travel Authorisation (Travel Clearance) number an email carries, upper case; None when it carries none.
+    A number is "TA-..."/"TC-..." with a digit, or what follows "Travel authorisation:" / "Travel clearance no." /
+    "TA no"; a date, an amount or an ordinary word after those words is not one."""
     text = f"{subject}\n{body}"
     m = TA_SHAPE.search(text.upper())
     if m:
         return m.group(1)
-    m = TA_LABEL.search(text)
-    if m and any(ch.isdigit() for ch in m.group(1)):
-        return m.group(1).upper()
-    return None
-
-
-REQUEST_NO = re.compile(r"\b(?:cash\s+advance|travel\s+advance|advance|petty\s+cash|slush\s+fund|request|reference|ref)\s*(?:request\s*)?"
-                        r"(?:no\.?|number|nomor|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9/-]{2,30})\b", re.I)
+    return next((n for m in TA_LABEL.finditer(text) if (n := _reference(m.group(1)))), None)
 
 
 def request_number(subject: str, body: str) -> str | None:
     """The advance, petty cash or slush fund request number an email states ("Advance request no: CA-2026-014"), upper
     case; None when it states none and VENTHORA numbers the request itself. No purchase request or purchase order
     number is needed for any of these."""
-    for m in REQUEST_NO.finditer(f"{subject}\n{body}"):
-        n = m.group(1).upper()
-        if any(ch.isdigit() for ch in n) and not TA_SHAPE.fullmatch(n):
-            return n
-    return None
+    return next((n for m in REQUEST_NO.finditer(f"{subject}\n{body}") if (n := _reference(m.group(1))) and not TA_SHAPE.fullmatch(n)), None)
 
 
 def next_ta(taken: set[str], year: int) -> str:

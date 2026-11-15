@@ -398,6 +398,10 @@ def decide(org, pr_number: str, today: str | None = None) -> dict:
         return {"action": "wait", "reason": f"{len(answered)} of {len(invited)} invited vendor(s) answered; the deadline is {r.get('deadline')}"}
     a = assess(pr, qs, today)
     win = next((x for x in a["rows"] if x["cand_id"] == a["recommended"]), None)
+    if win and len(qs) < a["minimum"]:  # the three-quotation rule binds the agent too: a limited source is a person's call
+        return {"action": "person", "suggested": win["cand_id"],
+                "reason": f"only {len(qs)} quotation(s) came in and the rule asks for {a['minimum']}: {win['cand_id']} meets every specification, "
+                          "but a single or limited source is awarded by a person, with the reason"}
     if win and not win["over_estimate"]:
         return {"action": "award", "cand_id": win["cand_id"], "reason": f"awarded by the rule: {a['reason']} ({len(qs)} quotation(s) compared)"}
     if win:
@@ -514,8 +518,10 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
         raise SourcingError(f"{pr_number} is {pr['status'].lower()}: approve the purchase request before the award")
     if role not in DECIDERS and not agent:
         raise SourcingError(f"role {role} may not award a quotation")
+    from .organisation import same_person
+
     me = by.strip().lower()
-    if me == pr["requested_by"].strip().lower():
+    if same_person(org, by, pr["requested_by"]):
         raise SourcingError("the requester cannot award their own purchase request")
     person = None if agent else next((u for u in org.list("user") if me in (u["name"].lower(), u["email"].lower())), None)
     q = org.get("quote", f"{pr_number}:{cand_id}")
@@ -586,8 +592,20 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
     return award_rec | {"po": po.model_dump()}
 
 
+DETAILS_DAYS = 30  # how long the winner's own form link works
+
+
 def details_form(org, token: str) -> dict | None:
-    return org.get("vendor_details", token) if token else None
+    """The awarded vendor's form by its link; None for an unknown link and for one older than DETAILS_DAYS (bank
+    details are not changed through a link someone finds in an old mailbox: after that, Finance changes them)."""
+    f = org.get("vendor_details", token) if token else None
+    if f and f.get("created_at"):
+        try:
+            if datetime.fromisoformat(f["created_at"]) + timedelta(days=DETAILS_DAYS) < datetime.now(UTC):
+                return None
+        except (TypeError, ValueError):
+            return None
+    return f
 
 
 DEMO_REPLIES = [  # filled forms of the demo directory vendors: one compliant and cheapest, one cheaper but off-spec, one dearer

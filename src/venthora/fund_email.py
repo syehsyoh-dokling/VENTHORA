@@ -64,16 +64,9 @@ def _labelled(body: str) -> dict:
 
 
 def _num(v) -> float | None:
-    if v in (None, ""):
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    s = re.sub(r"[^\d.,]", "", str(v))
-    s = s.replace(",", "") if s.count(".") == 1 or s.count(",") > 1 else s.replace(",", ".")
-    try:
-        return float(s)
-    except ValueError:
-        return None
+    from .amounts import parse_amount
+
+    return parse_amount(v)  # one reader for every email that asks for money (amounts.py)
 
 
 async def read(model, subject: str, body: str) -> tuple[dict, str]:

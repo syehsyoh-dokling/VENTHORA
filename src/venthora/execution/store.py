@@ -190,6 +190,8 @@ class ExecutionStore:
 
     def claim_payout(self, payout_key: str, obligation_id: str, execution_id: str) -> None:
         with self._lock, self._connect() as c:
+            # the write lock is taken before the read: two processes on one database cannot both find the key free
+            c.execute("BEGIN IMMEDIATE")
             row = c.execute("SELECT * FROM payouts WHERE payout_key = ?", (payout_key,)).fetchone()
             if row is not None and row["status"] in LIVE_PAYOUT_STATUSES and row["execution_id"] != execution_id:
                 raise DuplicatePayout(f"{obligation_id} already {row['status'].lower()} by execution {row['execution_id']}")

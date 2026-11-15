@@ -1,0 +1,20 @@
+# Nothing a running VENTHORA wrote on this machine goes into an image: stores, secrets, tenants, runs, uploads.
+.git
+.env
+.env.*
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+data/*.db
+data/*.db-*
+data/*.sqlite*
+data/saas
+data/runs
+data/procurement
+data/originals
+data/uploads
+data/backups
+tests
+docs/*.json
+docs/*.gif

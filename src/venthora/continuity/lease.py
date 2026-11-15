@@ -68,6 +68,16 @@ class WriterLease:
                  (now + self.ttl_s, self.name, self.node, now))
         return self.holds()
 
+    def keep(self) -> bool:
+        """What a server does before it pays: extend its own lease (also one that ran out while it was idle and that
+        nobody took), or take a lease that was never taken. It never takes another server's lease, not even an expired
+        one: that is a takeover (acquire), which a person starts and which first locks what the bank already paid."""
+        now = self.clock()
+        self._do("INSERT OR IGNORE INTO writer_lease (name, holder, expires_at, acquired_at) VALUES (?, ?, ?, ?)",
+                 (self.name, self.node, now + self.ttl_s, now))
+        self._do("UPDATE writer_lease SET expires_at = ? WHERE name = ? AND holder = ?", (now + self.ttl_s, self.name, self.node))
+        return self.holds()
+
     def holds(self) -> bool:
         h = self.holder()
         return bool(h and h["holder"] == self.node and h["live"])
