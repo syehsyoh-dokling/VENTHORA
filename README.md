@@ -708,7 +708,7 @@ pytest -q
 ruff check src tests scripts
 ```
 
-Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,148 passed,
+Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,150 passed,
 0 failed**, no expected failures and 12 skipped, in about eleven minutes.
 
 - **The sample company.** VENTHORA ships blank (one head office, one Super admin). The suite sets

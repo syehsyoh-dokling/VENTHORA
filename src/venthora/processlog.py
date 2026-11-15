@@ -210,6 +210,9 @@ def parse(body: bytes) -> dict:
     return d if isinstance(d, dict) else {"items": len(d)} if isinstance(d, list) else {}
 
 
+_NOTED: set[tuple] = set()
+
+
 def note(org, tab: str, line: str, actor: str = "VENTHORA (agent)") -> None:
     """A step nobody clicked (a payment run, a posting): written to the log while a recording is on."""
     from . import testlog
@@ -219,6 +222,15 @@ def note(org, tab: str, line: str, actor: str = "VENTHORA (agent)") -> None:
         return
     import time
     import uuid
+
+    # a background job that finds the same thing every minute (a payment still not anchored, a posting still refused)
+    # says it once per recording, not once a minute: the log is a run's steps, not a heartbeat
+    key = (s.get("run"), tab, line)
+    if key in _NOTED:
+        return
+    if len(_NOTED) > 5000:
+        _NOTED.clear()
+    _NOTED.add(key)
 
     local, utc = local_now(org)
     org._put(testlog.KIND, {"_id": f"{int(time.time() * 1000):013d}-{uuid.uuid4().hex[:6]}", "run": s.get("run"), "scenario": s.get("scenario"), "at": utc,
