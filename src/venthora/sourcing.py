@@ -361,8 +361,50 @@ def assess(pr: dict, qs: list[dict], today: str | None = None) -> dict:
                                                          else f"; tied on price with {others[0]['cand_id']}, ranked first by vendor id: a person may choose either"))
     else:
         reason = "no quotation meets every condition yet"
+    # nobody meets every condition: the closest quotation is suggested to a person, never awarded by the agent
+    suggested = suggestion = None
+    if not best and rows:
+        met = {q["_id"]: (sum(1 for s in q["specs"] if s["ok"]), len(q["specs"])) for q in qs}
+        near = sorted(rows, key=lambda r: (len(r["why_not"]), -met[r["quote_id"]][0], r["total_minor"], r["cand_id"]))[0]
+        m, n = met[near["quote_id"]]
+        suggested = near["cand_id"]
+        suggestion = (f"no quotation meets every condition; {near['cand_id']} is the closest: {m} of {n} specification(s) met, "
+                      f"{pr['currency']} {near['total_minor'] / 100:,.2f}, but {'; '.join(near['why_not'])}. A person chooses: award it with the reason, "
+                      "ask the vendors again, or change the request")
     return {"rows": rows, "recommended": best["cand_id"] if best else None, "reason": reason, "locked_on": "brand and specifications" if brand else "specifications",
-            "count": len(qs), "minimum": 3}
+            "count": len(qs), "minimum": 3, "suggested": suggested, "suggestion": suggestion}
+
+
+def decide(org, pr_number: str, today: str | None = None) -> dict:
+    """What the agent does with a request's quotations: {"action": "wait" | "award" | "person", ...}.
+
+    It waits until every invited vendor has answered or the deadline has passed. Then the rule is fixed, and price
+    never beats the specifications:
+      - a quotation that meets every specification (and the brand, currency, quantity, validity) wins; among several
+        that do, the cheapest wins. A cheaper quotation that misses a specification never beats it;
+      - when the winner is above the approved estimate, or nobody meets every condition, nothing is awarded: a person
+        gets the closest quotation and why, and decides."""
+    today = today or date.today().isoformat()
+    pr, r = _pr(org, pr_number), rfq(org, pr_number)
+    if r is None or r["status"] not in ("INVITED", "QUOTING"):
+        return {"action": "wait", "reason": "no open request for quotation"}
+    if pr["status"] != "APPROVED":
+        return {"action": "wait", "reason": f"{pr_number} is {pr['status'].lower()}: the award waits for the request to be approved"}
+    invited = [c for c in r["candidates"] if c.get("invited_at")]
+    qs = quotes(org, pr_number)
+    answered = {q["cand_id"] for q in qs}
+    closed = bool(r.get("deadline")) and today > r["deadline"]
+    if not qs or (not closed and any(c["cand_id"] not in answered for c in invited)):
+        return {"action": "wait", "reason": f"{len(answered)} of {len(invited)} invited vendor(s) answered; the deadline is {r.get('deadline')}"}
+    a = assess(pr, qs, today)
+    win = next((x for x in a["rows"] if x["cand_id"] == a["recommended"]), None)
+    if win and not win["over_estimate"]:
+        return {"action": "award", "cand_id": win["cand_id"], "reason": f"awarded by the rule: {a['reason']} ({len(qs)} quotation(s) compared)"}
+    if win:
+        return {"action": "person", "suggested": win["cand_id"],
+                "reason": f"{win['cand_id']} meets every specification and is the cheapest that does, but its {pr['currency']} {win['total_minor'] / 100:,.2f} is above "
+                          f"the approved estimate {pr['currency']} {pr['estimated_minor'] / 100:,.2f}: a person decides"}
+    return {"action": "person", "suggested": a["suggested"], "reason": a["suggestion"]}
 
 
 def shortlist(pr: dict, qs: list[dict], a: dict, size: int = 3) -> list[dict]:
@@ -458,8 +500,9 @@ def _next_po(org) -> str:
     return f"PO-{year}-{max(nums, default=0) + 1:04d}"  # the next after the last, never a gap in the sequence
 
 
-def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, master, payees_store=None, registry_payees: dict) -> dict:
-    """A person awards one quotation; the PO follows."""
+def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, master, payees_store=None, registry_payees: dict, agent: bool = False) -> dict:
+    """A person awards one quotation; the PO follows. `agent`: the award is the agent's, by the fixed rule (decide):
+    only the recommended quotation, never above the approved estimate, with the rule as its written reason."""
     from . import ingestion
     from .organisation import PurchaseOrder
 
@@ -469,12 +512,12 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
         raise SourcingError(f"{pr_number} has nothing to award" if r is None else f"{pr_number} is already awarded to {r['award']['vendor']}")
     if pr["status"] != "APPROVED":
         raise SourcingError(f"{pr_number} is {pr['status'].lower()}: approve the purchase request before the award")
-    if role not in DECIDERS:
+    if role not in DECIDERS and not agent:
         raise SourcingError(f"role {role} may not award a quotation")
     me = by.strip().lower()
     if me == pr["requested_by"].strip().lower():
         raise SourcingError("the requester cannot award their own purchase request")
-    person = next((u for u in org.list("user") if me in (u["name"].lower(), u["email"].lower())), None)
+    person = None if agent else next((u for u in org.list("user") if me in (u["name"].lower(), u["email"].lower())), None)
     q = org.get("quote", f"{pr_number}:{cand_id}")
     if q is None:
         raise SourcingError(f"no quotation from {cand_id}")
@@ -483,6 +526,8 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
         raise SourcingError(f"{by} may approve up to {limit / 100:,.2f}; this quotation is {q['currency']} {q['total_minor'] / 100:,.2f}")
     a = assess(pr, quotes(org, pr_number))
     outside = cand_id != a["recommended"]
+    if agent and outside:
+        raise SourcingError("the agent awards only the recommended quotation")
     if outside and len((note or "").strip()) < 10:
         raise SourcingError("awarding a quotation other than the recommendation needs the reason (at least 10 characters)")
     if q["total_minor"] > pr["estimated_minor"]:
@@ -527,6 +572,8 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
                        f"Purchase order: {po_id}\nAmount: {q['currency']} {q['total_minor'] / 100:,.2f}\nQuantity: {q['quantity']:g} {pr.get('unit') or ''}\n"
                        f"Deliver by: {pr.get('needed_by') or '-'}\nCharge code: {pr['charge_code']}\n\n"
                        f"Please complete your company and bank details on this form (it is yours only), so we can pay you:\n{public_url()}/vendor-details/{token}\n\n"
+                       "On the same form, confirm your delivery date and enter your invoice (number, date, amount): an invoice that matches this "
+                       "purchase order goes straight to payment, anything else is looked at by a person.\n\n"
                        f"Quote {po_id} on your invoice. Before the first payment your bank account is checked with the bank and we call you "
                        "back on your registered phone number to confirm it.\n\nProcurement team"))
     for other in quotes(org, pr_number):

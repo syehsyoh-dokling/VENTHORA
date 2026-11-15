@@ -92,8 +92,25 @@ async def read(model, subject: str, body: str) -> tuple[dict, str]:
     return fields, basis
 
 
-def to_pr(fields: dict, person: dict, org) -> dict:
-    """The PR record for OrgStore (validated there)."""
+PR_SHAPE = re.compile(r"\b(PR[-/][A-Z0-9][A-Z0-9/-]{1,27})\b")
+PR_LABEL = re.compile(r"\b(?:purchase\s+request|pr|request)\s*(?:no\.?|number|nomor|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9/-]{2,30})\b", re.I)
+INVITE = 5  # vendors asked for a quotation on a request raised by email
+
+
+def pr_number(subject: str, body: str) -> str | None:
+    """The purchase request number an email states ("PR-2026-0412", "Purchase request no: 26/OPS/017"), upper case;
+    None when it states none and VENTHORA numbers the request itself."""
+    text = f"{subject}\n{body}"
+    m = PR_SHAPE.search(text.upper())
+    if m:
+        return m.group(1)
+    m = PR_LABEL.search(text)
+    return m.group(1).upper() if m and any(ch.isdigit() for ch in m.group(1)) else None
+
+
+def to_pr(fields: dict, person: dict, org, *, number: str | None = None, approved_by: str | None = None, note: str = "") -> dict:
+    """The PR record for OrgStore (validated there). `number`: the email's own PR number. `approved_by`: the FCO whose
+    email (or whose approval forwarded in the email) approves it; a request with no price stays a draft either way."""
     from .organisation import PurchaseRequest
 
     est = _num(fields.get("estimate"))
@@ -105,6 +122,12 @@ def to_pr(fields: dict, person: dict, org) -> dict:
            "needed_by": needed, "requested_date": date.today().isoformat(), "justification": str(fields.get("justification") or "")[:500],
            "quantity": _num(fields.get("quantity")), "unit": str(fields.get("unit") or "")[:20], "brand": str(fields.get("brand") or "")[:80],
            "specs": [str(s)[:200] for s in (fields.get("specs") or [])][:30], "status": "SUBMITTED"}
+    if number:
+        rec["pr_number"] = number
     if est is None:  # no price named: kept as a draft for the requester to complete; nothing is sourced on it
         rec |= {"status": "DRAFT", "justification": ("estimate missing in the email; " + rec["justification"])[:500]}
+    elif approved_by:
+        from datetime import UTC, datetime
+
+        rec |= {"status": "APPROVED", "decided_by": approved_by[:120], "decided_at": datetime.now(UTC).isoformat(timespec="seconds"), "decision_note": note[:300]}
     return PurchaseRequest.model_validate(rec).model_dump()

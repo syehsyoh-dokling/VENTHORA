@@ -33,13 +33,17 @@ button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:9
   <label>Local bank code value<input id="routing_value"></label>
   <label>Account type (US)<select id="bank_account_category"><option value="">-</option><option>Checking</option><option>Savings</option></select></label>
  </div></div>
+ <div class="card"><h2>Delivery and invoice</h2><div class="muted" style="margin-bottom:10px">Confirm when you deliver, and enter your invoice when you have one. An invoice that matches the purchase order goes straight to payment; anything else is looked at by a person.</div><div class="grid">
+  <label>Delivery date<input id="delivery_date" type="date"></label><label>Invoice number<input id="invoice_no" maxlength="60"></label>
+  <label>Invoice date<input id="invoice_date" type="date"></label><label>Invoice amount<input id="invoice_amount" inputmode="decimal" placeholder="as on the purchase order"></label>
+ </div></div>
  <button type="submit">Send details</button><div class="msg" id="msg"></div>
 </form>
 </main>
 <script>
 const T=location.pathname.split("/").filter(Boolean)[1];const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const F=["tax_id","registered_phone","street_address","city","state","postcode","country_code","account_name","bank_name","bank_country_code","account_number","iban","swift_code","routing_type","routing_value","bank_account_category"];
+const F=["tax_id","registered_phone","street_address","city","state","postcode","country_code","account_name","bank_name","bank_country_code","account_number","iban","swift_code","routing_type","routing_value","bank_account_category","delivery_date","invoice_no","invoice_date","invoice_amount"];
 (async()=>{try{const r=await fetch(`/vendor-details/${T}/data`);if(!r.ok)throw new Error((await r.json()).detail||r.statusText);const d=await r.json();
  $("lead").innerHTML=`<b>${esc(d.vendor)}</b> · purchase order <b>${esc(d.po_id)}</b> (${esc(d.pr_number)}). Please complete the details a payment needs.${d.submitted_at?` <br><span class="ok">Received on ${esc(d.submitted_at.slice(0,10))}; sending again replaces them.</span>`:""}`;
  const k=d.known||{};$("tax_id").value=k.tax_id||"";$("registered_phone").value=k.registered_phone||"";const a=k.address||{};
@@ -48,6 +52,6 @@ const F=["tax_id","registered_phone","street_address","city","state","postcode",
 $("f").onsubmit=async ev=>{ev.preventDefault();const b={};F.forEach(x=>b[x]=$(x).value.trim());$("msg").className="msg";$("msg").textContent="checking the account with the bank…";
  try{const r=await fetch(`/vendor-details/${T}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(b)});const j=await r.json();
   if(!r.ok){const d=j.detail;throw new Error((d&&d.message)||(typeof d==="string"?d:JSON.stringify(d)))}
-  $("msg").className="msg ok";$("msg").textContent=`Thank you: details received (bank check: ${j.bank_check||"-"}). ${j.next}`}
+  $("msg").className="msg ok";$("msg").textContent=`Thank you: details received (bank check: ${j.bank_check||"-"}). ${j.invoice?j.invoice.message+" ":""}${j.next}`}
  catch(e){$("msg").className="msg err";$("msg").textContent=e.message}};
 </script></body></html>

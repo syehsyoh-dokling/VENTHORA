@@ -1385,6 +1385,7 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
         tick += 1
         # a job that fails never stops the others or the next minute; the operator finds it in the log (logs.py)
         for name, job in (("payment run", functools.partial(_scheduled_policy_run, tick)), ("anchoring", _anchor_large_payments),
+                          ("quotation deadlines", _procurement_due),
                           ("23:59 advance run", _advances_due),  # allocated staff advances whose payment time has come
                           ("vendor answers", _vendor_feedback_sweep)):  # no held request is left without its answer on record
             try:
@@ -2157,7 +2158,7 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, 
                 return req  # rejected as it stands: no document check, no model, no queue for payment
             if outsider == "":  # None: a registered vendor's own invoice that only mentions the words; the triage keeps it
                 req = await _fund_from_email(req, model)
-        elif req.trust == "staff" and pr_email.looks_like(req.subject or "", req.text or ""):
+        elif pr_email.looks_like(req.subject or "", req.text or ""):  # only a registered person's email becomes a PR (a person may also be a payee)
             req = await _pr_from_email(req, model)
     if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags and not any(f.startswith(("purchase_request", "fund_request")) for f in req.flags):
         order, req = await _email_order(req, raw)
@@ -2556,9 +2557,23 @@ async def _pr_from_email(req: IntakeRequest, model) -> IntakeRequest:
     person = employee(org, req.sender)
     if person is None:
         return req
-    fields, basis = await pr_email.read(model, req.subject or "", req.text or "")
+    from . import advance_flow
+
+    subject, text = req.subject or "", req.text or ""
+    fields, basis = await pr_email.read(model, subject, text)
+    # approved by the FCO's own email, or by the FCO's approval forwarded in a person's email (the FCO is told and
+    # the award is still bound by the approved estimate); a person's own email only submits it
+    fcos = {u["email"].lower(): u for u in org.list("user") if u.get("active", True) and u["role"] == "super_admin"}
+    fwd = advance_flow.forwarded_approval(text, set(fcos)) if person["role"] != "super_admin" else None
+    approved_by = (f"{person['name']} (super_admin, by email)" if person["role"] == "super_admin"
+                   else f"{fcos[fwd['from']]['name']} (super_admin, email forwarded by {person['name']})" if fwd else None)
     try:
-        saved = await asyncio.to_thread(org.save, "pr", PurchaseRequest.model_validate(pr_email.to_pr(fields, person, org)), f"email:{req.sender}")
+        number = pr_email.pr_number(subject, text)
+        if number and org.get("pr", number) is not None:
+            raise ValueError(f"purchase request {number} is already on file: an email cannot change it")
+        rec = pr_email.to_pr(fields, person, org, number=number, approved_by=approved_by,
+                             note="approved by the FCO's email" if not fwd else f"approved in the FCO's email, forwarded: \"{fwd['quote']}\"")
+        saved = await asyncio.to_thread(org.save, "pr", PurchaseRequest.model_validate(rec), f"email:{req.sender}")
     except (OrgError, ValueError) as exc:
         note = f"purchase_request_refused: {str(exc)[:160]}"
         await asyncio.to_thread(app.state.audit.append, "pr_from_email_refused", {"sender": req.sender, "reason": str(exc)[:300]})
@@ -2566,10 +2581,10 @@ async def _pr_from_email(req: IntakeRequest, model) -> IntakeRequest:
     num, steps = saved["pr_number"], {"read_by": basis}
     who = f"VENTHORA agent (email from {person['name']})"
     await asyncio.to_thread(sourcing.draft_letter, org, num, who)
-    if saved["status"] == "SUBMITTED":
+    if saved["status"] in ("SUBMITTED", "APPROVED"):
         try:
             rec = await sourcing.find_vendors(org, num, payees=app.state.intake.registry.payees, model=model, by=who)
-            cands = [c["cand_id"] for c in rec["candidates"] if c.get("email")][:10]
+            cands = [c["cand_id"] for c in rec["candidates"] if c.get("email")][:pr_email.INVITE]  # five vendors are asked
             steps["candidates"] = len(rec["candidates"])
             if cands:
                 sent = await asyncio.to_thread(sourcing.invite, org, num, cands, by=who)
@@ -5140,7 +5155,8 @@ async def procurement_demo_replies(pr_number: str, role: str = "finance_manager"
 
     _writer(role, by)
     out = await asyncio.to_thread(_proc, sourcing.demo_replies, app.state.org, pr_number)
-    return {"submitted": [q["cand_id"] for q in out]}
+    decision = await _procurement_decide(pr_number)  # every invited vendor has answered: the agent decides by the rule
+    return {"submitted": [q["cand_id"] for q in out], "decision": decision}
 
 
 @app.post("/v1/procurement/{pr_number}/review")
@@ -5165,6 +5181,60 @@ async def procurement_award(pr_number: str, body: ProcAwardIn, role: str = "fina
     await asyncio.to_thread(app.state.audit.append, "procurement_awarded", {k: v for k, v in out.items() if k not in ("po", "vendor_followed")})
     out["chain"] = await _register_contract(out["po_id"], f"{by} ({role})")
     return out
+
+
+AGENT = "VENTHORA agent"
+
+
+async def _procurement_decide(pr_number: str) -> dict:
+    """The agent's part of an award (sourcing.decide): once every invited vendor answered or the deadline passed, the
+    model reads the remarks against the specifications, and a quotation that meets every specification wins (the
+    cheapest of those); the PO is raised and sent. When nobody meets them, or the winner is above the approved
+    estimate, nothing is awarded: the FCO and the requester get the closest quotation and why, once."""
+    from . import outbox, sourcing
+    from .masterdata import MasterStore
+
+    org = app.state.org
+    d = await asyncio.to_thread(sourcing.decide, org, pr_number)
+    if d["action"] == "wait":
+        return d
+    await sourcing.review(org, pr_number, active_model())  # a "complies" its own remark contradicts is not met
+    d = await asyncio.to_thread(sourcing.decide, org, pr_number)
+    if d["action"] == "award":
+        try:
+            out = await asyncio.to_thread(sourcing.award, org, pr_number, d["cand_id"], role="agent", by=AGENT, note=d["reason"], master=MasterStore(),
+                                          payees_store=app.state.executor.store, registry_payees=app.state.intake.registry.payees, agent=True)
+        except (sourcing.SourcingError, OrgError) as exc:
+            d = {"action": "person", "suggested": d["cand_id"], "reason": f"{d['cand_id']} won by the rule but could not be awarded: {exc}"}
+        else:
+            await asyncio.to_thread(app.state.audit.append, "procurement_awarded", {k: v for k, v in out.items() if k not in ("po", "vendor_followed")} | {"rule": d["reason"]})
+            with contextlib.suppress(Exception):
+                await _register_contract(out["po_id"], AGENT)
+            return d | {"po_id": out["po_id"], "vendor": out["vendor"]}
+    if d["action"] == "person":
+        r = sourcing.rfq(org, pr_number) or {}
+        if (r.get("agent_decision") or {}).get("reason") != d["reason"]:  # told once per finding
+            await asyncio.to_thread(org._put, "rfq", r | {"agent_decision": d | {"at": datetime.now(UTC).isoformat(timespec="seconds")}}, AGENT)
+            pr = org.get("pr", pr_number) or {}
+            asker = next((u for u in org.list("user") if pr.get("requested_by") in (u["user_id"], u["name"])), None)
+            to = list(dict.fromkeys(e for e in [*[u["email"] for u in org.list("user") if u.get("active", True) and u["role"] == "super_admin"], (asker or {}).get("email")] if e))
+            if to:
+                await asyncio.to_thread(outbox.queue, org, to=to, subject=f"{pr_number}: the quotations need your decision", ref=pr_number, by=AGENT, kind="rfq_needs_person",
+                                        body=f"The quotations for {pr_number} ({pr.get('title', '')}) are in, and the agent did not award:\n\n{d['reason']}.\n\n"
+                                             "Open Procurement → Shortlist in VENTHORA: every quotation is there with what it meets and what it does not.\n\nVENTHORA")
+            await asyncio.to_thread(app.state.audit.append, "procurement_needs_person", {"pr": pr_number, "suggested": d.get("suggested"), "reason": d["reason"][:300]})
+    return d
+
+
+async def _procurement_due() -> None:
+    """Every minute: requests for quotation whose deadline passed with quotations in are decided (the vendors that
+    did not answer are no longer waited for)."""
+    from . import sourcing
+
+    for r in await asyncio.to_thread(app.state.org.list, "rfq"):
+        if r.get("status") in ("INVITED", "QUOTING") and r.get("deadline") and datetime.now(UTC).date().isoformat() > r["deadline"]:
+            with contextlib.suppress(sourcing.SourcingError, OrgError):
+                await _procurement_decide(r["pr_number"])
 
 
 async def _register_contract(po_id: str, who: str) -> dict:
@@ -5224,6 +5294,57 @@ class VendorDetailsIn(BaseModel):
     routing_type: str = Field("", max_length=30)
     routing_value: str = Field("", max_length=30)
     bank_account_category: str = Field("", max_length=20)
+    # the winner confirms its delivery and may enter its invoice on the same form
+    delivery_date: str = Field("", pattern=r"^(\d{4}-\d{2}-\d{2})?$")
+    invoice_no: str = Field("", max_length=60)
+    invoice_date: str = Field("", pattern=r"^(\d{4}-\d{2}-\d{2})?$")
+    invoice_amount: str = Field("", max_length=30)
+
+
+async def _winner_invoice(f: dict, po: dict, vendor: dict, body: VendorDetailsIn, bank_verdict: str | None) -> dict:
+    """The invoice the awarded vendor entered on its form. It is first held against what was agreed: the purchase
+    order's amount, the delivery date against the date the request needs, the bank check. Anything that differs is
+    said and goes to a person. An invoice that agrees goes through the same intake as every other invoice (the vendor,
+    the PO, duplicates, the documents the standards ask for): VERIFIED there, it is payable under the FCO's mandate;
+    held there, a person looks at it."""
+    from email.message import EmailMessage
+    from email.utils import format_datetime
+
+    org = app.state.org
+    pr = org.get("pr", f["pr_number"]) or {}
+    ccy = po.get("currency") or "USD"
+    try:
+        amount = int(round(float(body.invoice_amount.replace(",", "")) * 100)) if body.invoice_amount.strip() else po.get("total_minor", 0)
+    except ValueError:
+        amount = -1
+    differs = []
+    if amount != po.get("total_minor"):
+        differs.append(f"the invoice amount {body.invoice_amount or '-'} is not the purchase order's {ccy} {po.get('total_minor', 0) / 100:,.2f}")
+    if not body.delivery_date:
+        differs.append("no delivery date was confirmed")
+    elif pr.get("needed_by") and body.delivery_date > pr["needed_by"]:
+        differs.append(f"delivery on {body.delivery_date} is after the {pr['needed_by']} the request needs")
+    if bank_verdict and str(bank_verdict).lower() not in ("ok", "pass", "passed", "valid", "verified", "match", "matched"):
+        differs.append(f"the bank check of the account answered {bank_verdict}")
+    contact = (vendor.get("contacts") or [f.get("email")])[0]
+    msg = EmailMessage()
+    msg["From"] = f"{f['vendor']} <{contact}>"
+    msg["To"] = "payments@venthora.local"
+    msg["Subject"] = f"Invoice {body.invoice_no} for purchase order {f['po_id']}"
+    msg["Date"] = format_datetime(datetime.now(UTC))
+    msg["Message-ID"] = f"<winner-{f['po_id']}-{secrets.token_hex(6)}@venthora.local>"
+    msg["Authentication-Results"] = "venthora.local; vendor-form=pass"
+    msg.set_content(f"Invoice entered by {f['vendor']} on its own supplier form (purchase order {f['po_id']}, {f['pr_number']}).\n\n"
+                    f"Invoice number: {body.invoice_no}\nInvoice date: {body.invoice_date or datetime.now(UTC).date().isoformat()}\n"
+                    f"Purchase order: {f['po_id']}\nAmount due: {ccy} {max(amount, 0) / 100:,.2f}\nDelivery date: {body.delivery_date or '-'}\n")
+    req = await _ingest(msg.as_bytes(), None, False, channel="api")
+    if differs and req.status == "VERIFIED":  # it does not agree with what was awarded: a person, never a payment
+        req = req.model_copy(update={"status": "NEEDS_REVIEW", "reasons": [*req.reasons, *differs], "flags": [*req.flags, "winner_invoice_differs"]})
+        await asyncio.to_thread(app.state.intake.store.save, req)
+    await asyncio.to_thread(app.state.audit.append, "winner_invoice", {"po": f["po_id"], "invoice": body.invoice_no, "status": req.status, "differs": differs})
+    return {"intake_id": req.intake_id, "status": req.status, "reasons": (differs or req.reasons)[:4],
+            "message": ("Your invoice matches the purchase order and is queued for payment." if req.status == "VERIFIED"
+                        else "Your invoice was received and will be looked at by a person before it is paid.")}
 
 
 @app.post("/vendor-details/{token}", include_in_schema=False)
@@ -5248,9 +5369,15 @@ async def vendor_details_submit(token: str, body: VendorDetailsIn):
                  "routing_type": body.routing_type, "routing_value": body.routing_value, "bank_account_category": body.bank_account_category}}
     rec["payout_method"] = "SWIFT" if body.iban or (body.swift_code and not body.routing_value) else "LOCAL"
     rep = await beneficiaries_save(BeneficiaryIn(record=rec), kind="vendor", role="finance_manager", by=f"vendor form ({f['vendor']})")
-    app.state.org._put("vendor_details", f | {"submitted_at": datetime.now(UTC).isoformat(timespec="seconds")}, f"vendor form ({f['vendor']})")
     chk = next(iter((rep.get("airwallex_check") or {}).values()), {})
-    return {"ok": True, "bank_check": chk.get("verdict"), "detail": chk.get("detail"),
+    invoice = None
+    if body.invoice_no.strip() and not f.get("invoice"):  # one invoice per form: sending the details again does not bill twice
+        invoice = await _winner_invoice(f, po, rec, body, chk.get("verdict"))
+    f = f | {"submitted_at": datetime.now(UTC).isoformat(timespec="seconds"), "delivery_date": body.delivery_date or f.get("delivery_date")}
+    if invoice:
+        f["invoice"] = {"invoice_no": body.invoice_no.strip()} | invoice
+    app.state.org._put("vendor_details", f, f"vendor form ({f['vendor']})")
+    return {"ok": True, "bank_check": chk.get("verdict"), "detail": chk.get("detail"), "invoice": invoice,
             "next": "VENTHORA will call you back on the registered number to confirm the account before the first payment."}
 
 
@@ -5292,6 +5419,10 @@ async def rfq_form_submit(token: str, body: Annotated[dict, Body()]):
 
     q = await asyncio.to_thread(_proc, sourcing.submit, app.state.org, token, body)
     await asyncio.to_thread(app.state.audit.append, "procurement_quote_received", {"pr": q["pr_number"], "vendor": q["cand_id"], "total_minor": q["total_minor"], "revision": q["revision"]})
+    try:  # the last invited vendor's answer closes the comparison: the agent decides by the fixed rule
+        await _procurement_decide(q["pr_number"])
+    except Exception:  # noqa: BLE001 - the vendor's quotation is saved either way; the scheduler decides again
+        oplog.exception("procurement decision failed for %s", q["pr_number"])
     return {"ok": True, "pr_number": q["pr_number"], "total_minor": q["total_minor"], "currency": q["currency"], "revision": q["revision"]}
 
 
