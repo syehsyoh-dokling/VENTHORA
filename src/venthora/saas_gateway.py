@@ -461,7 +461,10 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
                                                            content=body or None, headers=headers, timeout=60)
             except httpx.HTTPError:
                 continue
-            last = res
+            # a company that RECOGNISED the caller and refused (403), or found nothing (404), says more than one that
+            # did not know the caller at all (401): its answer is kept, not overwritten by the next company's 401
+            if last is None or res.status_code != 401 or last.status_code == 401:
+                last = res
             if res.status_code not in (401, 403, 404):
                 break
         if last is None:
