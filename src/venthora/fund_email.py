@@ -13,7 +13,7 @@ becomes a fund request, and, when the FCO sent it, is approved and paid at once 
 from __future__ import annotations
 
 import re
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 KINDS = {"cash_advance": ("cash advance", "travel advance", "travel and transport advance", "uang muka", "advance for"),
          "petty_cash": ("petty cash", "slush fund", "kas kecil", "float top-up", "petty-cash"),
@@ -104,9 +104,12 @@ def person_of(org, name_or_email: str | None, sender: dict) -> dict | None:
         or next((u for u in users if q in u["name"].lower()), None)
 
 
-def to_request(fields: dict, person: dict, sender: dict) -> dict:
-    """The fund request record (validated by OrgStore). From the FCO for someone else: approved by the email."""
+def to_request(fields: dict, person: dict, sender: dict, forwarded: dict | None = None) -> dict:
+    """The fund request record (validated by OrgStore). From the FCO for someone else: approved by the email. With the
+    FCO's approval forwarded in it (advance_flow.forwarded_approval: {"from", "name", "quote"}): approved by that, as
+    long as the FCO is not the person the money is for."""
     by_fco = sender.get("role") == "super_admin" and sender["user_id"] != person["user_id"]
+    by_forward = bool(forwarded) and not by_fco and forwarded["from"].lower() != person["email"].lower()
     amount = _num(fields.get("amount"))
     if amount is None or amount <= 0:
         raise ValueError("the email names no amount")
@@ -118,7 +121,11 @@ def to_request(fields: dict, person: dict, sender: dict) -> dict:
            "currency": str(fields.get("currency") or "USD").upper()[:3], "charge_code": fields.get("charge_code") or person.get("charge_code") or "",
            "purpose": str(fields.get("purpose") or "advance requested by email")[:300], "activity": str(fields.get("activity") or "")[:160],
            "request_date": date.today().isoformat(), "needed_by": needed, "settle_by": settle if fields["kind"] != "odc" else None,
-           "status": "APPROVED" if by_fco else "SUBMITTED"}
+           "status": "APPROVED" if by_fco or by_forward else "SUBMITTED"}
+    at = datetime.now(UTC).isoformat(timespec="seconds")
     if by_fco:
-        rec |= {"decided_by": f"{sender['name']} (super_admin, by email)", "decision_note": "approved by the FCO's email"}
+        rec |= {"decided_by": f"{sender['name']} (super_admin, by email)", "decision_note": "approved by the FCO's email", "decided_at": at}
+    elif by_forward:
+        rec |= {"decided_by": f"{forwarded.get('name') or forwarded['from']} (super_admin, email forwarded by {sender['name']})",
+                "decision_note": f"approved in the FCO's email, forwarded: \"{forwarded['quote']}\""[:300], "decided_at": at}
     return rec

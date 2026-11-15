@@ -44,7 +44,7 @@ HOP = {"host", "connection", "keep-alive", "transfer-encoding", "te", "trailer",
 PAGE = Path(__file__).with_name("dashboard") / "platform.html"
 LOGIN_PAGE = Path(__file__).with_name("dashboard") / "login.html"
 # reached from outside with no browser cookie, each owned by one company (see find_owner)
-PUBLIC_PREFIXES = ("/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/")
+PUBLIC_PREFIXES = ("/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/", "/card-link/")
 PUBLIC_EXACT = ("/webhooks/xendit", "/webhooks/airwallex/remote-auth", "/webhooks/ses")
 
 

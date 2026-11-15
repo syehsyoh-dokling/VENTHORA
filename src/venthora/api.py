@@ -1385,6 +1385,7 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
         tick += 1
         # a job that fails never stops the others or the next minute; the operator finds it in the log (logs.py)
         for name, job in (("payment run", functools.partial(_scheduled_policy_run, tick)), ("anchoring", _anchor_large_payments),
+                          ("23:59 advance run", _advances_due),  # allocated staff advances whose payment time has come
                           ("vendor answers", _vendor_feedback_sweep)):  # no held request is left without its answer on record
             try:
                 await job()
@@ -2141,12 +2142,22 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, 
                                   channel="dashboard" if channel == "dashboard" else "email")
     # a request forwarded by someone the delegation of authority names is governed by the delegation, not by the
     # payment-order-by-email rule (the FCO's naming is the authorisation)
-    if req.trust == "staff" and not dry_run:
+    if not dry_run and req.trust != "failed_authentication":
         from . import fund_email, pr_email
 
         if fund_email.looks_like(req.subject or "", req.text or ""):
-            req = await _fund_from_email(req, model)
-        elif pr_email.looks_like(req.subject or "", req.text or ""):
+            # a request for cash is valid only from the organisation's own email: a registered person (a person may
+            # also be a payee with their own account, so this does not depend on the triage's trust)
+            outsider = await _cash_request_outsider(req)
+            if outsider:
+                req = req.model_copy(update={"status": "REJECTED", "reasons": [outsider], "flags": [*req.flags, "fund_request_rejected: not an organisation email"]})
+                await asyncio.to_thread(app.state.intake.store.save, req)
+                await asyncio.to_thread(app.state.audit.append, "fund_from_email_rejected", {"sender": req.sender, "reason": outsider})
+                app.state.hub.publish("intake", {"channel": channel, "kind": "fund_request_rejected", "intake_id": req.intake_id})
+                return req  # rejected as it stands: no document check, no model, no queue for payment
+            if outsider == "":  # None: a registered vendor's own invoice that only mentions the words; the triage keeps it
+                req = await _fund_from_email(req, model)
+        elif req.trust == "staff" and pr_email.looks_like(req.subject or "", req.text or ""):
             req = await _pr_from_email(req, model)
     if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags and not any(f.startswith(("purchase_request", "fund_request")) for f in req.flags):
         order, req = await _email_order(req, raw)
@@ -2320,14 +2331,14 @@ async def fco_notify_send(intake_id: str, role: str = "finance_manager", by: str
     return {"status": rec.get("status"), "to": rec.get("to"), "error": rec.get("error"), "subject": rec.get("subject")}
 
 
-def _approve_page(title: str, body: str, status: int = 200) -> HTMLResponse:
+def _approve_page(title: str, body: str, status: int = 200, head: str = "payment approval") -> HTMLResponse:
     import html as _h
 
     return HTMLResponse(f"""<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>VENTHORA · {_h.escape(title)}</title>
 <style>body{{font:15px/1.5 system-ui,sans-serif;background:#0f1a3a;margin:0;padding:24px;color:#16213a}}.c{{max-width:520px;margin:30px auto;background:#fff;border-radius:14px;padding:22px 24px}}
 h1{{font-size:19px;margin:0 0 10px}}table{{width:100%;border-collapse:collapse;margin:10px 0}}td{{padding:5px 0;border-bottom:1px solid #eef}}td:first-child{{color:#667;width:38%}}
 button{{background:#4f46e5;color:#fff;border:0;border-radius:9px;padding:11px 18px;font-size:15px;cursor:pointer}}.m{{color:#667;font-size:13px}}.ok{{color:#11823b}}.bad{{color:#c0312b}}</style>
-<div class=c><div class=m>VENTHORA · payment approval</div><h1>{_h.escape(title)}</h1>{body}</div>""", status_code=status)
+<div class=c><div class=m>VENTHORA · {_h.escape(head)}</div><h1>{_h.escape(title)}</h1>{body}</div>""", status_code=status)
 
 
 @app.get("/approve/{token}", include_in_schema=False)
@@ -2570,36 +2581,227 @@ async def _pr_from_email(req: IntakeRequest, model) -> IntakeRequest:
     return _flagged(req, f"purchase_request:{num}")
 
 
+async def _cash_request_outsider(req: IntakeRequest) -> str | None:
+    """A request for cash (advance, petty cash, slush fund, ODC) is valid only from the organisation's own email.
+    "" when the sender is a registered, active person (and inside the company's domains, when Settings → Email names
+    them); the reason it is rejected otherwise; None when it is not a request for cash at all but the invoice of a
+    registered vendor whose text only mentions the words."""
+    from .email_settings import EmailStore
+    from .intake.claims import employee
+
+    person = employee(app.state.org, req.sender)
+    domain = req.sender.rsplit("@", 1)[-1].lower()
+    if person is None:
+        if req.trust in ("registered", "system_of_record") and req.invoice_no:
+            return None
+        return f"{req.sender} is not an email address of the organisation: a request for cash is accepted only from a registered person (People & roles)"
+    domains = (await asyncio.to_thread(EmailStore().policy)).get("company_domains") or []
+    if domains and domain not in domains:
+        return f"{domain} is not a company domain ({', '.join(domains)}): a request for cash is accepted only from the organisation's own email"
+    return ""
+
+
 async def _fund_from_email(req: IntakeRequest, model) -> IntakeRequest:
-    """A staff email asking for a cash advance, petty cash or an ODC (fund_email.py): the fund request, approved when the
-    FCO sent it for someone else, and then paid as a virtual card on the card-issuing account."""
-    from . import fund_email
+    """An email from a person of the organisation asking for a cash advance, a travel advance, petty cash, a slush fund
+    float or an ODC (fund_email.py, advance_flow.py). It needs no purchase request and no purchase order; it keeps the
+    request number and the travel authorisation number the email states, and VENTHORA makes the ones it does not.
+    Approved by the FCO's own email or by the FCO's approval forwarded in it, it is allocated and paid at 23:59."""
+    from . import advance_flow, card_program, fund_email
     from .intake.claims import employee
 
     org = app.state.org
     sender = employee(org, req.sender)
     if sender is None:
         return req
-    fields, basis = await fund_email.read(model, req.subject or "", req.text or "")
+    subject, text = req.subject or "", req.text or ""
+    fields, basis = await fund_email.read(model, subject, text)
     person = fund_email.person_of(org, fields.get("person"), sender)
     if person is None:
         await asyncio.to_thread(app.state.audit.append, "fund_from_email_refused", {"sender": req.sender, "reason": f"no person {fields.get('person')!r}"})
         return _flagged(req, f"fund_request_refused: no person named {str(fields.get('person'))[:60]!r} in People & roles")
+    fcos = {u["email"].lower(): u for u in org.list("user") if u.get("active", True) and u["role"] == "super_admin"}
+    fwd = advance_flow.forwarded_approval(text, set(fcos)) if sender["role"] != "super_admin" else None
+    if fwd:
+        fwd["name"] = fcos[fwd["from"]]["name"]
     try:
-        saved = await asyncio.to_thread(org.save, "fund_request", FundRequest.model_validate(fund_email.to_request(fields, person, sender)), f"email:{req.sender}")
+        rec = fund_email.to_request(fields, person, sender, forwarded=fwd)
+        number = advance_flow.request_number(subject, text)
+        if number:
+            if org.get("fund_request", number) is not None:
+                raise ValueError(f"request {number} is already on file: an email cannot change it")
+            rec["request_number"] = number
+        ta_no = advance_flow.ta_number(subject, text)
+        travel = bool(ta_no) or (rec["kind"] == "cash_advance" and card_program.purpose_of(rec) == "travel_advance")
+        if travel:
+            rec["kind"] = "cash_advance"
+            if ta_no:
+                why = advance_flow.check_ta(org.get("ta", ta_no), ta_no, person, rec["amount_minor"], rec["currency"])
+                if why:
+                    raise ValueError(why)
+            else:
+                taken = {t["ta_number"] for t in org.list("ta")} | {f["ta_number"] for f in org.list("fund_request") if f.get("ta_number")}
+                ta_no = advance_flow.next_ta(taken, datetime.now(UTC).year)
+            rec["ta_number"] = ta_no
+            if "travel" not in f"{rec['purpose']} {rec['activity']}".lower():
+                rec["purpose"] = f"Travel: {rec['purpose']}"[:300]
+            rec["charge_code"] = rec["charge_code"] or (org.get("ta", ta_no) or {}).get("charge_code") or ""
+        if len(rec["charge_code"]) < 5:
+            raise ValueError(f"no charge code for {person['name']}: add one in People & roles, or write \"Charge code: ...\" in the email")
+        saved = await asyncio.to_thread(org.save, "fund_request", FundRequest.model_validate(rec), f"email:{req.sender}")
     except (OrgError, ValueError) as exc:
         await asyncio.to_thread(app.state.audit.append, "fund_from_email_refused", {"sender": req.sender, "reason": str(exc)[:300]})
         return _flagged(req, f"fund_request_refused: {str(exc)[:160]}")
-    num, steps = saved["request_number"], {"read_by": basis, "status": saved["status"]}
+    num, steps = saved["request_number"], {"read_by": basis, "status": saved["status"], "ta_number": saved.get("ta_number"),
+                                           "approval": "forwarded" if fwd else "fco_email" if saved["status"] == "APPROVED" else None}
     if saved["status"] == "APPROVED":
-        try:
-            paid = await _issue_advance_card(num, f"VENTHORA agent (email from {sender['name']})")
-            steps["card"] = (paid.get("card") or {}).get("masked")
-        except HTTPException as exc:
-            steps["card_error"] = str(exc.detail)[:200]
+        alloc = await _allocate_advance(num, f"VENTHORA agent (email from {sender['name']})")
+        steps |= {"allocation": alloc["status"], "pay_at": alloc.get("pay_at")}
     await asyncio.to_thread(app.state.audit.append, "fund_from_email", {"request": num, "sender": req.sender, "for": person["user_id"]} | steps)
     app.state.hub.publish("intake", {"channel": "email", "kind": "fund_request", "request_number": num})
     return _flagged(req, f"fund_request:{num}")
+
+
+async def _allocate_advance(number: str, who: str) -> dict:
+    """An approved advance is set aside when it is green (advance_flow.green) and promised for 23:59 company time; the
+    person and the FCO are told by email either way. Nothing is paid here."""
+    from . import advance_flow, card_program, outbox, priority_sop, processlog
+    from .domain.money import cost_in_base
+    from .organisation import FUND_KINDS
+
+    org = app.state.org
+    fr = org.get("fund_request", number)
+    now = datetime.now(UTC)
+    horizon = priority_sop.policy(org)["horizon_hours"]
+    try:
+        state, _ = await _todays_state()
+        book = state or _live_base()
+        in_base = lambda minor, ccy: minor if ccy == book.base_currency else cost_in_base(minor, book.ppm_up(ccy))  # noqa: E731
+        due_minor = 0
+        for o in (state.obligations if state else []):
+            if o.due_in_hours <= horizon:
+                with contextlib.suppress(KeyError, TypeError, ValueError):
+                    due_minor += in_base(o.amount_minor, o.currency)
+        ok, why = advance_flow.green(cost_base_minor=in_base(fr["amount_minor"], fr["currency"]), base_balance_minor=book.balances.get(book.base_currency, 0),
+                                     floor_minor=book.policy.reserve_floor_minor, due_base_minor=due_minor, horizon_hours=horizon, base=book.base_currency)
+    except Exception as exc:  # noqa: BLE001 - nothing is promised on a book that cannot be read
+        ok, why = False, f"the book could not be read now ({type(exc).__name__})"
+    prog = card_program.get(org)
+    on_staff_card = bool(prog["staff_cards"] and card_program.staff_card(org, fr["requested_by"]) and (fr.get("ta_number") or card_program.applies(prog, fr)))
+    alloc = advance_flow.allocation(now=now, tz=processlog.company_tz(org), ok=ok, why=why, route="staff_card" if on_staff_card else "virtual_card",
+                                    approval="forwarded" if "forwarded" in (fr.get("decided_by") or "") else "fco_email")
+    fr = fr | {"allocation": alloc}
+    await asyncio.to_thread(org._put, "fund_request", fr, who)
+    person = org.get("user", fr["requested_by"]) or {}
+    label = FUND_KINDS[fr["kind"]][1] if not fr.get("ta_number") else "Travel advance"
+    subject, body = advance_flow.allocated_notice(fr, person, label, now) if ok else advance_flow.waiting_notice(fr, person, label)
+    to = list(dict.fromkeys(e for e in [person.get("email"), *[u["email"] for u in org.list("user") if u.get("active", True) and u["role"] == "super_admin"]] if e))
+    if to:
+        await asyncio.to_thread(outbox.queue, org, to=to, subject=subject, body=body, ref=number, by=who, kind="advance_allocated" if ok else "advance_waiting")
+    await asyncio.to_thread(app.state.audit.append, "advance_allocated" if ok else "advance_not_allocated",
+                            {"request": number, "green": ok, "why": why, "pay_at": alloc["pay_at"], "route": alloc["route"], "by": who})
+    return alloc
+
+
+async def _advances_due(now: datetime | None = None) -> list[dict]:
+    """The 23:59 run: every allocated advance whose payment time has come is paid (the card is created or the staff
+    card opened, and funded) and the person gets the card link. Safe mode stops it, like every automatic payment; a
+    payment that fails is tried again the next minute, three times, and then waits for a person."""
+    from . import advance_flow
+    from .continuity import guard
+
+    org = app.state.org
+    now = now or datetime.now(UTC)
+    todo = [f for f in await asyncio.to_thread(org.list, "fund_request") if advance_flow.due(f, now)]
+    if not todo:
+        return []
+    ok, why = guard.may_pay_automatically(org)
+    if not ok:
+        return [{"request": f["request_number"], "paid": False, "held": why} for f in todo]
+    out = []
+    for fr in todo:
+        num = fr["request_number"]
+        try:
+            paid = await _issue_advance_card(num, "VENTHORA (23:59 advance run)")
+            out.append({"request": num, "paid": True, "card": (paid.get("card") or {}).get("masked")})
+        except HTTPException as exc:
+            cur = org.get("fund_request", num) or fr
+            a = cur["allocation"] | {"attempts": cur["allocation"].get("attempts", 0) + 1, "error": str(exc.detail)[:200]}
+            if a["attempts"] >= advance_flow.MAX_ATTEMPTS:
+                a["status"] = "FAILED"
+            await asyncio.to_thread(org._put, "fund_request", cur | {"allocation": a}, "VENTHORA (23:59 advance run)")
+            await asyncio.to_thread(app.state.audit.append, "advance_run_failed", {"request": num, "attempt": a["attempts"], "error": a["error"]})
+            out.append({"request": num, "paid": False, "error": a["error"]})
+    return out
+
+
+async def _advance_funded(paid: dict, card: dict, who: str) -> dict:
+    """The money is on the card: the allocation is closed and the person gets the email with the link to the card."""
+    from . import advance_flow, auth, fco_notify, outbox
+    from .organisation import FUND_KINDS
+
+    org = app.state.org
+    if paid.get("allocation"):
+        paid = paid | {"allocation": paid["allocation"] | {"status": "PAID", "paid_at": paid.get("paid_at")}}
+        await asyncio.to_thread(org._put, "fund_request", paid, who)
+    person = org.get("user", paid["requested_by"]) or {}
+    if person.get("email"):
+        link = f"{_public_url()}/card-link/{advance_flow.make_link(fco_notify._secret(org), paid['request_number'])}"
+        second = await asyncio.to_thread(auth.AuthStore().totp_enabled, person["user_id"])
+        label = "Travel advance" if paid.get("ta_number") else FUND_KINDS[paid["kind"]][1]
+        subject, body = advance_flow.funded_notice(paid, person, label, card, link, second)
+        await asyncio.to_thread(outbox.queue, org, to=[person["email"]], subject=subject, body=body, ref=paid["request_number"], by=who, kind="advance_card")
+    return paid
+
+
+def _card_link_view(fr: dict, person: dict, card: dict) -> str:
+    import html as _h
+
+    until = (fr.get("card_window") or {}).get("until") or fr.get("settle_by") or "-"
+    rows = [("For", person.get("name", "")), ("Request", fr["request_number"]), ("Travel authorisation", fr.get("ta_number") or "-"), ("Purpose", fr.get("purpose", "")),
+            ("Card", f"{card.get('brand', 'VISA')} {card.get('masked', '')}"), ("May spend", f"{fr['currency']} {fr['amount_minor'] / 100:,.2f} in total"),
+            ("Until", str(until)[:10]), ("Card status", card.get("status", "-")), ("Receipts due", fr.get("settle_by") or "-")]
+    table = "".join(f"<tr><td>{_h.escape(k)}</td><td><b>{_h.escape(str(v))}</b></td></tr>" for k, v in rows if v != "-" or k in ("Until",))
+    return (f"<table>{table}</table><p class=m>Use it wherever Visa is accepted: online, or added to Airi or your phone's wallet. The full card number "
+            "is shown only in the Airwallex card app; VENTHORA never holds it. Keep every receipt: what you do not spend never leaves the company.</p>")
+
+
+async def _card_link(token: str, code: str | None) -> HTMLResponse:
+    import html as _h
+
+    from . import advance_flow, auth, fco_notify
+
+    org = app.state.org
+    number = advance_flow.read_link(await asyncio.to_thread(fco_notify._secret, org), token)
+    fr = org.get("fund_request", number) if number else None
+    if fr is None:
+        return _approve_page("Link not recognised", "<p>This link does not belong to this company.</p>", 404, head="your card")
+    card = org.get("card", fr.get("card_id") or "") or {}
+    if fr["status"] not in ("IN_PAYMENT", "SETTLED") or not card:
+        return _approve_page("No card yet", "<p>The money for this advance is not on a card yet.</p>", 409, head="your card")
+    person = org.get("user", fr["requested_by"]) or {}
+    store = auth.AuthStore()
+    gated = await asyncio.to_thread(store.totp_enabled, fr["requested_by"])
+    if gated and not (code and await asyncio.to_thread(store.totp_check, fr["requested_by"], code.replace(" ", ""))):
+        wrong = "<p class=bad>That code is not right, or it was already used. Wait for the next one.</p>" if code else ""
+        return _approve_page("Enter your authenticator code", f"""{wrong}<p>Open your authenticator app (for example Google Authenticator) and enter the six-digit code for VENTHORA.</p>
+<p><input id=c inputmode=numeric autocomplete=one-time-code maxlength=7 placeholder=000000 style="font:inherit;padding:10px 12px;border:1px solid #ccd;border-radius:9px;width:140px;letter-spacing:.15em"> <button id=b>Show my card</button></p>
+<p class=m>For {_h.escape(person.get('name', ''))}. No SMS or WhatsApp code is sent.</p>
+<script>document.getElementById("b").onclick=async()=>{{const r=await fetch(location.pathname,{{method:"POST",headers:{{"content-type":"application/json"}},body:JSON.stringify({{code:document.getElementById("c").value}})}});document.open();document.write(await r.text());document.close()}}</script>""",
+                             401 if code else 200, head="your card")
+    await asyncio.to_thread(app.state.audit.append, "card_link_opened", {"request": fr["request_number"], "second_factor": gated})
+    return _approve_page("Your card", _card_link_view(fr, person, card), head="your card")
+
+
+@app.get("/card-link/{token}", include_in_schema=False)
+async def card_link_page(token: str):
+    """The page the "money is on your card" email links to: the card, masked, what it may spend and until when. A
+    person with the second factor on is asked for the authenticator code first."""
+    return await _card_link(token, None)
+
+
+@app.post("/card-link/{token}", include_in_schema=False)
+async def card_link_code(token: str, body: Annotated[dict, Body()]):
+    return await _card_link(token, str(body.get("code") or "")[:12] or "-")
 
 
 def _flagged(req: IntakeRequest, flag: str) -> IntakeRequest:
@@ -5138,6 +5340,35 @@ async def fund_request_decide(number: str, body: PRDecisionIn, role: str = "fina
                 "decided_at": datetime.now(UTC).isoformat(timespec="seconds"), "decision_note": body.note}
     await asyncio.to_thread(org._put, "fund_request", rec, by)
     await asyncio.to_thread(app.state.audit.append, "fund_request_decided", {"request": number, "decision": body.decision, "by": by, "role": role})
+    return rec
+
+
+@app.post("/v1/fund-requests/{number}/cancel")
+async def fund_request_cancel(number: str, body: PRDecisionIn | None = None, role: str = "finance_manager", by: str = "dashboard"):
+    """The FCO cancels an approved advance before it is paid (the allocation email says when that is): nothing is paid
+    at 23:59, and the person is told."""
+    from . import outbox
+    from .organisation import FUND_KINDS
+
+    if role != "super_admin":
+        raise HTTPException(403, "only the FCO (Super admin) cancels an approved advance")
+    org = app.state.org
+    fr = org.get("fund_request", number)
+    if fr is None:
+        raise HTTPException(404, "no such request")
+    if fr["status"] != "APPROVED":
+        raise HTTPException(409, f"{number} is {fr['status'].lower()}; only an approved request that is not paid yet is cancelled")
+    note = (body.note if body else "") or "cancelled by the FCO"
+    rec = fr | {"status": "CANCELLED", "decision_note": f"{fr.get('decision_note', '')} · cancelled by {by}: {note}"[:300]}
+    if fr.get("allocation"):
+        rec["allocation"] = fr["allocation"] | {"status": "CANCELLED", "cancelled_at": datetime.now(UTC).isoformat(timespec="seconds"), "cancelled_by": by}
+    await asyncio.to_thread(org._put, "fund_request", rec, by)
+    person = org.get("user", fr["requested_by"]) or {}
+    if person.get("email"):
+        await asyncio.to_thread(outbox.queue, org, to=[person["email"]], subject=f"{FUND_KINDS[fr['kind']][1]} {number}: cancelled", ref=number, by=by, kind="advance_cancelled",
+                                body=f"Dear {person.get('name', '')},\n\n{FUND_KINDS[fr['kind']][1]} {number} ({fr['currency']} {fr['amount_minor'] / 100:,.2f}) was cancelled "
+                                     f"by {by} before it was paid: {note}.\n\nNothing was paid.\n\nFinance team")
+    await asyncio.to_thread(app.state.audit.append, "fund_request_cancelled", {"request": number, "by": by, "note": note})
     return rec
 
 
@@ -7978,7 +8209,9 @@ async def _issue_advance_card(number: str, who: str) -> dict:
     from . import card_program
 
     prog = card_program.get(org)
-    staff = card_program.staff_card(org, fr["requested_by"]) if card_program.applies(prog, fr) else None
+    # a travel advance (it carries a travel authorisation number) always goes on the person's own staff card, the
+    # card the person added to Airi; the others when the card program ticks their purpose
+    staff = card_program.staff_card(org, fr["requested_by"]) if prog["staff_cards"] and (fr.get("ta_number") or card_program.applies(prog, fr)) else None
     if staff is not None:  # the card program: the advance opens the person's own staff card for its window
         start, until = card_program.window(fr.get("decided_at") or fr.get("approved_at"), fr.get("settle_by"), prog)
         funding = await _fund_card_account(number, fr, who)
@@ -7989,7 +8222,8 @@ async def _issue_advance_card(number: str, who: str) -> dict:
                      "card_window": {"from": start, "until": until}, "paid_at": datetime.now(UTC).isoformat(timespec="seconds"), "funding": funding}
         await asyncio.to_thread(org._put, "fund_request", paid, who)
         await asyncio.to_thread(app.state.audit.append, "advance_on_staff_card", {"request": number, "card_id": staff["_id"], "from": start, "until": until, "by": who})
-        return paid | {"card": {k: staff.get(k) for k in ("_id", "masked", "brand", "status", "label")} | {"window": {"from": start, "until": until}}}
+        paid = await _advance_funded(paid, staff, who)
+        return paid |{"card": {k: staff.get(k) for k in ("_id", "masked", "brand", "status", "label")} | {"window": {"from": start, "until": until}}}
     label = f"{person.get('name') or fr['requested_by']} · {number}"
     payee = {"_id": f"fr:{number}", "name": label}
     is_travel = fr["kind"] == "cash_advance" and any(w in (fr.get("purpose", "") + fr.get("activity", "")).lower() for w in ("travel", "trip", "flight", "hotel", "transport"))
@@ -8012,16 +8246,7 @@ async def _issue_advance_card(number: str, who: str) -> dict:
     paid = fr | {"status": "IN_PAYMENT", "paid_by": "virtual_card", "card_id": rec["_id"], "card_masked": rec.get("masked"),
                  "paid_at": datetime.now(UTC).isoformat(timespec="seconds"), "funding": funding}
     await asyncio.to_thread(org._put, "fund_request", paid, who)
-    if person.get("email"):
-        from . import outbox
-
-        await asyncio.to_thread(outbox.queue, org, to=[person["email"]], subject=f"{FUND_KINDS[fr['kind']][1]} {number}: your virtual card", ref=number, by=who,
-                                kind="advance_card",
-                                body=(f"Dear {person.get('name', '')},\n\nYour {FUND_KINDS[fr['kind']][1].lower()} {number} ({fr['purpose']}) is ready as a virtual Visa card "
-                                      f"ending {str(rec.get('masked') or '')[-4:]}.\n\nIt can spend {fr['currency']} {fr['amount_minor'] / 100:,.2f} in total"
-                                      + (f", until {fr['settle_by']}" if fr.get("settle_by") else "") + ". Use it online by its number, or add it to your phone's wallet to "
-                                      "tap at a terminal. Keep every receipt: what you do not spend is never taken from the company.\n\n"
-                                      "The card number is never sent by email: open it in the card app.\n\nFinance team"))
+    paid = await _advance_funded(paid, rec, who)  # the email with the link to the card
     await asyncio.to_thread(app.state.audit.append, "advance_card_issued", {"request": number, "card_id": rec["_id"], "amount_minor": fr["amount_minor"],
                                                                           "currency": fr["currency"], "by": who})
     return paid | {"card": {k: rec.get(k) for k in ("_id", "masked", "brand", "status", "purpose", "active_to", "all_time_minor")}}
@@ -10330,7 +10555,7 @@ async def airwallex_stop_acting(role: str = "finance_manager", by: str = "dashbo
 AUTH_OPEN_EXACT = {"/", "/index.html", "/health", "/favicon.ico", "/v1/tenant", "/v1/tenant/summary", "/v1/auth/login",
                    "/v1/auth/accept", "/v1/auth/platform-invite", "/v1/auth/platform-lookup", "/v1/platform/company-profile", "/v1/platform/mailbox-owner", "/v1/platform/mail-oauth", "/oauth/mail/callback",
                    "/v1/visa/tap/keys.json"}
-AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/",
+AUTH_OPEN_PREFIX = ("/v1/auth/invite/", "/webhooks/", "/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/", "/card-link/",
                     "/demo/legacy-erp/")  # the stand-in ERP plays an outside system: it checks its own X-Legacy-Key, not a sign-in
 
 

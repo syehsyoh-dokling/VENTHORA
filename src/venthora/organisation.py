@@ -209,6 +209,7 @@ class FundRequest(BaseModel):
     intake_id: str | None = None
     settled_minor: int | None = Field(default=None, ge=0, le=10**12, description="receipts accounted for at settlement")
     settlement_note: str = Field(default="", max_length=300)
+    ta_number: str | None = Field(default=None, pattern=r"^[A-Z0-9][A-Z0-9/-]{2,30}$", description="a travel advance: its travel authorisation (travel clearance) number")
 
     @field_validator("currency")
     @classmethod
@@ -665,8 +666,14 @@ class OrgStore:
                 prefix, year = FUND_KINDS[data["kind"]][0], datetime.now(UTC).strftime("%Y")
                 taken = {r[idf] for r in self.list(kind)}
                 data[idf] = next(f"{prefix}-{year}-{n:04d}" for n in range(1, 100_000) if f"{prefix}-{year}-{n:04d}" not in taken)
-            if not data.get("payee_id") and data["kind"] != "odc":  # an advance or a float is paid to the person's own account
-                data["payee_id"] = (self.get("user", data["requested_by"]) or {}).get("payee_id")
+            if not data.get("payee_id") and data["kind"] != "odc":
+                # an advance or a float is paid to the person's own account when that account is in the advance's
+                # currency; in another currency it has no account of its own and is paid on a card
+                from .intake.pipeline import Registry
+
+                own = (self.get("user", data["requested_by"]) or {}).get("payee_id")
+                ccy = (Registry().payees.get(own or "") or {}).get("currency")
+                data["payee_id"] = own if own and (not ccy or ccy == data["currency"]) else None
         if kind in ("pr", "receipt", "ta") and not data.get(idf):
             prefix, year = {"pr": "PR", "receipt": "RC", "ta": "TA"}[kind], datetime.now(UTC).strftime("%Y")
             taken = {r[idf] for r in self.list(kind)}

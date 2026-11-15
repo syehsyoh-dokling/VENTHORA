@@ -92,6 +92,7 @@ DOCS: dict[tuple[str, str], tuple[str, str]] = {
     ("POST", "/v1/intake/requests/{intake_id}/pay"): ("Correct and pay", "Save, check again, approve as this person and pay through the treasury proof."),
     ("GET", "/v1/fund-requests"): ("List cash advances, petty cash and ODC", "Requests with the person, payee, decision, payment order and settlement."),
     ("POST", "/v1/fund-requests/{number}/decision"): ("Decide a cash advance, petty cash or ODC request", "Never by the person asking; within the approver's limit."),
+    ("POST", "/v1/fund-requests/{number}/cancel"): ("Cancel an approved advance", "The FCO cancels an approved, allocated advance before its payment time; nothing is paid at 23:59 and the person is told."),
     ("POST", "/v1/fund-requests/{number}/pay"): ("Send a request for payment", "A payment order to its payee in Pending payment, through the usual checks."),
     ("POST", "/v1/fund-requests/{number}/settle"): ("Settle an advance or a float", "Against its receipts: what is left is returned, what is over is reimbursed."),
     ("GET", "/v1/intake/travel-authorisations"): ("List travel authorisations", "Approved trips: traveller, route, dates, estimate, approver and source."),
