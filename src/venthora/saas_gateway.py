@@ -45,7 +45,7 @@ PAGE = Path(__file__).with_name("dashboard") / "platform.html"
 LOGIN_PAGE = Path(__file__).with_name("dashboard") / "login.html"
 # reached from outside with no browser cookie, each owned by one company (see find_owner)
 PUBLIC_PREFIXES = ("/rfq/", "/vendor-details/", "/pay-sim/", "/developers", "/.well-known/", "/approve/", "/card-link/")
-PUBLIC_EXACT = ("/webhooks/xendit", "/webhooks/airwallex/remote-auth", "/webhooks/ses")
+PUBLIC_EXACT = ("/webhooks/xendit", "/webhooks/midtrans", "/webhooks/airwallex/remote-auth", "/webhooks/ses")
 
 
 def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
