@@ -292,6 +292,28 @@ Seven tabs:
 - **6 · Petty cash / slush fund**: a float held by a custodian for small office expenses, and each top-up of it.
 - **7 · Other direct cost (ODC)**: costs of a programme activity that belong to no other category.
 
+**Requests by email.** An email that asks for cash or for a purchase is not a bill: it is **FILED** in Intake under
+the number of the request it became, and continues in its own process.
+
+- *Only the organisation's own email.* A request for cash (advance, travel advance, petty cash, slush fund, ODC) from
+  an address that is not a registered person is rejected as it stands.
+- *Two ways to approve.* The FCO's own email naming the person approves it. So does a registered person's email that
+  forwards the FCO's approval: only the FCO's own words count, and a sentence that takes the approval back ("not yet
+  approved", a question, a line the FCO only quoted) approves nothing. Without either, the request waits for a decision.
+- *Numbers.* No purchase request or purchase order is needed. The request number the email states is kept
+  ("Advance request no: CA-2026-0144"); without one VENTHORA numbers it. A travel advance carries its Travel
+  Authorisation (Travel Clearance) number the same way.
+- *Allocated, then paid at 23:59.* An approved advance is set aside when it is green: the money above the reserve
+  floor, after what falls due inside the planning horizon and what was already promised to other advances, covers it.
+  The person and the FCO get one email: allocated, paid at 23:59 company time, in so many hours. The FCO can cancel it
+  until then (Cash advance → Cancel). When it is not green, both are told why and nothing is promised.
+- *The card.* At 23:59 the card is created (or the person's staff card opened) and funded, once however often the run
+  retries, and the person gets a second email with the link to the card. A travel advance goes on the person's own
+  staff card, the card the person adds to Airi, when the card program has staff cards on.
+- *The card link.* It shows the card (masked number, what it may spend, until when). A person who turned on the second
+  factor is asked for the code from their authenticator app first; VENTHORA sends no SMS or WhatsApp code. The code a
+  card network asks for when shopping online is the card issuer's, not VENTHORA's.
+
 ### 5.3 Commitment
 
 Read only. Five tabs: **1 · Vendors**, **2 · Consultants**, **3 · One-off engagements**, **4 · Customers & receivables**,
@@ -347,21 +369,62 @@ destinations, in menu order:
 
 ## Step 7: Procurement Process
 
+One number runs through all of it: the purchase request (PR). Everything below hangs on that number, and the purchase
+order number it ends in is the one the supplier's invoice quotes, so the invoice arrives in Payment → Intake against
+the same PR and PO.
+
+A purchase request can also start from an email (see *Requests by email* under 5.2): from a registered person it is
+submitted; from the FCO, or with the FCO's approval forwarded in it, it is approved. It keeps the PR number the email
+states, or gets VENTHORA's own.
+
 ### 7.1 Vendor Sourcing
 
-Three quotations for every purchase request. Pick a purchase request from Intake: the agent looks for vendors that sell
-what it asks for. Nothing is sent by finding: you choose the vendors and send the request for quotation.
+One row per purchase request, with every vendor asked and everything that happened. The request's own lines (what, how
+many, brand, specifications, needed by) become the request for quotation. The agent looks for at least **five**
+relevant vendors, in this order: the **preferred vendors** that fit (7.2), the registered vendors, and only for what
+is missing to five, the web (the demo directory in demo mode). Each invited vendor gets its own form link. Open a
+request to see *Everything on this PR*: each RFQ sent, each quotation received, the award, the winner's announcement
+and the regret letters, with their times.
 
-### 7.2 Quotation
+### 7.2 Preferred Vendor
 
-Every quotation, one row per vendor, grouped by purchase request. A person approves one quotation: the recommended one,
-or another with the reason.
+Every supplier that has sent a quotation, each with its own number (`PV-0001` ...). A vendor enters the list with its
+first quotation, whether it wins or not; later quotations bring its record up to date: what it quoted for, what it
+won, and how complete its administration was. These vendors are asked first on the next request that fits.
 
-### 7.3 Shortlist
+### 7.3 Quotation
 
-At most three vendors per purchase request, best first, each with its justification. **Select** raises the PO.
+Every quotation, grouped by purchase request, with a **ranking** and a **conclusion** on top:
 
----
+- the ranking orders the quotations on three things: the specifications met (a quotation that misses one never beats
+  one that meets them all, whatever its price), the price among those, and the administration (legal name,
+  registration, tax id, contact, address, bank account, quotation document, payment terms: 11 points, with what is
+  missing named);
+- the conclusion says where the request stands: **Winner decided**, **Ready for the award**, **Needs a person** (with
+  the reason: nobody meets every specification, fewer than three quotations, or the winner is above the approved
+  estimate), or **Waiting for quotations**.
+
+When every invited vendor has answered, or the deadline has passed, the agent applies the rule by itself: the cheapest
+quotation that meets every specification wins. It never awards on fewer than three quotations, above the estimate, or
+when nobody meets the specifications: those go to a person, by email, with the closest quotation and why.
+
+### 7.4 Shortlist
+
+At most three vendors per purchase request, best first, each with its justification. **Select** is a person's award:
+the recommended quotation, or another with a written reason. Never by the person who asked.
+
+### 7.5 Vendor List
+
+The winners, and where each purchase stands. The **PO threshold** on this page decides the paper: a purchase at or
+above it gets a **draft purchase order** (open it from the row: buyer, supplier, the line, the terms, who authorised
+it; print it or save it as a PDF); one below it is a **direct purchase**, announced to the winner with the same
+reference. Each row shows the steps: winner announced, order, supplier details and bank account, invoice received,
+paid, with a link to the requests in Intake on that PO number.
+
+The winner completes its details on its own form (the link is in the announcement and works for 30 days): company,
+bank account (checked with the bank at once), the delivery date, and the invoice. An invoice that matches the order
+goes through the usual intake checks and is payable under the mandate; one that differs, in amount or delivery date,
+is held for a person before anything can pay it.
 
 ## Step 8: Reporting
 
@@ -413,3 +476,18 @@ Tools: **API Catalog**, **Local model (vLLM)**, **Server health**, **Data reset*
 
 Shown in demo mode only ("Until Demo Day"), in menu order: **Workflow**, **Autopilot Console**, **Checks & resilience**,
 **Hackathon evidence**, **Sandbox simulator**, **Test log**.
+
+---
+
+## C. Continuity, security and standards
+
+- **Continuity** (link beside *Second factor* in the sidebar, `/continuity`): whether this server may pay and why,
+  **safe mode** (the FCO stops every automatic payment with a reason: the scheduled run, payment on arrival, the
+  autopilot, the 23:59 advance run), the writer lease, and the standby. On a one-server deployment the standby actions
+  answer plainly that no standby is connected. Design and limits: `docs/CONTINUITY.md`.
+- **Second factor** (`/security`): a code from an authenticator app after the password.
+- **Who acts.** With sign-in on, the signed-in person's own name and role are used for every approval, whatever a
+  request claims; only a finance role runs a plan on the bank; nobody decides their own request.
+- **Standards.** ISO 4217 decides the decimals of an amount (no decimals for JPY, two for most, three kept to two for
+  BHD and KWD); a day's payments as ISO 20022 `pain.001`, a `camt.053` statement reconciled (Reporting).
+- **What was checked and what is still open**: `docs/QA_REPORT_2026-11-15.md`.

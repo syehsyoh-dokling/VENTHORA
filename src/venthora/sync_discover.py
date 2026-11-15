@@ -334,8 +334,12 @@ async def discover(raw: dict, model=None, client=None) -> dict:
 
     import httpx
 
+    from . import net_guard
+
     own = client is None
-    client = client or httpx.AsyncClient(timeout=20, follow_redirects=True)
+    if own:
+        net_guard.check_url(raw["base_url"])
+    client = client or httpx.AsyncClient(timeout=20)  # no redirects: the address that was checked is the address reached
     base, headers = raw["base_url"].rstrip("/"), headers_for(raw)
     result: dict = {"openapi": None, "entities": {}, "push": {}, "ai_errors": []}
     try:

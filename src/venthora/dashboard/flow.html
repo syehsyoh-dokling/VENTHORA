@@ -139,36 +139,36 @@ body:not(.ctl-on) #stage{cursor:none}
 
   <!-- row 1: the mandate -->
   <div class="node" id="mandate" style="left:60px;top:140px;width:380px;height:250px">
-    <div class="k">Platform Setup · Required<a class="go" href="/#/airwallex" title="Open Platform Setup">Go to ›</a></div>
+    <div class="k">Step 1 · Platform Setup<a class="go" href="/#/airwallex" title="Open Platform Setup">Go to ›</a></div>
     <h3>Connect once</h3>
     <ul>
-      <li><a class="to" href="/#/airwallex">Go to <b>Airwallex Global Account</b></a></li>
-      <li><a class="to" href="/#/integrations">Go to <b>Airwallex webhooks</b></a></li>
-      <li><a class="to" href="/#/ai">Go to <b>Agent (AI &amp; Model)</b></a></li>
-      <li><a class="to" href="/#/sources-email">Go to <b>Email Sync</b></a></li>
-      <li><a class="to" href="/#/readiness">Go to <b>Setup Checklist</b></a></li>
+      <li><a class="to" href="/#/airwallex">1.1 <b>Airwallex Global Account</b></a></li>
+      <li><a class="to" href="/#/ai">1.2 <b>Agent (AI &amp; Model)</b></a></li>
+      <li><a class="to" href="/#/sources-email">1.3 <b>Email Sync</b></a></li>
+      <li><a class="to" href="/#/readiness">1.4 <b>Setup Checklist</b></a></li>
+      <li><a class="to" href="/#/api-access">1.5 <b>App Integration</b></a> · <a class="to" href="/#/cards">1.6 <b>Cards</b></a></li>
     </ul>
   </div>
   <div class="node g" id="laneG" style="left:480px;top:140px;width:440px;height:250px">
-    <div class="k">System Setting · Required<a class="go" href="/#/standards" title="Open System Setting">Go to ›</a></div>
+    <div class="k">Step 2 · FCO Authorize<a class="go" href="/#/mandate" title="Open FCO Authorize">Go to ›</a></div>
     <h3>The rules the agent works under</h3>
     <ul>
-      <li><a class="to" href="/#/standards">Go to <b>Finance standards</b></a></li>
-      <li><a class="to" href="/#/mandate">Go to <b>Delegation of Authority</b></a>: alone up to <b>USD 10,000</b></li>
-      <li><a class="to" href="/#/budget-policy">Go to <b>Period, cut-off &amp; sync</b></a></li>
-      <li><a class="to" href="/#/doc-rules">Go to <b>Document validation</b></a></li>
-      <li><a class="to" href="/#/priority-sop">Go to <b>Payment Priority Policy</b></a></li>
+      <li><a class="to" href="/#/mandate">2.1 <b>Delegation of Authority</b></a>: alone up to <b>USD 10,000</b></li>
+      <li><a class="to" href="/#/priority-sop">2.2 <b>Payment Priority Policy</b></a></li>
+      <li><a class="to" href="/#/standards">2.3 <b>Finance standards</b></a></li>
+      <li><a class="to" href="/#/budget-policy">2.6 <b>Period, cut-off &amp; sync</b></a></li>
+      <li><a class="to" href="/#/doc-rules">2.7 <b>Document validation</b></a></li>
     </ul>
   </div>
   <div class="node a" id="laneA" style="left:950px;top:140px;width:440px;height:250px">
-    <div class="k">Data integration<a class="go" href="/#/api-access" title="Open App Integration">Go to ›</a></div>
+    <div class="k">Steps 3–4 · Data, Users &amp; Beneficiaries<a class="go" href="/#/sources-upload" title="Open Dataset upload">Go to ›</a></div>
     <h3>Your organisation's data</h3>
     <ul>
-      <li><a class="to" href="/#/api-access">Go to <b>App Integration</b></a>: sync from your ERP</li>
-      <li><a class="to" href="/#/sources-upload">Go to <b>Dataset upload</b></a>: CSV, Excel, PDF</li>
-      <li><a class="to" href="/#/offices">Go to <b>Offices &amp; units</b></a></li>
-      <li><a class="to" href="/#/users">Go to <b>People &amp; roles</b></a></li>
-      <li><a class="to" href="/#/vendors">Go to <b>Vendors</b></a>, POs and contracts</li>
+      <li><a class="to" href="/#/sources-upload">3.1 <b>Dataset upload</b></a>: CSV, Excel, PDF, or sync from your ERP</li>
+      <li><a class="to" href="/#/offices">4.1 <b>Offices &amp; units</b></a></li>
+      <li><a class="to" href="/#/users">4.2 <b>People &amp; roles</b></a></li>
+      <li><a class="to" href="/#/vendors">4.4 <b>Vendors</b></a>, POs and contracts</li>
+      <li><a class="to" href="/#/payee-lifecycle">4.6 <b>Payee lifecycle</b></a></li>
     </ul>
   </div>
   <div class="node u" id="laneU" style="left:1420px;top:140px;width:440px;height:250px">
@@ -179,13 +179,13 @@ body:not(.ctl-on) #stage{cursor:none}
       <li>Never cross the reserve floor</li>
       <li>Act only on evidence it can quote word for word</li>
       <li>Pay only within the contract, reconcile every payment</li>
-      <li>FX open position and hedge ratio within limits</li>
+      <li>Only one server pays; <b>safe mode</b> stops every automatic payment</li>
     </ul>
   </div>
 
   <!-- row 2: money in, then the daily pipeline -->
   <div class="node e" id="fund" style="left:60px;top:460px;width:270px;height:230px">
-    <div class="k">Fund the account<a class="go" href="/#/fund" title="Open Top up the balance">Go to ›</a></div>
+    <div class="k">5.5 · Balance received<a class="go" href="/#/receiving" title="Open Balance received">Go to ›</a></div>
     <h3>Money into Airwallex</h3>
     <ul>
       <li>From the company bank</li>
@@ -196,7 +196,7 @@ body:not(.ctl-on) #stage{cursor:none}
     <div class="outside">Outside VENTHORA · at your bank</div>
   </div>
   <div class="node g" id="budget" style="left:366px;top:460px;width:270px;height:230px">
-    <div class="k">Budget allocation<a class="go" href="/#/allocation" title="Open Budget allocation">Go to ›</a></div>
+    <div class="k">5.6 · Budget allocation<a class="go" href="/#/allocation" title="Open Budget allocation">Go to ›</a></div>
     <h3>Money to its use</h3>
     <ul>
       <li>By charge code</li>
@@ -206,17 +206,17 @@ body:not(.ctl-on) #stage{cursor:none}
     </ul>
   </div>
   <div class="node" id="sources" style="left:672px;top:460px;width:280px;height:230px">
-    <div class="k">Intake<a class="go" href="/#/intake" title="Open Intake">Go to ›</a></div>
+    <div class="k">5.2 · Intake<a class="go" href="/#/intake" title="Open Intake">Go to ›</a></div>
     <h3>Every channel</h3>
     <ul>
-      <li>Email Sync: invoices@, pay@</li>
-      <li>Purchase request → <b>RFQ</b> → PO</li>
-      <li>Payroll, cash advance, travel</li>
-      <li>API (App Integration)</li>
+      <li>Invoices by email, upload, API</li>
+      <li>Purchase request → <b>5 vendors</b> → award → PO</li>
+      <li>Cash advance by email → <b>paid 23:59</b> on a card</li>
+      <li>Payroll, travel, consultants</li>
     </ul>
   </div>
   <div class="node" id="verify" style="left:988px;top:460px;width:270px;height:230px">
-    <div class="k">Verify<a class="go" href="/#/payee-lifecycle" title="Open Payee lifecycle">Go to ›</a></div>
+    <div class="k">Verify · 4.6 Payee lifecycle<a class="go" href="/#/payee-lifecycle" title="Open Payee lifecycle">Go to ›</a></div>
     <h3>Evidence first</h3>
     <ul>
       <li>Document validation</li>
@@ -226,7 +226,7 @@ body:not(.ctl-on) #stage{cursor:none}
     </ul>
   </div>
   <div class="node" id="forecast" style="left:1294px;top:460px;width:260px;height:230px">
-    <div class="k">72-hour view<a class="go" href="/#/overview" title="Open the Dashboard">Go to ›</a></div>
+    <div class="k">Step 9 · Dashboard<a class="go" href="/#/overview" title="Open the Dashboard">Go to ›</a></div>
     <h3>Cash ahead</h3>
     <ul>
       <li>Due in the next 72 hours</li>
@@ -235,7 +235,7 @@ body:not(.ctl-on) #stage{cursor:none}
     </ul>
   </div>
   <div class="node" id="plan" style="left:1590px;top:460px;width:270px;height:230px">
-    <div class="k">Agent plan<a class="go" href="/#/agent-plan" title="Open Agent plan">Go to ›</a></div>
+    <div class="k">5.1 · Agent plan<a class="go" href="/#/agent-plan" title="Open Agent plan">Go to ›</a></div>
     <h3>Next 72 hours</h3>
     <ul>
       <li>In the Payment Priority order</li>
@@ -246,7 +246,7 @@ body:not(.ctl-on) #stage{cursor:none}
 
   <!-- row 3: decide and pay, read right to left -->
   <div class="node u" id="prove" style="left:1560px;top:750px;width:300px;height:204px">
-    <div class="k">Prove · Pending payment<a class="go" href="/#/pending" title="Open Pending payment">Go to ›</a></div>
+    <div class="k">5.4 · Pending payment<a class="go" href="/#/pending" title="Open Pending payment">Go to ›</a></div>
     <h3>Before money moves</h3>
     <ul>
       <li>Two policy engines agree</li>
@@ -272,7 +272,7 @@ body:not(.ctl-on) #stage{cursor:none}
     </ul>
   </div>
   <div class="node x" id="awx" style="left:620px;top:750px;width:440px;height:204px">
-    <div class="k">Executions · Airwallex<a class="go" href="/#/executions" title="Open Executions">Go to ›</a></div>
+    <div class="k">5.7 · Executions · Airwallex<a class="go" href="/#/executions" title="Open Executions">Go to ›</a></div>
     <h3>Your wallet: USD · EUR · GBP</h3>
     <ul class="rail">
       <li>FX quote<small>live rate</small></li><li class="sep">→</li>
@@ -292,11 +292,11 @@ body:not(.ctl-on) #stage{cursor:none}
     </ul>
   </div>
   <div class="node o" id="control" style="left:60px;top:750px;width:250px;height:204px">
-    <div class="k">Reporting<a class="go" href="/#/payment-reports" title="Open Total Spending">Go to ›</a></div>
+    <div class="k">Step 8 · Reporting<a class="go" href="/#/payment-reports" title="Open Total Spending">Go to ›</a></div>
     <h3><span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>CFO monitors</h3>
     <ul>
       <li>Total Spending, 01–10</li>
-      <li>Contract chain on Metal</li>
+      <li>Contract chain on Alta</li>
       <li>Audit trail, unalterable</li>
     </ul>
   </div>
@@ -304,7 +304,7 @@ body:not(.ctl-on) #stage{cursor:none}
   <div id="cap"><div id="capNum">·</div><div id="capText"></div><div id="bar"></div></div>
 
   <div class="card" id="title"><div><h2>How VENTHORA works</h2><p>From setup to books reconciled on Airwallex</p></div></div>
-  <div class="card off" id="end"><div><h2>VENTHORA</h2><p>You Set the Mandate. Your Agent Manages the Money.</p><span class="badge">Live on the Airwallex sandbox · Visa · Metal · Claude</span></div></div>
+  <div class="card off" id="end"><div><h2>VENTHORA</h2><p>You Set the Mandate. Your Agent Manages the Money.</p><span class="badge">Live on the Airwallex sandbox · Visa · Alta · Claude</span></div></div>
 </div>
 
 <script>
@@ -331,13 +331,13 @@ const WIRES=[
  ["rC",["recon","l",.5],["control","r",.5],"g"],
 ];
 const STEPS=[
- {show:["mandate"],cap:"First, Platform Setup: connect or create the Airwallex Global Account, turn on webhooks, choose the AI model, connect the mailboxes, run the Setup Checklist."},
- {show:["laneG"],wires:["mG"],cap:"Then System Setting: finance standards, the Delegation of Authority (what the agent may pay alone), the period, document rules and the payment priority."},
- {show:["laneA"],wires:["mA"],cap:"Bring in your data: sync it from your ERP with App Integration, or upload a dataset of offices, people and roles, vendors, POs, contracts and budgets."},
- {show:["laneU"],wires:["mU"],cap:"Some rules can never be switched off: no double payments, no crossing the reserve, no action without evidence."},
- {show:["fund"],wires:["mF"],cap:"Fund the account, outside VENTHORA: transfer from the company bank to the Airwallex Global Account. VENTHORA counts a deposit only once Airwallex says SETTLED."},
+ {show:["mandate"],cap:"Step 1, Platform Setup: connect or create the Airwallex Global Account, choose the AI model, connect the mailboxes, run the Setup Checklist."},
+ {show:["laneG"],wires:["mG"],cap:"Step 2, FCO Authorize: the Delegation of Authority (what the agent may pay alone), the Payment Priority Policy, finance standards, the period and the document rules."},
+ {show:["laneA"],wires:["mA"],cap:"Steps 3 and 4, your data: upload a dataset or sync it from your ERP, then offices, people and roles, vendors and the payee lifecycle."},
+ {show:["laneU"],wires:["mU"],cap:"Some rules can never be switched off: no double payments, no crossing the reserve, no action without evidence, and only one server pays."},
+ {show:["fund"],wires:["mF"],cap:"Step 5, Payment. Balance received: money reaches the Airwallex Global Account from the company bank or a customer. VENTHORA counts it only once Airwallex says SETTLED."},
  {show:["budget"],wires:["fB"],cap:"Allocate the budget: by charge code and by project, with alert thresholds. Idle cash above what is needed can be placed, with four-eyes approval."},
- {show:["sources"],wires:["bS"],cap:"Every day, requests arrive in Intake: invoices by email, purchase requests that become RFQs and POs, payroll, cash advances, travel and the API."},
+ {show:["sources"],wires:["bS"],cap:"Every day, requests arrive in Intake: invoices by email, purchase requests that go to five vendors and are awarded by rule, cash advances paid at 23:59 on a card, payroll and travel."},
  {show:["verify"],wires:["s1"],cap:"VENTHORA checks the documents, uses only what it can quote word for word, and holds any payee whose bank details changed until a call-back."},
  {show:["forecast"],wires:["s2"],cap:"It looks 72 hours ahead: what falls due, what customers are expected to pay, and the balance left after every commitment."},
  {show:["plan"],wires:["s3"],cap:"The agent plans in the order of the Payment Priority Policy: a Visa merchant by virtual card, anyone else by transfer. Planned in under 0.1 seconds."},
@@ -350,7 +350,7 @@ const STEPS=[
  {focus:["awx"],reveal:["incLine"],cap:"If a payout fails after it leaves, the same agent handles the incident: wait, replace it under the same invoice lock, or escalate."},
  {focus:["awx","forecast"],wires:["loop"],cap:"New information changes the plan. A customer payment counts only when Airwallex confirms it SETTLED, then VENTHORA re-plans."},
  {show:["recon"],wires:["xR"],cap:"In Books & ledger every wallet movement is matched to the book, to the cent; a mismatch locks the book. The period closes and the journal goes to accounting."},
- {show:["control"],wires:["rC"],cap:"The CFO follows it all in Reporting and the Dashboard: Total Spending, reports 01 to 10, and every contract's hash chain, anchored on Metal."},
+ {show:["control"],wires:["rC"],cap:"Step 8, Reporting, and Step 9, the Dashboard: Total Spending, reports 01 to 10, and every contract's hash chain, anchored on Alta."},
  {all:1,reveal:["verdictPills","incLine"],cap:"You set the mandate. Your agent manages the money: planned, proved, paid on Airwallex and reconciled to the cent."},
 ];
 const q=new URLSearchParams(location.search);

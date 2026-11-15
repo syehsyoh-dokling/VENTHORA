@@ -48,6 +48,10 @@ def _ccy(v: str) -> str:
     v = v.upper()
     if not CCY.match(v):
         raise ValueError("a currency is a three-letter ISO code")
+    from .iso4217 import FOUR
+
+    if v in FOUR:
+        raise ValueError(f"{v} is a unit of account (ISO 4217, four decimals): it is not a currency a payment is made in")
     return v
 
 

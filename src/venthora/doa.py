@@ -597,10 +597,6 @@ def approve_register(org, period: str, step: str, by: str, role: str) -> dict:
     return rec
 
 
-def _previous_register(org, period: str) -> dict | None:
-    done = sorted((r for r in org.list("payroll_register") if r["status"] == "approved" and r["period"] < period), key=lambda r: r["period"])
-    return done[-1] if done else None
-
 
 # -- the verdict ------------------------------------------------------------------------------------------------------
 def evaluate(org, payee_status, payees: dict, today: dt.date) -> list[dict]:

@@ -31,8 +31,6 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from .config import data_path
 
 CCY = re.compile(r"^[A-Z]{3}$")
-SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{1,60}$")
-
 
 def _ccy(v: str) -> str:
     v = (v or "").strip().upper()

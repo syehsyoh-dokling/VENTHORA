@@ -22,12 +22,14 @@ TABS = [  # (tab, path prefixes), first match wins
                "/v1/visa", "/v1/metal")),
     ("Funding", ("/api/sandbox/deposits", "/v1/airwallex/global-accounts", "/v1/treasury", "/v1/cash-placement")),
     ("Procurement", ("/v1/procurement", "/v1/purchase-requests", "/rfq/", "/vendor-details/")),
+    ("Continuity", ("/v1/continuity",)),
     ("Invoices & intake", ("/v1/intake", "/webhooks/email", "/v1/exceptions")),
     ("Payments", ("/v1/agent-plan", "/v1/executions", "/v1/plans", "/v1/payment", "/v1/fund-requests/{n}/pay")),
-    ("Advances & cards", ("/v1/fund-requests", "/v1/cards", "/pay-sim/")),
+    ("Advances & cards", ("/v1/fund-requests", "/v1/cards", "/pay-sim/", "/card-link/")),
     ("Reports", ("/v1/reports", "/v1/reporting", "/v1/metal/anchor")),
 ]
-SKIP = ("/v1/demo/testlog", "/api/stream")
+# never recorded: the log itself, the live stream, and the mail provider's delivery notices (one per email sent: noise, not a step of the run)
+SKIP = ("/v1/demo/testlog", "/api/stream", "/webhooks/ses")
 SUMMARY_KEYS = ("pr_number", "po_id", "request_number", "intake_id", "invoice_no", "status", "decision", "verdict", "kind", "masked", "card_masked",
                 "vendor", "vendor_id", "cand_id", "account_id", "cardholder_id", "id", "action", "sent", "created", "submitted", "settled_minor",
                 "amount_minor", "currency", "flags", "detail", "message")
@@ -63,6 +65,8 @@ def tab_of(method: str, path: str) -> str:
 def channel_of(path: str, headers, role: str | None) -> str:
     if path.startswith(("/rfq/", "/vendor-details/")):
         return "vendor's form"
+    if path.startswith("/card-link/"):
+        return "card link"
     if path.startswith("/pay-sim/"):
         return "phone pay simulator"
     if path in ("/webhooks/email", "/v1/intake/emails"):
@@ -111,19 +115,69 @@ def record(org, *, method: str, path: str, query: str, status: int, ms: int, rol
     s = session(org)
     if not s.get("active"):
         return
-    if path.startswith(("/approve/", "/rfq/", "/vendor-details/", "/v1/auth/invite/")):  # a link's token is its key: never written down
+    if path.startswith(("/approve/", "/rfq/", "/vendor-details/", "/v1/auth/invite/", "/card-link/")):  # a link's token is its key: never written down
         path = path.rsplit("/", 1)[0] + "/••••" if path.count("/") >= 2 else path
     local, utc = processlog.local_now(org)
     req = processlog.scrub(processlog.parse(req_body))
     resp = processlog.parse(body) if "json" in (ctype or "") else {}
     try:
-        line = processlog.describe(method, path, req, resp, status)
+        line = own_line(method, path, req, resp, status) or processlog.describe(method, path, req, resp, status)
     except Exception:  # noqa: BLE001 - a sentence that cannot be made never loses the entry
         line = f"{processlog.page_of(path)} · {method} {path}"
     entry = {"_id": f"{int(time.time() * 1000):013d}-{uuid.uuid4().hex[:6]}", "run": s.get("run"), "scenario": s.get("scenario"), "at": utc,
              "local_at": local, "tab": tab_of(method, path), "method": method, "path": path, "query": _clean_query(query), "status": status, "ms": ms,
              "actor": f"{by} ({role})" if by and role else (role or by or "-"), "channel": channel, "result": summary(body, ctype), "line": line}
     org._put(KIND, entry, "test log")
+
+
+def _filed(resp: dict) -> str | None:
+    flag = next((x for x in resp.get("flags") or [] if str(x).startswith(("purchase_request", "fund_request"))), None)
+    if not flag:
+        return None
+    what, _, rest = str(flag).partition(":")
+    words = what.replace("_", " ")
+    if what.endswith("rejected") or what.endswith("refused"):
+        return f"Email · {words}: {rest.strip()[:140]}"
+    return f"Email · became {words} {rest.strip()}"
+
+
+def own_line(method: str, path: str, req: dict, resp: dict, status: int) -> str | None:
+    """The sentence for the steps a general description says too little about: an email that became a request, the
+    procurement decision, an advance's allocation and card, safe mode. None: the general description is used."""
+    if status >= 400 or not isinstance(resp, dict):
+        return None
+    money = lambda m, c: f"{c} {m / 100:,.2f}"  # noqa: E731
+    if path in ("/v1/intake/emails", "/webhooks/email"):
+        return _filed(resp)
+    if path.startswith("/v1/procurement/") and path.endswith("/demo-replies"):
+        d = resp.get("decision") or {}
+        n = path.split("/")[3]
+        tail = {"award": f"awarded to {d.get('vendor')} · {d.get('po_id')}", "person": "needs a person: " + str(d.get("reason", ""))[:120],
+                "wait": "waiting: " + str(d.get("reason", ""))[:100]}.get(d.get("action"), "")
+        return f"Procurement · {n}: {len(resp.get('submitted') or [])} demo vendor(s) sent a quotation" + (f"; {tail}" if tail else "")
+    if path.startswith("/v1/procurement/") and path.endswith("/award"):
+        return f"Procurement · {path.split('/')[3]} awarded to {resp.get('vendor')} · {resp.get('po_id')} · {money(resp.get('total_minor', 0), resp.get('currency', ''))}"
+    if path == "/v1/procurement/settings":
+        return f"Procurement · PO threshold set to {money(resp.get('po_threshold_minor', 0), resp.get('po_threshold_currency', ''))}"
+    if path.startswith("/vendor-details/"):
+        inv = resp.get("invoice") or {}
+        return f"Vendor's form · details received, bank check {resp.get('bank_check') or '-'}" + (f"; invoice {inv.get('status')}" if inv else "")
+    if path.startswith("/v1/fund-requests/") and path.endswith("/cancel"):
+        return f"Cash advance · {path.split('/')[3]} cancelled before it was paid"
+    if path.startswith("/v1/fund-requests/") and path.endswith("/card"):
+        card = resp.get("card") or {}
+        return f"Cash advance · {path.split('/')[3]} paid on card {str(card.get('masked') or resp.get('card_masked') or '')[-4:]} · {money(resp.get('amount_minor', 0), resp.get('currency', ''))}"
+    if path.startswith("/v1/fund-requests/") and path.endswith("/decision"):
+        a = resp.get("allocation") or {}
+        return (f"Cash advance · {path.split('/')[3]} {str(resp.get('status', '')).lower()}"
+                + (f"; allocated, paid at {str(a.get('pay_at'))[:16].replace('T', ' ')} UTC" if a.get("status") == "ALLOCATED" else ""))
+    if path == "/v1/continuity/safe-mode":
+        return f"Continuity · safe mode {'ON: ' + str(resp.get('reason', '')) if resp.get('on') else 'lifted'}"
+    if path == "/v1/continuity/takeover":
+        return f"Continuity · {'took over as the writer' if resp.get('took_over') else 'not taken over: ' + str(resp.get('reason', ''))[:120]}"
+    if path.startswith("/card-link/"):
+        return "Card link · opened with the authenticator code"
+    return None
 
 
 def _clean_query(q: str) -> str:

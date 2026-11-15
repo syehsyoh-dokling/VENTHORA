@@ -92,6 +92,7 @@ def test_a_connection_is_tested_before_it_is_used(client, monkeypatch):
         def __init__(self, **kw):
             super().__init__(transport=httpx.ASGITransport(app=app), base_url="http://testserver")
     monkeypatch.setattr(httpx, "AsyncClient", Through)
+    monkeypatch.setattr("venthora.net_guard.check_url", lambda url, **k: url)  # "testserver" is this test's in-process transport, not a host to resolve
     raw = connectors.ConnectorStore().get_raw("legacy-erp-demo")
     monkeypatch.setattr(connectors.ConnectorStore, "get_raw", lambda self, cid: raw | {"base_url": "http://testserver/demo/legacy-erp"} if cid == "legacy-erp-demo" else None)
     r = client.post(f"/v1/sources/test-connection?{FM}", json={"connector_id": "legacy-erp-demo", "kind": "pr"}).json()

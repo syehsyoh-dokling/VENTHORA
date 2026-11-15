@@ -466,9 +466,6 @@ class Airwallex:
         returned only here, once)."""
         return await self._request("POST", "/api/v1/issuing/config/update", json=body, once=True)
 
-    async def list_cardholders(self) -> list[dict]:
-        body = await self._request("GET", "/api/v1/issuing/cardholders", params={"page_num": 0, "page_size": 100})
-        return body.get("items", []) if isinstance(body, dict) else body
 
     async def create_cardholder(self, body: dict) -> dict:
         return await self._request("POST", "/api/v1/issuing/cardholders/create", json=body, once=True)
@@ -550,9 +547,6 @@ class Airwallex:
         merchant_category_code, merchant_info; single_phase to capture at once)."""
         return await self._request("POST", "/api/v1/simulation/issuing/create", json=body, once=True)
 
-    async def simulate_card_capture(self, transaction_id: str, amount_major: str) -> dict:
-        return await self._request("POST", f"/api/v1/simulation/issuing/card_transaction_lifecycles/{transaction_id}/capture",
-                                   json={"transaction_amount": amount_major}, once=True)
 
     # -- sandbox simulation --------------------------------------------------
 

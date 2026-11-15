@@ -252,7 +252,7 @@ def winners(org, intake: list, quotes_of) -> list[dict]:
         inv = reqs[-1] if reqs else None
         steps = [{"step": "Winner announced", "done": bool(sent and sent.get("status") == "sent"), "detail": (sent or {}).get("status", "not queued")},
                  {"step": "Purchase order" if need else "Direct purchase (no PO document)", "done": True, "detail": f"{aw['po_id']} · {'draft document ready' if need else 'reference for the invoice'}"},
-                 {"step": "Supplier details and bank account", "done": bool(form.get("submitted_at")), "detail": (form.get("submitted_at") or "waiting for the supplier")[:16].replace("T", " ")},
+                 {"step": "Supplier details and bank account", "done": bool(form.get("submitted_at")), "detail": form["submitted_at"][:16].replace("T", " ") if form.get("submitted_at") else "waiting for the supplier"},
                  {"step": "Invoice received", "done": inv is not None, "detail": f"{inv.invoice_no or '-'} · {inv.status}" if inv else "waiting for the supplier"},
                  {"step": "Paid", "done": bool(paid), "detail": f"execution {str(paid[-1].payment.get('execution_id', ''))[:8]}" if paid else ("held for a person" if inv and inv.status != "VERIFIED" else "not yet")}]
         out.append({"pr_number": r["pr_number"], "title": pr.get("title", ""), "vendor": aw["vendor"], "vendor_id": aw.get("vendor_id"),

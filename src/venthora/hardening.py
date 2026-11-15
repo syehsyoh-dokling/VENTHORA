@@ -26,7 +26,7 @@ import time
 from collections import deque
 
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; "
-       "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; "
+       "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' https://www.youtube-nocookie.com; frame-ancestors 'self'; "
        "base-uri 'self'; form-action 'self'; object-src 'none'")
 HEADERS = [(b"x-content-type-options", b"nosniff"), (b"x-frame-options", b"SAMEORIGIN"),
            (b"referrer-policy", b"strict-origin-when-cross-origin"),

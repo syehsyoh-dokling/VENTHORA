@@ -31,9 +31,6 @@ ISO_COUNTRY = {"US": "840", "GB": "826", "DE": "276", "FR": "250", "NL": "528", 
                "MY": "458", "TH": "764", "PH": "608", "VN": "704", "AE": "784", "SA": "682", "IL": "376", "ZA": "710", "NG": "566", "KE": "404"}
 
 
-class SMSError(RuntimeError):
-    pass
-
 
 def _country(code: str | None) -> str | None:
     c = (code or "").strip().upper()

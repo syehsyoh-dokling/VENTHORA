@@ -23,20 +23,15 @@ import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 
 PAIN_NS = "urn:iso:std:iso:20022:tech:xsd:pain.001.001.09"
-ZERO_DECIMAL = {"JPY", "KRW", "VND", "CLP", "ISK", "UGX", "XAF", "XOF", "PYG", "RWF", "KMF", "GNF", "DJF", "BIF", "VUV", "XPF"}
+from .iso4217 import ZERO as ZERO_DECIMAL  # noqa: E402, F401 - the one table of decimals (iso4217.py); read by execution/facts.py
+from .iso4217 import decimal as _decimal  # noqa: E402
+
 _SAFE = re.compile(r"[^A-Za-z0-9/\-?:().,'+ ]")  # the character set every bank accepts in identifiers and names
 
 
 def amount(minor: int, currency: str) -> str:
     """VENTHORA's minor units as an ISO 20022 decimal amount."""
-    if minor < 0:
-        raise ValueError("an instructed amount is never negative")
-    whole, cents = divmod(minor, 100)
-    if currency in ZERO_DECIMAL:
-        if cents:
-            raise ValueError(f"{currency} has no minor unit; {minor} is not a whole amount")
-        return str(whole)
-    return f"{whole}.{cents:02d}"
+    return _decimal(minor, currency)
 
 
 def minor(text: str) -> int:

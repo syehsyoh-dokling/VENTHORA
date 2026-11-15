@@ -26,9 +26,6 @@ PAYOUT_CURRENCIES = frozenset({
     "USD", "UYU", "VND", "XAF", "XOF", "ZAR", "ZMW"}) | SOURCE_CURRENCIES
 
 
-def is_payout_currency(ccy: str) -> bool:
-    return ccy in PAYOUT_CURRENCIES
-
 
 def pays_through(ccy: str, base: str = "USD") -> bool:
     """A payout Airwallex cannot fund from a wallet in its own currency: funded in the base currency, converted in the

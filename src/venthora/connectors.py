@@ -394,8 +394,12 @@ async def fetch(raw: dict, entity: str, client=None) -> tuple[list[dict], list[s
     """The entity's rows from the old system, mapped to VENTHORA's fields, with the source ids."""
     import httpx
 
+    from . import net_guard
+
     em = raw["entities"][entity]
     own = client is None
+    if own:
+        net_guard.check_url(raw["base_url"])
     client = client or httpx.AsyncClient(timeout=30)
     try:
         res = await client.get(raw["base_url"] + "/" + em["path"].lstrip("/"), headers=headers_for(raw))
@@ -433,7 +437,11 @@ async def send(raw: dict, item: str, records: list[tuple[str, dict]], store: Con
     report = {"records": len(records), "unchanged": len(records) - len(todo), "sent": 0, "failed": 0, "errors": []}
     if dry_run:
         return report | {"would_send": len(todo), "sample": [rec for _, rec, _ in todo[:2]]}
+    from . import net_guard
+
     own = client is None
+    if own:
+        net_guard.check_url(raw["base_url"])
     client = client or httpx.AsyncClient(timeout=30)
     url = raw["base_url"] + "/" + pm["path"].lstrip("/")
     try:

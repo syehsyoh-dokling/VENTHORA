@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import contextlib
 import datetime as dt
-import email.utils
 import imaplib
 import json
 import re
@@ -423,9 +422,3 @@ def message_id(raw: bytes) -> str | None:
     return m.group(1).decode(errors="replace") if m else None
 
 
-def addresses_to(raw: bytes) -> set[str]:
-    from email import policy
-    from email.parser import BytesParser
-
-    msg = BytesParser(policy=policy.default).parsebytes(raw, headersonly=True)
-    return {a.lower() for _, a in email.utils.getaddresses(msg.get_all("To", []) + msg.get_all("Cc", []) + msg.get_all("Delivered-To", []))}

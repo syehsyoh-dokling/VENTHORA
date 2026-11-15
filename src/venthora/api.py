@@ -5464,7 +5464,8 @@ async def _winner_invoice(f: dict, po: dict, vendor: dict, body: VendorDetailsIn
         differs.append("no delivery date was confirmed")
     elif pr.get("needed_by") and body.delivery_date > pr["needed_by"]:
         differs.append(f"delivery on {body.delivery_date} is after the {pr['needed_by']} the request needs")
-    if bank_verdict and str(bank_verdict).lower() not in ("ok", "pass", "passed", "valid", "verified", "match", "matched"):
+    # the bank check's own words for a pass: PASSED, PASSED_FORMAT (the format is right; no name check in that country), MATCH ...
+    if bank_verdict and not str(bank_verdict).upper().startswith(("PASS", "OK", "VALID", "VERIF", "MATCH")):
         differs.append(f"the bank check of the account answered {bank_verdict}")
     contact = (vendor.get("contacts") or [f.get("email")])[0]
     msg = EmailMessage()
@@ -5610,6 +5611,10 @@ async def fund_request_decide(number: str, body: PRDecisionIn, role: str = "fina
                 "decided_at": datetime.now(UTC).isoformat(timespec="seconds"), "decision_note": body.note}
     await asyncio.to_thread(org._put, "fund_request", rec, by)
     await asyncio.to_thread(app.state.audit.append, "fund_request_decided", {"request": number, "decision": body.decision, "by": by, "role": role})
+    if rec["status"] == "APPROVED" and rec["kind"] != "odc" and not rec.get("payee_id"):
+        # no bank account of its own to pay to: it goes on a card, so it is allocated and paid at 23:59 like an
+        # advance approved by email. One with its own account stays a person's choice (Pay, or Card)
+        rec = rec | {"allocation": await _allocate_advance(number, f"{by} ({role})")}
     return rec
 
 
@@ -9290,9 +9295,15 @@ async def sources_test_connection(body: TestConnectionIn, role: str = "finance_m
         url, headers, name, em = base, headers_for({"auth": auth, "_secret": auth.get("secret", "")}), base, None
     else:
         raise HTTPException(422, "give the connection line or a saved connection")
+    from . import net_guard
+
+    try:
+        net_guard.check_url(url)
+    except net_guard.Refused as exc:
+        raise HTTPException(422, str(exc)) from exc
     t0 = _t.perf_counter()
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=10) as client:  # no redirects: the address that was checked is the address reached
             res = await client.get(url, headers=headers)
     except httpx.HTTPError as exc:
         return {"ok": False, "name": name, "message": f"could not reach it: {type(exc).__name__}", "ms": round((_t.perf_counter() - t0) * 1000)}
@@ -9411,9 +9422,17 @@ async def org_allocation_tree(period: str = "2026"):
 
 
 @app.get("/v1/org/{collection}")
-async def org_list(collection: str):
+async def org_list(collection: str, role: str | None = None):
+    """A collection of the organisation. A requester sees who the people are (to name an approver or a traveller),
+    never what they earn, where they are paid or what they may approve."""
     kind, _ = _org_kind(collection)
-    return app.state.org.list(kind)
+    rows = app.state.org.list(kind)
+    if kind == "user" and role == "requester":
+        rows = [{k: v for k, v in u.items() if k not in PAY_FIELDS} for u in rows]
+    return rows
+
+
+PAY_FIELDS = ("salary_minor", "salary_currency", "payee_id", "approval_limit_minor", "benefits", "contract_start", "contract_end", "employment_type")
 
 
 def _org_writer(role: str, by: str, kind: str, rec: dict | None) -> str:
@@ -10915,7 +10934,17 @@ async def sessions(request: Request, call_next):
     from . import auth
 
     path = request.url.path
-    if not _login_required() or apiaccess.token_of(request.headers) is not None or path in AUTH_OPEN_EXACT or path.startswith(AUTH_OPEN_PREFIX):
+    if not _login_required():
+        # sign-in is off: this VENTHORA is one person's own, on its own machine. It answers that machine only; anything
+        # that arrives from elsewhere is refused unless the operator opens it knowingly (VENTHORA_OPEN=1, for example
+        # behind their own authenticating proxy) or turns sign-in on (VENTHORA_LOGIN=1)
+        from .hardening import LOCAL
+
+        host = request.client.host if request.client else ""
+        if host and host not in LOCAL and env("VENTHORA_OPEN") != "1" and not path.startswith(("/webhooks/", "/health")):
+            return JSONResponse({"detail": "sign-in is off on this VENTHORA, so it answers its own machine only: turn sign-in on (VENTHORA_LOGIN=1) to use it from elsewhere"}, status_code=403)
+        return await call_next(request)
+    if apiaccess.token_of(request.headers) is not None or path in AUTH_OPEN_EXACT or path.startswith(AUTH_OPEN_PREFIX):
         return await call_next(request)
     uid = await asyncio.to_thread(auth.AuthStore().session_user, request.cookies.get(_session_cookie()))
     user = app.state.org.get("user", uid) if uid else None

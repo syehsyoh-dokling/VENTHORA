@@ -17,7 +17,6 @@ import json
 import httpx
 
 GRAPH = "https://graph.microsoft.com/v1.0"
-SCOPE = "openid email offline_access https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Mail.Send"
 WELL_KNOWN = {"inbox": "inbox", "junk": "junkemail", "junk email": "junkemail", "archive": "archive", "sent": "sentitems"}
 
 

@@ -104,12 +104,6 @@ def to_reporting(amount_minor: int, currency: str, rate: str, reporting: str) ->
     return int(value.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
-def fmt_minor(amount_minor: int, currency: str) -> str:
-    unit = MINOR.get(currency, 100)
-    if unit == 1:
-        return f"{currency} {amount_minor:,}"
-    return f"{currency} {amount_minor // 100:,}.{amount_minor % 100:02d}"
-
 
 # -- reports -----------------------------------------------------------------------------------------
 

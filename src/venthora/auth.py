@@ -159,9 +159,6 @@ class AuthStore:
             with self._lock, self._connect() as c:
                 c.execute("DELETE FROM auth_session WHERE token_hash = ?", (_h(token),))
 
-    def sign_out_everywhere(self, user_id: str) -> None:
-        with self._lock, self._connect() as c:
-            c.execute("DELETE FROM auth_session WHERE user_id = ?", (user_id,))
 
     # -- the second factor (totp.py): a code from the person's authenticator app, on top of the password ---------
 

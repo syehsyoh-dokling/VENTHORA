@@ -37,7 +37,6 @@ BANKS = {"ID_BCA": "Bank Central Asia", "ID_BNI": "Bank Negara Indonesia", "ID_B
 # the SWIFT code Airwallex keeps for an Indonesian bank -> Xendit's channel for the same bank (for the name check)
 SWIFT_TO_CHANNEL = {"CENAIDJA": "ID_BCA", "BNINIDJA": "ID_BNI", "BRINIDJA": "ID_BRI", "BMRIIDJA": "ID_MANDIRI",
                     "BBBAIDJA": "ID_PERMATA", "BNIAIDJA": "ID_CIMB", "BSMDIDJA": "ID_BSI"}
-TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED", "REVERSED"}
 # what an e-wallet can take in one top-up: Xendit refuses a payout that would push the wallet above its limit
 # (DESTINATION_MAXIMUM_LIMIT); VENTHORA refuses before asking, with the same words
 WALLET_MAX_MINOR = 10_000_000

@@ -85,8 +85,6 @@ CATEGORIES: list[dict] = [
 ]
 SALARY_ACCOUNT = "001001"
 OPS = ("OPS", "General operations")
-ADVANCE_ACCOUNTS = {"cash_advance": "005001", "petty_cash": "005002", "odc": "007001"}
-
 
 def scheme() -> dict:
     """The rules, as the Charge codes page shows them."""

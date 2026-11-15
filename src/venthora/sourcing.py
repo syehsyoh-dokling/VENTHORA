@@ -362,7 +362,12 @@ def assess(pr: dict, qs: list[dict], today: str | None = None) -> dict:
             why.append(f"expired on {q['valid_until']}")
         rows.append({"quote_id": q["_id"], "cand_id": q["cand_id"], "eligible": not why, "why_not": why, "total_minor": q["total_minor"],
                      "over_estimate": q["total_minor"] > pr["estimated_minor"]})
-    ok = sorted((r for r in rows if r["eligible"]), key=lambda r: (r["total_minor"], r["cand_id"]))
+    from . import procurement_flow
+
+    by_id = {q["_id"]: q for q in qs}
+    # the cheapest wins; on the same price, the more complete administration, then the faster delivery, then the id
+    tie = lambda r: (-procurement_flow.admin(by_id[r["quote_id"]])["have"], by_id[r["quote_id"]].get("delivery_days") or 0, r["cand_id"])  # noqa: E731
+    ok = sorted((r for r in rows if r["eligible"]), key=lambda r: (r["total_minor"], *tie(r)))
     for n, r in enumerate(ok, 1):
         r["rank"] = n
     best = ok[0] if ok else None
@@ -371,7 +376,7 @@ def assess(pr: dict, qs: list[dict], today: str | None = None) -> dict:
         gap = (others[0]["total_minor"] - best["total_minor"]) if others else None
         reason = (f"meets every specification{' and the ' + pr['brand'] + ' brand' if brand else ''}, and is the cheapest of "
                   f"{len(ok)} eligible quotation(s)" + ("" if gap is None else f", {gap / 100:,.2f} {pr['currency']} below the next" if gap
-                                                         else f"; tied on price with {others[0]['cand_id']}, ranked first by vendor id: a person may choose either"))
+                                                         else f"; tied on price with {others[0]['cand_id']}, ranked first on the completeness of its administration, then delivery time"))
     else:
         reason = "no quotation meets every condition yet"
     # nobody meets every condition: the closest quotation is suggested to a person, never awarded by the agent

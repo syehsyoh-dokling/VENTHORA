@@ -708,7 +708,7 @@ pytest -q
 ruff check src tests scripts
 ```
 
-Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,023 passed,
+Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,148 passed,
 0 failed**, no expected failures and 12 skipped, in about eleven minutes.
 
 - **The sample company.** VENTHORA ships blank (one head office, one Super admin). The suite sets
@@ -809,6 +809,10 @@ The video shows the product as it was when recorded. Since then, on 14–15 Nov 
 | Security | Security headers, Secure cookies and HSTS over HTTPS, a rate limit per address, an optional second factor for sign-in |
 | Standards | A day's payments as ISO 20022 `pain.001`, a `camt.053` statement reconciled; a backup script with a tested restore; a control map (`docs/QUALITY.md`) |
 | Names | The blockchain sponsor is **Alta** (the video and some code names still say Metal). Visa pages are a demo; Midtrans is a connection with planned products |
+| Requests by email | A request for cash is accepted only from the organisation's own email, approved by the FCO's email or the FCO's approval forwarded in it, numbered by the email or by VENTHORA, allocated when green and paid at 23:59 company time on a card, with a card link that asks for the authenticator code. A purchase request by email keeps its number, asks five vendors and is awarded by a fixed rule (every specification before price) |
+| Procurement | Preferred vendors (every supplier that quoted, with its own number, asked first next time), a ranking and conclusion per request, a vendor list with a PO threshold: a draft purchase order above it, a direct purchase below it, and the steps to payment |
+| Continuity | A writer lease the executor checks before money moves, safe mode, a takeover that first locks what the bank already paid; a design with code and tests, no standby running ([docs/CONTINUITY.md](docs/CONTINUITY.md)) |
+| Review | Two independent reviews of the source and their fixes: who acts on an approval, what an email approves, money guards, hardening; what is still open is listed in [docs/QA_REPORT_2026-11-15.md](docs/QA_REPORT_2026-11-15.md) |
 
 ## Roadmap to submission (15 Nov 2026)
 

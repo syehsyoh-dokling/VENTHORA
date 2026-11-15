@@ -8,6 +8,9 @@ services:
         required: false
     environment:
       OPA_URL: http://opa:8181
+      # sign-in is off in this compose file and the port is published on 127.0.0.1 only; requests reach the
+      # container through Docker's bridge, so the "own machine only" rule is opened here on purpose
+      VENTHORA_OPEN: "1"
     volumes:
       - venthora-data:/app/data   # a named volume: it starts from the image's data and belongs to the service's own user
     depends_on: [opa]

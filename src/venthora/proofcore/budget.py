@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 
 from ..config import seed_file
-from ..domain.models import Budget, BudgetLine, ObligationDecision, TreasuryState
+from ..domain.models import Budget, ObligationDecision, TreasuryState
 
 BUDGETS_FILE = seed_file("budgets.json")
 PAYING = ("PAY", "CONVERT_AND_PAY")
@@ -216,5 +216,3 @@ def policy_facts(state: TreasuryState, pipe: dict) -> dict:
             "period_closed": bool(state.budget.closed), "paying_in_period": pipe.get("paying_in_period_minor", 0)}
 
 
-def _line_of(ln: BudgetLine) -> str:
-    return ln.line
