@@ -8,10 +8,23 @@ from fastapi.testclient import TestClient
 from venthora.gateways.airwallex import Airwallex, AirwallexError
 
 
+class _FcoClient(TestClient):
+    """The Airwallex account holds the company's money: only the FCO changes it; the connection itself (the API key)
+    is the Developer's one-time setup (access.py). A write that names no role is made here as the person the dashboard
+    would have signed in for it."""
+
+    def request(self, method, url, **kw):
+        u = str(url)
+        if method.upper() in ("POST", "PUT", "DELETE") and u.startswith(("/v1/airwallex/", "/v1/accounts/")) and "role=" not in u:
+            who = "role=developer&by=Dev%20Ito" if u.startswith("/v1/airwallex/connection") else "role=super_admin&by=Rosa%20Lindqvist"
+            url = f"{u}{'&' if '?' in u else '?'}{who}"
+        return super().request(method, url, **kw)
+
+
 @pytest.fixture
 def client():
     from venthora.api import app
-    with TestClient(app) as c:
+    with _FcoClient(app) as c:
         yield c
 
 

@@ -78,7 +78,7 @@ def test_balance_equivalents_and_the_four_numbers(client):
 def test_no_approval_the_balance_cannot_cover(client):
     rec = client.post("/v1/intake/emails", content=(
         b"From: lumen.design.studio.billing@gmail.com\r\nTo: ap@acme.example\r\nSubject: Invoice LD-4402\r\nMessage-ID: <ov2@t>\r\n\r\n"
-        b"Invoice LD-4402. Amount due: USD 300.00, due 30 Nov 2026.")).json()
+        b"Invoice LD-4402 against PO-2026-0101. Amount due: USD 300.00, due 30 Nov 2026.")).json()  # an open PO, as the finance standards ask
     client.state["pos"] = _pos(20_000, [_req("VERIFIED", 5_000, intake_id="other")])  # USD 200 available, USD 50 already approved
     review = {"decision": "verify", "reviewer": "Dana Finch", "role": "finance_manager", "note": "ok"}
     r = client.post(f"/v1/intake/{rec['intake_id']}/review", json=review)
@@ -86,7 +86,7 @@ def test_no_approval_the_balance_cannot_cover(client):
     assert client.post(f"/v1/intake/{rec['intake_id']}/review", json=review | {"decision": "reject", "note": "no funds this month"}).status_code == 200
     rec2 = client.post("/v1/intake/emails", content=(
         b"From: lumen.design.studio.billing@gmail.com\r\nTo: ap@acme.example\r\nSubject: Invoice LD-4403\r\nMessage-ID: <ov3@t>\r\n\r\n"
-        b"Invoice LD-4403. Amount due: USD 300.00, due 30 Nov 2026.")).json()
+        b"Invoice LD-4403 against PO-2026-0101. Amount due: USD 300.00, due 30 Nov 2026.")).json()
     client.state["pos"] = _pos(10_000_000)
     assert client.post(f"/v1/intake/{rec2['intake_id']}/review", json=review).status_code == 200
 

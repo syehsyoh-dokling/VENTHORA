@@ -18,12 +18,36 @@ def refused(role, method, path):
 
 
 def test_fco_authorize_is_changed_by_the_fco_only():
-    for path in ("/v1/mandate", "/v1/priority-sop", "/v1/org/standards", "/v1/doa/registers", "/v1/placement-providers/x"):
+    for path in ("/v1/mandate", "/v1/priority-sop", "/v1/org/standards", "/v1/doa/policies/payroll", "/v1/doa/custom", "/v1/doa/custom/k",
+                 "/v1/doa/settings", "/v1/doa/run", "/v1/placement-providers/x"):
         assert refused("super_admin", "PUT", path) is None
         for role in ("finance_manager", "cfo", "hq_admin", "developer", "requester"):
             assert refused(role, "PUT", path) == 403, (role, path)
         assert FCO_SAYS in access.check("cfo", "POST", path)[1]
     assert refused("finance_manager", "GET", "/v1/mandate") is None  # a finance manager may read what it works under
+
+
+def test_the_daily_work_under_the_delegation_is_not_the_fcos_alone():
+    """Settings of the delegation are the FCO's; the work it governs is done by the people it names."""
+    assert refused("finance_manager", "POST", "/v1/doa/registers") is None  # prepares the payroll register
+    assert refused("hq_admin", "POST", "/v1/doa/registers/2026-11/approve") is None  # HR's step; the endpoint checks the step's role
+    assert refused("finance_manager", "POST", "/v1/doa/travel-requests") is None and refused("requester", "POST", "/v1/doa/travel-requests") is None
+    assert refused("developer", "GET", "/v1/doa/registers") == 403  # a Developer still reads none of it
+
+
+def test_whoever_holds_the_mandate_changes_its_settings():
+    for path in ("/v1/mandate", "/v1/priority-sop", "/v1/doa/policies/payroll", "/v1/doa/settings"):
+        assert access.check("cfo", "PUT", path, holder="cfo") is None  # the FCO handed the mandate to the CFO
+        status, why = access.check("super_admin", "PUT", path, holder="cfo")
+        assert status == 403 and "only the CFO" in why  # and no longer holds it
+    assert refused("cfo", "PUT", "/v1/org/standards") == 403  # the rest of FCO Authorize stays the FCO's
+    assert access.check("cfo", "PUT", "/v1/org/standards", holder="cfo")[0] == 403
+
+
+def test_a_finance_manager_may_freeze_a_card():
+    assert refused("finance_manager", "POST", "/v1/cards/card-1/freeze") is None and refused("cfo", "POST", "/v1/cards/card-1/freeze") is None
+    assert refused("requester", "POST", "/v1/cards/card-1/freeze") == 403 and refused("developer", "POST", "/v1/cards/card-1/freeze") == 403
+    assert refused("finance_manager", "POST", "/v1/cards") == 403  # issuing or changing a card stays the FCO's
 
 
 def test_a_developer_never_reads_fco_authorize():
@@ -33,7 +57,7 @@ def test_a_developer_never_reads_fco_authorize():
 
 
 def test_the_money_part_of_platform_setup_is_the_fcos():
-    for path in ("/v1/airwallex/accounts/open", "/v1/cards/card-1/freeze", "/v1/card-authorization", "/v1/controls/airi", "/v1/local-rails/products"):
+    for path in ("/v1/airwallex/accounts/open", "/v1/cards/card-1", "/v1/card-authorization", "/v1/controls/airi", "/v1/local-rails/products"):
         assert refused("super_admin", "POST", path) is None
         assert refused("finance_manager", "POST", path) == 403 and refused("developer", "POST", path) == 403
         assert refused("developer", "GET", path) is None  # a Developer may look at it

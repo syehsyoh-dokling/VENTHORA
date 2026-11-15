@@ -74,7 +74,7 @@ def test_the_airwallex_check_never_blocks_and_says_when_no_account_is_connected(
     assert all(r["ok"] is None for r in saved.json()["airwallex_check"].values())  # the save itself is never refused for it
     out = client.post(f"/v1/beneficiaries/bank-check?{FM}", json={})
     assert out.status_code == 200 and out.json()["checked"] >= 1 and out.json()["accepted"] == 0
-    assert all(r["ok"] is None and "payment time" in r["detail"] for r in out.json()["results"].values())
+    assert all(r["ok"] is None and "Verify account" in r["detail"] for r in out.json()["results"].values())
 
 
 def test_the_finance_app_keeps_every_record_sent_and_a_resend_once(client):

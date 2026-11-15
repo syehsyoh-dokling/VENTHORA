@@ -708,15 +708,16 @@ pytest -q
 ruff check src tests scripts
 ```
 
-Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,003 passed,
-0 failed**, 17 expected failures and 12 skipped, in about ten minutes.
+Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,023 passed,
+0 failed**, no expected failures and 12 skipped, in about eleven minutes.
 
 - **The sample company.** VENTHORA ships blank (one head office, one Super admin). The suite sets
   `VENTHORA_SAMPLE_DATA=tests/sample_data`, which gives its cases offices, people, payees, budgets and the demo book.
-- **Expected failures** are listed with their reasons in [`tests/known_gaps.txt`](tests/known_gaps.txt): tests that
-  describe behaviour from before the role-based access rules and have not been rewritten. They still run on every
-  push and are reported, never hidden; most are one open question (whether every write under `/v1/doa` should be
-  refused to HR and finance managers, or only the FCO's own settings).
+- **Expected failures** would be listed with their reasons in [`tests/known_gaps.txt`](tests/known_gaps.txt): a test
+  that describes behaviour the product no longer has still runs and is reported, never hidden. The list is empty.
+- **Who may do what** is tested on its own (`tests/test_access.py`): the settings of the delegation belong to whoever
+  holds the mandate; the daily work it governs (the payroll register, HR's approval step, travel requests) to the
+  people who do it; a finance manager may freeze a card and only the FCO unfreezes one.
 - **Skipped** tests need a package that was not installed on that machine (`eth-account` for the Alta anchoring,
   `anthropic` for that provider); with the project's dependencies installed they run.
 

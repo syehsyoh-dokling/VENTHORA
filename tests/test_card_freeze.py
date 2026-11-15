@@ -5,7 +5,8 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-FM = "role=super_admin&by=Rosa%20Lindqvist"  # cards hold the company's money: the FCO changes them (access.py)
+FM = "role=finance_manager&by=Dana%20Finch"
+FCO = "role=super_admin&by=Rosa%20Lindqvist"
 
 
 @pytest.fixture
@@ -31,6 +32,8 @@ def test_freeze_reaches_airwallex_and_unfreeze_restores(client, monkeypatch):
     r = client.post(f"/v1/cards/card-frz-1/freeze?{FM}", json={"frozen": True})
     assert r.status_code == 200 and r.json()["airwallex"] == "INACTIVE" and org.get("card", "card-frz-1")["frozen"] is True
     r = client.post(f"/v1/cards/card-frz-1/freeze?{FM}", json={"frozen": False})
+    assert r.status_code == 403 and "unfreezes" in r.json()["detail"] and org.get("card", "card-frz-1")["frozen"] is True  # a finance manager stops a card; only the FCO lets it spend again
+    r = client.post(f"/v1/cards/card-frz-1/freeze?{FCO}", json={"frozen": False})
     assert r.json()["airwallex"] == "ACTIVE" and calls == [("card-frz-1", "INACTIVE"), ("card-frz-1", "ACTIVE")]
 
 

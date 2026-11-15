@@ -76,8 +76,7 @@ it is an API.
 | Role-based access to menus and endpoints | `tests/test_access.py` |
 | ISO 20022 export and reconciliation | `tests/test_iso20022.py` |
 
-Tests that no longer match the product are listed with their reasons in `tests/known_gaps.txt`; most concern one open
-question about the role-based access rules.
+A test that no longer matches the product would be listed with its reason in `tests/known_gaps.txt`; the list is empty.
 
 ## What is missing for a production bank deployment
 

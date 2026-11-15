@@ -245,7 +245,12 @@ async def menu_access(request: Request, call_next):
     from . import access
 
     role = request.query_params.get("role") or request.headers.get("x-venthora-role") or None
-    refused = access.check(role, request.method, request.url.path)
+    holder = None
+    if request.method in access.WRITES and access.MANDATE.match(request.url.path):
+        from . import mandate
+
+        holder = (await asyncio.to_thread(mandate.standing, request.app.state.org))["authority_role"]
+    refused = access.check(role, request.method, request.url.path, holder=holder)
     if refused:
         return JSONResponse({"detail": refused[1]}, status_code=refused[0])
     if request.method not in access.WRITES:
@@ -7421,6 +7426,8 @@ async def cards_freeze(card_id: str, body: FreezeIn, role: str = "finance_manage
     VENTHORA (every charge declined at remote authorization), until it is unfrozen. If Airwallex cannot be reached the
     card is still frozen in VENTHORA, and the answer says so."""
     who = _writer(role, by)
+    if not body.frozen and role != "super_admin":  # stopping a card is a safety action; letting it spend again is the FCO's
+        raise HTTPException(403, "only the FCO (Super admin) unfreezes a card; a finance manager may freeze one")
     rec = app.state.org.get("card", card_id)
     if rec is None:
         raise HTTPException(404, "not a card VENTHORA issued")
@@ -8855,11 +8862,17 @@ ADMIN_TEAM_ROLES = {"super_admin", "developer", "hq_admin", "country_admin", "br
 
 
 def _admin_team_guard(kind: str, role: str, new: dict | None, old: dict | None) -> None:
-    """FCO Authorize → Admin team: only the FCO adds, changes or removes a person with an admin role (Developer included)."""
+    """FCO Authorize → Admin team: the FCO adds, changes or removes a person with an admin role (Developer included).
+    A scoped admin (country, branch, project) may do so only for the admin roles below its own; _org_writer then holds
+    it to its own office and the offices under it."""
+    from .organisation import GRANTABLE, SCOPED_ADMINS
+
     if kind != "user" or role == "super_admin":
         return
-    if (new or {}).get("role") in ADMIN_TEAM_ROLES or (old or {}).get("role") in ADMIN_TEAM_ROLES:
-        raise HTTPException(403, "Admin team (FCO Authorize): only the FCO (Super admin) adds or changes an admin or a Developer")
+    touched = {r for r in ((new or {}).get("role"), (old or {}).get("role")) if r in ADMIN_TEAM_ROLES}
+    if touched and not (role in SCOPED_ADMINS and touched <= GRANTABLE[role]):
+        raise HTTPException(403, "Admin team (FCO Authorize): only the FCO (Super admin) adds or changes an admin or a Developer; "
+                                 "a country, branch or project admin only the admin roles below its own")
 
 
 @app.post("/v1/org/{collection}")
