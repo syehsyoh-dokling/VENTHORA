@@ -311,6 +311,35 @@ def _execution_done(result) -> None:
     paid = sum(1 for st in result.steps if st.kind == "transfer" and (st.detail or {}).get("status") == "PAID")
     app.state.hub.publish("execution", {"execution_id": result.execution_id, "status": result.status, "message": result.message[:300],
                                         "paid": paid})
+    if result.status == "COMPLETED" and paid and env("VENTHORA_REPLICA_URL"):
+        # money moved: the stores are copied to the replica now (continuity/replicate.py), so a standby never starts
+        # from a state older than the last payment
+        with contextlib.suppress(RuntimeError):  # no running loop (a test calling the executor directly)
+            asyncio.get_running_loop().create_task(_replicate_after_payment(result.execution_id or ""))
+
+
+async def _replicate_after_payment(execution_id: str) -> None:
+    """Copy every store to PostgreSQL after a payment, check the row counts, and write it down (audit chain, test log)."""
+    from . import processlog
+    from .continuity import replicate
+
+    url = env("VENTHORA_REPLICA_URL")
+    try:
+        data_dir = Path(env("VENTHORA_DATA_DIR") or Path(app.state.executor.store.path).parent)
+        started = time.perf_counter()
+        result = await asyncio.to_thread(replicate.run, data_dir, url)
+        ok = all(r["ok"] for r in result)
+        rows = sum(r["rows"] for r in result)
+        ms = int((time.perf_counter() - started) * 1000)
+        await asyncio.to_thread(app.state.audit.append, "stores_replicated", {"after": f"payment {execution_id[:8]}", "stores": len(result), "rows": rows, "ok": ok, "ms": ms,
+                                                                               "failed": [r["store"] for r in result if not r["ok"]]})
+        line = (f"Payment {execution_id[:8]} · {len(result)} stores copied to PostgreSQL in {ms} ms: {rows} rows, row counts match" if ok else
+                f"Payment {execution_id[:8]} · copy to PostgreSQL incomplete: " + "; ".join(f"{r['store']}: {r['detail']}" for r in result if not r["ok"])[:300])
+        await asyncio.to_thread(processlog.note, app.state.org, "Continuity", line)
+    except Exception as exc:  # noqa: BLE001 - a copy that fails never touches the payment; it is said, in the log an operator reads
+        oplog.exception("replication after payment %s failed", execution_id)
+        with contextlib.suppress(Exception):
+            await asyncio.to_thread(app.state.audit.append, "stores_replication_failed", {"after": f"payment {execution_id[:8]}", "error": f"{type(exc).__name__}: {str(exc)[:200]}"})
 
 
 @app.middleware("http")

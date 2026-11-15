@@ -30,6 +30,22 @@ from . import db
 LOG = """CREATE TABLE IF NOT EXISTS replication_log (
     run_at REAL NOT NULL, store TEXT NOT NULL, tables INTEGER NOT NULL, rows INTEGER NOT NULL, ok INTEGER NOT NULL, detail TEXT NOT NULL)"""
 TYPE = {"INTEGER": "BIGINT", "INT": "BIGINT", "REAL": "DOUBLE PRECISION", "BLOB": "BYTEA", "TEXT": "TEXT", "NUMERIC": "NUMERIC", "": "TEXT"}
+# never copied: the store of keys, passwords and second factors. A standby gets its secrets from where secrets are
+# kept (a secret manager), not from a copy lying in another database
+EXCLUDE = {"secrets.db", "venthora_secrets.db"}
+
+
+def _pg_value(v, blob: bool):
+    """A SQLite value as PostgreSQL takes it in a copy. SQLite lets a column hold any type, PostgreSQL does not, so
+    the copy's columns are text (bytes for a BLOB column) and every value is written as its text: nothing is lost,
+    and a copy never fails on a value its column's declared type did not expect."""
+    if v is None:
+        return None
+    if blob:
+        return bytes(v) if isinstance(v, (bytes, memoryview)) else str(v).encode()
+    if isinstance(v, (bytes, memoryview)):
+        return bytes(v).hex()
+    return str(v).replace("\x00", "")
 
 
 def prefix(store: Path, data_dir: Path) -> str:
@@ -58,11 +74,13 @@ def copy_store(store: Path, data_dir: Path, target: db.Connection, tmp: Path) ->
     with closing(sqlite3.connect(snap)) as src, target as t:
         for table, cols in tables.items():
             dest = f"{name}__{table}"
-            types = ", ".join(f'"{c}" {TYPE.get(ty, "TEXT") if target.postgres else (ty or "TEXT")}' for c, ty in cols)
+            types = ", ".join(f'"{c}" {("BYTEA" if ty == "BLOB" else "TEXT") if target.postgres else (ty or "TEXT")}' for c, ty in cols)
             t.execute(f'CREATE TABLE IF NOT EXISTS "{dest}" ({types})')
             t.execute(f'DELETE FROM "{dest}"')
             rows = src.execute(f'SELECT * FROM "{table}"').fetchall()
             marks = ", ".join("?" for _ in cols)
+            if target.postgres:
+                rows = [tuple(_pg_value(v, ty == "BLOB") for v, (_, ty) in zip(r, cols, strict=True)) for r in rows]
             t.executemany(f'INSERT INTO "{dest}" VALUES ({marks})', [tuple(r) for r in rows])
             copied = t.execute(f'SELECT COUNT(*) AS n FROM "{dest}"')[0]["n"]
             if copied != len(rows):
@@ -75,7 +93,7 @@ def copy_store(store: Path, data_dir: Path, target: db.Connection, tmp: Path) ->
 
 def run(data_dir: Path, target_url: str, now: float | None = None) -> list[dict]:
     """Every store under `data_dir`, one after the other; a store that fails is reported and the others still copy."""
-    stores = sorted(p for p in Path(data_dir).rglob("*.db") if p.is_file())
+    stores = sorted(p for p in Path(data_dir).rglob("*.db") if p.is_file() and p.name not in EXCLUDE)
     target = db.connect(target_url)
     out, run_at = [], now or time.time()  # one time for the whole run: that is how a run is told from the next
     try:
