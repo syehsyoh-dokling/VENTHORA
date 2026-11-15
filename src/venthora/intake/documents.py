@@ -20,6 +20,8 @@ import re
 from email import policy
 from email.message import EmailMessage
 
+from ..config import env
+
 MAX_PDF_BYTES = 5 * 1024 * 1024
 MAX_PDF_PAGES = 20
 MAX_TEXT = 20_000
@@ -117,12 +119,21 @@ AUTH_RE = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*(pass|fail|softfail|neutral|none
 
 
 def authentication(msg) -> dict[str, str]:
-    """The receiving server's verdicts, e.g. {"spf": "pass", "dkim": "fail"}; empty when none were added."""
+    """The receiving server's verdicts, e.g. {"spf": "pass", "dkim": "fail"}; empty when none were added.
+
+    Only the TOPMOST Authentication-Results header counts: a receiving server adds its own above every header the
+    message arrived with (RFC 8601), so any header below it was written by the sender and proves nothing. When
+    VENTHORA_AUTHSERV_IDS names the receiving servers, the topmost header must also come from one of them."""
     found: dict[str, str] = {}
-    for header in msg.get_all("Authentication-Results", []) or []:
-        for mech, verdict in AUTH_RE.findall(str(header)):
-            found.setdefault(mech.lower(), verdict.lower())
-    for header in msg.get_all("Received-SPF", []) or []:
+    headers = msg.get_all("Authentication-Results", []) or []
+    trusted = [s.strip().lower() for s in env("VENTHORA_AUTHSERV_IDS").split(",") if s.strip()]
+    if headers:
+        top = str(headers[0])
+        authserv = top.split(";", 1)[0].strip().lower()
+        if not trusted or any(authserv == t or authserv.endswith("." + t) for t in trusted):
+            for mech, verdict in AUTH_RE.findall(top):
+                found.setdefault(mech.lower(), verdict.lower())
+    for header in (msg.get_all("Received-SPF", []) or [])[:1]:  # the topmost one, for the same reason
         m = re.match(r"\s*(pass|fail|softfail|neutral|none|temperror|permerror)\b", str(header), re.IGNORECASE)
         if m:
             found.setdefault("spf", m.group(1).lower())

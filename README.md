@@ -25,10 +25,10 @@ VENTHORA is an autonomous treasury agent for cross-border businesses, built on A
 | Sponsor | In VENTHORA | Status |
 |---|---|---|
 | **Airwallex** | Balances, FX quotes and conversions, beneficiaries (schema, validation, name check), transfers, deposits, webhooks | **Live on the sandbox.** Every payment in the demo moves through it. Account opening and cards depend on what Airwallex has enabled for the sandbox account |
-| **Alta** | The audit-log head and every contract chain head anchored in one transaction (Platform Setup → Blockchain Record) | **Built and verified on Alta Testnet** (6 Nov 2026) with test tokens; money never moves on Alta |
+| **Alta** | The audit-log head and every contract chain head anchored in one transaction (Platform Setup → Blockchain Record) | **Live on Alta Testnet** on the staging server since 16 Nov 2026 (the anchoring rule wrote its first transaction there the same night); test tokens only, money never moves on Alta |
 | **Xendit** | The holder's name of an Indonesian account before it is paid; payouts to Indonesian e-wallets (Platform Setup → Local Rails) | Sandbox. Without a Xendit key the name check answers as *simulated* and says so |
 | **Midtrans** | The connection (sandbox keys) and the list of rupiah collection products: QRIS, virtual accounts, cash at stores | **Connection only.** The products are marked *planned* on the page and collect nothing yet |
-| **Visa** | Agent Identity (TAP), Intelligent Commerce, the virtual card report, *Compare with Visa's daily rate* | **Demo mode.** Shown under *Developer · demo mode*; no card is charged |
+| **Visa** | Agent Identity (TAP), Intelligent Commerce, the virtual card report, *Compare with Visa's daily rate* | **Sandbox calls live** on the staging server since 16 Nov 2026: Visa's connectivity check, Foreign Exchange Rates and Supplier Matching answer from Visa's sandbox (test data, said on the page). Agent Identity and Intelligent Commerce stay under *Developer · demo mode*; no card is charged |
 | **AWS** | The live demo runs on EC2; Amazon Bedrock is one of the model providers under Platform Setup → Agent | Hosting is live; Bedrock is a selectable provider |
 | **Airwallex MCP** | A page under *Developer · demo mode* | **Not used for money.** VENTHORA calls REST behind typed methods, which the guide allows |
 
@@ -708,7 +708,7 @@ pytest -q
 ruff check src tests scripts
 ```
 
-Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,150 passed,
+Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,157 passed,
 0 failed**, no expected failures and 12 skipped, in about eleven minutes.
 
 - **The sample company.** VENTHORA ships blank (one head office, one Super admin). The suite sets
@@ -785,17 +785,27 @@ deployment: [docs/QUALITY.md](docs/QUALITY.md). In short:
 - **Payments**: bank details checked at Airwallex before they are kept, a call-back on the registered number before a
   first payment, one payout per invoice, the reserve floor proven before execution, the budget allocation checked
   before the plan and again when money moves.
-- **Records**: a hash-chained audit log; secrets are write-only and never returned by the API.
+- **Records**: a hash-chained audit log whose every new event is also sealed with an HMAC-SHA256 key kept outside
+  the log, so rebuilding the chain after an edit does not pass verification (`audit.py`, `vault.py`).
+- **Secrets at rest**: every stored secret (bank and sponsor keys, SMTP password, second-factor secrets) is encrypted
+  with a Fernet key (AES-128-CBC + HMAC-SHA256) from the environment or a key file readable by the service only, which
+  the store backups leave out; values written before are sealed at start-up. They are write-only and never returned.
+- **Inbound email**: only the receiving server's own (topmost) `Authentication-Results` header counts, optionally
+  pinned to named receivers with `VENTHORA_AUTHSERV_IDS`; a requester cannot read the audit trail, payment runs,
+  ledger, payroll or treasury position.
 - **ISO 20022**: `GET /v1/iso20022/pain.001` gives a day's payments as a credit transfer initiation, and
-  `POST /v1/iso20022/camt.053` reconciles a bank statement with them by `EndToEndId` (`iso20022.py`).
+  `POST /v1/iso20022/camt.053` reconciles a bank statement with them by `EndToEndId` (`iso20022.py`). Every
+  `pain.001` is validated against the official ISO 20022 XSD (`schemas/pain.001.001.09.xsd`, from iso20022.org)
+  before it leaves, and says so in `X-ISO20022-Schema`; a statement is checked against its own version's schema.
 - **Operations**: backup, verified restore and what to do in an incident are in [docs/OPERATIONS.md](docs/OPERATIONS.md);
   `scripts/backup_stores.py` takes the backup while the service runs.
 - **Continuity**: one server at a time may pay (a writer lease the executor checks before money moves), safe mode
   stops every automatic payment, and a standby takes over only after locking every transfer Airwallex already knows.
   Safe mode works here; the standby is a design with code and tests, and no standby runs on this one-server demo, which
   the `/continuity` page says: [docs/CONTINUITY.md](docs/CONTINUITY.md).
-- **No certification is claimed.** The page lists the gaps: no external penetration test, SQLite on one host, no
-  bank-validated ISO 20022 files (a `pain.001` export and a `camt.053` reconciliation exist as an API).
+- **No certification is claimed.** The page lists the gaps: no external penetration test, SQLite on one host, the
+  secrets key on the same host (not in a KMS), and no bank has received a VENTHORA `pain.001` yet (it passes the
+  official schema).
 
 ## What changed after the video was recorded
 

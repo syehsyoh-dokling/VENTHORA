@@ -164,7 +164,7 @@ class AuthStore:
 
     def totp_begin(self, user_id: str) -> str:
         """A new secret, not in force until the person proves their app shows its codes (totp_confirm)."""
-        from . import totp
+        from . import totp, vault
 
         with self._lock, self._connect() as c:
             row = c.execute("SELECT enabled FROM auth_totp WHERE user_id = ?", (user_id,)).fetchone()
@@ -172,7 +172,7 @@ class AuthStore:
                 raise AuthError("the second factor is already on; turn it off first, with a code")
             secret = totp.new_secret()
             c.execute("INSERT INTO auth_totp VALUES (?, ?, 0, -1, ?) ON CONFLICT(user_id) DO UPDATE SET secret = excluded.secret,"
-                      " enabled = 0, last_step = -1, created_at = excluded.created_at", (user_id, secret, _iso(_now())))
+                      " enabled = 0, last_step = -1, created_at = excluded.created_at", (user_id, vault.seal(secret), _iso(_now())))
         return secret
 
     def totp_enabled(self, user_id: str) -> bool:
@@ -182,13 +182,13 @@ class AuthStore:
 
     def _totp_use(self, user_id: str, code: str, *, pending: bool, now: float | None = None) -> bool:
         """True when the code is right for this person now and was not used before; the step is then spent."""
-        from . import totp
+        from . import totp, vault
 
         with self._lock, self._connect() as c:
             row = c.execute("SELECT secret, enabled, last_step FROM auth_totp WHERE user_id = ?", (user_id,)).fetchone()
             if row is None or bool(row["enabled"]) == pending:
                 return False
-            step = totp.matching_counter(row["secret"], code, now, after=row["last_step"])
+            step = totp.matching_counter(vault.unseal(row["secret"]), code, now, after=row["last_step"])
             if step is None:
                 return False
             c.execute("UPDATE auth_totp SET last_step = ?, enabled = 1 WHERE user_id = ?", (step, user_id))

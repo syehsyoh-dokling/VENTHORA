@@ -7,6 +7,7 @@
 .pytest_cache
 .ruff_cache
 data/*.db
+data/*.key
 data/*.db-*
 data/*.sqlite*
 data/saas

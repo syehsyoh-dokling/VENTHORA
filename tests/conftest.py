@@ -43,6 +43,11 @@ def isolated(monkeypatch, tmp_path):
     monkeypatch.setenv("VENTHORA_SECRETS_DB", str(tmp_path / "secrets.db"))  # no connected Airwallex account in tests
     monkeypatch.setenv("VENTHORA_REPORTING_CONFIG", str(tmp_path / "reporting.json"))  # starts from the shipped copy
     monkeypatch.setenv("VENTHORA_ECB_CSV", str(tmp_path / "missing-ecb.csv"))
+    monkeypatch.setenv("VENTHORA_SECRETS_KEY_FILE", str(tmp_path / "secrets.key"))  # each test has its own keys (vault.py)
+    monkeypatch.setenv("VENTHORA_AUDIT_KEY_FILE", str(tmp_path / "audit.key"))
+    from venthora import vault
+
+    vault.reset_cache()
 
 
 def scenario(name: str) -> dict:

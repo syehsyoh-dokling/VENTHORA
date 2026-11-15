@@ -13,14 +13,16 @@ directly, or that must hand its payment file and reconciliation to an auditor, w
             amount, on the statement only, and paid but not yet on the statement.
 
 Amounts are VENTHORA's integer minor units (hundredths in every currency) written as ISO decimals: two places, none
-for the currencies ISO 4217 gives no minor unit. The files are built and read with the standard library only. They
-follow the published message structure; they have not been validated against the official XSD files or a bank.
+for the currencies ISO 4217 gives no minor unit. The files are built and read with the standard library; `validate`
+checks a document against the official XSD shipped in schemas/ (pain.001.001.09, camt.053.001.08, as published by
+iso20022.org), and the pain.001 endpoint refuses to hand out a file that fails it. No bank has received one yet.
 """
 from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
+from pathlib import Path
 
 PAIN_NS = "urn:iso:std:iso:20022:tech:xsd:pain.001.001.09"
 from .iso4217 import ZERO as ZERO_DECIMAL  # noqa: E402, F401 - the one table of decimals (iso4217.py); read by execution/facts.py
@@ -118,6 +120,32 @@ def pain001(payments: list[dict], *, debtor_name: str, debtor_account: dict | No
                 _el(_el(tx, "RmtInf"), "Ustrd", _name(p["remittance"]))
     ET.indent(root)
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding="unicode") + "\n"
+
+
+SCHEMAS = Path(__file__).with_name("schemas")  # the official XSDs, as published by iso20022.org
+_SCHEMA_CACHE: dict[str, object] = {}
+
+
+def validate(xml: str | bytes, message: str) -> list[str]:
+    """The schema errors of an ISO 20022 document against the official XSD of `message` (e.g. "pain.001.001.09");
+    an empty list when it is valid. Raises LookupError when the schema of that message is not shipped."""
+    from lxml import etree
+
+    path = SCHEMAS / f"{message}.xsd"
+    if not path.is_file():
+        raise LookupError(f"no schema shipped for {message}")
+    if message not in _SCHEMA_CACHE:
+        parser = etree.XMLParser(resolve_entities=False, no_network=True)
+        _SCHEMA_CACHE[message] = etree.XMLSchema(etree.parse(str(path), parser))
+    schema = _SCHEMA_CACHE[message]
+    doc = etree.fromstring(xml.encode() if isinstance(xml, str) else xml, etree.XMLParser(resolve_entities=False, no_network=True))
+    return [] if schema.validate(doc) else [f"line {e.line}: {e.message}" for e in schema.error_log][:20]
+
+
+def message_of(xml: str | bytes) -> str | None:
+    """The ISO 20022 message a document declares in its namespace (urn:iso:std:iso:20022:tech:xsd:camt.053.001.08)."""
+    m = re.search(rb"urn:iso:std:iso:20022:tech:xsd:([a-z]{4}\.\d{3}\.\d{3}\.\d{2})", xml.encode() if isinstance(xml, str) else xml)
+    return m.group(1).decode() if m else None
 
 
 def _control_sum(rows: list[dict]) -> str:

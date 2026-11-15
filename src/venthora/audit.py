@@ -1,4 +1,8 @@
-"""Append-only decision log with a SHA-256 hash chain (tamper-evident, SQLite)."""
+# ruff: noqa: E501
+"""Append-only decision log with a SHA-256 hash chain, each hash sealed with the audit key (HMAC-SHA256, vault.py).
+
+The chain alone shows a change made by someone who cannot recompute it; the seal shows a change made by someone who
+can write the file but does not hold the key. Events written before the seal was switched on are checked by the chain."""
 from __future__ import annotations
 
 import hashlib
@@ -9,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from . import vault
 from .config import data_path
 
 
@@ -22,6 +27,8 @@ class AuditStore:
                 seq INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT NOT NULL UNIQUE,
                 created_at TEXT NOT NULL, event_type TEXT NOT NULL, payload_json TEXT NOT NULL,
                 previous_hash TEXT NOT NULL, current_hash TEXT NOT NULL)""")
+            if "mac" not in [r[1] for r in c.execute("PRAGMA table_info(events)")]:
+                c.execute("ALTER TABLE events ADD COLUMN mac TEXT")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.path, timeout=15)
@@ -39,8 +46,8 @@ class AuditStore:
             last = c.execute("SELECT current_hash FROM events ORDER BY seq DESC LIMIT 1").fetchone()
             prev = last["current_hash"] if last else "GENESIS"
             digest = self._digest(prev, event_id, at, kind, raw)
-            c.execute("INSERT INTO events(event_id, created_at, event_type, payload_json, previous_hash, current_hash)"
-                      " VALUES (?, ?, ?, ?, ?, ?)", (event_id, at, kind, raw, prev, digest))
+            c.execute("INSERT INTO events(event_id, created_at, event_type, payload_json, previous_hash, current_hash, mac)"
+                      " VALUES (?, ?, ?, ?, ?, ?, ?)", (event_id, at, kind, raw, prev, digest, vault.mac(digest)))
         return {"event_id": event_id, "hash": digest, "created_at": at}
 
     def search(self, needle: str, limit: int = 300) -> list[dict]:
@@ -48,22 +55,26 @@ class AuditStore:
         with self._lock, self._connect() as c:
             rows = c.execute("SELECT * FROM events WHERE payload_json LIKE ? ORDER BY seq LIMIT ?",
                              (f"%{needle}%", max(1, min(limit, 2000)))).fetchall()
-        return [{k: r[k] for k in r.keys() if k != "payload_json"} | {"payload": json.loads(r["payload_json"])}  # noqa: SIM118
+        return [{k: r[k] for k in r.keys() if k not in ("payload_json", "mac")} | {"payload": json.loads(r["payload_json"])}  # noqa: SIM118
                 for r in rows]
 
     def list(self, limit: int = 20) -> list[dict]:
         with self._lock, self._connect() as c:
             rows = c.execute("SELECT * FROM events ORDER BY seq DESC LIMIT ?", (max(1, min(limit, 500)),)).fetchall()
         # sqlite3.Row iterates values, so keys() is required here.
-        return [{k: r[k] for k in r.keys() if k != "payload_json"} | {"payload": json.loads(r["payload_json"])}  # noqa: SIM118
+        return [{k: r[k] for k in r.keys() if k not in ("payload_json", "mac")} | {"payload": json.loads(r["payload_json"])}  # noqa: SIM118
                 for r in rows]
 
     def verify(self) -> dict:
         with self._lock, self._connect() as c:
-            prev, count = "GENESIS", 0
+            prev, count, keyed = "GENESIS", 0, 0
             for r in c.execute("SELECT * FROM events ORDER BY seq"):
                 expected = self._digest(prev, r["event_id"], r["created_at"], r["event_type"], r["payload_json"])
                 if r["previous_hash"] != prev or r["current_hash"] != expected:
                     return {"verified": False, "checked": count, "broken_seq": r["seq"]}
+                if r["mac"] is not None or keyed:  # once events are sealed, every later one must be, with this key
+                    if not vault.mac_ok(r["current_hash"], r["mac"]):
+                        return {"verified": False, "checked": count, "broken_seq": r["seq"], "reason": "the seal does not match: the event was not written by this service"}
+                    keyed += 1
                 prev, count = r["current_hash"], count + 1
-        return {"verified": True, "checked": count, "head": prev}
+        return {"verified": True, "checked": count, "sealed": keyed, "head": prev}

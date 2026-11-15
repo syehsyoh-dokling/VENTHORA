@@ -100,6 +100,10 @@ async def lifespan(app: FastAPI):
     from .continuity import guard as _continuity
 
     app.state.executor.writer_gate = _continuity.may_pay  # only the server holding the writer lease moves money
+    from . import secret_values as _sv
+
+    with contextlib.suppress(Exception):  # a secret written before encryption was on is sealed now (vault.py)
+        _sv.seal_store()
     from . import prompt_system
     from .evidence import llm as _llm
 

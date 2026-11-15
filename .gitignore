@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 .env
 data/*.db
+data/*.key
 data/imports/*
 !data/imports/.gitkeep
 native/*.so

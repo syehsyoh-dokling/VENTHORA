@@ -47,7 +47,11 @@ async def pain001(request: Request, date: str | None = Query(None, pattern=r"^\d
         raise HTTPException(404, f"no payment was made on {day}")
     company = (airwallex_settings.tenant() or {}).get("name") or (state.org.get("unit", "hq") or {}).get("name") or "VENTHORA"
     xml = iso20022.pain001(rows, debtor_name=company, message_id=f"VENTHORA-{day}")
-    return Response(xml, media_type="application/xml", headers={"Content-Disposition": f'attachment; filename="pain.001-{day}.xml"'})
+    errors = await asyncio.to_thread(iso20022.validate, xml, "pain.001.001.09")
+    if errors:  # a file a bank would reject never leaves: what is wrong is said instead
+        raise HTTPException(500, {"message": "the pain.001 does not validate against the ISO 20022 schema", "errors": errors})
+    return Response(xml, media_type="application/xml", headers={"Content-Disposition": f'attachment; filename="pain.001-{day}.xml"',
+                                                                "X-ISO20022-Schema": "valid pain.001.001.09 (official XSD)"})
 
 
 @router.post("/v1/iso20022/camt.053")
@@ -62,8 +66,13 @@ async def camt053(request: Request):
         entries = iso20022.camt053(body)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    message = iso20022.message_of(body)
+    try:  # the statement against the official schema of its own version, when that schema is shipped; read either way
+        schema = {"message": message, "errors": await asyncio.to_thread(iso20022.validate, body, message)} if message else None
+    except LookupError:
+        schema = {"message": message, "errors": None, "note": "no schema shipped for this version: read, not validated"}
     paid = await asyncio.to_thread(payments, request.app.state)
     days = {e["booked"] for e in entries if e["booked"]}
     in_range = [p for p in paid if not days or min(days) <= p["execution_date"] <= max(days)]
-    return {"entries": len(entries), "from": min(days) if days else None, "to": max(days) if days else None,
+    return {"entries": len(entries), "from": min(days) if days else None, "to": max(days) if days else None, "schema": schema,
             "reconciliation": iso20022.reconcile(entries, in_range)}

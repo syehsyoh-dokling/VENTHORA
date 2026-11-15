@@ -64,6 +64,11 @@ DEV_CONSOLE = _rx(r"/v1/visa/tap/keys", r"/v1/visa/tap/sign-test", r"/v1/metal/(
 # Developer's (the GETs stay open to the FCO's screens); on SaaS the writes are the operator's
 DEV_SETUP = _rx(r"/v1/airwallex/connection", r"/v1/providers/(xendit|midtrans)", r"/v1/visa/vic/(credentials|xpay-public-key|xpay-secret)",
                 r"/v1/placement-connections/[^/]+")
+# what a requester (who asks for things and is paid) never reads: the audit trail, the payment runs and their
+# ledger, other people's payroll and the delegation's settings. A requester sees their own requests on their screens.
+REQUESTER_DENIED = _rx(r"/api/audit", r"/v1/audit(/.*)?", r"/v1/transaction-log(/.*)?", r"/v1/executions(/.*)?", r"/v1/ledger(/.*)?",
+                       r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/reports/(staff-spend|payments|spending-recap|payroll)(/.*)?", r"/v1/continuity(/.*)?",
+                       r"/v1/developer(/.*)?", r"/v1/t0(/.*)?", r"/v1/metal(/.*)?", r"/v1/treasury(/.*)?")
 # the GETs of FCO Authorize a Developer may not make (standards stay readable: every screen shows the base currency)
 FCO_READS = _rx(r"/v1/doa(/.*)?", r"/v1/mandate", r"/v1/priority-sop", r"/v1/placement-providers(/.*)?")
 
@@ -88,6 +93,8 @@ def check(role: str | None, method: str, path: str, holder: str | None = None) -
         return None
     if role == DEV and not write and FCO_READS.match(path):
         return 403, "FCO Authorize is visible to the FCO (Super admin) only"
+    if role == "requester" and not write and REQUESTER_DENIED.match(path):
+        return 403, "a requester does not read the audit trail, payment runs, payroll or the delegation's settings"
     if not write:
         return None
     if MANDATE.match(path) and role != (holder or FCO):
