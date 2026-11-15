@@ -6,7 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 Kind = Literal["supplier_invoice", "contractor_claim", "expense_claim", "bank_change", "remittance_notice", "unknown"]
 Trust = Literal["registered", "staff", "system_of_record", "unknown_sender", "reply_to_mismatch", "failed_authentication"]
-Status = Literal["VERIFIED", "NEEDS_REVIEW", "QUARANTINED", "REJECTED", "DUPLICATE"]
+# FILED: the email became a purchase request or a cash request; it is not a bill
+Status = Literal["VERIFIED", "NEEDS_REVIEW", "QUARANTINED", "REJECTED", "DUPLICATE", "FILED"]
 
 
 class Attachment(BaseModel):

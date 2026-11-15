@@ -2171,8 +2171,24 @@ async def _ingest(raw: bytes, fps: dict | None, dry_run: bool, *, channel: str, 
                 return req  # rejected as it stands: no document check, no model, no queue for payment
             if outsider == "":  # None: a registered vendor's own invoice that only mentions the words; the triage keeps it
                 req = await _fund_from_email(req, model)
-        elif pr_email.looks_like(req.subject or "", req.text or ""):  # only a registered person's email becomes a PR (a person may also be a payee)
+        elif pr_email.looks_like(req.subject or "", req.text or "") and "doa_forwarded" not in req.flags and not (req.counterparty_id and req.invoice_no):
+            # only a registered person's email becomes a PR (a person may also be a payee). A vendor's bill that a person
+            # forwards under the delegation of authority, or any email that carries a registered vendor's invoice, is a
+            # bill, whatever words it uses: the triage keeps it
             req = await _pr_from_email(req, model)
+        filed = next((f for f in req.flags if f.startswith(("purchase_request:", "fund_request:"))), None)
+        if filed:
+            # the email became a purchase request or a cash request: it is filed under that number and is not a bill.
+            # It does not wait for a payment review; its own process carries it (procurement, or the 23:59 advance run)
+            what, _, number = filed.partition(":")
+            where = "Procurement → Vendor Sourcing" if what == "purchase_request" else "Intake → Cash advance"
+            req = req.model_copy(update={"status": "FILED", "reasons": [f"filed as {what.replace('_', ' ')} {number.strip()}: this email asks for "
+                                                                         f"{'a purchase' if what == 'purchase_request' else 'cash'}, it is not a bill to pay. It continues in {where}"]})
+            await asyncio.to_thread(app.state.intake.store.save, req)
+            await asyncio.to_thread(app.state.audit.append, "intake", req.model_dump(exclude={"text"}))
+            app.state.hub.publish("intake", {"channel": channel, "kind": what, "status": "FILED", "intake_id": req.intake_id,
+                                             "pr_number" if what == "purchase_request" else "request_number": number.strip()})
+            return req
     if req.trust == "staff" and not dry_run and "doa_forwarded" not in req.flags and not any(f.startswith(("purchase_request", "fund_request")) for f in req.flags):
         order, req = await _email_order(req, raw)
         if order is not None:
@@ -5115,6 +5131,73 @@ async def hackathon_evidence():
     items = [i for g in data["groups"] for i in g["items"]]
     data["counts"] = {s: sum(1 for i in items if i["status"] == s) for s in ("done", "partial", "blocked", "na")} | {"total": len(items)}
     return data
+
+
+@app.get("/v1/procurement/preferred-vendors")
+async def procurement_preferred_vendors():
+    """Preferred vendors: every supplier that has sent a quotation, each with its own number (PV-0001 ...), what it
+    quoted for, what it won and how complete its administration was. They are asked first on the next request that fits."""
+    from . import procurement_flow
+
+    return {"vendors": await asyncio.to_thread(procurement_flow.preferred, app.state.org), "minimum_invited": procurement_flow.MIN_VENDORS}
+
+
+@app.get("/v1/procurement/winners")
+async def procurement_winners():
+    """The vendor list: the winner of every awarded purchase request, whether a purchase order document was needed
+    (the PO threshold), and where the purchase stands: announced, details, invoice, payment. The PO number is the one
+    the invoice quotes, so each row carries the payment requests in Intake that belong to it."""
+    from . import procurement_flow, sourcing
+
+    org = app.state.org
+    intake = await asyncio.to_thread(app.state.intake.store.list, 5000)
+    rows = await asyncio.to_thread(procurement_flow.winners, org, intake, lambda n: sourcing.quotes(org, n))
+    return {"winners": rows, "settings": procurement_flow.settings(org)}
+
+
+@app.get("/v1/procurement/settings")
+async def procurement_settings():
+    """The PO threshold: a purchase at or above it gets a purchase order document; one below it is a direct purchase."""
+    from . import procurement_flow
+
+    return procurement_flow.settings(app.state.org)
+
+
+@app.put("/v1/procurement/settings")
+async def procurement_settings_put(body: Annotated[dict, Body()], role: str = "finance_manager", by: str = "dashboard"):
+    """Change the PO threshold (a finance manager, the CFO or the FCO)."""
+    from . import procurement_flow
+
+    if role not in ("finance_manager", "cfo", "super_admin"):
+        raise HTTPException(403, f"role {role} may not change the procurement settings")
+    try:
+        out = await asyncio.to_thread(procurement_flow.save_settings, app.state.org, body, f"{by} ({role})")
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    await asyncio.to_thread(app.state.audit.append, "procurement_settings_changed", out | {"by": by, "role": role})
+    return out
+
+
+@app.get("/v1/procurement/{pr_number}/po-document", response_class=HTMLResponse)
+async def procurement_po_document(pr_number: str):
+    """The draft purchase order of an awarded request, as a printable page (buyer, supplier, the line, the terms, who
+    authorised it). 409 for a direct purchase below the PO threshold, which has no document."""
+    from . import procurement_flow, sourcing
+
+    org = app.state.org
+    r, pr = sourcing.rfq(org, pr_number), org.get("pr", pr_number)
+    aw = (r or {}).get("award")
+    if pr is None or not aw:
+        raise HTTPException(404, "no awarded purchase request with this number")
+    need, why = (aw["po_required"], aw.get("po_note", "")) if "po_required" in aw else procurement_flow.po_required(org, aw["total_minor"], aw["currency"])
+    if not need:
+        raise HTTPException(409, why)
+    q = org.get("quote", f"{pr_number}:{aw['cand_id']}")
+    po = org.get("po", aw["po_id"])
+    if q is None or po is None:
+        raise HTTPException(404, "the quotation or the purchase order is no longer on file")
+    company = (org.standards() or {}).get("company_name") or "the company"
+    return HTMLResponse(procurement_flow.po_document(company=company, po=po, pr=pr, q=q, award=aw, required_note=why))
 
 
 @app.post("/v1/procurement/demo-requests")

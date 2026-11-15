@@ -151,8 +151,18 @@ async def find_vendors(org, pr_number: str, *, payees: dict, model=None, by: str
     old = rfq(org, pr_number) or {}
     if old.get("status") == "AWARDED":
         raise SourcingError(f"{pr_number} is already awarded")
+    from . import procurement_flow
+
     unit = org.account_code(pr["charge_code"])["unit"]
-    web, note = await _from_web(pr, model, unit.get("country") or unit.get("name") or "")
+    # the vendors already known come first: the preferred vendors (everyone who quoted before) that fit this request,
+    # then the registered vendors; the web is searched only for what is missing to five relevant vendors
+    known = procurement_flow.match_preferred(org, pr, _words(pr)) + _registered(pr, payees)
+    have = len({c["email"].lower() for c in known if c.get("email")})
+    if have >= procurement_flow.MIN_VENDORS:
+        web, note = [], f"{have} preferred or registered vendor(s) fit this request: the web was not searched"
+    else:
+        web, note = await _from_web(pr, model, unit.get("country") or unit.get("name") or "")
+        note = f"{have} preferred or registered vendor(s) fit; {procurement_flow.MIN_VENDORS - have} more looked for: {note}"
     # alpha-sandbox (demo mode on): the demo directory stays beside the web results, so the demo can show vendors
     # replying (VENTHORA_PROCUREMENT_DEMO_DIRECTORY=0 keeps it only as the fallback when the web gives nothing).
     # Demo mode off (the real version): never a demo vendor.
@@ -160,7 +170,7 @@ async def find_vendors(org, pr_number: str, *, payees: dict, model=None, by: str
 
     demo = edition.demo_on(org)
     demo_dir = demo and env("VENTHORA_PROCUREMENT_DEMO_DIRECTORY", "1") != "0"
-    cands = _registered(pr, payees) + web + (_from_directory(pr) if demo_dir or (demo and not web) else [])
+    cands = known + web + (_from_directory(pr) if (demo_dir or (demo and not web)) and have < procurement_flow.MIN_VENDORS else [])
     if not demo and not web:
         note += "; demo mode is off, so no demo vendors: add vendors by hand"
     keep = {c["cand_id"]: c for c in old.get("candidates", []) if c.get("invited_at")}  # invited vendors stay
@@ -322,6 +332,9 @@ def submit(org, token: str, form: dict) -> dict:
          "explanation": str(form.get("explanation") or "")[:2000], "file": stored or (old or {}).get("file"),
          "submitted_at": _now(), "revision": ((old or {}).get("revision") or 0) + 1, "model_review": None}
     org._put("quote", q, f"vendor:{c['cand_id']}")
+    from . import procurement_flow
+
+    procurement_flow.record_preferred(org, q, pr)  # every supplier that quotes is kept, with its own number, for the next request
     c["quoted_at"] = q["submitted_at"]
     r["status"] = "QUOTING"
     org._put("rfq", r | {"updated_at": _now()}, f"vendor:{c['cand_id']}")
@@ -490,8 +503,12 @@ def board(org, *, payees: dict | None = None) -> list[dict]:
         qs = quotes(org, r["pr_number"])
         cands = {c["cand_id"]: c for c in r["candidates"]}
         rows = [q | {"candidate": {k: v for k, v in (cands.get(q["cand_id"]) or {}).items() if k != "token"}} for q in qs]
+        from . import procurement_flow
+
         a = assess(pr, qs)
-        out.append({"pr": pr, "rfq": {k: v for k, v in r.items() if k != "candidates"} | {
+        out.append({"ranking": procurement_flow.ranking(pr, qs, a), "conclusion": procurement_flow.conclusion(pr, r, qs, a),
+                    "events": procurement_flow.events(org, r, qs),
+                    "pr": pr, "rfq": {k: v for k, v in r.items() if k != "candidates"} | {
             "candidates": [{k: v for k, v in c.items() if k != "token"} | {"form": bool(c.get("token"))} for c in r["candidates"]]},
             "quotes": sorted(rows, key=lambda q: q["total_minor"]), "assessment": a, "shortlist": shortlist(pr, qs, a),
             "draft": org.get("rfq_draft", r["pr_number"])})
@@ -557,6 +574,9 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
         if report["rejected"]:
             raise SourcingError(f"the vendor could not be registered: {report['rejected'][0]['error']}")
         followed = report.get("followed") or []
+    from . import procurement_flow
+
+    po_needed, po_note = procurement_flow.po_required(org, q["total_minor"], q["currency"])
     po_id = _next_po(org)
     po = PurchaseOrder.model_validate({
         "po_id": po_id, "supplier_id": vendor_id, "currency": pr["currency"], "total_minor": q["total_minor"], "account_code": pr["charge_code"],
@@ -566,7 +586,9 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
     org.save("po", po, f"{by} ({role})")
     award_rec = {"cand_id": cand_id, "vendor": v["name"], "vendor_id": vendor_id, "po_id": po_id, "total_minor": q["total_minor"], "currency": q["currency"],
                  "by": f"{by} ({role})", "at": _now(), "note": note, "outside_recommendation": outside, "recommended": a["recommended"],
-                 "quotes": len(quotes(org, pr_number)), "vendor_followed": followed}
+                 "quotes": len(quotes(org, pr_number)), "vendor_followed": followed, "po_required": po_needed, "po_note": po_note,
+                 "po_document": f"/v1/procurement/{pr_number}/po-document" if po_needed else None}
+    procurement_flow.record_win(org, q, po_id)
     # the winner completes what the quotation did not ask (bank account, address, tax id) on its own form
     token = secrets.token_urlsafe(18)
     org._put("vendor_details", {"_id": token, "vendor_id": vendor_id, "pr_number": pr_number, "po_id": po_id, "vendor": v["name"],
@@ -575,7 +597,9 @@ def award(org, pr_number: str, cand_id: str, *, role: str, by: str, note: str, m
     org._put("rfq", r | {"status": "AWARDED", "award": award_rec, "updated_at": _now()}, by)
     outbox.queue(org, to=[v["email"]], subject=f"Purchase order {po_id} for {pr_number}", ref=po_id, by=by, kind="po_issued",
                  body=(f"Dear {v.get('contact_person') or v['name']},\n\nYour quotation for {pr_number} ({pr['title']}) is accepted.\n\n"
-                       f"Purchase order: {po_id}\nAmount: {q['currency']} {q['total_minor'] / 100:,.2f}\nQuantity: {q['quantity']:g} {pr.get('unit') or ''}\n"
+                       + ("A purchase order is issued for this purchase; its draft is with our procurement team for your confirmation.\n"
+                          if po_needed else "No purchase order document is needed for this amount: this message and the reference below are the order.\n")
+                       + f"{'Purchase order' if po_needed else 'Order reference'}: {po_id}\nAmount: {q['currency']} {q['total_minor'] / 100:,.2f}\nQuantity: {q['quantity']:g} {pr.get('unit') or ''}\n"
                        f"Deliver by: {pr.get('needed_by') or '-'}\nCharge code: {pr['charge_code']}\n\n"
                        f"Please complete your company and bank details on this form (it is yours only), so we can pay you:\n{public_url()}/vendor-details/{token}\n\n"
                        "On the same form, confirm your delivery date and enter your invoice (number, date, amount): an invoice that matches this "
