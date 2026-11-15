@@ -308,10 +308,12 @@ async def api_keys(request: Request, call_next):
 def _execution_done(result) -> None:
     """Every execution result reaches the dashboards at once: paid, refused or waiting for a person."""
     app.state.position_cache = None
-    paid = sum(1 for st in result.steps if st.kind == "transfer" and (st.detail or {}).get("status") == "PAID")
+    # a payout is paid when its transfer, or the bank's status read after it (the sandbox's simulation step), says PAID
+    paid = len({st.key for st in result.steps if st.kind in ("transfer", "simulation") and (st.detail or {}).get("status") == "PAID"})
     app.state.hub.publish("execution", {"execution_id": result.execution_id, "status": result.status, "message": result.message[:300],
                                         "paid": paid})
-    if result.status == "COMPLETED" and paid and env("VENTHORA_REPLICA_URL"):
+    moved = any(st.kind == "transfer" for st in result.steps)  # a transfer was sent: money left, whatever its status says yet
+    if result.status == "COMPLETED" and moved and env("VENTHORA_REPLICA_URL"):
         # money moved: the stores are copied to the replica now (continuity/replicate.py), so a standby never starts
         # from a state older than the last payment
         with contextlib.suppress(RuntimeError):  # no running loop (a test calling the executor directly)
