@@ -10,8 +10,8 @@ The code is in `src/venthora/continuity/` (five small files) and `src/venthora/r
 |---|---|
 | Safe mode | Works on every deployment, including the staging demo. |
 | Writer lease, catch-up from Airwallex, takeover sequence | Written, wired into the running service, tested with fakes (`tests/test_continuity.py`, `tests/test_continuity_api.py`). |
-| Copy of the stores to PostgreSQL | Written and tested on SQLite; the PostgreSQL dialect is tested as SQL translation only. |
-| A standby server | **None runs anywhere.** No takeover has been rehearsed against a real PostgreSQL. |
+| Copy of the stores to PostgreSQL | **Running on the live staging server since 16 Nov 2026**: PostgreSQL 16 on the same EC2 host, `VENTHORA_REPLICA_URL` set. After every payment the stores are copied (7 stores, about 4,500 rows, 0.4–1.1 s), row counts checked, and the copy is written to the audit chain and to the demo log's Continuity tab. The store of keys and passwords is never copied. |
+| A standby server | **None runs anywhere.** The replica is on the same host, so it protects against a corrupted store, not against losing the host; no takeover has been rehearsed. |
 
 The staging demo is one server. Its `/continuity` page shows that, and the two standby actions answer `409` with:
 "No standby is connected in this environment. This deployment runs on one server…" and the configuration that
