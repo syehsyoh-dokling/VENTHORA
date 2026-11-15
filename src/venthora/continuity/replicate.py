@@ -27,8 +27,9 @@ from pathlib import Path
 
 from . import db
 
+# run_at is DOUBLE PRECISION: PostgreSQL's REAL has seven digits, so two runs a few minutes apart would read as one
 LOG = """CREATE TABLE IF NOT EXISTS replication_log (
-    run_at REAL NOT NULL, store TEXT NOT NULL, tables INTEGER NOT NULL, rows INTEGER NOT NULL, ok INTEGER NOT NULL, detail TEXT NOT NULL)"""
+    run_at DOUBLE PRECISION NOT NULL, store TEXT NOT NULL, tables INTEGER NOT NULL, rows INTEGER NOT NULL, ok INTEGER NOT NULL, detail TEXT NOT NULL)"""
 TYPE = {"INTEGER": "BIGINT", "INT": "BIGINT", "REAL": "DOUBLE PRECISION", "BLOB": "BYTEA", "TEXT": "TEXT", "NUMERIC": "NUMERIC", "": "TEXT"}
 # never copied: the store of keys, passwords and second factors. A standby gets its secrets from where secrets are
 # kept (a secret manager), not from a copy lying in another database
@@ -91,14 +92,21 @@ def copy_store(store: Path, data_dir: Path, target: db.Connection, tmp: Path) ->
     return {"store": name, "tables": len(tables), "rows": total, "ok": True, "detail": "row counts match"}
 
 
+def _log_table(target: db.Connection) -> None:
+    """The replication log, with run_at at full precision (a table made before is widened in place on PostgreSQL)."""
+    with target as t:
+        t.execute(LOG)
+        if target.postgres:
+            t.execute("ALTER TABLE replication_log ALTER COLUMN run_at TYPE DOUBLE PRECISION")
+
+
 def run(data_dir: Path, target_url: str, now: float | None = None) -> list[dict]:
     """Every store under `data_dir`, one after the other; a store that fails is reported and the others still copy."""
     stores = sorted(p for p in Path(data_dir).rglob("*.db") if p.is_file() and p.name not in EXCLUDE)
     target = db.connect(target_url)
     out, run_at = [], now or time.time()  # one time for the whole run: that is how a run is told from the next
     try:
-        with target as t:
-            t.execute(LOG)
+        _log_table(target)
         with tempfile.TemporaryDirectory(prefix="venthora_repl_") as tmp:
             for store in stores:
                 try:
@@ -117,8 +125,8 @@ def last_run(target_url: str) -> dict | None:
     """When the copy was last made and whether every store copied: what a takeover reads to know how old its data is."""
     conn = db.connect(target_url)
     try:
+        _log_table(conn)
         with conn as c:
-            c.execute(LOG)
             rows = c.execute("SELECT run_at, COUNT(*) AS stores, SUM(ok) AS ok, SUM(rows) AS rows FROM replication_log"
                              " GROUP BY run_at ORDER BY run_at DESC LIMIT 1")
     finally:
