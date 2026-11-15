@@ -36,8 +36,9 @@ def _estimate_swift_fees(data: dict) -> dict[str, int]:
     from decimal import ROUND_CEILING, Decimal
 
     from ..fx_routes import pays_through
+    from ..iso20022 import ZERO_DECIMAL
 
-    fees, base, fx = data["policy"]["payout_fees_minor"], data["base_currency"], data.get("fx_to_base") or {}
+    fees, base, fx =data["policy"]["payout_fees_minor"], data["base_currency"], data.get("fx_to_base") or {}
 
     def rate(ccy: str) -> Decimal | None:
         if ccy == base:
@@ -58,8 +59,11 @@ def _estimate_swift_fees(data: dict) -> dict[str, int]:
         ccy, key = o["currency"], f"SWIFT:{o['currency']}"
         if o.get("payout_method") != "SWIFT" or key in fees or pays_through(ccy, base) or rate(ccy) is None:
             continue
-        out[key] = int((in_base / rate(ccy) * SWIFT_FEE_MARGIN).to_integral_value(rounding=ROUND_CEILING))
-        fees[key] = out[key]
+        fee = int((in_base / rate(ccy) * SWIFT_FEE_MARGIN).to_integral_value(rounding=ROUND_CEILING))
+        if ccy in ZERO_DECIMAL:  # yen has no sen: a fee of JPY 4,975.09 made a quote the bank could not match
+            fee = -(-fee // 100) * 100
+        out[key] = fee
+        fees[key] = fee
     return out
 
 

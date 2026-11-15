@@ -25,8 +25,8 @@ def test_the_fee_seen_in_one_currency_is_carried_to_another_with_a_margin():
     data = _data({"SWIFT:EUR": 1343}, [("GBP", "SWIFT", 240_000), ("JPY", "SWIFT", 1_800_000_000), ("EUR", "SWIFT", 2_400_000), ("GBP", "LOCAL", 500)])
     out = facts._estimate_swift_fees(data)
     # EUR 13.43 is USD 14.90; twice that is GBP 22.39 and JPY 4,729 (minor units are hundredths in every currency)
-    assert out == {"SWIFT:GBP": 2240, "SWIFT:JPY": 472863}
-    assert data["policy"]["payout_fees_minor"] == {"SWIFT:EUR": 1343, "SWIFT:GBP": 2240, "SWIFT:JPY": 472863}  # the plan reads it there
+    assert out == {"SWIFT:GBP": 2240, "SWIFT:JPY": 472900}  # whole yen: JPY has no minor unit
+    assert data["policy"]["payout_fees_minor"] == {"SWIFT:EUR": 1343, "SWIFT:GBP": 2240, "SWIFT:JPY": 472900}  # the plan reads it there
     assert facts._estimate_swift_fees(data) == {}  # nothing is estimated twice, and a fee that was seen is never replaced
 
 
