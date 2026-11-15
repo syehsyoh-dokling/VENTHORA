@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """The card program: a staff card opens only for an approved advance whose purpose is ticked, inside its window and
 amount, at the merchants allowed; Airi checkouts follow the FCO's PR, price, invoice and vendor rules."""
 import datetime as dt

@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Local Rails: only what Airwallex, Visa and Alta do not cover in Indonesia; Xendit and Midtrans products the
 Finance Director turns on or off; Midtrans keys sandbox only and write-only; notifications verified by signature."""
 import hashlib
@@ -5,7 +6,8 @@ import hashlib
 import httpx
 import pytest
 
-from venthora import access, local_rails as lr, secret_values
+from venthora import access, secret_values
+from venthora import local_rails as lr
 
 
 class Org:

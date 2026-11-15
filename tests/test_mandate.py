@@ -66,16 +66,16 @@ def test_saving_the_standing_mandate_changes_what_a_run_starts_from(client):
 def _state_and_cfg(setup):
     import json
 
-    from venthora.config import ROOT
+    from venthora.config import seed_file
     from venthora.domain.models import TreasuryState
 
-    raw = json.loads((ROOT / "data" / "scenarios" / "demo_live.json").read_text(encoding="utf-8"))
+    raw = json.loads(seed_file("scenarios/demo_live.json").read_text(encoding="utf-8"))
     return TreasuryState.model_validate(raw["state"]), setup, dt.date.today()
 
 
 def test_only_the_mandate_authority_changes_it_and_may_hand_it_on(client):
     r = client.put("/v1/mandate?role=finance_manager&by=Dana", json={"values": {"pay_single": 100}})
-    assert r.status_code == 403 and "Super admin (FCO)" in r.json()["detail"]
+    assert r.status_code == 403 and "FCO (Super admin)" in r.json()["detail"]
     assert _put(client, {"authority_role": "cfo"}).status_code == 200
     assert client.put(f"/v1/mandate?{FCO}", json={}).status_code == 403  # handed on: the FCO no longer holds it
     assert _put(client, {"authority_role": "super_admin"}, who="role=cfo&by=Omar").status_code == 200

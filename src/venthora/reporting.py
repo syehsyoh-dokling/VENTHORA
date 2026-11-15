@@ -25,9 +25,9 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .config import ROOT
+from .config import seed_file
 
-CONFIG_FILE = ROOT / "data" / "reporting.json"
+CONFIG_FILE = seed_file("reporting.json")
 MINOR = {"IDR": 1, "JPY": 1, "KRW": 1}  # currencies without cents; default 100
 
 

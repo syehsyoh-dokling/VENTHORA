@@ -19,7 +19,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
-from .config import data_path
+from .config import data_path, sample_dir
 
 UnitKind = Literal["HQ", "COUNTRY_OFFICE", "BRANCH_OFFICE", "PROJECT_FINANCE"]
 Role = Literal["super_admin", "developer", "hq_admin", "country_admin", "branch_admin", "project_admin", "admin", "cfo", "finance_manager",
@@ -567,23 +567,20 @@ class OrgStore:
         with self._connect() as c:
             c.executescript(SCHEMA)
             empty = c.execute("SELECT COUNT(*) FROM records").fetchone()[0] == 0
-        if seed and empty:
-            # Venthora-demo starts blank: one head office to rename and one Super admin, so a person can sign in and
+        if seed and empty and sample_dir() is not None:
+            # the sample company (VENTHORA_SAMPLE_DATA, the test suite): offices, people, budgets, prices, projects, POs
+            for kind, rows in _seed().items():
+                for row in rows:
+                    self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
+            self._seed_v3()
+            self._put("standards", Standards().model_dump() | {"_id": "standards"}, "seed")
+            self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
+        elif seed and empty:
+            # VENTHORA starts blank: one head office to rename and one Super admin, so a person can sign in and
             # enter everything else from the UI (no offices, people, budgets, prices, POs, accounts or engagements)
             for kind, row in BLANK_SEED:
                 self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
             self._put("standards", Standards().model_dump() | {"_id": "standards"}, "seed")
-            self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
-        elif False:  # the old upgrade path would add the demo reference data back
-            # a store made before purchase orders: add the new reference data, change nothing a person entered
-            for kind, rows in _seed_v2().items():
-                if not self.list(kind):
-                    for row in rows:
-                        self._put(kind, MODELS[kind].model_validate(row).model_dump(), "seed")
-            for u in self.list("unit"):
-                if u.get("payment_limit_minor") is None and u["unit_id"] in UNIT_LIMITS:
-                    self._put("unit", u | {"payment_limit_minor": UNIT_LIMITS[u["unit_id"]]}, "seed")
-            self._seed_v3()
             self._put("meta", {"_id": "seed", "version": SEED_VERSION}, "seed")
 
     def _seed_v3(self) -> None:

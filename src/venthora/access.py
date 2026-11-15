@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Who may reach which menu, and how VENTHORA is deployed.
 
 Deployment (VENTHORA_DEPLOYMENT, read at start):

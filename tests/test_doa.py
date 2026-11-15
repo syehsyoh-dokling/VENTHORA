@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from test_execution import harness, sandbox_credentials  # noqa: F401 (the fixture)
 
 from venthora import autonomy, doa
-from venthora.config import ROOT
+from venthora.config import seed_file
 from venthora.domain.models import TreasuryState
 from venthora.execution.models import ExecutionRequest
 from venthora.testing.fake_airwallex import FakeAirwallex
@@ -105,7 +105,7 @@ def test_due_lines_are_paid_on_the_agents_own_authority_in_each_currency(tmp_pat
     today = dt.date.today()
     row = {"key": "personnel", "period": _period(), "pay_date": today.isoformat()}
     lines = [ln | {"line": i, "ref": f"doa:personnel:{_period()}:{i}"} for i, ln in enumerate(LINES)]
-    base = TreasuryState.model_validate(json.loads((ROOT / "data" / "scenarios" / "demo_live.json").read_text(encoding="utf-8"))["state"])
+    base = TreasuryState.model_validate(json.loads(seed_file("scenarios/demo_live.json").read_text(encoding="utf-8"))["state"])
     state = doa.book(base, row, lines, payees, today)
     fake = FakeAirwallex(balances={k: str(v / 100) for k, v in state.balances.items()})
 

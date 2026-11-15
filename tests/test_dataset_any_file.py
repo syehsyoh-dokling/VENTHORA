@@ -7,9 +7,9 @@ import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
+from test_uploads import VENDORS_CSV
 
 from venthora import imports
-from test_uploads import VENDORS_CSV
 
 
 @pytest.fixture

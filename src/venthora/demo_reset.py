@@ -13,10 +13,10 @@ email settings, the company profile and bank account. Companies registered after
 from __future__ import annotations
 
 import json
-from contextlib import closing
 import shutil
 import sqlite3
 import threading
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 

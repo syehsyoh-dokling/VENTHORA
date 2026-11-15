@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Server, once: switch remote authorization on for the PLATFORM's issuing config (it governs the cards of every
 connected account), ask Airwallex for a new shared secret, and keep it in .env as AWX_REMOTE_AUTH_SECRET so the
 platform gateway can check Airwallex's signature (saas_gateway.remote_auth). Prints no secret.

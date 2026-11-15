@@ -6,7 +6,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from venthora.config import ROOT
+from venthora.config import seed_file
 from venthora.masterdata import Vendor, bank_from_payload, beneficiary_payload
 
 FM = "role=finance_manager&by=Dana%20Finch"
@@ -33,8 +33,8 @@ def test_vendors_and_consultants_list_what_a_payment_reads_with_the_bank_masked(
 def test_the_page_fields_rebuild_every_payee_the_scenarios_pay():
     """Every payee of data/payees.json with its bank details of data/beneficiaries.json (what the 136-scenario matrix
     and the live runs pay) fits the vendor record of this page, and the record gives Airwallex the same beneficiary."""
-    payees = json.loads((ROOT / "data" / "payees.json").read_text(encoding="utf-8"))["payees"]
-    bens = {k: v for k, v in json.loads((ROOT / "data" / "beneficiaries.json").read_text(encoding="utf-8")).items() if not k.startswith("_")}
+    payees = json.loads(seed_file("payees.json").read_text(encoding="utf-8"))["payees"]
+    bens = {k: v for k, v in json.loads(seed_file("beneficiaries.json").read_text(encoding="utf-8")).items() if not k.startswith("_")}
     assert set(bens) <= set(payees)
     for k, ben in bens.items():
         p, b = payees[k], ben["payload"]["beneficiary"]

@@ -28,7 +28,7 @@ from pathlib import Path
 
 from .. import ledger
 from ..audit import AuditStore
-from ..config import ROOT
+from ..config import seed_file
 from ..domain.models import PlanResult, TreasuryState
 from ..domain.money import cost_in_base, fmt
 from ..domain.projection import obligation_needs
@@ -42,7 +42,7 @@ from .models import ExecutionRequest, ExecutionResult, Reconciliation, Step
 from .store import DuplicatePayout, ExecutionStore, QuoteReused
 
 PAYING_ACTIONS = ("PAY", "CONVERT_AND_PAY")
-BENEFICIARIES = ROOT / "data" / "beneficiaries.json"
+BENEFICIARIES = seed_file("beneficiaries.json")
 
 
 class Halt(Exception):

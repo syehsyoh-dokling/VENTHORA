@@ -6,7 +6,7 @@ repeat it:
 ```bash
 python scripts/oracle_audit.py          # behaviour comes from rules, not from the demo data
 python scripts/check_policy_mirror.py   # Rego == Python policy, evaluated by a real OPA (Docker, or OPA_BIN=<official binary>)
-pytest -q                               # 118 tests
+pytest -q                               # the whole suite; the current numbers are in the README
 ```
 
 ## 1. Oracle hunt

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import hashlib
 import json
 import re
@@ -25,7 +26,7 @@ from .config import ROOT, env, load_env
 
 load_env()
 
-from pydantic import BaseModel, Field  # noqa: E402
+from pydantic import BaseModel, Field, field_validator  # noqa: E402
 
 from . import ai_settings, apiaccess, apidocs, bankcheck, webhooks  # noqa: E402
 from . import live as live_session  # noqa: E402
@@ -181,6 +182,11 @@ PeriodPath = Annotated[str, PathParam(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]
 app = FastAPI(title="VENTHORA", version=__version__, lifespan=lifespan,
               description="Evidence-gated autonomous treasury agent on Airwallex. "
                           "AI proposes, independent engines verify, Airwallex executes.")
+from .hardening import Hardening  # noqa: E402
+from .logs import setup as _setup_logs  # noqa: E402
+
+oplog = _setup_logs()  # the operator's log (stderr): failed background jobs, throttled addresses; never a secret
+app.add_middleware(Hardening)  # security headers, Secure cookies over HTTPS, a rate limit per address (hardening.py)
 
 
 @app.middleware("http")
@@ -242,7 +248,13 @@ async def menu_access(request: Request, call_next):
     refused = access.check(role, request.method, request.url.path)
     if refused:
         return JSONResponse({"detail": refused[1]}, status_code=refused[0])
-    return await call_next(request)
+    if request.method not in access.WRITES:
+        return await call_next(request)
+    request.app.state.plan_cache = None  # a change is coming: today's plan is made again, never served from before it
+    try:
+        return await call_next(request)
+    finally:
+        request.app.state.plan_cache = None
 
 
 @app.middleware("http")
@@ -417,7 +429,9 @@ async def demo_testlog_csv(scenario: str | None = None):
 
 
 def _scenario_file(scenario_id: str):
-    path = SCENARIOS / f"{scenario_id}.json"
+    from .config import seed_file
+
+    path = seed_file(f"scenarios/{scenario_id}.json")
     if not scenario_id.replace("_", "").replace("-", "").isalnum() or not path.is_file():
         raise HTTPException(404, "unknown scenario")
     return path
@@ -460,6 +474,16 @@ async def list_scenarios():
 @app.get("/api/scenarios/{scenario_id}")
 async def get_scenario(scenario_id: str):
     return json.loads(_scenario_file(scenario_id).read_text(encoding="utf-8"))
+
+
+async def _fenced(state: TreasuryState) -> TreasuryState:
+    """The book on the live wallet and rates, ring-fenced to its allocation; a currency the book itself bought and
+    still holds (its ledger says so) is counted, so it is used before a new conversion."""
+    store = app.state.executor.store
+    own = {}
+    if await asyncio.to_thread(store.has_book, state.book_id):
+        own = {c: a.get("cash", 0) for c, a in (await asyncio.to_thread(store.book_balances, state.book_id)).items()}
+    return await with_live_balances_and_rates(state, _bank(), ring_fence=True, book_cash=own)
 
 
 def _live_base() -> TreasuryState:
@@ -720,10 +744,17 @@ async def ledger_eval(inp: Annotated[dict, Body()]):
 
 class AdjustRequest(BaseModel):
     currency: str = Field(min_length=3, max_length=3)
-    amount_minor: int = Field(ne=0, ge=-(10**11), le=10**11)
+    amount_minor: int = Field(ge=-(10**11), le=10**11)
     reviewer: str = Field(min_length=1, max_length=120)
     role: str = Field(min_length=1, max_length=60)
     note: str = Field(min_length=1, max_length=500)
+
+    @field_validator("amount_minor")
+    @classmethod
+    def _not_zero(cls, v: int) -> int:
+        if v == 0:  # an adjustment of nothing would only put a line in the journal
+            raise ValueError("the amount cannot be zero")
+        return v
 
 
 @app.post("/v1/ledger/{book_id}/adjust")
@@ -738,6 +769,12 @@ async def ledger_adjust(book_id: str, req: AdjustRequest):
     posted = store.post(book_id, entry)
     await asyncio.to_thread(app.state.audit.append, "ledger_adjust", {"book_id": book_id, **req.model_dump()})
     return posted
+
+
+# -- endpoints that live in their own module (routers/): ISO 20022 -----------------------------------------------
+from .routers import iso20022 as _iso20022_routes  # noqa: E402
+
+app.include_router(_iso20022_routes.router)
 
 
 # -- payee lifecycle: NEW -> VERIFIED -> ACTIVE, cooling after a bank change, call-back mandatory -----------------
@@ -1072,7 +1109,7 @@ async def _doa_run(refs: list[str], approver: str | None, role: str, by: str) ->
 
         state = priority_sop.apply(doa.book(base, row, go, payees, today), org, payees)
         try:
-            state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+            state = await _fenced(state)
         except AirwallexError as exc:
             raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
         state, _ = apply_operational_facts(state, app.state.executor.store)
@@ -1149,6 +1186,24 @@ async def metal_anchor_payments(role: str = "finance_manager", by: str = "dashbo
     return {"anchored": [r for r in done if r["status"] == "anchored"], "failed": [r for r in done if r["status"] != "anchored"],
             "threshold_minor": (mandate.standing(app.state.org).get("book") or {}).get("anchor_from_minor", 0),
             "proofs": sorted(app.state.org.list("metal_payment"), key=lambda r: r["at"], reverse=True)[:50]}
+
+
+def _failure(exc: Exception) -> str:
+    """Why a call to another application failed, in words a finance user can act on. The exception's own text is not
+    shown: it carries the full URL (with its query, sometimes a key) and the library's name."""
+    import httpx
+
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        what = {400: "it refused the request as invalid", 401: "it refused the sign-in: check the key or token",
+                403: "the key is not allowed to read this", 404: "the address was not found there",
+                429: "it is limiting requests: try again in a minute"}.get(code, "it answered with an error")
+        return f"{what} (HTTP {code})"
+    if isinstance(exc, httpx.TimeoutException):
+        return "it did not answer in time"
+    if isinstance(exc, httpx.HTTPError):
+        return "it could not be reached"
+    return f"{type(exc).__name__}: {str(exc)[:200]}"
 
 
 def _note(tab: str, line: str) -> None:
@@ -1260,7 +1315,7 @@ async def _pay_on_arrival(intake_id: str, by: str = "VENTHORA (on arrival)") -> 
         state = app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req])
         if not state.obligations:
             return {"paid": False, "reason": "nothing payable in it yet"}
-        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+        state = await _fenced(state)
         state, _ = apply_operational_facts(state, app.state.executor.store)
         s = await autonomy.split(app.state.agent, state)
         if s.auto_plan is None or not any(d.action in autonomy.PAYING for d in s.auto_plan.obligations):
@@ -1298,12 +1353,13 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
     while True:
         await asyncio.sleep(every_s)
         tick += 1
-        with contextlib.suppress(Exception):
-            await _scheduled_policy_run(tick)
-        with contextlib.suppress(Exception):
-            await _anchor_large_payments()
-        with contextlib.suppress(Exception):  # no held request is left without its answer to the vendor on record
-            await _vendor_feedback_sweep()
+        # a job that fails never stops the others or the next minute; the operator finds it in the log (logs.py)
+        for name, job in (("payment run", functools.partial(_scheduled_policy_run, tick)), ("anchoring", _anchor_large_payments),
+                          ("vendor answers", _vendor_feedback_sweep)):  # no held request is left without its answer on record
+            try:
+                await job()
+            except Exception:  # noqa: BLE001
+                oplog.exception("background job failed: %s", name)
         try:
             from . import priority_sop as _sop
 
@@ -1317,6 +1373,7 @@ async def _doa_scheduler(every_s: float = 60.0) -> None:
                 for q in sorted(waiting, key=lambda q: q.received_at)[:20]:  # first in, first out
                     await _pay_on_arrival(q.intake_id, "VENTHORA (sweep)")
         except Exception as exc:  # noqa: BLE001  the next minute tries again; the failure is on the audit chain
+            oplog.exception("background job failed: autopilot / pay on arrival")
             with contextlib.suppress(Exception):
                 await asyncio.to_thread(app.state.audit.append, "doa_autopilot_failed", {"error": str(getattr(exc, "detail", exc))[:300]})
 
@@ -3102,7 +3159,7 @@ async def intake_pay(intake_id: str, body: CorrectionIn, role: str = "finance_ma
     base = _live_base()
     state = _with_mandate(app.state.intake.to_state(base, as_of=datetime.now(UTC).date(), requests=[req]))  # same book rules as Agent plan
     try:
-        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+        state = await _fenced(state)
     except AirwallexError as exc:
         raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
     state, _ = apply_operational_facts(state, app.state.executor.store)
@@ -3200,7 +3257,7 @@ async def intake_state(scenario_id: str, as_of: str | None = None, live: bool = 
     if not live:
         return state
     try:
-        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+        state = await _fenced(state)
     except AirwallexError as exc:
         raise HTTPException(502, f"Airwallex request failed: {exc}") from exc
     state, _ = apply_operational_facts(state, app.state.executor.store)
@@ -3599,7 +3656,7 @@ async def ai_settings_models(s: ai_settings.AISettings | None = None, role: str 
         ids, labels = await ai_settings.list_models_labeled(model)
         return {"models": ids[:300], "labels": {k: v for k, v in labels.items() if k in set(ids[:300])}}
     except Exception as exc:  # noqa: BLE001 - the provider's reason, shown on the form
-        raise HTTPException(502, f"could not list models: {type(exc).__name__}: {str(exc)[:200]}") from exc
+        raise HTTPException(502, f"could not list models: {_failure(exc)}") from exc
 
 
 class AIKeyIn(BaseModel):
@@ -3885,7 +3942,7 @@ async def _sync_connector(connector_id: str, dry_run: bool, entity: str | None, 
         try:
             rows, ids = await fetch(raw, ent)
         except Exception as exc:  # noqa: BLE001 - the old system's answer, shown on the page
-            reports[ent] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            reports[ent] = {"error": _failure(exc)}
             continue
         reports[ent] = await asyncio.to_thread(ingestion.apply, ent, rows, ids, source=f"sync:{connector_id}", dry_run=dry_run, **ctx)
     if not dry_run:
@@ -3976,7 +4033,7 @@ async def _push_connector(connector_id: str, dry_run: bool, item: str | None, wh
         try:
             reports[it] = await send(raw, it, await _push_records(it), store, dry_run=dry_run)
         except Exception as exc:  # noqa: BLE001 - shown on the page; the next run tries again
-            reports[it] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            reports[it] = {"error": _failure(exc)}
     if not dry_run:
         await asyncio.to_thread(store.record_push_report, connector_id, reports | {"_at": datetime.now(UTC).isoformat(timespec="seconds")})
         if any(r.get("sent") for r in reports.values()):
@@ -6519,8 +6576,24 @@ async def _todays_state() -> tuple[TreasuryState | None, dict]:
         if book.get(k) is not None:
             source[k] = int(book[k])
     state = _with_mandate(TreasuryState.model_validate(data))  # allocation, reserve floor and approvers of the FCO's mandate
+    try:  # a customer's payment that settled tops up the book before it is planned (book_funding.py)
+        from . import book_funding
+
+        since = await asyncio.to_thread(book_funding.watching_since, org, state.book_id)
+        pos = await treasury_position()
+        credited = await asyncio.to_thread(book_funding.credit_settled_deposits, app.state.executor.store, state.book_id,
+                                           pos.get("deposits_settled") or [], since)
+        for c in credited:
+            await asyncio.to_thread(app.state.audit.append, "book_deposit_credited", c)
+            _note("Payments", f"Deposit {c['deposit_id']} from {c.get('payer') or 'a customer'} settled: "
+                              f"{c['currency']} {c['amount_minor'] / 100:,.2f} added to book {c['book_id']}; the plan is made again with it")
+        if credited:
+            source["deposits_credited"] = credited
+            app.state.position_cache = None
+    except Exception as exc:  # noqa: BLE001 - no bank, or the read failed: the plan is made on the book as it stands
+        source["deposits_error"] = str(getattr(exc, "detail", exc))[:200]
     try:
-        state = await with_live_balances_and_rates(state, _bank(), ring_fence=True)
+        state = await _fenced(state)
         source["balances"] = "live Airwallex"
     except (HTTPException, AirwallexError) as exc:
         source["balances_error"] = str(getattr(exc, "detail", exc))[:200]
@@ -6537,7 +6610,7 @@ class SimulateIn(BaseModel):
 
 
 async def _plan_snapshot() -> dict:
-    d = await agent_plan_today()
+    d = await agent_plan_today(fresh=True)
     t = d.get("today") or {}
     c = t.get("coverage") or {}
     return {"plan_hash": ((d.get("plan") or {}).get("plan_hash") or "")[:12], "decision": (d.get("plan") or {}).get("decision"),
@@ -6639,7 +6712,7 @@ async def agent_plan_forecast(months: int = 3):
     base_state = state if state is not None else _live_base()
     if state is None:
         with contextlib.suppress(Exception):
-            base_state = await with_live_balances_and_rates(base_state, _bank(), ring_fence=True)
+            base_state = await _fenced(base_state)
     reqs = await asyncio.to_thread(app.state.intake.store.list, 2000)
     cur = base_state.base_currency
     fx = dict(base_state.fx_to_base)
@@ -6652,17 +6725,45 @@ async def agent_plan_forecast(months: int = 3):
             fx |= {c: str(v) for c, v in got["rates"].items() if v}
     short = 0
     with contextlib.suppress(Exception):
-        today = (await agent_plan_today()).get("today") or {}
+        today = (await agent_plan_today(fresh=True)).get("today") or {}
         short = int((today.get("coverage") or {}).get("short_minor") or 0)
     out = await asyncio.to_thread(forecast.build, app.state.org, reqs, list(base_state.receivables), cur, fx, base_state.balance(cur),
                                   base_state.policy.reserve_floor_minor, datetime.now(UTC).date(), months, short)
     return out | {"balances": source.get("balances") if isinstance(source, dict) else None}
 
 
+def _plan_ttl() -> float:
+    """Seconds today's plan is kept (VENTHORA_PLAN_TTL, 15 by default; 0 = always planned again)."""
+    try:
+        return max(0.0, float(env("VENTHORA_PLAN_TTL") or 15))
+    except ValueError:
+        return 15.0
+
+
 @app.get("/v1/agent-plan")
-async def agent_plan_today():
+async def agent_plan_today(fresh: bool = False):
     """Agent plan -> Today's plan: what VENTHORA would do now with the organisation's real payments, and why; the
-    part it pays on its own authority and the part that waits for a person. Nothing is paid by reading it."""
+    part it pays on its own authority and the part that waits for a person. Nothing is paid by reading it.
+
+    Planning reads the bank and proves the book several times, so the answer is kept for a few seconds: a page that
+    asks again gets the same plan at once. Any change made through the API, a webhook, a payment or a new balance
+    discards it, so a plan is never shown after what it was made from has changed; `fresh=true` plans again anyway."""
+    import time
+
+    ttl = _plan_ttl()
+    made_from = (app.state.org, app.state.executor.store, app.state.intake, getattr(app.state, "position_cache", None))
+    kept = getattr(app.state, "plan_cache", None)
+    if (kept and ttl and not fresh and time.monotonic() - kept["at"] < ttl
+            and all(a is b for a, b in zip(kept["made_from"], made_from, strict=True))):
+        return kept["value"]
+    value = await _agent_plan_now()
+    if ttl:  # the position may have been read while planning: the plan belongs to that reading
+        app.state.plan_cache = {"at": time.monotonic(), "value": value,
+                                "made_from": (app.state.org, app.state.executor.store, app.state.intake, getattr(app.state, "position_cache", None))}
+    return value
+
+
+async def _agent_plan_now() -> dict:
     from . import autonomy, mandate
 
     state, source = await _todays_state()
@@ -7215,9 +7316,7 @@ async def cards_program_get():
 @app.put("/v1/cards/program")
 async def cards_program_put(body: Annotated[dict, Body()], role: str = "super_admin", by: str = "dashboard"):
     """The card program (purposes, staff cards, activation window, merchants): the Finance Director's choice."""
-    from . import card_program
-
-    from . import mandate
+    from . import card_program, mandate
 
     who = _setup_writer(role, by)
     org = app.state.org
@@ -7514,10 +7613,8 @@ async def cards_issuing_account_put(body: IssuingAccountIn, role: str = "super_a
 # ---- Xendit: the Indonesian rails Airwallex lacks (e-wallet payouts, the holder's name of an Indonesian account).
 # Indonesian bank accounts are still paid through Airwallex. gateways/xendit.py, wallet_payouts.py ----
 def _xendit_or_none():
-    from . import wallet_payouts
+    from . import local_rails, wallet_payouts
     from .gateways.xendit import XenditError
-
-    from . import local_rails
 
     if not local_rails.enabled(app.state.org, "xendit", "name_check"):  # turned off in Platform Setup -> Local Rails
         return None
@@ -7710,9 +7807,7 @@ async def wallet_payouts_list():
 @app.post("/v1/wallet-payouts")
 async def wallet_payouts_create(body: WalletPayoutIn, role: str = "finance_manager", by: str = "dashboard"):
     """Ask for an e-wallet payout: the holder's name is checked first; a second person approves before anything is sent."""
-    from . import wallet_payouts
-
-    from . import local_rails
+    from . import local_rails, wallet_payouts
 
     who = _writer(role, by)
     if not local_rails.enabled(app.state.org, "xendit", "ewallet_payout"):
@@ -7745,12 +7840,12 @@ async def _wallet_step(pid: str, fn, event: str, who: str):
     return wallet_payouts.public(rec)
 
 
-class CallbackIn(BaseModel):
+class WalletConfirmIn(BaseModel):
     note: str = Field("", max_length=200)
 
 
 @app.post("/v1/wallet-payouts/{pid}/confirm-holder")
-async def wallet_payouts_confirm(pid: str, body: CallbackIn | None = None, role: str = "finance_manager", by: str = "dashboard"):
+async def wallet_payouts_confirm(pid: str, body: WalletConfirmIn | None = None, role: str = "finance_manager", by: str = "dashboard"):
     """The holder confirmed on a call-back to the registered number (when no name check was available)."""
     from . import wallet_payouts
 
@@ -8083,10 +8178,9 @@ async def _sns_verified(msg: dict) -> bool:
     and the topic must be the one VENTHORA_SES_TOPIC_ARN names."""
     import base64
     import re as _re
-
-    import httpx
     from urllib.parse import urlparse
 
+    import httpx
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.asymmetric import padding
@@ -8201,9 +8295,9 @@ async def outbox_issues():
 @app.post("/webhooks/airwallex/remote-auth", include_in_schema=True)
 async def card_remote_auth(request: Request):
     """Airwallex asks whether a card charge may go. Answered from the mandate alone, well inside the 2.5 s limit."""
-    from . import cards, secret_values
-
     import hmac
+
+    from . import cards, secret_values
 
     raw = await request.body()
     token, given = env("VENTHORA_PLATFORM_TOKEN"), request.headers.get("x-venthora-platform")
@@ -8538,7 +8632,7 @@ async def intake_import(body: ImportIn, role: str = "finance_manager", by: str =
         try:
             rows, ids = await fetch(raw, k["entity"])
         except Exception as exc:  # noqa: BLE001 - the other application's answer, shown as it is
-            raise HTTPException(502, f"{raw['name']} did not answer for {k['label']}: {type(exc).__name__}: {str(exc)[:200]}") from exc
+            raise HTTPException(502, f"{raw['name']} did not answer for {k['label']}: {_failure(exc)}") from exc
         source = f"sync:{raw['connector_id']}"
     else:
         up = getattr(app.state, "uploads", {}).get(body.upload_id or "")
@@ -9003,7 +9097,7 @@ async def _budget_sync(kind: str, who: str) -> dict:
             reps = await _sync_connector(c["connector_id"], False, None, who)
             sources[c["connector_id"]] = {e: (r.get("error") or {k: len(v) for k, v in r.items() if isinstance(v, list)}) for e, r in reps.items()}
         except Exception as exc:  # noqa: BLE001 - one source failing does not stop the others
-            sources[c["connector_id"]] = {"error": f"{type(exc).__name__}: {str(exc)[:200]}"}
+            sources[c["connector_id"]] = {"error": _failure(exc)}
     view = await asyncio.to_thread(_budget_policy_view)
     usage = await asyncio.to_thread(Budget(app.state.org, app.state.executor.store).usage, view["active_period"])
     over = [a["alloc_id"] for a in usage if a["remaining_minor"] is not None and a["remaining_minor"] < 0]

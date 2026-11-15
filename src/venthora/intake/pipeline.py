@@ -28,12 +28,12 @@ from pathlib import Path
 from uuid import uuid4
 
 from .. import doa, mandate
-from ..config import ROOT, data_path
+from ..config import data_path, seed_file
 from ..domain.models import TreasuryState
 from . import claims, currency, documents
 from .models import IntakeRequest, Quote, ReviewRequest
 
-PAYEES_FILE = ROOT / "data" / "payees.json"
+PAYEES_FILE = seed_file("payees.json")
 FREEMAIL = {"gmail.com", "googlemail.com", "yahoo.com", "yahoo.co.uk", "yahoo.co.id", "outlook.com", "hotmail.com",
             "live.com", "icloud.com", "proton.me", "protonmail.com"}
 

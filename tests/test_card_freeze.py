@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-FM = "role=finance_manager&by=Dana%20Finch"
+FM = "role=super_admin&by=Rosa%20Lindqvist"  # cards hold the company's money: the FCO changes them (access.py)
 
 
 @pytest.fixture

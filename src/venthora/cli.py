@@ -438,10 +438,10 @@ async def run(args) -> int:
                 return 0
             approval = Approval(approver=name, role="finance_manager", terms_digest=terms_digest(plan))
             print(f"  approved by {name} (finance_manager) on terms {terms_digest(plan)[:16]}…")
-        elif not (args.yes or args.approve):  # an approver given on the command line consents to execution
-            if not sys.stdin.isatty() or input("  Execute this plan on the sandbox? [y/N] ").strip().lower() != "y":
-                print("  not executed")
-                return 0
+        elif not (args.yes or args.approve) and (  # an approver given on the command line consents to execution
+                not sys.stdin.isatty() or input("  Execute this plan on the sandbox? [y/N] ").strip().lower() != "y"):
+            print("  not executed")
+            return 0
 
         line("7 · execute on Airwallex and reconcile")
         if args.incident:

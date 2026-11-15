@@ -17,22 +17,24 @@ roles and keys itself. It only decides which company a request reaches, and a re
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
 import contextlib
 import json
 import subprocess
+from datetime import UTC, datetime
 from http.cookiejar import CookieJar, DefaultCookiePolicy
 from pathlib import Path
 
 import httpx
 from starlette.applications import Starlette
 from starlette.background import BackgroundTask
+from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from . import saas
 from .config import env, load_env
+from .hardening import Hardening
 
 COOKIE = "venthora_company"
 ROOT_COOKIE = "venthora_root"
@@ -712,4 +714,5 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
         Route("/webhooks/airwallex", webhook, methods=["POST"]),
         Route("/webhooks/airwallex/remote-auth", remote_auth, methods=["POST"]),
         Route("/platform/api/mail-oauth", mail_oauth_root, methods=["GET", "PUT"]), Route("/oauth/mail/callback", mail_oauth_callback),
-        Route("/{rest:path}", proxy, methods=every)], lifespan=lifespan)
+        Route("/{rest:path}", proxy, methods=every)], lifespan=lifespan,
+        middleware=[Middleware(Hardening)])  # security headers, Secure cookies, a rate limit per address (hardening.py)

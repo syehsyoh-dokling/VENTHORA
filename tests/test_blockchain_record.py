@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Blockchain Record: the Finance Director says yes or no, picks the documents (all, or from a value up), and each
 chosen kind gets its own digest in the next anchor; nothing goes on the record while the answer is no."""
 from venthora import blockchain_record as br

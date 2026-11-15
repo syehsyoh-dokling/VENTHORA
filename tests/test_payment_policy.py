@@ -51,7 +51,6 @@ def test_a_bad_choice_is_refused_and_only_the_authority_saves(client):
 
 def test_the_horizon_reaches_the_plan():
     from conftest import scenario
-
     from venthora import priority_sop
     from venthora.domain.models import TreasuryState
 

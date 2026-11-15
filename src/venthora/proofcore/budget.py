@@ -18,10 +18,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..config import ROOT
+from ..config import seed_file
 from ..domain.models import Budget, BudgetLine, ObligationDecision, TreasuryState
 
-BUDGETS_FILE = ROOT / "data" / "budgets.json"
+BUDGETS_FILE = seed_file("budgets.json")
 PAYING = ("PAY", "CONVERT_AND_PAY")
 OWED = ("DEFER", "ESCALATE")  # still a liability after this plan
 

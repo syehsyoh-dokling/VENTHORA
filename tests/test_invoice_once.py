@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Each invoice counts once, and a purchase order is never paid above its value.
 
 A PO of 1,000 paid in parts: 600 fits; the same invoice sent again is a duplicate and holds nothing of the PO; 500

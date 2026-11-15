@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """The company cardholder form comes filled from what the company already gave: the director and registered address of
 its Airwallex registration, the Finance Director's email; without a registration, the Super admin's name."""
 from venthora import airwallex_onboarding as ob

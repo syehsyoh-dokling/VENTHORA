@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """OpenAI-compatible chat client, configured the same way as the author's Theorem/Verity/Horizon
 agents: MODEL_ENDPOINT, MODEL_NAME and MODEL_TOKEN (or MODEL_API_KEY).
 

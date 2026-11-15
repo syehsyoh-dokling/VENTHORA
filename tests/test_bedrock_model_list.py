@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Amazon Bedrock: the model list is read live from the account's control plane with the Bedrock API key; inference
 profiles of text models first, then the on-demand text models; inactive or non-text models are left out."""
 import asyncio

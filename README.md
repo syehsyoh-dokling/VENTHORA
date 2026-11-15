@@ -708,7 +708,19 @@ pytest -q
 ruff check src tests scripts
 ```
 
-The 282 tests cover:
+Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,003 passed,
+0 failed**, 17 expected failures and 12 skipped, in about ten minutes.
+
+- **The sample company.** VENTHORA ships blank (one head office, one Super admin). The suite sets
+  `VENTHORA_SAMPLE_DATA=tests/sample_data`, which gives its cases offices, people, payees, budgets and the demo book.
+- **Expected failures** are listed with their reasons in [`tests/known_gaps.txt`](tests/known_gaps.txt): tests that
+  describe behaviour from before the role-based access rules and have not been rewritten. They still run on every
+  push and are reported, never hidden; most are one open question (whether every write under `/v1/doa` should be
+  refused to HR and finance managers, or only the FCO's own settings).
+- **Skipped** tests need a package that was not installed on that machine (`eth-account` for the Alta anchoring,
+  `anthropic` for that provider); with the project's dependencies installed they run.
+
+The tests cover:
 
 - **Budget · mandate** (`data/budgets.json`, `proofcore/budget.py`, `tests/test_budget.py`): the period's plan per line is the agent's mandate — Theorem never proposes beyond a line, what does not fit becomes a budget request with the exact shortfall, auto share / alert threshold / signed bypass decide when a person is needed (Python and Rego), realized spend and grants come from the execution store; 20 hand-derived cases, and real-sandbox cycle 8
 - **finance controls** (`proofcore/match.py`, `proofcore/budget.py`, `execution/store.py`, `tests/test_controls.py`): instalments (deposit then balance under a per-instalment duplicate lock, never past the contract total), three-way match (contract − paid so far vs the claim; over-claims beyond tolerance need a person), period cut-off (carry-forward, late-posted, a closed period's statement), and reconciliation cases that lock the book until a person closes them; 18 hand-derived cases
@@ -753,8 +765,28 @@ src/venthora/
   api.py         FastAPI app
 data/scenarios/  Kit 01 demo scenarios
 data/beneficiaries.json  approved payee registry (sandbox)
-docs/            architecture, hackathon compliance, demo script
+docs/            architecture, hackathon compliance, demo script, quality and control map
+tests/           the suite; tests/sample_data is the sample company it runs on (the product itself starts blank)
 ```
+
+## Security and quality
+
+What protects the money and the data, where each control lives in the code, and what is still missing for a bank
+deployment: [docs/QUALITY.md](docs/QUALITY.md). In short:
+
+- **Sign-in**: scrypt password hashes, a lock after five wrong passwords, a session cookie that is HttpOnly, SameSite and
+  Secure over HTTPS, and a rate limit per address on the sign-in routes (`hardening.py`).
+- **Every answer** carries a Content-Security-Policy, frame, sniffing, referrer and permissions headers, and HSTS over HTTPS.
+- **Payments**: bank details checked at Airwallex before they are kept, a call-back on the registered number before a
+  first payment, one payout per invoice, the reserve floor proven before execution, the budget allocation checked
+  before the plan and again when money moves.
+- **Records**: a hash-chained audit log; secrets are write-only and never returned by the API.
+- **ISO 20022**: `GET /v1/iso20022/pain.001` gives a day's payments as a credit transfer initiation, and
+  `POST /v1/iso20022/camt.053` reconciles a bank statement with them by `EndToEndId` (`iso20022.py`).
+- **Operations**: backup, verified restore and what to do in an incident are in [docs/OPERATIONS.md](docs/OPERATIONS.md);
+  `scripts/backup_stores.py` takes the backup while the service runs.
+- **No certification is claimed.** The page lists the gaps: no external penetration test, SQLite on one host, no
+  bank-validated ISO 20022 files (a `pain.001` export and a `camt.053` reconciliation exist as an API).
 
 ## Roadmap to submission (15 Nov 2026)
 

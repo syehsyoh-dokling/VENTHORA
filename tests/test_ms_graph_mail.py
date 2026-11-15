@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Outlook through Microsoft Graph: a mailbox connected with Graph permissions is read (oldest first, raw MIME, own
 notices skipped), marked read and answered through Graph; one connected with IMAP permissions stays on IMAP."""
 import json

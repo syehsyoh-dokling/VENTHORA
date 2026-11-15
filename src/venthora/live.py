@@ -23,7 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 from time import perf_counter
 
-from .config import ROOT, env
+from .config import ROOT, env, seed_file
 from .domain.models import BookApprover, BookConfig, PlanResult, Tenancy, TreasuryState
 from .evidence.llm import ChatModel
 from .evidence.reader import InboxMessage, read_inbox
@@ -151,7 +151,7 @@ def _model() -> ChatModel:
 
 
 def _scenario(scenario: str) -> tuple[dict, dict]:
-    raw = json.loads((ROOT / "data" / "scenarios" / f"{scenario}.json").read_text(encoding="utf-8"))
+    raw = json.loads(seed_file(f"scenarios/{scenario}.json").read_text(encoding="utf-8"))
     box = json.loads((ROOT / "data" / "inbox" / raw.get("inbox", "kit01_inbox.json")).read_text(encoding="utf-8"))
     return raw, box
 
@@ -206,7 +206,7 @@ def defaults(scenario: str, executor: Executor, standing: dict | None = None) ->
     from .reporting import config_path, load_config
 
     rep = load_config()
-    registry = json.loads((ROOT / "data" / "payees.json").read_text(encoding="utf-8"))["payees"]
+    registry = json.loads(seed_file("payees.json").read_text(encoding="utf-8"))["payees"]
     live_records = {r["beneficiary_id"]: r for r in executor.store.list_payees()} if executor else {}
     used = {o["beneficiary_id"] for o in st["obligations"]}
     payees = [{"id": cid, "name": p["name"], "currency": p.get("currency"), "method": p.get("payout_method"), "contacts": p.get("contacts", []),

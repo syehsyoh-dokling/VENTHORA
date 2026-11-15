@@ -104,7 +104,7 @@ def test_the_agent_signs_as_visas_sample_does_and_a_merchant_can_check_it(client
     assert visa_tap.verify("https://shop.example/other", h, pub) == (False, "the signature does not match the request")
     assert visa_tap.verify("https://shop.example/checkout", h, pub, now=int(time.time()) + 3600)[1] == "the signature is outside its validity window"
     assert client.get("/v1/visa/tap/keys.json").json()["keys"][0]["public_key"] == pub
-    t = client.post(f"/v1/visa/tap/sign-test?{FCO}", json={"url": "https://shop.example/checkout", "tag": "agent-browser-auth"}).json()
+    t = client.post("/v1/visa/tap/sign-test?role=developer&by=Dev%20Ito", json={"url": "https://shop.example/checkout", "tag": "agent-browser-auth"}).json()
     assert t["verified"] is True
 
 

@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Bills owed by law or contract (payroll, taxes, benefits, loans, rent, advances) are never bought on a purchase order,
 so the PO rule does not hold them; a supplier's bill without a PO still waits for a person."""
 import pytest

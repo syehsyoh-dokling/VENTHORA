@@ -79,7 +79,7 @@ def test_connect_an_airwallex_account(client, monkeypatch):
     assert "good-key" not in r.text and "client-abcd1234" not in r.text  # never shown back
     assert calls[-1] == "client-abcd1234"  # the running client now uses the connected account
     ga = client.get("/v1/airwallex/global-accounts").json()
-    assert ga["items"][0]["currencies"] == ["USD"] and ga["items"][0]["routing"] == [{"type": "aba", "value": "026073150"}]
+    assert ga["items"][0]["currencies"] == ["USD"] and ga["items"][0]["routing"] == [{"type": "aba", "value": "026073150", "system": None}]
     assert any(o["currency"] == "GBP" for o in ga["options"])
     assert ga["items"][0]["deposit_count"] == 1 and ga["items"][0]["settled_by_currency"] == {"USD": 12050}
     assert ga["items"][0]["deposits"][0]["payer"] == "Acme Retail"

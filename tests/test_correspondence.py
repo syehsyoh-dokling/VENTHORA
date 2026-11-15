@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Review form → correspondence: what was sent to the vendor and when, where the vendor's answer stands, the vendor's
 other submissions that were refused again, and the notices sent to the FCO with their text."""
 from types import SimpleNamespace as NS

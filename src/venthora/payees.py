@@ -171,10 +171,10 @@ def onboarding_records(payees_path=None, beneficiaries_path=None) -> list[dict]:
     the fingerprint of the bank details on file. Payees without a lifecycle block start NEW."""
     import json
 
-    from .config import ROOT
+    from .config import seed_file
 
-    payees = json.loads((payees_path or ROOT / "data" / "payees.json").read_text(encoding="utf-8"))["payees"]
-    bens = json.loads((beneficiaries_path or ROOT / "data" / "beneficiaries.json").read_text(encoding="utf-8"))
+    payees = json.loads((payees_path or seed_file("payees.json")).read_text(encoding="utf-8"))["payees"]
+    bens = json.loads((beneficiaries_path or seed_file("beneficiaries.json")).read_text(encoding="utf-8"))
     out = []
     for cid, rec in payees.items():
         life = rec.get("lifecycle") or {}

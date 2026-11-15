@@ -1,8 +1,8 @@
+# ruff: noqa: E501
 """Disconnect keeps a connection and its key but stops every read and write; Connect from the ERPNext template with the
 key fields left blank (masked) re-enables it with the saved key."""
 import pytest
 from fastapi.testclient import TestClient
-
 
 from venthora.connectors import ConnectorStore, erpnext_connector
 

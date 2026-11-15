@@ -31,6 +31,21 @@ ALIASES = {
 }
 
 
+def sample_dir() -> Path | None:
+    """VENTHORA_SAMPLE_DATA: a folder of sample reference data (payees, bank details, budgets, the demo book). The
+    product starts blank; the test suite points here (tests/sample_data) so its cases have a company to work on."""
+    value = os.getenv("VENTHORA_SAMPLE_DATA", "").strip()
+    return Path(value) if value else None
+
+
+def seed_file(rel: str) -> Path:
+    """A reference file under data/: the sample folder's copy when one is set and has it, else the shipped one."""
+    sample = sample_dir()
+    if sample is not None and (sample / rel).is_file():
+        return sample / rel
+    return ROOT / "data" / rel
+
+
 def data_path(name: str, default: str) -> Path:
     """A store path from the environment; a relative value is anchored at the project root, not the
     process's working directory (observed: the API started from another folder created empty stores)."""
