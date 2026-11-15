@@ -708,7 +708,7 @@ pytest -q
 ruff check src tests scripts
 ```
 
-Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,157 passed,
+Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,158 passed,
 0 failed**, no expected failures and 12 skipped, in about eleven minutes.
 
 - **The sample company.** VENTHORA ships blank (one head office, one Super admin). The suite sets
@@ -818,7 +818,8 @@ The video shows the product as it was when recorded. Since then, on 14–15 Nov 
 | Access | The settings of the delegation are separated from the daily work it governs; a finance manager may freeze a card, only the FCO unfreezes one |
 | Security | Security headers, Secure cookies and HSTS over HTTPS, a rate limit per address, an optional second factor for sign-in |
 | Standards | A day's payments as ISO 20022 `pain.001`, a `camt.053` statement reconciled; a backup script with a tested restore; a control map (`docs/QUALITY.md`) |
-| Names | The blockchain sponsor is **Alta** (the video and some code names still say Metal). Visa pages are a demo; Midtrans is a connection with planned products |
+| Names | The blockchain sponsor is **Alta** (the video and some code names still say Metal) |
+| Sponsors on the live server (16 Nov) | Alta Testnet anchoring live; Visa's sandbox answers the connectivity check, FX rates and Supplier Matching; the Airi CLI is installed (sign-in is the company's own); Midtrans sandbox: a BCA virtual-account charge created and settled; `/webhooks/midtrans` accepts a correctly signed notification and refuses a forged one |
 | Requests by email | A request for cash is accepted only from the organisation's own email, approved by the FCO's email or the FCO's approval forwarded in it, numbered by the email or by VENTHORA, allocated when green and paid at 23:59 company time on a card, with a card link that asks for the authenticator code. A purchase request by email keeps its number, asks five vendors and is awarded by a fixed rule (every specification before price) |
 | Procurement | Preferred vendors (every supplier that quoted, with its own number, asked first next time), a ranking and conclusion per request, a vendor list with a PO threshold: a draft purchase order above it, a direct purchase below it, and the steps to payment |
 | Continuity | A writer lease the executor checks before money moves, safe mode, a takeover that first locks what the bank already paid; a design with code and tests, no standby running ([docs/CONTINUITY.md](docs/CONTINUITY.md)) |
@@ -836,7 +837,7 @@ The video shows the product as it was when recorded. Since then, on 14–15 Nov 
 - [x] Treasury dashboard for the demo video (`python scripts/demo_server.py`), storyboard and narration in docs/
 - [x] Finance controls: budget mandate, book ledger, reporting periods, limits and velocity, payee lifecycle, approval matrix, FX exposure, aging and dunning, tenant segregation; 323 ground-truth cases in 12 suites
 - [x] Local Rails (Xendit, Midtrans connection), the 72-hour payment line-up, the review form with the vendor and FCO email histories
-- [x] Record the video walkthrough (under five minutes)
+- [x] Record the video walkthrough (a five-minute cut, and a full 14-minute tour)
 - [ ] Submit on HackerEarth
 
 Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). Adversarial audit, oracle hunt and known limitations: [docs/AUDIT.md](docs/AUDIT.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).
