@@ -104,6 +104,8 @@ async def lifespan(app: FastAPI):
     app.state.executor.on_result = _execution_done
     app.state.keys = apiaccess.KeyStore()
     app.state.intake = Intake(org=app.state.org, payments=app.state.executor.store)  # staff claims and POs use the org settings
+    # every request read from the queue knows whether it was paid: a paid one is never planned or shown as waiting again
+    app.state.intake.store.paid = functools.partial(_paid_by_invoice, app.state.executor.store)
     app.state.webhooks = webhooks.WebhookStore()
     app.state.hub = webhooks.Hub()
     await asyncio.to_thread(_warm_horizon)
@@ -817,6 +819,12 @@ class LiveStep(BaseModel):
 @app.get("/live", include_in_schema=False)
 async def live_page():
     return FileResponse(DASHBOARD.parent / "live.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/security", include_in_schema=False)
+async def security_page():
+    """The signed-in person's own second factor (dashboard/security.html, the /v1/auth/mfa endpoints)."""
+    return FileResponse(DASHBOARD.parent / "security.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/flow", include_in_schema=False)
@@ -2054,22 +2062,26 @@ async def get_incident(incident_id: str):
 
 # -- intake: payment requests from external users ---------------------------------------------
 
+def _paid_by_invoice(store) -> dict[str, dict]:
+    """Invoice fingerprint -> the PAID transfers booked against it (amount, cost in the base currency, transfer ids,
+    when). The intake store reads this for every request it returns (IntakeStore.paid), so `payment` is never empty
+    for a request that was paid."""
+    paid: dict[str, dict] = {}
+    for r in store.paid_rows():
+        if not r.get("invoice_fingerprint"):
+            continue
+        p = paid.setdefault(r["invoice_fingerprint"], {"amount_minor": 0, "currency": r["currency"], "transfers": [], "paid_at": r["paid_at"], "base_cost_minor": 0})
+        p["amount_minor"] += r["amount_minor"]
+        p["base_cost_minor"] += r.get("base_cost_minor") or 0
+        p["transfers"].append(r["transfer_id"])
+        p["paid_at"] = max(p["paid_at"], r["paid_at"])
+    return paid
+
+
 @app.get("/v1/intake", response_model=list[IntakeRequest])
 async def list_intake():
     """The queue, each request with the money that settled it (PAID transfers booked against its invoice)."""
-    def build():
-        paid: dict[str, dict] = {}
-        for r in app.state.executor.store.paid_rows():
-            if not r.get("invoice_fingerprint"):
-                continue
-            p = paid.setdefault(r["invoice_fingerprint"], {"amount_minor": 0, "currency": r["currency"], "transfers": [], "paid_at": r["paid_at"], "base_cost_minor": 0})
-            p["amount_minor"] += r["amount_minor"]
-            p["base_cost_minor"] += r.get("base_cost_minor") or 0
-            p["transfers"].append(r["transfer_id"])
-            p["paid_at"] = max(p["paid_at"], r["paid_at"])
-        return [q.model_copy(update={"payment": paid.get(q.invoice_fingerprint)}) if q.invoice_fingerprint in paid else q
-                for q in app.state.intake.store.list()]
-    return await asyncio.to_thread(build)
+    return await asyncio.to_thread(app.state.intake.store.list)
 
 
 @app.post("/v1/intake/emails", response_model=IntakeRequest)
@@ -10348,6 +10360,7 @@ async def sessions(request: Request, call_next):
 class LoginIn(BaseModel):
     email: str = Field(min_length=3, max_length=200)
     password: str = Field(min_length=1, max_length=200)
+    code: str | None = Field(default=None, max_length=12, description="the six-digit code, for a person whose second factor is on")
 
 
 class AcceptIn(BaseModel):
@@ -10373,11 +10386,79 @@ async def auth_login(body: LoginIn):
         auth.failed(email)
         await asyncio.to_thread(app.state.audit.append, "sign_in_refused", {"email": email})
         raise HTTPException(401, "wrong email or password")
+    store = auth.AuthStore()
+    if await asyncio.to_thread(store.totp_enabled, user["user_id"]):  # the password was right; the second factor decides
+        if not body.code:
+            return JSONResponse({"detail": "enter the six-digit code from your authenticator app", "mfa_required": True}, status_code=401)
+        if not await asyncio.to_thread(store.totp_check, user["user_id"], body.code):
+            auth.failed(email)  # wrong codes lock the email like wrong passwords do
+            await asyncio.to_thread(app.state.audit.append, "sign_in_refused", {"email": email, "second_factor": True})
+            return JSONResponse({"detail": "that code is not right, or was already used: wait for the next one", "mfa_required": True}, status_code=401)
     auth.cleared(email)
     out = JSONResponse(_me(user))
     await asyncio.to_thread(_signed_in, out, user["user_id"])
     await asyncio.to_thread(app.state.audit.append, "signed_in", {"by": user["name"], "role": user["role"]})
     return out
+
+
+class MfaCodeIn(BaseModel):
+    code: str = Field(min_length=6, max_length=12)
+
+
+def _signed_user(request: Request) -> dict:
+    user = getattr(request.state, "user", None)
+    if user is None:
+        raise HTTPException(401, "sign in first")
+    return user
+
+
+@app.get("/v1/auth/mfa")
+async def auth_mfa(request: Request):
+    """Whether the signed-in person's second factor is on."""
+    from . import auth
+
+    user = _signed_user(request)
+    return {"enabled": await asyncio.to_thread(auth.AuthStore().totp_enabled, user["user_id"])}
+
+
+@app.post("/v1/auth/mfa/setup")
+async def auth_mfa_setup(request: Request):
+    """Start the second factor for the signed-in person: a new secret for their authenticator app. It is not in force
+    until they confirm with a code the app shows. The secret is shown once, here, and never again."""
+    from . import auth, totp
+
+    user = _signed_user(request)
+    try:
+        secret = await asyncio.to_thread(auth.AuthStore().totp_begin, user["user_id"])
+    except auth.AuthError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"secret": secret, "uri": totp.uri(secret, user.get("email") or user["name"])}
+
+
+@app.post("/v1/auth/mfa/confirm")
+async def auth_mfa_confirm(body: MfaCodeIn, request: Request):
+    """The first code from the app turns the second factor on: from the next sign-in the password alone is not enough."""
+    from . import auth
+
+    user = _signed_user(request)
+    if not await asyncio.to_thread(auth.AuthStore().totp_confirm, user["user_id"], body.code):
+        raise HTTPException(422, "that code is not right: check the time on the phone and enter the code the app shows now")
+    await asyncio.to_thread(app.state.audit.append, "second_factor_on", {"by": user["name"], "role": user["role"]})
+    return {"enabled": True}
+
+
+@app.post("/v1/auth/mfa/off")
+async def auth_mfa_off(body: MfaCodeIn, request: Request):
+    """Turn the second factor off; it takes a current code, so a stolen session cannot remove it."""
+    from . import auth
+
+    user = _signed_user(request)
+    store = auth.AuthStore()
+    if not await asyncio.to_thread(store.totp_check, user["user_id"], body.code):
+        raise HTTPException(422, "that code is not right, or was already used")
+    await asyncio.to_thread(store.totp_off, user["user_id"])
+    await asyncio.to_thread(app.state.audit.append, "second_factor_off", {"by": user["name"], "role": user["role"]})
+    return {"enabled": False}
 
 
 @app.post("/v1/auth/logout")
@@ -10422,6 +10503,8 @@ async def auth_accept(body: AcceptIn):
     except auth.AuthError as exc:
         raise HTTPException(422, str(exc)) from exc
     u = app.state.org.get("user", uid)
+    # an admin's new sign-in link is also how a lost phone is recovered: the second factor is off until set up again
+    await asyncio.to_thread(auth.AuthStore().totp_off, uid)
     out = JSONResponse(_me(u))
     await asyncio.to_thread(_signed_in, out, uid)
     await asyncio.to_thread(app.state.audit.append, "password_set", {"by": u["name"], "role": u["role"]})

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Second factor · VENTHORA</title>
+<style>
+:root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--brand:#1d4ed8;--soft:#f1f5f9;--ok:#15803d;--err:#b91c1c}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--soft)}
+.card{max-width:520px;margin:48px auto;padding:28px;background:#fff;border:1px solid var(--line);border-radius:14px}
+h1{font-size:20px;margin:0 0 6px}p{margin:8px 0}.muted{color:var(--muted)}.small{font-size:13px}
+button{font:inherit;font-weight:600;padding:10px 16px;border:0;border-radius:9px;background:var(--brand);color:#fff;cursor:pointer}
+button.plain{background:var(--soft);color:var(--ink)}button:disabled{opacity:.5;cursor:default}
+input{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:9px;width:140px;letter-spacing:.15em}
+code{display:block;padding:10px 12px;background:var(--soft);border-radius:9px;word-break:break-all;font-size:14px;letter-spacing:.06em}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.state{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;font-weight:600}
+.on{background:#dcfce7;color:var(--ok)}.off{background:var(--soft);color:var(--muted)}
+#msg{min-height:20px;margin-top:10px}.err{color:var(--err)}.ok{color:var(--ok)}
+ol{padding-left:20px;margin:10px 0}li{margin:4px 0}a{color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="card">
+ <h1>Second factor <span id="state" class="state off">checking…</span></h1>
+ <p class="muted">A six-digit code from an authenticator app on your phone, asked for after your password. With it on, a
+  stolen password alone cannot sign in as you. Recommended for everyone who can approve a payment.</p>
+
+ <div id="offBox" hidden>
+  <div class="row"><button id="start">Turn it on</button></div>
+ </div>
+
+ <div id="setupBox" hidden>
+  <ol>
+   <li>Open an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, Authy).</li>
+   <li>Add an account and choose <b>enter a setup key</b>. Type this key; it is shown only now:</li>
+  </ol>
+  <code id="secret"></code>
+  <p class="small muted">Account name: <span id="acct"></span> · time-based, 6 digits.</p>
+  <ol start="3"><li>Enter the code the app shows:</li></ol>
+  <div class="row"><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000"><button id="confirm">Confirm</button></div>
+ </div>
+
+ <div id="onBox" hidden>
+  <p>Your sign-in asks for a code. To turn it off, enter a current code:</p>
+  <div class="row"><input id="offCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000"><button id="off" class="plain">Turn it off</button></div>
+  <p class="small muted">Lost the phone? Ask your admin for a new sign-in link: opening it lets you choose a new password
+   and turns the second factor off until you set it up again.</p>
+ </div>
+
+ <div id="msg" class="small"></div>
+ <p class="small"><a href="/">← Back to VENTHORA</a></p>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+function say(t,ok){$("#msg").className="small "+(ok?"ok":"err");$("#msg").textContent=t||""}
+async function call(method,url,body){const r=await fetch(url,{method,headers:{"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
+ const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof d.detail==="string"?d.detail:"That did not work (HTTP "+r.status+").");return d}
+function show(on){$("#state").textContent=on?"on":"off";$("#state").className="state "+(on?"on":"off");
+ $("#offBox").hidden=on;$("#onBox").hidden=!on;$("#setupBox").hidden=true}
+async function load(){try{show((await call("GET","/v1/auth/mfa")).enabled)}catch(e){$("#state").textContent="unavailable";say(e.message)}}
+$("#start").onclick=async()=>{say("");try{const d=await call("POST","/v1/auth/mfa/setup");
+ $("#secret").textContent=d.secret.replace(/(.{4})/g,"$1 ").trim();$("#acct").textContent=decodeURIComponent((d.uri.split("totp/")[1]||"").split("?")[0]);
+ $("#offBox").hidden=true;$("#setupBox").hidden=false;$("#code").focus()}catch(e){say(e.message)}};
+$("#confirm").onclick=async()=>{say("");try{await call("POST","/v1/auth/mfa/confirm",{code:$("#code").value.trim()});show(true);
+ say("The second factor is on. Your next sign-in will ask for a code.",true)}catch(e){say(e.message)}};
+$("#off").onclick=async()=>{say("");try{await call("POST","/v1/auth/mfa/off",{code:$("#offCode").value.trim()});show(false);$("#offCode").value="";
+ say("The second factor is off.",true)}catch(e){say(e.message)}};
+load();
+</script>
+</body>
+</html>

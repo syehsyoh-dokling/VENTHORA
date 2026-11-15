@@ -15,8 +15,11 @@ Nobody types a password for someone else. An admin (or Root, for a new company's
 a person they may manage; the person opens it and chooses their own password. A link works once and expires after
 7 days; making a new one cancels the old one, which is also how a forgotten password is reset.
 
+A person may add a second factor: a six-digit code from an authenticator app (totp.py). Once on, the password alone
+no longer signs them in. It is the person's own choice to turn it on; turning it off takes a code.
+
 Kept in the company's secrets database (never in the organisation records the API returns): scrypt password hashes,
-the sign-in links and sessions, each stored only as a SHA-256 of its token.
+the sign-in links and sessions, each stored only as a SHA-256 of its token, and the second factor's secret.
 """
 from __future__ import annotations
 
@@ -41,6 +44,8 @@ CREATE TABLE IF NOT EXISTS auth_password (user_id TEXT PRIMARY KEY, salt BLOB NO
 CREATE TABLE IF NOT EXISTS auth_invite (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires TEXT NOT NULL,
   created_at TEXT NOT NULL, created_by TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS auth_session (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS auth_totp (user_id TEXT PRIMARY KEY, secret TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 0,
+  last_step INTEGER NOT NULL DEFAULT -1, created_at TEXT NOT NULL);
 """
 _fails: dict[str, list[float]] = {}
 _fails_lock = threading.Lock()
@@ -157,6 +162,51 @@ class AuthStore:
     def sign_out_everywhere(self, user_id: str) -> None:
         with self._lock, self._connect() as c:
             c.execute("DELETE FROM auth_session WHERE user_id = ?", (user_id,))
+
+    # -- the second factor (totp.py): a code from the person's authenticator app, on top of the password ---------
+
+    def totp_begin(self, user_id: str) -> str:
+        """A new secret, not in force until the person proves their app shows its codes (totp_confirm)."""
+        from . import totp
+
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT enabled FROM auth_totp WHERE user_id = ?", (user_id,)).fetchone()
+            if row and row["enabled"]:
+                raise AuthError("the second factor is already on; turn it off first, with a code")
+            secret = totp.new_secret()
+            c.execute("INSERT INTO auth_totp VALUES (?, ?, 0, -1, ?) ON CONFLICT(user_id) DO UPDATE SET secret = excluded.secret,"
+                      " enabled = 0, last_step = -1, created_at = excluded.created_at", (user_id, secret, _iso(_now())))
+        return secret
+
+    def totp_enabled(self, user_id: str) -> bool:
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT enabled FROM auth_totp WHERE user_id = ?", (user_id,)).fetchone()
+        return bool(row and row["enabled"])
+
+    def _totp_use(self, user_id: str, code: str, *, pending: bool, now: float | None = None) -> bool:
+        """True when the code is right for this person now and was not used before; the step is then spent."""
+        from . import totp
+
+        with self._lock, self._connect() as c:
+            row = c.execute("SELECT secret, enabled, last_step FROM auth_totp WHERE user_id = ?", (user_id,)).fetchone()
+            if row is None or bool(row["enabled"]) == pending:
+                return False
+            step = totp.matching_counter(row["secret"], code, now, after=row["last_step"])
+            if step is None:
+                return False
+            c.execute("UPDATE auth_totp SET last_step = ?, enabled = 1 WHERE user_id = ?", (step, user_id))
+        return True
+
+    def totp_confirm(self, user_id: str, code: str, now: float | None = None) -> bool:
+        """The first code from the app turns the second factor on."""
+        return self._totp_use(user_id, code, pending=True, now=now)
+
+    def totp_check(self, user_id: str, code: str, now: float | None = None) -> bool:
+        return self._totp_use(user_id, code, pending=False, now=now)
+
+    def totp_off(self, user_id: str) -> None:
+        with self._lock, self._connect() as c:
+            c.execute("DELETE FROM auth_totp WHERE user_id = ?", (user_id,))
 
 
 def check_password(password: str) -> None:

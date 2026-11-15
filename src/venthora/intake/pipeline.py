@@ -290,6 +290,10 @@ class IntakeStore:
         self.path = Path(path) if path else data_path("VENTHORA_INTAKE_DB", "data/venthora_intake.db")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
+        # The service sets this: () -> {invoice fingerprint: the PAID transfers that settled it}. With it, every
+        # request read from the store says whether it was paid (`payment`), so a paid request is never planned, queued
+        # or answered again. Without it (the intake used alone) `payment` stays empty, as before.
+        self.paid = None
         with self._connect() as c:
             c.executescript(SCHEMA)
 
@@ -297,6 +301,12 @@ class IntakeStore:
         conn = sqlite3.connect(self.path, timeout=15, isolation_level="IMMEDIATE")
         conn.row_factory = sqlite3.Row
         return conn
+
+    def _settled(self, reqs: list[IntakeRequest]) -> list[IntakeRequest]:
+        if self.paid is None or not reqs:
+            return reqs
+        paid = self.paid()
+        return [q.model_copy(update={"payment": paid[q.invoice_fingerprint]}) if q.invoice_fingerprint in paid else q for q in reqs]
 
     def by_message(self, message_id: str) -> IntakeRequest | None:
         with self._lock, self._connect() as c:
@@ -306,13 +316,13 @@ class IntakeStore:
     def get(self, intake_id: str) -> IntakeRequest | None:
         with self._lock, self._connect() as c:
             row = c.execute("SELECT record_json FROM intake WHERE intake_id = ?", (intake_id,)).fetchone()
-        return IntakeRequest.model_validate_json(row["record_json"]) if row else None
+        return self._settled([IntakeRequest.model_validate_json(row["record_json"])])[0] if row else None
 
     def list(self, limit: int = 200) -> list[IntakeRequest]:
         with self._lock, self._connect() as c:
             rows = c.execute("SELECT record_json FROM intake ORDER BY received_at DESC, created_at DESC LIMIT ?",
                              (limit,)).fetchall()
-        return [IntakeRequest.model_validate_json(r["record_json"]) for r in rows]
+        return self._settled([IntakeRequest.model_validate_json(r["record_json"]) for r in rows])
 
     def fingerprints(self) -> dict[str, str]:
         with self._lock, self._connect() as c:
@@ -325,7 +335,7 @@ class IntakeStore:
             c.execute("INSERT INTO intake VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(intake_id) DO UPDATE SET"
                       " status = excluded.status, record_json = excluded.record_json, updated_at = excluded.updated_at",
                       (req.intake_id, req.message_id, req.text_sha256, req.received_at, req.sender, req.status,
-                       req.invoice_fingerprint, req.model_dump_json(), _now(), _now()))
+                       req.invoice_fingerprint, req.model_dump_json(exclude={"payment"}), _now(), _now()))  # `payment` is read, never kept
 
     def review(self, intake_id: str, review: ReviewRequest) -> None:
         with self._lock, self._connect() as c:

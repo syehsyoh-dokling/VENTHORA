@@ -299,11 +299,18 @@ def create_app(root: Path | None = None, *, spawn: bool = True) -> Starlette:
         if pick:
             found = [t for t in found if t["tenant_id"] == pick]
         hits: list[tuple[dict, httpx.Response]] = []
+        code = str(b.get("code") or "").strip() or None
+        second: dict | None = None  # the password was right at a company whose person has a second factor on
         for t in found:
-            with contextlib.suppress(httpx.HTTPError):
-                r = await client(t["tenant_id"]).post("/v1/auth/login", json={"email": email, "password": pw}, timeout=60)
+            with contextlib.suppress(httpx.HTTPError, ValueError):
+                r = await client(t["tenant_id"]).post("/v1/auth/login", json={"email": email, "password": pw, "code": code}, timeout=60)
                 if r.status_code == 200:
                     hits.append((t, r))
+                elif r.status_code == 401 and r.json().get("mfa_required"):
+                    second = r.json()
+        if not hits and second is not None:  # ask for the code (or say it was wrong); the company counted a wrong code itself
+            return JSONResponse({"detail": second.get("detail") or "enter the six-digit code from your authenticator app",
+                                 "mfa_required": True}, status_code=401)
         if not hits:
             auth.failed(email)
             return JSONResponse({"detail": "wrong username or password"}, status_code=401)
