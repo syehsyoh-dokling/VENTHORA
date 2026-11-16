@@ -1,11 +1,11 @@
 {
-  "_note": "System Setting -> Hackathon evidence. Each organiser item (airwallexdev.com/guide, airwallex.hackerearth.com) with the screen that proves it and a live probe. Status: done, partial, blocked (waiting on a sponsor), na. Full line-by-line matrix: docs/HACKATHON_COMPLIANCE.md.",
-  "updated": "2026-11-05",
+  "_note": "Demo-Only -> Hackathon evidence. Each organiser item (airwallexdev.com/guide, airwallex.hackerearth.com) with the screen that proves it and a live probe. Status: done, partial, blocked (waiting on a sponsor), na. Full line-by-line matrix: docs/HACKATHON_COMPLIANCE.md.",
+  "updated": "2026-11-16",
   "groups": [
     {"id": "submission", "title": "Submission (hackerearth)", "items": [
       {"ref": "S1", "item": "Working demo", "status": "done", "screen": "#/autopilot", "probe": "/v1/status", "proof": "Autopilot Console and /live walk goal, plan, new information, revised decision, result on the real sandbox (18 recorded cycles)", "doc": "docs/SANDBOX_RESULTS.md"},
-      {"ref": "S2", "item": "Video walkthrough under 5 minutes", "status": "partial", "screen": "/flow", "proof": "voice-over and script ready; recording tracked by the team", "doc": "docs/DEMO_VOICEOVER_3MIN.md"},
-      {"ref": "S3", "item": "Repository with setup instructions", "status": "partial", "screen": "#/readiness", "proof": "README quick start; publishing tracked by the team", "doc": "README.md"},
+      {"ref": "S2", "item": "Video walkthrough under 5 minutes", "status": "done", "screen": "/flow", "proof": "recorded: the 4:58 walkthrough (https://youtu.be/r6JKdr0MBeM) and the full 14-minute tour (https://youtu.be/lNEL_iDV1y8)", "doc": "docs/DEMO_VOICEOVER_3MIN.md"},
+      {"ref": "S3", "item": "Repository with setup instructions", "status": "done", "screen": "#/readiness", "proof": "public repository https://github.com/syehsyoh-dokling/VENTHORA, README quick start, CI green on every push", "doc": "README.md"},
       {"ref": "S4", "item": "Built on Airwallex APIs", "status": "done", "screen": "#/airwallex", "probe": "/v1/webhooks/status", "proof": "balances, rates, quotes, conversions, beneficiaries, transfers, deposits, simulation, issuing, webhooks"}
     ]},
     {"id": "conventions", "title": "General conventions (guide 1-30)", "items": [
@@ -39,22 +39,22 @@
       {"ref": "K3", "item": "Wait, replace or escalate a failed transfer under the duplicate lock", "status": "done", "screen": "#/executions", "probe": "/v1/incidents", "proof": "all 32 Airwallex failure types; real sandbox cycle 5", "doc": "docs/SCENARIO_MATRIX.md"}
     ]},
     {"id": "kit02", "title": "Kit 02 cards and the Visa award", "items": [
-      {"ref": "K2-1", "item": "Issue virtual cards with limits inside the mandate", "status": "blocked", "screen": "#/cards", "probe": "/v1/cards", "proof": "built; Airwallex has not enabled the card program for the sandbox account", "waiting": "Airwallex card program"},
-      {"ref": "K2-2", "item": "Remote authorization: VENTHORA answers every charge", "status": "blocked", "screen": "#/cards", "probe": "/v1/card-authorization", "proof": "signed answers within 2.5 s, tested locally", "waiting": "Airwallex remote auth"},
+      {"ref": "K2-1", "item": "Issue virtual cards with limits inside the mandate", "status": "done", "screen": "#/cards", "probe": "/v1/cards", "proof": "live on the staging server since 13 Nov: cardholders and virtual cards issued with limits inside the mandate for each company's connected account; staff advances paid on a card and spent", "waiting": "Airwallex card program"},
+      {"ref": "K2-2", "item": "Remote authorization: VENTHORA answers every charge", "status": "done", "screen": "#/cards", "probe": "/v1/card-authorization", "proof": "live since 13 Nov: Airwallex calls the platform's remote-authorization URL, the platform checks the signature and the company that issued the card answers (wrong merchant declined, right merchant approved)", "waiting": "Airwallex remote auth"},
       {"ref": "K2-3", "item": "Freeze a card (agent revokes its own authority)", "status": "done", "screen": "#/cards", "proof": "POST issuing/cards/{id}/update card_status INACTIVE; still frozen in VENTHORA if Airwallex is unreachable"},
       {"ref": "K2-4", "item": "Read card limits and remaining", "status": "done", "screen": "#/cards", "proof": "GET issuing/cards/{id}/limits compared with the mandate; drift goes to the audit chain"},
       {"ref": "K2-5", "item": "Card spend report", "status": "done", "screen": "#/rep-card", "probe": "/v1/reports/virtual-cards", "proof": "every decision joined with Airwallex's authorization and clearing"},
       {"ref": "V1", "item": "Visa Trusted Agent Protocol (agent signatures)", "status": "done", "screen": "#/visa-tap", "probe": "/v1/visa/tap", "proof": "public keys at /.well-known/venthora-agent.json"},
       {"ref": "V3", "item": "Visa Supplier Matching: does a vendor take Visa cards?", "status": "done", "screen": "#/cards", "probe": "/v1/visa/supplier-match/vendors", "proof": "every vendor checked with Visa (X-Pay, sandbox): a confident match pays by Visa virtual card locked to Visa's MCC, otherwise bank transfer; also on Procurement → Quotation"},
-      {"ref": "V2", "item": "Visa Intelligent Commerce", "status": "blocked", "screen": "#/visa-vic", "probe": "/v1/visa/vic", "proof": "X-Pay signing works (helloworld 200); FX rates live", "waiting": "Visa VIC onboarding"}
+      {"ref": "V2", "item": "Visa Intelligent Commerce", "status": "blocked", "screen": "#/visa-vic", "probe": "/v1/visa/vic", "proof": "X-Pay signing works on the live server (helloworld 200), Visa FX rates and Supplier Matching answer from the sandbox; the VIC consumer and card token wait for Visa's onboarding", "waiting": "Visa VIC onboarding"}
     ]},
     {"id": "sponsors", "title": "Sponsor technology", "items": [
       {"ref": "C1", "item": "Claude as the model", "status": "done", "screen": "#/ai", "probe": "/v1/settings/ai", "proof": "Claude Opus 5.5 reads, plans, explains, searches vendors and checks quotations"},
       {"ref": "M1", "item": "Alta: anchor the audit head and every contract head on testnet", "status": "done", "screen": "#/metal", "probe": "/v1/metal", "proof": "Alta Testnet (chain 63825): VENTHORA bought its own RPC endpoint over x402 (1 USDZ, EIP-3009), funded gas from the faucet API and anchored 10 contracts + 212 audit events in one transaction (status 1, 23,000 gas, final in about a second)"},
-      {"ref": "A1", "item": "AWS Bedrock as a model provider", "status": "blocked", "screen": "#/ai", "proof": "Bedrock Converse provider built", "waiting": "an AWS account"},
+      {"ref": "A1", "item": "AWS Bedrock as a model provider", "status": "blocked", "screen": "#/ai", "proof": "Bedrock Converse provider built and selectable; the key tried lists models, but the account refuses model calls", "waiting": "AWS to allow model calls for the account"},
       {"ref": "X1", "item": "Airwallex MCP servers", "status": "partial", "screen": "#/mcp", "probe": "/v1/mcp", "proof": "docs server connected; the developer server needs OAuth (REST is allowed by the guide)"},
-      {"ref": "K9", "item": "Kit 09 shopping agent (Airi CLI)", "status": "blocked", "screen": "#/proc-sourcing", "proof": "the procurement agent uses the same idea (approval bound to vendor, items and total) without real orders", "waiting": "Airi CLI allowlist"},
-      {"ref": "K5-6", "item": "Kits 05 and 06 connected accounts", "status": "blocked", "screen": "#/offices", "proof": "per-book segregation built", "waiting": "Airwallex connected accounts"}
+      {"ref": "K9", "item": "Kit 09 shopping agent (Airi CLI)", "status": "partial", "screen": "#/proc-sourcing", "proof": "the Airi CLI is installed on the live server (16 Nov); signing in is the company's own Airi account. The procurement agent binds approval to vendor, items and total", "waiting": "Airi CLI allowlist"},
+      {"ref": "K5-6", "item": "Kits 05 and 06 connected accounts", "status": "done", "screen": "#/offices", "proof": "connected accounts enabled on 13 Nov: every company on the platform opens its own Airwallex connected account under VENTHORA's platform account; funds never mix", "waiting": "Airwallex connected accounts"}
     ]},
     {"id": "beyond", "title": "Beyond the kits (VENTHORA's own controls)", "items": [
       {"ref": "B1", "item": "Procurement: 3 quotations, recommendation, human award, PO", "status": "done", "screen": "#/proc-quotes", "probe": "/v1/procurement/board", "proof": "brand and specification lock, model reads remarks, award outside the recommendation only with a reason"},

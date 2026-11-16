@@ -988,7 +988,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span12" data-view="readiness">
   <div class="edcard" id="edCard"><div style="min-width:0;flex:1 1 320px"><b>Edition · Demo mode</b> <span class="pill" id="edState">…</span>
-   <div class="small muted" style="margin-top:4px"><b>ON = developer view</b> (alpha-sandbox): every menu, including the technical setup (Visa TAP and VIC, Airwallex MCP, Alta), Workflow, Tools &amp; evidence and the demo buttons and data. <b>OFF = end-user view</b> (the real version): only what the finance team and its admin use; the demo endpoints answer 404. Only a Super admin switches it; every switch is in the audit chain. A server started with <code>VENTHORA_EDITION=production</code> keeps it off.</div>
+   <div class="small muted" style="margin-top:4px"><b>ON = developer view</b> (alpha-sandbox): every menu, including the Developer Console (Visa TAP and VIC, Airwallex MCP, Alta), Demo-Only and the demo buttons and data. <b>OFF = end-user view</b> (the real version): only what the finance team and its admin use; the demo endpoints answer 404. Only a Super admin switches it; every switch is in the audit chain. A server started with <code>VENTHORA_EDITION=production</code> keeps it off.</div>
    <div class="small muted" id="edWho" style="margin-top:4px"></div></div>
    <button class="sw" id="edSwitch" role="switch" aria-checked="false" aria-label="Demo mode"></button></div>
   <h2><span>Setup checklist</span><span class="small muted" id="readyMeta">platform setup: what must be configured before VENTHORA can run</span></h2>
@@ -1099,7 +1099,7 @@ section.report table thead th{background:rgba(79,70,229,.09);color:#3730a3}
 
  <section class="span12" data-view="doc-rules">
   <h2><span>Document validation</span><span class="row"><label class="check small"><input type="checkbox" id="dr-enabled"> validate every invoice, claim and bank letter</label><button class="primary" id="drSave">Save</button><span class="small" id="drMsg"></span></span></h2>
-  <div class="small muted">Local Python reads the email, the PDF text, every image placed on a page (stamp, signature) and the PDF's own dates; the AI model (Settings → AI model) adds which document each file is, the invoice date and anything an auditor would question, always quoting the document. A failed <b>Required</b> check holds the request for a person; <b>Warn</b> flags it.</div>
+  <div class="small muted">Local Python reads the email, the PDF text, every image placed on a page (stamp, signature) and the PDF's own dates; the AI model (Platform Setup → Agent (AI &amp; Model)) adds which document each file is, the invoice date and anything an auditor would question, always quoting the document. A failed <b>Required</b> check holds the request for a person; <b>Warn</b> flags it.</div>
   <h3 class="small muted" style="margin:16px 0 6px">Required documents: every ticked one must come with the request</h3>
   <div id="drDocs" style="overflow-x:auto"></div>
   <h3 class="small muted" style="margin:16px 0 6px">Standard checks</h3>
@@ -2023,7 +2023,7 @@ async function blView(){const el=$("#alLines");try{const d=await api(`/v1/budget
    <tbody id="blRows">${d.lines.map(row).join("")}</tbody></table><datalist id="blNames">${d.line_names.map(n=>`<option value="${esc(n)}">`).join("")}</datalist>
   ${ro?"":`<div class="row" style="margin-top:8px;gap:8px"><button type="button" id="blAdd">Add line</button><button class="primary" id="blSave">Save budget lines for ${esc(d.period)}</button><span class="small" id="blMsg"></span></div>`}
   <div class="cm-src" style="margin-top:12px"><span aria-hidden="true">ⓘ</span><div class="txt"><b>A payment outside every budget line:</b> ${d.unbudgeted_requires_approval?"waits for an approver":"is paid by the agent within the other limits"}.
-   This rule belongs to the standing mandate: change it in System Setting → Delegation of Authority → Treasury limits and controls → Limits and thresholds.</div><span class="row"><a class="small" href="#/mandate" id="blToDoa">Open the rule ›</a></span></div>`;
+   This rule belongs to the standing mandate: change it in FCO Authorize → Delegation of Authority → Treasury limits and controls → Limits and thresholds.</div><span class="row"><a class="small" href="#/mandate" id="blToDoa">Open the rule ›</a></span></div>`;
  $("#blPer").onchange=()=>{BLPER=$("#blPer").value;blView()};
  $("#blToDoa").onclick=()=>{setTimeout(()=>{const t=document.querySelector('[data-dtab="ctl"]');if(t)t.click();setTimeout(()=>{const l=document.querySelector('[data-mtab="lim"]');if(l)l.click()},600)},600)};
  if(ro)return;

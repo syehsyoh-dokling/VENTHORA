@@ -18,7 +18,7 @@ Awards in scope: Founder's Choice, Judges' Choice, Visa Award (Visa + Airwallex)
 | What | Link |
 |---|---|
 | Live demo | https://app-venthora.muwahid.org (Airwallex sandbox; no real money moves) |
-| Video walkthrough (short) | https://youtu.be/x8PyK0DiK-g |
+| Video walkthrough (4:58) | https://youtu.be/r6JKdr0MBeM |
 | Full product tour (14 min) | https://youtu.be/lNEL_iDV1y8 |
 | Repository | https://github.com/syehsyoh-dokling/VENTHORA (setup: README, Quick start) |
 | Menu-by-menu guide | docs/WALKTHROUGH.md |
@@ -48,15 +48,15 @@ that a conversion breached the reserve.
 
 **Airwallex APIs used (sandbox, live).** Balances, global accounts, simulated deposits, FX rates / quotes /
 conversions, beneficiaries (schema, validation, name check), transfers and their simulated transitions, webhooks
-(signed), Issuing (cardholders, virtual cards with authorization controls, remote authorization), payment intents,
-connected accounts for each company on the platform.
+(signed), Issuing (cardholders, virtual cards with authorization controls, remote authorization), connected
+accounts for each company on the platform.
 
 **Sponsors.**
 - Visa: Supplier Matching decides card vs bank transfer per supplier; Foreign Exchange Rates compares Visa's rate
-  with the Airwallex quote; Trusted Agent Protocol keys published at `/.well-known/venthora-agent.json`.
+  with the Airwallex quote; Trusted Agent Protocol signing keys (Ed25519) published for merchants (`/v1/visa/tap/keys.json`).
 - Alta: the audit-chain head and every contract chain head anchored on Alta Testnet; the agent paid for its own RPC
   endpoint over x402.
-- Airi: staff cash advances funded to a card a person adds to Airi (CLI installed on the server).
+- Airi: staff cash advances funded to a card a person adds to Airi (CLI installed on the server, not signed in yet).
 - Claude: reads unstructured documents and drafts; every amount and limit stays in code, and a claim the email does
   not support is discarded.
 - AWS: the live demo runs on EC2, with a PostgreSQL copy of the stores after every payment; Bedrock is a
@@ -66,17 +66,19 @@ connected accounts for each company on the platform.
 it; a new payee, a bank change (call-back on the registered number first), an over-claim or a breach goes to a
 person. Every decision is on a hash-chained, HMAC-sealed audit log.
 
-**Quality.** 1,158 automated tests (0 failing), 323 hand-derived ground-truth cases, a 136-scenario matrix from the
+**Quality.** 1,161 automated tests (0 failing), 323 hand-derived ground-truth cases, a 136-scenario matrix from the
 extreme to the normal, and two independent code reviews with their fixes and open items listed
 (docs/QA_REPORT_2026-11-15.md).
 
 ## How a judge can try it
 
-1. Open the live demo and sign in with the judge account given in the form's notes.
+1. Watch the video, or run it locally with the README Quick start (no sign-in on your own machine); the live demo
+   asks for a company account.
 2. Agent plan → Today's plan: the 72-hour line-up against the reserve floor.
 3. Autopilot Console: the Kit 01 checklist and the five-step run.
 4. Pending payment → Review: the evidence behind one held invoice.
-5. Platform Setup → Blockchain Record: the Alta anchor and its explorer link.
+5. Platform Setup → Blockchain Record: what goes on the Alta record; the anchors and their explorer links are under
+   Developer Console → Alta (testnet anchoring).
 
 ## Built with
 

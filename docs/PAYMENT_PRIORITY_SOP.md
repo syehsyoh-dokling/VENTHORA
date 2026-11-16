@@ -3,7 +3,7 @@
 **Status:** draft for the finance team (FCO).
 **Scope:** every outgoing payment VENTHORA makes on Airwallex: payroll, fringe benefits, suppliers and purchase orders,
 consultants, office and operations, travel, cash advances and petty cash, other direct costs.
-**Owner:** the holder of the Delegation of Authority (System Setting → Delegation of Authority).
+**Owner:** the holder of the Delegation of Authority (FCO Authorize → Delegation of Authority).
 
 ## 1. Purpose
 
@@ -112,7 +112,7 @@ Executions & incidents or Pending payment with what to fix.
 
 | Rule | Where |
 |---|---|
-| The levels and order of the categories (section 5) | System Setting → Standard Payment Priority Policy |
+| The levels and order of the categories (section 5) | FCO Authorize → Standard Payment Priority Policy |
 | Taxes and social security at priority 10, with wages | Payment Priority SOP: the first two High categories share 10. Charge them to account **2200** (Taxes and social security payable) |
 | Loan and debt service | Payment Priority SOP, category "Loan and debt service". Charge them to account **2300** (Loan and debt service) |
 | The cost of being late as a tie-breaker | Payment Priority SOP: an overdue payment, a second reminder or final notice, or late interest of 8% a year or more moves one step up inside its level |

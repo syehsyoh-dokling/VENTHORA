@@ -20,8 +20,8 @@ agent reacts to the rules only. Audit report and known limitations: [AUDIT.md](A
 | Requirement | Status | Evidence |
 |---|---|---|
 | Working demo | ✅ | `venthora-sandbox` on the real sandbox; eighteen recorded cycles (SANDBOX_RESULTS.md), cycle 4 = the Kit 01 flow word for word; the dashboard on clean stores via `python scripts/demo_server.py`, driven scene by scene by `python scripts/demo_walkthrough.py`; the live page `/live` walks the guide's five demo elements (goal, initial plan, new information, revised decision, resulting state) on the real sandbox with the wallet polled live; `python scripts/real_suite.py` runs the whole set on the real sandbox in one command, 8 / 8 steps ([REAL_SUITE.md](REAL_SUITE.md)) |
-| Video walkthrough under 5 minutes | ⬜ to upload | dashboard part recorded on the real sandbox by `scripts/record_demo.py` (2:24, take validated: deposit settled, four transfers paid); its voice-over: [DEMO_VOICEOVER_3MIN.md](DEMO_VOICEOVER_3MIN.md); opening on `/flow`; full narration: [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
-| Repository link with setup instructions | ✅ | https://github.com/syehsyoh-dokling/VENTHORA, README quick start |
+| Video walkthrough under 5 minutes | ✅ recorded | https://youtu.be/r6JKdr0MBeM (4 min 58 s) and https://youtu.be/lNEL_iDV1y8 (the full 14-minute tour). Earlier material: | dashboard part recorded on the real sandbox by `scripts/record_demo.py` (2:24, take validated: deposit settled, four transfers paid); its voice-over: [DEMO_VOICEOVER_3MIN.md](DEMO_VOICEOVER_3MIN.md); opening on `/flow`; full narration: [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
+| Repository link with setup instructions | ✅ | https://github.com/syehsyoh-dokling/VENTHORA (public), README quick start; a fresh clone installed and served on 16 Nov 2026, CI green on every push |
 | Built on Airwallex APIs | ✅ | balances, rates, quotes, conversions, beneficiaries (schema/validate/create), transfers, deposits, simulation |
 
 ## (1) General conventions
@@ -175,7 +175,7 @@ its derivation ([GROUND_TRUTH.md](GROUND_TRUTH.md)):
   below the floor, and everything at once.
 
 All 100 are reproduced in-process (CI); the 84 that do not move money also through the HTTP endpoints
-(`scripts/groundtruth_bench.py`) and through the dashboard's Ground-truth checks form (System Setting → Checks & resilience) in a browser, with latency on every path.
+(`scripts/groundtruth_bench.py`) and through the dashboard's Ground-truth checks form (Demo-Only → Checks & resilience) in a browser, with latency on every path.
 **Both suites were then run against the real sandbox** (`scripts/groundtruth_real.py`, SANDBOX_RESULTS.md cycle 7): 84 / 84
 through the live service with live balances read for every plan, and the 7 execution anomalies a real rail can reproduce
 (stale rate, three approval refusals, the same invoices twice, stale state, Kit 03 end to end) 7 / 7; the other 9 are

@@ -14,7 +14,7 @@ company sets VENTHORA up and then uses it.
 | 6 | Transfer | Everyone except the Developer |
 | 7 | Procurement Process | Everyone except the Developer |
 | 8 | Reporting | Everyone except the Developer |
-| 9 | Dashboard | Everyone |
+| 9 | Dashboard | Everyone except the Developer |
 | A | Developer Console | Developer (IT); the Finance Director can view it |
 | B | Demo-Only | Shown in demo mode only |
 
@@ -75,7 +75,7 @@ How to get a key (outside VENTHORA): an AI provider key cannot be created from V
 in its console (Amazon Bedrock, Anthropic, NVIDIA NIM, OpenAI, Google Gemini, Groq, OpenRouter). Sign in with the
 company's account and create a key; some ask for billing first.
 
-In VENTHORA: paste the key for that provider and press **Save**, then **Test**. The key is kept write-only: VENTHORA
+In VENTHORA: paste the key for that provider, press **Test connection**, then **Save**. The key is kept write-only: VENTHORA
 shows only its last 4 characters. VENTHORA's rules work without a model; the model only reads documents and explains.
 
 ### 1.3 Email Sync (required)
@@ -121,7 +121,8 @@ or people one by one. Someone else still approves it; email never pays by itself
 ### 1.4 Setup Checklist (required)
 
 Platform setup: what must be configured before VENTHORA can run. It checks that everything above is set and what is
-still a placeholder.
+still a placeholder. The **Edition · Demo mode** switch is on this page too: ON shows the developer view (Developer
+Console, Demo-Only, demo data), OFF the end-user view; only a Super admin switches it.
 
 ### 1.5 App Integration (optional)
 
@@ -474,8 +475,8 @@ Tools: **API Catalog**, **Local model (vLLM)**, **Server health**, **Data reset*
 
 ## B. Demo-Only
 
-Shown in demo mode only ("Until Demo Day"), in menu order: **Workflow**, **Autopilot Console**, **Checks & resilience**,
-**Hackathon evidence**, **Sandbox simulator**, **Test log**.
+Shown in demo mode only ("Until Demo Day"), in menu order: **Workflow**, **Video tutorial**, **Autopilot Console**, **Checks & resilience**,
+**Hackathon evidence**, **Sandbox simulator**, **Test log**, **Acme Finance ERP ↗**.
 
 ---
 

@@ -8,6 +8,12 @@ VENTHORA is an autonomous treasury agent for cross-border businesses, built on A
 
 **Live demo:** https://app-venthora.muwahid.org (the Airwallex sandbox; no real money moves). Run it yourself: [Quick start](#quick-start). Menu by menu: [How to Use VENTHORA](docs/WALKTHROUGH.md).
 
+**For judges, in five minutes:** the [video walkthrough](https://youtu.be/r6JKdr0MBeM) (full tour: [14 minutes](https://youtu.be/lNEL_iDV1y8));
+the [submission summary](docs/SUBMISSION.md); what each organiser requirement maps to: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md);
+the real-sandbox runs: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md); what was reviewed and what is still open:
+[docs/QA_REPORT_2026-11-15.md](docs/QA_REPORT_2026-11-15.md). The live server asks each company to sign in; on your own
+machine the Quick start runs without sign-in.
+
 ### On the screen for Kit 01
 
 - **Agent plan → Today's plan**: every payment due in the next 72 hours in one line-up, High priority first, against the cash above the
@@ -27,10 +33,10 @@ VENTHORA is an autonomous treasury agent for cross-border businesses, built on A
 | **Airwallex** | Balances, FX quotes and conversions, beneficiaries (schema, validation, name check), transfers, deposits, webhooks | **Live on the sandbox.** Every payment in the demo moves through it. Account opening and cards depend on what Airwallex has enabled for the sandbox account |
 | **Alta** | The audit-log head and every contract chain head anchored in one transaction (Platform Setup → Blockchain Record) | **Live on Alta Testnet** on the staging server since 16 Nov 2026 (the anchoring rule wrote its first transaction there the same night); test tokens only, money never moves on Alta |
 | **Xendit** | The holder's name of an Indonesian account before it is paid; payouts to Indonesian e-wallets (Platform Setup → Local Rails) | Sandbox. Without a Xendit key the name check answers as *simulated* and says so |
-| **Midtrans** | The connection (sandbox keys) and the list of rupiah collection products: QRIS, virtual accounts, cash at stores | **Connection only.** The products are marked *planned* on the page and collect nothing yet |
-| **Visa** | Agent Identity (TAP), Intelligent Commerce, the virtual card report, *Compare with Visa's daily rate* | **Sandbox calls live** on the staging server since 16 Nov 2026: Visa's connectivity check, Foreign Exchange Rates and Supplier Matching answer from Visa's sandbox (test data, said on the page). Agent Identity and Intelligent Commerce stay under *Developer · demo mode*; no card is charged |
+| **Midtrans** | The connection (sandbox keys) and the list of rupiah collection products: QRIS, virtual accounts, cash at stores | **Connection live on the staging server** (key accepted, a sandbox test charge made and settled, signed notifications checked). The products are still marked *planned* on the page and collect nothing yet |
+| **Visa** | Agent Identity (TAP), Intelligent Commerce, the virtual card report, *Compare with Visa's daily rate* | **Sandbox calls live** on the staging server since 16 Nov 2026: Visa's connectivity check, Foreign Exchange Rates and Supplier Matching answer from Visa's sandbox (test data, said on the page). Agent Identity and Intelligent Commerce are set up under *Developer Console*; no card is charged |
 | **AWS** | The live demo runs on EC2; Amazon Bedrock is one of the model providers under Platform Setup → Agent | Hosting is live; Bedrock is a selectable provider |
-| **Airwallex MCP** | A page under *Developer · demo mode* | **Not used for money.** VENTHORA calls REST behind typed methods, which the guide allows |
+| **Airwallex MCP** | A page under *Developer Console* | **Not used for money.** VENTHORA calls REST behind typed methods, which the guide allows |
 
 A page that is a demo or planned says so on the screen; nothing here is presented as more than it is.
 
@@ -110,11 +116,14 @@ not guessed. Airwallex is read at most every 20 s, and a webhook or new email cl
 moment a status changes.
 
 The vertical menu holds everything else:
-- Payment: agent plan, intake, commitment, pending payment, balance received, budget allocation, executions & incidents (with run reports).
-- Procurement Process: vendor sourcing and quotation.
-- Reporting: ten spending reports, Total Spending, books & ledger, period close.
-- Users & Beneficiaries: Head Quarter, country offices, branch offices and project finance units, people and roles, vendors, customers, payee lifecycle.
-- Platform Setup and System Setting: the Airwallex account, the AI model, integrations, unit prices, finance standards, Delegation of Authority, webhooks, and checks & resilience.
+- Payment: agent plan, intake, commitment, pending payment, balance received, budget allocation, executions & incidents (with run reports), e-wallet payouts.
+- Transfer: manual transfers from the Airwallex account (eight destinations).
+- Procurement Process: vendor sourcing, preferred vendors, quotation, shortlist, vendor list.
+- Reporting: eleven spending reports, Total Spending, books & ledger, period close.
+- Users & Beneficiaries: Head Quarter, country offices, branch offices and project finance units, people and roles, vendors, customers, payee lifecycle, charge codes.
+- Platform Setup: the Airwallex account, the AI model, email, integrations, cards, Visa, Airi, the blockchain record, local rails.
+- FCO Authorize: Delegation of Authority, payment priority policy, finance standards, admin team, period and document validation.
+- Developer Console and Demo-Only: the one-time technical setup (webhooks, Visa, Alta, T:0 ...) and the demo tools.
 
 **Recording the demo.** `http://localhost:8001/flow` is an animated map of the workflow for the video's opening.
 `python scripts/record_demo.py` records the dashboard part by itself: Microsoft Edge at 1920x1080 runs the operations
@@ -247,7 +256,7 @@ Checked live on the Airwallex sandbox (29 Oct 2026, fresh stores) with three sup
 
 The reader's model is chosen on the dashboard, not in code:
 
-- **Rules only.** No model is used, and the deterministic readers decide alone. This is the default.
+- **Rules only.** With no model saved, the deterministic readers decide alone. This is the default.
 - **Self-hosted model.** Any OpenAI-compatible server at any address: Qwen on this laptop
   (`python scripts/local_llm_server.py --port 8003`), a GPU machine elsewhere, vLLM, Ollama or LM Studio. You enter
   the server address, the model name and an optional token.
@@ -312,7 +321,7 @@ memory was in use.
 python scripts/import_ecb.py                                   # real FX history for Horizon (once)
 python scripts/local_llm_server.py --port 8003                 # optional: local LLM (needs torch + transformers)
 venthora-sandbox --fake --approve "Dana"                       # offline, in-process fake sandbox
-venthora-sandbox --deposit 1000000 --approve "Dana"            # real Airwallex sandbox (.env credentials)
+venthora-sandbox --receipt --approve "Dana"                    # real Airwallex sandbox (.env credentials)
 ```
 
 One command runs the steps below and writes a JSON run report to `data/runs/`:
@@ -340,7 +349,7 @@ python scripts/real_suite.py --approve "Dana"
 ```
 
 Starts the service, then runs on fresh books: the Kit 01 cycle, the Kit 03 incident, the intake of the five external
-emails, both ground-truth suites (84 cases through the live service + the execution anomalies a real rail can reproduce),
+emails, the ground-truth suites (cases through the live service + the execution anomalies a real rail can reproduce),
 the budget suite and the budget-mandate cycle, the Rego mirror on a real OPA and the oracle audit — stopping at the first
 failure and writing [`docs/REAL_SUITE.md`](docs/REAL_SUITE.md). Last run: 8 / 8 steps (23 Oct 2026). `--fresh` on
 `venthora-sandbox` / `venthora-intake` repeats a cycle under new ids; `--from N` resumes the suite.
@@ -371,7 +380,7 @@ waiting for the next poll. VENTHORA treats the push as a doorbell, never as the 
 The dashboards subscribe to `GET /api/stream` (server-sent events), so each confirmed event appears on the Overview and
 as a toast the moment it is re-read. To receive real events, expose the server on a public HTTPS address (a deployed
 host, or a tunnel such as ngrok for testing). Then add `https://<host>/webhooks/airwallex` under Developer → Webhooks in
-the sandbox web app and put its secret in `.env`. The checklist is on the dashboard under *Webhooks & integrations*.
+the sandbox web app and put its secret in `.env`. The checklist is on the dashboard under *Developer Console → Airwallex webhooks*.
 
 **Never point a tunnel at the API itself.** The API has no login, so a tunnel goes to the webhook-only gateway. The
 gateway forwards `POST /webhooks/airwallex` with its raw body and the two signature headers, and answers `404` to
@@ -454,16 +463,16 @@ Real FX stress: `python scripts/import_ecb.py`, then send `"use_ecb_stress": tru
 
 Two more pages:
 
-* **Airwallex account** (Platform Setup → Airwallex Account). Paste the client ID and API key (Airwallex → Developer → API keys): VENTHORA logs in once
+* **Airwallex account** (Platform Setup → Airwallex Global Account). Paste the client ID and API key (Airwallex → Developer → API keys): VENTHORA logs in once
   to check them, keeps them on this machine (never shown again, only their last four characters), and uses them
-  instead of `.env`. **Don't have an account yet?** opens the form right below: a company or a person, the
+  instead of `.env`. **Open New Account** opens the form right below: a company or a person, the
   country, a contact and the two agreements; VENTHORA opens the account through Airwallex's connected-accounts API
   (status CREATED), lists it, and submits it for Airwallex's verification. The same call works in production by
   changing `AIRWALLEX_BASE_URL`; Airwallex must have enabled account opening on the platform account (until then the
   form shows Airwallex's own refusal). Receiving accounts (Airwallex Global Accounts) live in **Payment → Balance received → Receiving accounts**: the
   bank details per currency with Copy and a ready-to-send payment instruction for customers, the deposits that
   arrived in each, and a question before opening a second account for the same currency and country. VENTHORA executes on the sandbox.
-* **Admin team** (Users & Beneficiaries → Admin team). The **super admin** is the FCO at head quarters: sees and may do everything. An **HQ admin** works
+* **Admin team** (FCO Authorize → Admin team). The **super admin** is the FCO at head quarters: sees and may do everything. An **HQ admin** works
   company-wide; a **country office**, **branch** or **project finance admin** works only in its own unit and the
   units under it, and gives only roles below its own (refused otherwise, with the reason). The page lists every
   kind of account (CFO, finance manager, country finance lead, project accountant, treasury analyst, requester,
@@ -482,7 +491,7 @@ Two more pages:
 
 The side menu shows only its main items:
 
-- **Dashboard** and **Workflow**.
+- **Dashboard**.
 - **Payment**:
   - Agent plan: today's plan, the transaction log with each plan's proof, and the Autopilot Console.
   - Intake: purchase requests, purchase orders (the Commitments register), consultants and resource persons, travel
@@ -492,36 +501,47 @@ The side menu shows only its main items:
   - Balance received.
   - Budget allocation.
   - Executions & incidents: everything that waits for a person (payroll changes included), and the run reports.
+  - E-wallet payouts.
+- **Transfer** (manual, from the Airwallex account): to another Airwallex account, to the card account, to a Visa
+  virtual card, to the Airi card, to a local bank in Indonesia, to Xendit, to Midtrans, to an international bank.
 - **Procurement Process**:
   - Vendor Sourcing: for a purchase request from Intake the agent finds vendors (registered ones, and online through
     the AI model's web search or the demo directory); a person sends the request for quotation, and each vendor gets
     its own form link (company and bank details, every specification with a remark, brand, price, delivery, validity,
     the quotation document).
-  - Quotation: one row per vendor per request. The recommendation is the cheapest quotation that meets every
-    specification (and the brand, when the request names one); *Check remarks with the model* catches a ticked
-    specification its remark contradicts. A person approves (outside the recommendation only with a reason); the
-    approval registers the vendor as NEW until its call-back, raises the PO, marks the request ORDERED and queues the PO
-    and regret emails.
+  - Preferred Vendor: every supplier that quoted, with its own number, asked first next time.
+  - Quotation: one row per vendor per request, with a ranking and a conclusion per request. The recommendation is the
+    cheapest quotation that meets every specification (and the brand, when the request names one); *Check remarks with
+    the model* catches a ticked specification its remark contradicts. A person approves (outside the recommendation
+    only with a reason).
+  - Shortlist.
+  - Vendor List: the PO threshold; a draft purchase order above it, a direct purchase below it, and the steps to payment.
 - **Reporting**:
-  - Ten reports: payroll, fringe benefits, goods and services, operation, cash advance, travel and transport, other
-    direct cost, FX and transfer costs (with *Compare with Visa's daily rate*), contract blockchain, virtual card (Visa).
+  - Eleven reports: payroll, fringe benefits, goods and services, operation, cash advance, travel and transport, other
+    direct cost, FX and transfer costs (with *Compare with Visa's daily rate*), contract blockchain, virtual card
+    (Visa), spending per staff.
   - Total Spending (spending and commitments, and against budget), Books & ledger, Period close.
-- **Users & Beneficiaries**: offices and units, people and roles, consultants, vendors, customers, payee lifecycle,
-  projects and accounts, admin team.
-- **Platform Setup**, in setup order. *Required*: 1 Airwallex Global Account, 2 Airwallex webhooks, 3 Agent
-  (AI & Model), 4 Email Sync, 5 Setup Checklist. *Optional*: App Integration, API Catalog (a public, read-only
-  developer page to share: `/developers`, with OpenAPI and Postman files), Airwallex Cards, Card Authorization.
-  *Developer · demo mode*: Visa Agent Identity (TAP), Visa Intelligent Commerce, Airwallex MCP, Blockchain Record on Alta (testnet anchoring).
+- **Users & Beneficiaries**: branches, units and country offices, people and roles, consultants, vendors, customers,
+  payee lifecycle, projects and accounts, charge codes.
+- **Platform Setup**, in setup order. *Required*: 1 Airwallex Global Account, 2 Agent (AI & Model), 3 Email Sync,
+  4 Setup Checklist. *Optional*: App Integration, Airwallex Cards, Visa controls, Airi usage, Blockchain Record,
+  Local Rails.
+- **FCO Authorize** (the FCO only): 1 Delegation of Authority, 2 Standard Payment Priority Policy, 3 Finance
+  standards, 4 Admin team, 5 Placement providers, 6 Period, cut-off & sync, 7 Document validation.
+- **System Setting** (optional): Dataset upload, Unit prices.
+- **Developer Console** (one-time technical setup): 1 Airwallex platform, 2 Airwallex webhooks, 3 Airwallex MCP,
+  4 Visa (VIC credentials), 5 Visa Agent Identity (TAP), 6 Airi (CLI), 7 Alta (testnet anchoring), 8 Local Rails
+  (keys), 9 T:0 (books), 10 Placement connections; *Tools*: API Catalog (a public, read-only developer page to share:
+  `/developers`, with OpenAPI and Postman files), Local model (vLLM), Server health, Data reset.
+- **Demo-Only** (until Demo Day): Workflow, Video tutorial, Autopilot Console (the agent's own end-to-end run on the
+  live wallet), Checks & resilience, Hackathon evidence (`#/evidence`: each organiser guide item and the screen that
+  proves it), Sandbox simulator, Test log, Acme Finance ERP.
 
 **Two views, one switch (Platform Setup → Setup Checklist → Edition · Demo mode).** Demo mode **ON is the developer
-view** (the alpha-sandbox): every menu, with Workflow, the technical setup, *Tools & evidence* and the demo buttons and
-data. **OFF is the end-user view** (the real version): only what the finance team and its admin use, and the demo
-endpoints answer 404. Only a Super admin switches it, every switch is in the audit chain, and a server started with
+view** (the alpha-sandbox): every menu, with the Developer Console, Demo-Only and the demo buttons and data. **OFF is
+the end-user view** (the real version): only what the finance team and its admin use, and the demo endpoints answer
+404. Only a Super admin switches it, every switch is in the audit chain, and a server started with
 `VENTHORA_EDITION=production` keeps it off.
-- **System Setting**, in setup order. *Required*: 1 Finance standards, 2 Delegation of Authority, 3 Period, cut-off &
-  sync, 4 Document validation, 5 Standard Payment Priority Policy. *Optional*: Dataset upload, Unit prices.
-  *Tools & evidence*: the **Autopilot Console** (the agent's own end-to-end run on the live wallet), Checks &
-  resilience, and Hackathon evidence (`#/evidence`: each organiser guide item and the screen that proves it).
 
 A group opens below
 its item on hover, or on a click or tap; one at a time, and the group of the page in view stays marked. A group
@@ -559,7 +579,7 @@ This was run end to end on a fresh install against the Airwallex sandbox: sync, 
 
 ## Document validation: the finance checks before anything is payable
 
-**System Setting → Document validation** decides what an invoice, a contractor claim, a staff expense claim or a
+**FCO Authorize → Document validation** decides what an invoice, a contractor claim, a staff expense claim or a
 bank-detail letter must prove. Ticked documents are mandatory per kind (invoice, tax invoice / faktur pajak,
 receipt / kwitansi, PO copy, delivery note / surat jalan, goods received note / BAST, quotation, contract / SPK,
 timesheet, statement, bank letter, tax registration, business licence, travel documents, expense report). Every
@@ -606,7 +626,7 @@ refuses the run before money moves; the executor's record names the termin each 
 
 ## Budget allocation: checked again when money moves
 
-**Payment → Budget allocation** holds the first two pages; the third is **System Setting → Period, cut-off & sync**:
+**Payment → Budget allocation** holds the first two pages; the third is **FCO Authorize → Period, cut-off & sync**:
 
 | Page | What it sets |
 |---|---|
@@ -633,7 +653,7 @@ replace them with the company's own records; every record keeps its source (`syn
 | Page | What it does |
 |---|---|
 | **Setup Checklist** (Platform Setup) | Lists everything VENTHORA needs (credentials, vendors and bank details, POs, open bills, customers and receivables, budget, tenant books, mailboxes, AI model) and marks each one *real*, *placeholder* or *missing*, with a link to fix it |
-| **Sync API** (Platform Setup → App Integration) | A generic REST/JSON connector to the old application: base URL, auth (none, bearer, basic, custom header; the secret is write-only), and per entity a path, the list inside the response and a field mapping (`"target": "source.path\|transform"`, transforms `major`, `int`, `upper`, `lower`, `nospace`, `date`, `split`, constants as `=VALUE`). *Dry run* reports what would change; *Sync now* writes it |
+| **Sync API** (Platform Setup → App Integration) | A generic REST/JSON connector to the old application: base URL, auth (none, bearer, basic, custom header; the secret is write-only), and per entity a path, the list inside the response and a field mapping (`"target": "source.path\|transform"`, transforms `major`, `int`, `upper`, `lower`, `nospace`, `date`, `split`, constants as `=VALUE`). *Dry run* reports what would change; *Read now* writes it |
 | **Dataset upload** (System Setting) | When there is no API: CSV, Excel or PDF, several files at once (each with its own mapping, or *Commit all*). Columns are matched to fields by synonyms (or by the configured model, which may only pick real column names); PDF tables are read from the text layer, and rows a model extracts are kept only where each value occurs in the PDF. Preview shows cleaned and rejected rows; nothing is written until Commit |
 | **Email Sync** (Platform Setup) | The inbound addresses VENTHORA reads and what each takes (supplier invoices, staff claims, remittances). Mail that reaches the wrong address, or one not listed, is flagged and waits for a person |
 
@@ -650,11 +670,11 @@ Sync and upload share one validation pipeline, with the same safeguards as manua
 * receivables and customer payment history feed collections; budget lines and tenant books replace the file versions for their period or tenant.
 
 The demo server includes a stand-in ERP (`/demo/legacy-erp/*`, fake data in [`data/demo_legacy_erp.json`](data/demo_legacy_erp.json))
-and a connector already pointed at it, so **Platform Setup → App Integration → Sync API → Sync now** shows the whole flow.
+and a connector already pointed at it, so **Platform Setup → App Integration → Sync API → Read now** shows the whole flow.
 
 ## API
 
-Every endpoint (115 at the time of writing) is listed in **Platform Setup → App Integration → API access**, grouped by area with the scope
+Every endpoint is listed in **Platform Setup → App Integration → API access**, grouped by area with the scope
 an API key needs, and in `/openapi.json` and the interactive `/docs`.
 
 **Other applications** call VENTHORA with an API key created on that page:
@@ -708,7 +728,7 @@ pytest -q
 ruff check src tests scripts
 ```
 
-Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,158 passed,
+Both are set to run on every push (`.github/workflows/ci.yml`). The last full run on the development machine: **1,161 passed,
 0 failed**, no expected failures and 12 skipped, in about eleven minutes.
 
 - **The sample company.** VENTHORA ships blank (one head office, one Super admin). The suite sets
@@ -725,12 +745,12 @@ The tests cover:
 
 - **Budget · mandate** (`data/budgets.json`, `proofcore/budget.py`, `tests/test_budget.py`): the period's plan per line is the agent's mandate — Theorem never proposes beyond a line, what does not fit becomes a budget request with the exact shortfall, auto share / alert threshold / signed bypass decide when a person is needed (Python and Rego), realized spend and grants come from the execution store; 20 hand-derived cases, and real-sandbox cycle 8
 - **finance controls** (`proofcore/match.py`, `proofcore/budget.py`, `execution/store.py`, `tests/test_controls.py`): instalments (deposit then balance under a per-instalment duplicate lock, never past the contract total), three-way match (contract − paid so far vs the claim; over-claims beyond tolerance need a person), period cut-off (carry-forward, late-posted, a closed period's statement), and reconciliation cases that lock the book until a person closes them; 18 hand-derived cases
-- **reporting periods** (`reporting.py`, `tests/test_reporting.py`): the admin's cut-off (day, time, timezone) decides which month a document reports in; payments are booked to the month of their payment instant; invoice statements reconcile an instalment invoice only when its parts add up; every currency is consolidated to the admin's reporting currency at recorded closing rates; 18 hand-derived cases
+- **reporting periods** (`reporting.py`, `tests/test_reporting.py`): the admin's cut-off (day, time, timezone) decides which month a document reports in; payments are booked to the month of their payment instant; invoice statements reconcile an instalment invoice only when its parts add up; every currency is consolidated to the admin's reporting currency at recorded closing rates; 19 hand-derived cases
 - **the book ledger** (`ledger.py`, `tests/test_ledger.py`): double-entry per book on a shared wallet — a book never spends another book's money (refused before money moves), every entry balanced per currency, the wallet's movement explained by every book's cash lines so a resume or an overlapping book is never a false discrepancy; 15 hand-derived cases, real-sandbox cycle 12
 - **limits and velocity** (`proofcore/limits.py`, `tests/test_limits.py`): a single payout, a payee per period, a first payment to a new payee, rolling daily / weekly outflow — from the books' own history, each reason named, Python and Rego; 18 hand-derived cases, real-sandbox cycle 13. The three tiers of autonomy are in [`docs/AUTONOMY_MAP.md`](docs/AUTONOMY_MAP.md)
 - **payee lifecycle** (`src/venthora/payees.py`, `tests/test_payees.py`): NEW → VERIFIED → ACTIVE; a bank change (from an email, the portal or the API) stops every payment until a finance manager's call-back **on the registered number**, then a cooling period in which every payment needs a person, then one approved payment before the agent pays alone again; 32 hand-derived cases, real-sandbox cycle 14
 - **approval matrix, four-eyes** (`proofcore/approvals.py`, `tests/test_approvals.py`): tiers by amount and by reason code decide how many different people, in which roles, must approve a plan that stopped; the executor refuses one approval where two are needed, the same person twice, a wrong role, other terms, and the requester approving their own plan; 26 hand-derived cases, real-sandbox cycle 15
-- **FX exposure limits** (`proofcore/fx_exposure.py`, `tests/test_fx_exposure.py`): an open-position cap per currency on what a plan leaves in the wallet, a daily cap on base sold in conversions (from the journal, every book), a minimum hedge ratio against the foreign obligations due inside the horizon; Python and Rego; 20 hand-derived cases, real-sandbox cycle 16
+- **FX exposure limits** (`proofcore/fx_exposure.py`, `tests/test_fx_exposure.py`): an open-position cap per currency on what a plan leaves in the wallet, a daily cap on base sold in conversions (from the journal, every book), a minimum hedge ratio against the foreign obligations due inside the horizon; Python and Rego; 21 hand-derived cases, real-sandbox cycle 16
 - **invoice aging and dunning** (`src/venthora/aging.py`, `tests/test_aging.py`): aging buckets per payee from the book's date, late interest accrued and projected, reminders read from the inbox (a final notice for an invoice already in the book raises its level, never a second payable); an item overdue beyond the escalation days, a final notice, or an interest exposure above its cap left unpaid stops the plan for a person; 30 hand-derived cases, real-sandbox cycle 17
 - **book and tenant segregation** (`src/venthora/tenancy.py`, `data/tenants.json`, `tests/test_tenancy.py`): tenants own books (exact ids or patterns) with their allowed payees, named approvers and policy overrides; an unknown book under a strict registry is blocked, a payee outside the tenant is escalated and never paid, only the book's people may sign, and the dashboard's tenant view shows every book with its executions and ledger cash; 24 hand-derived cases, real-sandbox cycle 18
 - **ground truth** ([`docs/GROUND_TRUTH.md`](docs/GROUND_TRUTH.md)): 323 cases whose answers were derived by hand from the rules — 54 rule cases (`scripts/make_groundtruth.py`) and **46 anomalies, the organizers' own failure modes from the smallest to the largest** (`scripts/make_anomaly_groundtruth.py`) — reproduced in-process, through the HTTP endpoints (`scripts/groundtruth_bench.py`) and through the dashboard's `Submit a case` form, with latency on each path
@@ -743,7 +763,7 @@ The tests cover:
 - differentiators: incremental recalculation (locked decisions, full fallback, diff), counterfactual proof, AI challenger blocked or approved by the same gate
 - original engines: unmodified-hash check, Horizon M0 stress flowing into the plan, Theorem leg netting, Verity accepting a cited delay and rejecting invented figures, invented quotes and embargoed email, lexicon fallback, and an end-to-end CLI run
 - safety: duplicate-payment defense, remote engines that try to approve rejected invoices, fail-closed behavior, audit-chain tamper detection
-- execution against a stateful fake Airwallex sandbox ([`tests/fake_airwallex.py`](tests/fake_airwallex.py)), which models single-use quotes, `duplicate_request_id`, the EUR 12.85 SWIFT fee, the transfer lifecycle and refunds:
+- execution against a stateful fake Airwallex sandbox ([`src/venthora/testing/fake_airwallex.py`](src/venthora/testing/fake_airwallex.py)), which models single-use quotes, `duplicate_request_id`, the EUR 12.85 SWIFT fee, the transfer lifecycle and refunds:
   - end-to-end conversion and payout with reconciliation
   - approval rules and plan-hash binding
   - slippage abort before booking
@@ -795,7 +815,7 @@ deployment: [docs/QUALITY.md](docs/QUALITY.md). In short:
   ledger, payroll or treasury position.
 - **ISO 20022**: `GET /v1/iso20022/pain.001` gives a day's payments as a credit transfer initiation, and
   `POST /v1/iso20022/camt.053` reconciles a bank statement with them by `EndToEndId` (`iso20022.py`). Every
-  `pain.001` is validated against the official ISO 20022 XSD (`schemas/pain.001.001.09.xsd`, from iso20022.org)
+  `pain.001` is validated against the official ISO 20022 XSD (`src/venthora/schemas/pain.001.001.09.xsd`, from iso20022.org)
   before it leaves, and says so in `X-ISO20022-Schema`; a statement is checked against its own version's schema.
 - **Operations**: backup, verified restore and what to do in an incident are in [docs/OPERATIONS.md](docs/OPERATIONS.md);
   `scripts/backup_stores.py` takes the backup while the service runs.
@@ -809,7 +829,7 @@ deployment: [docs/QUALITY.md](docs/QUALITY.md). In short:
 
 ## What changed after the video was recorded
 
-The video shows the product as it was when recorded. Since then, on 14–15 Nov 2026:
+The video shows the product as it was when recorded. Since then, on 14–16 Nov 2026:
 
 | Area | Change |
 |---|---|
@@ -819,7 +839,7 @@ The video shows the product as it was when recorded. Since then, on 14–15 Nov 
 | Security | Security headers, Secure cookies and HSTS over HTTPS, a rate limit per address, an optional second factor for sign-in |
 | Standards | A day's payments as ISO 20022 `pain.001`, a `camt.053` statement reconciled; a backup script with a tested restore; a control map (`docs/QUALITY.md`) |
 | Names | The blockchain sponsor is **Alta** (the video and some code names still say Metal) |
-| Sponsors on the live server (16 Nov) | Alta Testnet anchoring live; Visa's sandbox answers the connectivity check, FX rates and Supplier Matching; the Airi CLI is installed (sign-in is the company's own); Midtrans sandbox: a BCA virtual-account charge created and settled; `/webhooks/midtrans` accepts a correctly signed notification and refuses a forged one |
+| Sponsors on the live server (16 Nov) | Alta Testnet anchoring live; Visa's sandbox answers the connectivity check, FX rates and Supplier Matching; the Airi CLI is installed (sign-in is the company's own); Midtrans sandbox: a test charge (BCA virtual account) created and settled, the products still planned on the page; `/webhooks/midtrans` accepts a correctly signed notification and refuses a forged one |
 | Requests by email | A request for cash is accepted only from the organisation's own email, approved by the FCO's email or the FCO's approval forwarded in it, numbered by the email or by VENTHORA, allocated when green and paid at 23:59 company time on a card, with a card link that asks for the authenticator code. A purchase request by email keeps its number, asks five vendors and is awarded by a fixed rule (every specification before price) |
 | Procurement | Preferred vendors (every supplier that quoted, with its own number, asked first next time), a ranking and conclusion per request, a vendor list with a PO threshold: a draft purchase order above it, a direct purchase below it, and the steps to payment |
 | Continuity | A writer lease the executor checks before money moves, safe mode, a takeover that first locks what the bank already paid; a design with code and tests, no standby running ([docs/CONTINUITY.md](docs/CONTINUITY.md)) |
@@ -837,7 +857,7 @@ The video shows the product as it was when recorded. Since then, on 14–15 Nov 
 - [x] Treasury dashboard for the demo video (`python scripts/demo_server.py`), storyboard and narration in docs/
 - [x] Finance controls: budget mandate, book ledger, reporting periods, limits and velocity, payee lifecycle, approval matrix, FX exposure, aging and dunning, tenant segregation; 323 ground-truth cases in 12 suites
 - [x] Local Rails (Xendit, Midtrans connection), the 72-hour payment line-up, the review form with the vendor and FCO email histories
-- [x] Record the video walkthrough (a five-minute cut, and a full 14-minute tour)
+- [x] Record the video walkthrough (4:58, and a full 14-minute tour)
 - [ ] Submit on HackerEarth
 
 Status against the organizers' criteria: [docs/HACKATHON_COMPLIANCE.md](docs/HACKATHON_COMPLIANCE.md). Adversarial audit, oracle hunt and known limitations: [docs/AUDIT.md](docs/AUDIT.md). What is new, and what is not: [docs/INNOVATION.md](docs/INNOVATION.md). Real sandbox runs, findings and timings: [docs/SANDBOX_RESULTS.md](docs/SANDBOX_RESULTS.md).
