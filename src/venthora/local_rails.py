@@ -192,6 +192,39 @@ def midtrans_signature_ok(n: dict) -> bool:
     return secrets.compare_digest(want, str(n.get("signature_key") or ""))
 
 
+def _amount(v) -> str:
+    try:
+        return f"{float(str(v)):.2f}"
+    except ValueError:
+        return ""
+
+
+def midtrans_verify(n: dict, client: httpx.Client | None = None) -> dict:
+    """Is this notification Midtrans' own? By its signature with VENTHORA's server key, or, when Midtrans signed it with
+    another of the merchant's server keys, by reading the order back from Midtrans with VENTHORA's key: the same order,
+    status and amount must be there. Returns {ok, how, reason}; nothing is trusted from the body alone."""
+    key = secret_values.get(MT_SERVER, MT_SERVER_ENV)
+    if not key:
+        return {"ok": False, "how": None, "reason": "no server key set"}
+    if midtrans_signature_ok(n):
+        return {"ok": True, "how": "signature", "reason": None}
+    order = str(n.get("order_id") or "")
+    if not order or len(order) > 64 or not all(c.isalnum() or c in "-_.~" for c in order):
+        return {"ok": False, "how": None, "reason": "signature wrong and no readable order id"}
+    try:
+        r = (client or httpx).get(f"{MT_API}/v2/{order}/status", auth=(key, ""), headers={"Accept": "application/json"}, timeout=15)
+        s = r.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        return {"ok": False, "how": None, "reason": f"signature wrong and Midtrans could not be read: {type(exc).__name__}"}
+    if str(s.get("status_code")) == "404" or r.status_code == 404:
+        return {"ok": False, "how": None, "reason": "signature wrong and the order does not exist at Midtrans"}
+    same = (s.get("order_id") == order and s.get("transaction_status") == n.get("transaction_status")
+            and _amount(s.get("gross_amount")) == _amount(n.get("gross_amount")))
+    if same:
+        return {"ok": True, "how": "read back from Midtrans", "reason": None}
+    return {"ok": False, "how": None, "reason": "signature wrong and Midtrans reports a different status or amount"}
+
+
 def view(org, xendit_settings: dict) -> dict:
     ch = chosen(org)
     provs = {}

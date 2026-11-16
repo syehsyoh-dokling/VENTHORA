@@ -8363,18 +8363,25 @@ async def provider_test(provider: str):
 
 @app.post("/webhooks/midtrans", include_in_schema=True)
 async def midtrans_webhook(request: Request):
-    """Midtrans' payment notification, verified by its signature_key (SHA-512 with the server key) and recorded."""
-    from . import local_rails
+    """Midtrans' payment notification, verified by its signature_key (SHA-512 with the server key) or, when Midtrans
+    signed it with another of the merchant's keys, by reading the order back from Midtrans; recorded either way."""
+    from . import local_rails, secret_values
 
     try:
         n = await request.json()
     except ValueError as exc:
         raise HTTPException(400, "not JSON") from exc
-    if not await asyncio.to_thread(local_rails.midtrans_signature_ok, n):
-        raise HTTPException(401, "signature missing or wrong")
-    await asyncio.to_thread(app.state.audit.append, "midtrans_notification", {k: n.get(k) for k in (
-        "order_id", "transaction_status", "payment_type", "gross_amount", "currency", "transaction_time")})
-    return {"received": True}
+    if not isinstance(n, dict):
+        raise HTTPException(400, "not a notification")
+    fields = {k: str(n.get(k))[:80] if n.get(k) is not None else None for k in (
+        "order_id", "transaction_status", "payment_type", "gross_amount", "currency", "transaction_time")}
+    v = await asyncio.to_thread(local_rails.midtrans_verify, n)
+    if not v["ok"]:
+        if await asyncio.to_thread(secret_values.get, local_rails.MT_SERVER, local_rails.MT_SERVER_ENV):  # only the company that uses Midtrans keeps the refusal
+            await asyncio.to_thread(app.state.audit.append, "midtrans_notification_refused", fields | {"reason": v["reason"]})
+        raise HTTPException(401, f"not verified: {v['reason']}")
+    await asyncio.to_thread(app.state.audit.append, "midtrans_notification", fields | {"verified_by": v["how"]})
+    return {"received": True, "verified_by": v["how"]}
 
 
 class XenditTopupIn(BaseModel):

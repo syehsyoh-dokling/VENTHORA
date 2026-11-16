@@ -73,6 +73,27 @@ def test_notification_signature():
     assert not lr.midtrans_signature_ok(n | {"gross_amount": "1.00"})
 
 
+def test_a_notification_signed_with_another_merchant_key_is_read_back_from_midtrans():
+    secret_values.put(lr.MT_SERVER, "SB-Mid-server-abc", "dev")
+    n = {"order_id": "INV-1", "status_code": "200", "gross_amount": "15000.00", "transaction_status": "settlement",
+         "signature_key": hashlib.sha512(b"INV-120015000.00SB-Mid-server-OTHER").hexdigest()}
+    seen = []
+
+    def midtrans(req):
+        seen.append(str(req.url))
+        return httpx.Response(200, json={"status_code": "200", "order_id": "INV-1", "transaction_status": "settlement", "gross_amount": "15000.00"})
+
+    v = lr.midtrans_verify(n, httpx.Client(transport=httpx.MockTransport(midtrans)))
+    assert v == {"ok": True, "how": "read back from Midtrans", "reason": None} and seen[0].endswith("/v2/INV-1/status")
+    other = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"status_code": "201", "order_id": "INV-1", "transaction_status": "pending", "gross_amount": "15000.00"})))
+    assert not lr.midtrans_verify(n, other)["ok"]  # the body says settled, Midtrans says pending: refused
+    missing = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(404, json={"status_code": "404"})))
+    assert "does not exist" in lr.midtrans_verify(n, missing)["reason"]
+    assert "order id" in lr.midtrans_verify(n | {"order_id": "../../v2/charge"})["reason"]  # never a path of the caller's choosing
+    good = n | {"signature_key": hashlib.sha512(b"INV-120015000.00SB-Mid-server-abc").hexdigest()}
+    assert lr.midtrans_verify(good)["how"] == "signature"  # no call to Midtrans needed
+
+
 def test_keys_are_the_developers_products_the_fcos():
     assert access.check("super_admin", "PUT", "/v1/providers/midtrans")[0] in (403, 404)
     assert access.check("developer", "PUT", "/v1/local-rails/products")[0] == 403
